@@ -11,7 +11,9 @@ type Value interface {
 	ToFloat(path String) Float
 	ToString(path String) String
 	ToTimestamp(path String) Timestamp
+	Array() Array
 	ToArray(path String) Array
+	Map() Map
 	ToMap(path String) Map
 }
 
@@ -60,51 +62,83 @@ func (i Int) Type() TypeID {
 	return TypeInt
 }
 
-func (v Value) ToInt(path string) (Value, error) {
+func (f Float) Type() TypeID {
+	return TypeFloat
+}
+
+func (s String) Type() TypeID {
+	return TypeString
+}
+
+func (b Blob) Type() TypeID {
+	return TypeBlob
+}
+
+func (t Timestamp) Type() TypeID {
+	return TypeTimesamp
+}
+
+func (a Array) Type() TypeID {
+	return TypeArray
+}
+
+func (m Map) Type() TypeID {
+	return TypeMap
+}
+
+func (m Map) ToInt(path string) (Int, error) {
 	var i Int
-	err := scan.ScanTree(v.toMapInterface(), path, &i)
+	err := scan.ScanTree(m.toMapInterface(), path, &i)
 	return i, err
 }
 
-func (v *Value) ToFloat(path string) (Value, error) {
+func (m Map) ToFloat(path string) (Float, error) {
 	var f Float
-	err := scan.ScanTree(v.toMapInterface(), path, &f)
+	err := scan.ScanTree(m.toMapInterface(), path, &f)
 	return f, err
 }
 
-func (v *Value) ToString(path string) (Value, error) {
+func (m Map) ToString(path string) (String, error) {
 	var s String
-	err := scan.ScanTree(v.toMapInterface(), path, &s)
+	err := scan.ScanTree(m.toMapInterface(), path, &s)
 	return s, err
 }
 
-func (v *Value) ToBlob(path string) (Value, error) {
+func (m Map) ToBlob(path string) (Blob, error) {
 	var b Blob
-	err := scan.ScanTree(v.toMapInterface(), path, &b)
+	err := scan.ScanTree(m.toMapInterface(), path, &b)
 	return b, err
 }
 
-func (v *Value) ToArray(path string) (Value, error) {
+func (a Array) Array() Array {
+	return a
+}
+
+func (m Map) ToArray(path string) (Array, error) {
 	var a Array
-	err := scan.ScanTree(v.toMapInterface(), path, &a)
+	err := scan.ScanTree(m.toMapInterface(), path, &a)
 	return a, err
 }
 
-func (v *Value) ToMap(path string) (Value, error) {
-	var m Map
-	err := scan.ScanTree(v.toMapInterface(), path, &m)
-	return m, err
+func (m Map) Map() Map {
+	return m
 }
 
-func (a Map) toArrayInterface() []interface{} {
+func (m Map) ToMap(path string) (Map, error) {
+	var mm Map
+	err := scan.ScanTree(m.toMapInterface(), path, &mm)
+	return mm, err
+}
+
+func (a Array) toArrayInterface() []interface{} {
 	t := []interface{}{}
 	for _, v := range a {
 		var e interface{}
 		switch v.Type() {
 		case TypeArray:
-			e = v.ToArray().toArrayInterface()
+			e = v.Array().toArrayInterface()
 		case TypeMap:
-			e = v.ToMap().toMapInterface()
+			e = v.Map().toMapInterface()
 		default:
 			e = v
 		}
