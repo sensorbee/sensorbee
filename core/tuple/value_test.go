@@ -138,36 +138,33 @@ func TestValue(t *testing.T) {
 		})
 	})
 
-	// TODO Blob test
-	/*
-		Convey("Get byte value from test data", t, func() {
-			x, err := testData.Get("byte")
+	Convey("Get byte value from test data", t, func() {
+		x, err := testData.Get("byte")
+		So(err, ShouldBeNil)
+
+		Convey("Cast byte value", func() {
+			_, err = x.Bool()
+			So(err, ShouldNotBeNil)
+			_, err = x.Int()
+			So(err, ShouldNotBeNil)
+			_, err = x.Float()
+			So(err, ShouldNotBeNil)
+			_, err = x.String()
+			So(err, ShouldNotBeNil)
+			b, err := x.Blob()
 			So(err, ShouldBeNil)
+			_, err = x.Timestamp()
+			So(err, ShouldNotBeNil)
+			_, err = x.Array()
+			So(err, ShouldNotBeNil)
+			_, err = x.Map()
+			So(err, ShouldNotBeNil)
 
-			Convey("Cast byte value", func() {
-				_, err = x.Bool()
-				So(err, ShouldNotBeNil)
-				_, err = x.Int()
-				So(err, ShouldNotBeNil)
-				_, err = x.Float()
-				So(err, ShouldNotBeNil)
-				_, err = x.String()
-				So(err, ShouldNotBeNil)
-				b, err := x.Blob()
-				So(err, ShouldBeNil)
-				_, err = x.Timestamp()
-				So(err, ShouldNotBeNil)
-				_, err = x.Array()
-				So(err, ShouldNotBeNil)
-				_, err = x.Map()
-				So(err, ShouldNotBeNil)
-
-				Convey("The value should be equal to test data", func() {
-					So(b, ShouldEqual, []byte("homhom"))
-				})
+			Convey("The value should be equal to test data", func() {
+				So(string(b), ShouldEqual, "madmad")
 			})
 		})
-	*/
+	})
 
 	Convey("Get timestamp value from test data", t, func() {
 		x, err := testData.Get("time")
