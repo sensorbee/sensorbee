@@ -63,7 +63,7 @@ func (this *DummySource) Schema() *Schema {
 
 type DummyBox struct{}
 
-func (this *DummyBox) Process(t *tuple.Tuple, s Sink) error {
+func (this *DummyBox) Process(t *tuple.Tuple, s Writer) error {
 	return nil
 }
 func (this *DummyBox) RequiredInputSchema() ([]*Schema, error) {
