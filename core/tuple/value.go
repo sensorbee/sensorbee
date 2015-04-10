@@ -333,6 +333,9 @@ func (a Array) toArrayInterface() []interface{} {
 	for idx, value := range a {
 		var element interface{}
 		switch value.Type() {
+		case TypeBlob:
+			b, _ := value.Blob()
+			element = &b
 		case TypeArray:
 			a, _ := value.Array()
 			element = a.toArrayInterface()
@@ -398,6 +401,9 @@ func (m Map) toMapInterface() map[string]interface{} {
 	t := make(map[string]interface{}, len(m))
 	for k, v := range m {
 		switch v.Type() {
+		case TypeBlob:
+			b, _ := v.Blob()
+			t[k] = &b
 		case TypeArray:
 			a, _ := v.Array()
 			t[k] = a.toArrayInterface()
