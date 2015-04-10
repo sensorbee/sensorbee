@@ -161,7 +161,7 @@ func TestValue(t *testing.T) {
 			So(err, ShouldNotBeNil)
 
 			Convey("The value should be equal to test data", func() {
-				So(string(b), ShouldEqual, "madmad")
+				So([]byte(b), ShouldResemble, []byte("madmad"))
 			})
 		})
 	})
@@ -198,7 +198,7 @@ func TestValue(t *testing.T) {
 
 	Convey("Get array value from test data", t, func() {
 		_, err := testData.Get("array")
-		So(err, ShouldNotBeNil) // TTODO expected not occur error
+		So(err, ShouldNotBeNil) // TODO expected not occur error
 		x, err := testData.Get("array[0]")
 
 		So(err, ShouldBeNil)
@@ -210,6 +210,11 @@ func TestValue(t *testing.T) {
 				So(s, ShouldEqual, "saysay")
 			})
 		})
+	})
+
+	SkipConvey("Get array from test data", t, func() {
+		_, err := testData.Get("array")
+		So(err, ShouldBeNil)
 	})
 
 }
@@ -240,5 +245,10 @@ func TestNestedValue(t *testing.T) {
 				So(sx, ShouldEqual, "homhom")
 			})
 		})
+	})
+
+	SkipConvey("Get map from test data", t, func() {
+		_, err := testData.Get("map")
+		So(err, ShouldBeNil)
 	})
 }
