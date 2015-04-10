@@ -201,7 +201,7 @@ func TestValue(t *testing.T) {
 
 	Convey("Get array value from test data", t, func() {
 		_, err := testData.Get("array")
-		So(err, ShouldNotBeNil) // TODO expected is nill
+		So(err, ShouldNotBeNil) // TTODO expected not occur error
 		x, err := testData.Get("array[0]")
 
 		So(err, ShouldBeNil)
@@ -217,7 +217,7 @@ func TestValue(t *testing.T) {
 
 }
 
-func TestNextedValue(t *testing.T) {
+func TestNestedValue(t *testing.T) {
 	var testData = Map{
 		"map": Map{
 			"string": String("homhom"),
@@ -230,7 +230,7 @@ func TestNextedValue(t *testing.T) {
 	})
 
 	Convey("Get nested value from test data", t, func() {
-		_, err := testData.Get("map")
+		_, err := testData.Get("map") // TODO expected not occur error
 		So(err, ShouldNotBeNil)
 		x, err := testData.Get("map/string")
 		So(err, ShouldBeNil)
