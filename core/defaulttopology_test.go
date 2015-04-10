@@ -125,6 +125,71 @@ func TestDefaultTopology(t *testing.T) {
 				So(err.Err(), ShouldNotBeNil)
 			})
 		})
+	})
 
+	Convey("Given a default topology builder with a source", t, func() {
+		tb := NewDefaultTopologyBuilder()
+		s := &DefaultSource{}
+		tb.AddSource("aSource", s)
+		b := &DefaultBox{}
+		tb.AddBox("aBox", b)
+		var err DeclarerError
+
+		Convey("when a new box references a non-existing item", func() {
+			err = tb.AddBox("otherBox", b).
+				Input("something", nil)
+			So(err, ShouldNotBeNil)
+			Convey("adding should fail", func() {
+				So(err.Err(), ShouldNotBeNil)
+			})
+		})
+
+		Convey("when a new box references an existing source", func() {
+			err = tb.AddBox("otherBox", b).
+				Input("aSource", nil)
+			So(err, ShouldNotBeNil)
+			Convey("adding should work", func() {
+				So(err.Err(), ShouldBeNil)
+			})
+		})
+
+		Convey("when a new box references an existing box", func() {
+			err = tb.AddBox("otherBox", b).
+				Input("aBox", nil)
+			So(err, ShouldNotBeNil)
+			Convey("adding should work", func() {
+				So(err.Err(), ShouldBeNil)
+			})
+		})
+
+		Convey("when a new box references multiple items", func() {
+			err = tb.AddBox("otherBox", b).
+				Input("aBox", nil).
+				Input("aSource", nil)
+			So(err, ShouldNotBeNil)
+			Convey("adding should work", func() {
+				So(err.Err(), ShouldBeNil)
+			})
+		})
+
+		Convey("when a new box references an existing source twice", func() {
+			err = tb.AddBox("otherBox", b).
+				Input("aSource", nil).
+				Input("aSource", nil)
+			So(err, ShouldNotBeNil)
+			Convey("adding should fail", func() {
+				So(err.Err(), ShouldNotBeNil)
+			})
+		})
+
+		Convey("when a new box references an existing box twice", func() {
+			err = tb.AddBox("otherBox", b).
+				Input("aBox", nil).
+				Input("aBox", nil)
+			So(err, ShouldNotBeNil)
+			Convey("adding should fail", func() {
+				So(err.Err(), ShouldNotBeNil)
+			})
+		})
 	})
 }

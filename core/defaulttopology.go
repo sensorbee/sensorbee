@@ -16,6 +16,12 @@ type DefaultTopologyBuilder struct {
 	sources map[string]Source
 	boxes   map[string]Box
 	sinks   map[string]Sink
+	Edges   []DataflowEdge
+}
+
+type DataflowEdge struct {
+	From string
+	To   string
 }
 
 func NewDefaultTopologyBuilder() TopologyBuilder {
@@ -23,6 +29,7 @@ func NewDefaultTopologyBuilder() TopologyBuilder {
 	tb.sources = make(map[string]Source)
 	tb.boxes = make(map[string]Box)
 	tb.sinks = make(map[string]Sink)
+	tb.Edges = make([]DataflowEdge, 0)
 	return &tb
 }
 
@@ -47,6 +54,13 @@ func (this *DefaultTopologyBuilder) checkName(name string) error {
 	return nil
 }
 
+// check if the given name is an existing box or source
+func (this *DefaultTopologyBuilder) IsValidOutputReference(name string) bool {
+	_, sourceExists := this.sources[name]
+	_, boxExists := this.boxes[name]
+	return (sourceExists || boxExists)
+}
+
 func (this *DefaultTopologyBuilder) AddSource(name string, source Source) SourceDeclarer {
 	// check name
 	if nameErr := this.checkName(name); nameErr != nil {
@@ -61,22 +75,22 @@ func (this *DefaultTopologyBuilder) AddSource(name string, source Source) Source
 func (this *DefaultTopologyBuilder) AddBox(name string, box Box) BoxDeclarer {
 	// check name
 	if nameErr := this.checkName(name); nameErr != nil {
-		return &DefaultBoxDeclarer{nameErr}
+		return &DefaultBoxDeclarer{err: nameErr}
 	}
 	// TODO check that declared schema is a valid JSON Schema string
 	// keep track of box
 	this.boxes[name] = box
-	return &DefaultBoxDeclarer{}
+	return &DefaultBoxDeclarer{this, name, box, nil}
 }
 
 func (this *DefaultTopologyBuilder) AddSink(name string, sink Sink) SinkDeclarer {
 	// check name
 	if nameErr := this.checkName(name); nameErr != nil {
-		return &DefaultSinkDeclarer{nameErr}
+		return &DefaultSinkDeclarer{nil, nil, nameErr}
 	}
 	// keep track of sink
 	this.sinks[name] = sink
-	return &DefaultSinkDeclarer{}
+	return &DefaultSinkDeclarer{this, sink, nil}
 }
 
 func (this *DefaultTopologyBuilder) Build() Topology {
@@ -96,11 +110,40 @@ func (this *DefaultSourceDeclarer) Err() error {
 /**************************************************/
 
 type DefaultBoxDeclarer struct {
-	err error
+	tb   *DefaultTopologyBuilder
+	name string
+	box  Box
+	err  error
 }
 
-func (this *DefaultBoxDeclarer) Input(name string, schema *Schema) BoxDeclarer {
-	return &DefaultBoxDeclarer{}
+func (this *DefaultBoxDeclarer) Input(refname string, schema *Schema) BoxDeclarer {
+	// if there was a previous error, do nothing
+	if this.err != nil {
+		return this
+	}
+	// if the name can't be used, return an error
+	if !this.tb.IsValidOutputReference(refname) {
+		err := fmt.Errorf("there is no box or source named '%s'", refname)
+		this.err = err
+		return this
+	}
+	// TODO check if given schema matches the referenced source or box
+	// check if this edge already exists
+	edge := DataflowEdge{refname, this.name}
+	edgeAlreadyExists := false
+	for _, e := range this.tb.Edges {
+		edgeAlreadyExists = edge == e
+		break
+	}
+	if edgeAlreadyExists {
+		err := fmt.Errorf("box '%s' is already connected to '%s'",
+			this.name, refname)
+		this.err = err
+		return this
+	}
+	// if not, store it
+	this.tb.Edges = append(this.tb.Edges, edge)
+	return this
 }
 
 func (this *DefaultBoxDeclarer) Err() error {
@@ -110,7 +153,9 @@ func (this *DefaultBoxDeclarer) Err() error {
 /**************************************************/
 
 type DefaultSinkDeclarer struct {
-	err error
+	tb   *DefaultTopologyBuilder
+	sink Sink
+	err  error
 }
 
 func (this *DefaultSinkDeclarer) Input(name string) SinkDeclarer {
