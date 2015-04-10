@@ -9,6 +9,7 @@ import (
 
 type Value interface {
 	Type() TypeID
+	Bool() (Bool, error)
 	Int() (Int, error)
 	Float() (Float, error)
 	String() (String, error)
@@ -20,7 +21,7 @@ type Value interface {
 
 // TODO: Provide NewMap(map[string]interface{}) Map
 
-func Error(from TypeID, to TypeID) error {
+func castError(from TypeID, to TypeID) error {
 	return errors.New(fmt.Sprintf("unsupported cast %v from %v", to.String(), from.String()))
 }
 
@@ -28,6 +29,7 @@ type TypeID int
 
 const (
 	TypeUnknown TypeID = iota
+	TypeBool
 	TypeInt
 	TypeFloat
 	TypeString
@@ -39,6 +41,8 @@ const (
 
 func (t TypeID) String() string {
 	switch t {
+	case TypeBool:
+		return "bool"
 	case TypeInt:
 		return "int"
 	case TypeFloat:
@@ -58,10 +62,52 @@ func (t TypeID) String() string {
 	}
 }
 
+type Bool bool
+
+func (b Bool) Type() TypeID {
+	return TypeBool
+}
+
+func (b Bool) Bool() (Bool, error) {
+	return b, nil
+}
+
+func (b Bool) Int() (Int, error) {
+	return 0, castError(b.Type(), TypeInt)
+}
+
+func (b Bool) Float() (Float, error) {
+	return 0, castError(b.Type(), TypeFloat)
+}
+
+func (b Bool) String() (String, error) {
+	return "", castError(b.Type(), TypeString)
+}
+
+func (b Bool) Blob() (Blob, error) {
+	return nil, castError(b.Type(), TypeBlob)
+}
+
+func (b Bool) Timestamp() (Timestamp, error) {
+	return Timestamp{}, castError(b.Type(), TypeTimestamp)
+}
+
+func (b Bool) Array() (Array, error) {
+	return nil, castError(b.Type(), TypeArray)
+}
+
+func (b Bool) Map() (Map, error) {
+	return nil, castError(b.Type(), TypeMap)
+}
+
 type Int int64
 
 func (i Int) Type() TypeID {
 	return TypeInt
+}
+
+func (i Int) Bool() (Bool, error) {
+	return false, castError(i.Type(), TypeBool)
 }
 
 func (i Int) Int() (Int, error) {
@@ -77,25 +123,29 @@ func (i Int) String() (String, error) {
 }
 
 func (i Int) Blob() (Blob, error) {
-	return nil, Error(i.Type(), TypeBlob)
+	return nil, castError(i.Type(), TypeBlob)
 }
 
 func (i Int) Timestamp() (Timestamp, error) {
-	return Timestamp{}, Error(i.Type(), TypeTimestamp)
+	return Timestamp{}, castError(i.Type(), TypeTimestamp)
 }
 
 func (i Int) Array() (Array, error) {
-	return nil, Error(i.Type(), TypeArray)
+	return nil, castError(i.Type(), TypeArray)
 }
 
 func (i Int) Map() (Map, error) {
-	return nil, Error(i.Type(), TypeMap)
+	return nil, castError(i.Type(), TypeMap)
 }
 
 type Float float64
 
 func (f Float) Type() TypeID {
 	return TypeFloat
+}
+
+func (f Float) Bool() (Bool, error) {
+	return false, castError(f.Type(), TypeBool)
 }
 
 func (f Float) Int() (Int, error) {
@@ -111,19 +161,19 @@ func (f Float) String() (String, error) {
 }
 
 func (f Float) Blob() (Blob, error) {
-	return nil, Error(f.Type(), TypeFloat)
+	return nil, castError(f.Type(), TypeFloat)
 }
 
 func (f Float) Timestamp() (Timestamp, error) {
-	return Timestamp{}, Error(f.Type(), TypeTimestamp)
+	return Timestamp{}, castError(f.Type(), TypeTimestamp)
 }
 
 func (f Float) Array() (Array, error) {
-	return nil, Error(f.Type(), TypeArray)
+	return nil, castError(f.Type(), TypeArray)
 }
 
 func (f Float) Map() (Map, error) {
-	return nil, Error(f.Type(), TypeMap)
+	return nil, castError(f.Type(), TypeMap)
 }
 
 type String string
@@ -132,12 +182,16 @@ func (s String) Type() TypeID {
 	return TypeString
 }
 
+func (s String) Bool() (Bool, error) {
+	return false, castError(s.Type(), TypeBool)
+}
+
 func (s String) Int() (Int, error) {
-	return 0, Error(s.Type(), TypeInt)
+	return 0, castError(s.Type(), TypeInt)
 }
 
 func (s String) Float() (Float, error) {
-	return 0, Error(s.Type(), TypeFloat)
+	return 0, castError(s.Type(), TypeFloat)
 }
 
 func (s String) String() (String, error) {
@@ -145,19 +199,19 @@ func (s String) String() (String, error) {
 }
 
 func (s String) Blob() (Blob, error) {
-	return nil, Error(s.Type(), TypeBlob)
+	return nil, castError(s.Type(), TypeBlob)
 }
 
 func (s String) Timestamp() (Timestamp, error) {
-	return Timestamp{}, Error(s.Type(), TypeTimestamp)
+	return Timestamp{}, castError(s.Type(), TypeTimestamp)
 }
 
 func (s String) Array() (Array, error) {
-	return nil, Error(s.Type(), TypeArray)
+	return nil, castError(s.Type(), TypeArray)
 }
 
 func (s String) Map() (Map, error) {
-	return nil, Error(s.Type(), TypeMap)
+	return nil, castError(s.Type(), TypeMap)
 }
 
 type Blob []byte
@@ -166,16 +220,20 @@ func (b Blob) Type() TypeID {
 	return TypeBlob
 }
 
+func (b Blob) Bool() (Bool, error) {
+	return false, castError(b.Type(), TypeBool)
+}
+
 func (b Blob) Int() (Int, error) {
-	return 0, Error(b.Type(), TypeInt)
+	return 0, castError(b.Type(), TypeInt)
 }
 
 func (b Blob) Float() (Float, error) {
-	return 0, Error(b.Type(), TypeFloat)
+	return 0, castError(b.Type(), TypeFloat)
 }
 
 func (b Blob) String() (String, error) {
-	return "", Error(b.Type(), TypeString)
+	return "", castError(b.Type(), TypeString)
 }
 
 func (b Blob) Blob() (Blob, error) {
@@ -183,15 +241,15 @@ func (b Blob) Blob() (Blob, error) {
 }
 
 func (b Blob) Timestamp() (Timestamp, error) {
-	return Timestamp{}, Error(b.Type(), TypeTimestamp)
+	return Timestamp{}, castError(b.Type(), TypeTimestamp)
 }
 
 func (b Blob) Array() (Array, error) {
-	return nil, Error(b.Type(), TypeArray)
+	return nil, castError(b.Type(), TypeArray)
 }
 
 func (b Blob) Map() (Map, error) {
-	return nil, Error(b.Type(), TypeMap)
+	return nil, castError(b.Type(), TypeMap)
 }
 
 type Timestamp time.Time
@@ -200,20 +258,24 @@ func (t Timestamp) Type() TypeID {
 	return TypeTimestamp
 }
 
+func (t Timestamp) Bool() (Bool, error) {
+	return false, castError(t.Type(), TypeBool)
+}
+
 func (t Timestamp) Int() (Int, error) {
-	return 0, Error(t.Type(), TypeInt)
+	return 0, castError(t.Type(), TypeInt)
 }
 
 func (t Timestamp) Float() (Float, error) {
-	return 0, Error(t.Type(), TypeFloat)
+	return 0, castError(t.Type(), TypeFloat)
 }
 
 func (t Timestamp) String() (String, error) {
-	return "", Error(t.Type(), TypeString)
+	return "", castError(t.Type(), TypeString)
 }
 
 func (t Timestamp) Blob() (Blob, error) {
-	return nil, Error(t.Type(), TypeBlob)
+	return nil, castError(t.Type(), TypeBlob)
 }
 
 func (t Timestamp) Timestamp() (Timestamp, error) {
@@ -221,11 +283,11 @@ func (t Timestamp) Timestamp() (Timestamp, error) {
 }
 
 func (t Timestamp) Array() (Array, error) {
-	return nil, Error(t.Type(), TypeArray)
+	return nil, castError(t.Type(), TypeArray)
 }
 
 func (t Timestamp) Map() (Map, error) {
-	return nil, Error(t.Type(), TypeMap)
+	return nil, castError(t.Type(), TypeMap)
 }
 
 type Array []Value
@@ -234,24 +296,28 @@ func (a Array) Type() TypeID {
 	return TypeArray
 }
 
+func (a Array) Bool() (Bool, error) {
+	return false, castError(a.Type(), TypeBool)
+}
+
 func (a Array) Int() (Int, error) {
-	return 0, Error(a.Type(), TypeInt)
+	return 0, castError(a.Type(), TypeInt)
 }
 
 func (a Array) Float() (Float, error) {
-	return 0, Error(a.Type(), TypeFloat)
+	return 0, castError(a.Type(), TypeFloat)
 }
 
 func (a Array) String() (String, error) {
-	return "", Error(a.Type(), TypeString)
+	return "", castError(a.Type(), TypeString)
 }
 
 func (a Array) Blob() (Blob, error) {
-	return nil, Error(a.Type(), TypeBlob)
+	return nil, castError(a.Type(), TypeBlob)
 }
 
 func (a Array) Timestamp() (Timestamp, error) {
-	return Timestamp{}, Error(a.Type(), TypeTimestamp)
+	return Timestamp{}, castError(a.Type(), TypeTimestamp)
 }
 
 func (a Array) Array() (Array, error) {
@@ -259,24 +325,24 @@ func (a Array) Array() (Array, error) {
 }
 
 func (a Array) Map() (Map, error) {
-	return nil, Error(a.Type(), TypeMap)
+	return nil, castError(a.Type(), TypeMap)
 }
 
 func (a Array) toArrayInterface() []interface{} {
-	t := []interface{}{}
-	for _, v := range a {
-		var e interface{}
-		switch v.Type() {
+	t := make([]interface{}, len(a))
+	for idx, value := range a {
+		var element interface{}
+		switch value.Type() {
 		case TypeArray:
-			a, _ := v.Array()
-			e = a.toArrayInterface()
+			a, _ := value.Array()
+			element = a.toArrayInterface()
 		case TypeMap:
-			m, _ := v.Map()
-			e = m.toMapInterface()
+			m, _ := value.Map()
+			element = m.toMapInterface()
 		default:
-			e = v
+			element = value
 		}
-		t = append(t, e)
+		t[idx] = element
 	}
 	return t
 }
@@ -287,28 +353,32 @@ func (m Map) Type() TypeID {
 	return TypeMap
 }
 
+func (m Map) Bool() (Bool, error) {
+	return false, castError(m.Type(), TypeBool)
+}
+
 func (m Map) Int() (Int, error) {
-	return 0, Error(m.Type(), TypeInt)
+	return 0, castError(m.Type(), TypeInt)
 }
 
 func (m Map) Float() (Float, error) {
-	return 0, Error(m.Type(), TypeFloat)
+	return 0, castError(m.Type(), TypeFloat)
 }
 
 func (m Map) String() (String, error) {
-	return "", Error(m.Type(), TypeString)
+	return "", castError(m.Type(), TypeString)
 }
 
 func (m Map) Blob() (Blob, error) {
-	return nil, Error(m.Type(), TypeBlob)
+	return nil, castError(m.Type(), TypeBlob)
 }
 
 func (m Map) Timestamp() (Timestamp, error) {
-	return Timestamp{}, Error(m.Type(), TypeTimestamp)
+	return Timestamp{}, castError(m.Type(), TypeTimestamp)
 }
 
 func (m Map) Array() (Array, error) {
-	return nil, Error(m.Type(), TypeArray)
+	return nil, castError(m.Type(), TypeArray)
 }
 
 func (m Map) Map() (Map, error) {
@@ -325,7 +395,7 @@ func (m Map) Get(path string) (Value, error) {
 // toMapInterface converts Map to map[string]interface{}.
 // This is only for go-scan.
 func (m Map) toMapInterface() map[string]interface{} {
-	t := map[string]interface{}{}
+	t := make(map[string]interface{}, len(m))
 	for k, v := range m {
 		switch v.Type() {
 		case TypeArray:
