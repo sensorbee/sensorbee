@@ -94,7 +94,62 @@ func (this *DefaultTopologyBuilder) AddSink(name string, sink Sink) SinkDeclarer
 }
 
 func (this *DefaultTopologyBuilder) Build() Topology {
+	// every source and every box gets an "output pipe"
+	pipes := make(map[string]*SequentialPipe, len(this.sources)+len(this.boxes))
+	for name, _ := range this.sources {
+		pipe := SequentialPipe{}
+		pipe.ReceiverBoxes = make([]ReceiverBox, 0)
+		pipe.ReceiverSinks = make([]Sink, 0)
+		pipes[name] = &pipe
+	}
+	for name, _ := range this.boxes {
+		pipe := SequentialPipe{}
+		pipe.ReceiverBoxes = make([]ReceiverBox, 0)
+		pipe.ReceiverSinks = make([]Sink, 0)
+		pipes[name] = &pipe
+	}
+	// add the correct receivers to each pipe
+	for _, edge := range this.Edges {
+		fromName := edge.From
+		toName := edge.To
+		pipe := pipes[fromName]
+		// add the target of the edge (is either a sink or a box) to the
+		// pipe's receiver list
+		sink, isSink := this.sinks[toName]
+		if isSink {
+			pipe.ReceiverSinks = append(pipe.ReceiverSinks, sink)
+		}
+		box, isBox := this.boxes[toName]
+		if isBox {
+			recv := ReceiverBox{box, pipes[toName]}
+			pipe.ReceiverBoxes = append(pipe.ReceiverBoxes, recv)
+		}
+	}
 	return &DefaultTopology{}
+}
+
+// holds a box and the writer that will receive this box's output
+type ReceiverBox struct {
+	Box      Box
+	Receiver Writer
+}
+
+// receives input from a box and forwards it to registered listeners
+type SequentialPipe struct {
+	ReceiverBoxes []ReceiverBox
+	ReceiverSinks []Sink
+}
+
+func (this *SequentialPipe) Write(t *tuple.Tuple) error {
+	// forward tuple to connected boxes
+	for _, recvBox := range this.ReceiverBoxes {
+		recvBox.Box.Process(t, recvBox.Receiver)
+	}
+	// forward tuple to connected sinks
+	for _, sink := range this.ReceiverSinks {
+		sink.Write(t)
+	}
+	return nil
 }
 
 /**************************************************/
@@ -209,7 +264,7 @@ func (this *DefaultSource) Schema() *Schema {
 
 type DefaultBox struct{}
 
-func (this *DefaultBox) Process(t *tuple.Tuple, s Sink) error {
+func (this *DefaultBox) Process(t *tuple.Tuple, s Writer) error {
 	return nil
 }
 
