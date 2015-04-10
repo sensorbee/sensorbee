@@ -2,6 +2,7 @@ package core
 
 import (
 	. "github.com/smartystreets/goconvey/convey"
+	"log"
 	"testing"
 )
 
@@ -249,5 +250,22 @@ func TestDefaultTopology(t *testing.T) {
 				So(err.Err(), ShouldNotBeNil)
 			})
 		})
+	})
+
+	Convey("Given a default topology builder", t, func() {
+		tb := NewDefaultTopologyBuilder()
+		s := &DefaultSource{}
+		tb.AddSource("aSource", s)
+		b := &DefaultBox{}
+		tb.AddBox("aBox", b).Input("aSource", nil)
+		b2 := &DefaultBox{}
+		tb.AddBox("anotherBox", b2).Input("aBox", nil)
+		si := &DefaultSink{}
+		log.Printf("sink 1: %p\n", si)
+		tb.AddSink("si", si).Input("aBox")
+		si2 := &DefaultSink{}
+		log.Printf("sink 2: %p\n", si2)
+		tb.AddSink("si2", si2).Input("anotherBox")
+		tb.Build()
 	})
 }
