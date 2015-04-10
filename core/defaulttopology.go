@@ -86,11 +86,11 @@ func (this *DefaultTopologyBuilder) AddBox(name string, box Box) BoxDeclarer {
 func (this *DefaultTopologyBuilder) AddSink(name string, sink Sink) SinkDeclarer {
 	// check name
 	if nameErr := this.checkName(name); nameErr != nil {
-		return &DefaultSinkDeclarer{nil, nil, nameErr}
+		return &DefaultSinkDeclarer{err: nameErr}
 	}
 	// keep track of sink
 	this.sinks[name] = sink
-	return &DefaultSinkDeclarer{this, sink, nil}
+	return &DefaultSinkDeclarer{this, name, sink, nil}
 }
 
 func (this *DefaultTopologyBuilder) Build() Topology {
@@ -154,12 +154,38 @@ func (this *DefaultBoxDeclarer) Err() error {
 
 type DefaultSinkDeclarer struct {
 	tb   *DefaultTopologyBuilder
+	name string
 	sink Sink
 	err  error
 }
 
-func (this *DefaultSinkDeclarer) Input(name string) SinkDeclarer {
-	return &DefaultSinkDeclarer{}
+func (this *DefaultSinkDeclarer) Input(refname string) SinkDeclarer {
+	// if there was a previous error, do nothing
+	if this.err != nil {
+		return this
+	}
+	// if the name can't be used, return an error
+	if !this.tb.IsValidOutputReference(refname) {
+		err := fmt.Errorf("there is no box or source named '%s'", refname)
+		this.err = err
+		return this
+	}
+	// check if this edge already exists
+	edge := DataflowEdge{refname, this.name}
+	edgeAlreadyExists := false
+	for _, e := range this.tb.Edges {
+		edgeAlreadyExists = edge == e
+		break
+	}
+	if edgeAlreadyExists {
+		err := fmt.Errorf("box '%s' is already connected to '%s'",
+			this.name, refname)
+		this.err = err
+		return this
+	}
+	// if not, store it
+	this.tb.Edges = append(this.tb.Edges, edge)
+	return this
 }
 
 func (this *DefaultSinkDeclarer) Err() error {
