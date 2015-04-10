@@ -133,6 +133,7 @@ func TestDefaultTopology(t *testing.T) {
 		tb.AddSource("aSource", s)
 		b := &DefaultBox{}
 		tb.AddBox("aBox", b)
+		si := &DefaultSink{}
 		var err DeclarerError
 
 		Convey("when a new box references a non-existing item", func() {
@@ -186,6 +187,63 @@ func TestDefaultTopology(t *testing.T) {
 			err = tb.AddBox("otherBox", b).
 				Input("aBox", nil).
 				Input("aBox", nil)
+			So(err, ShouldNotBeNil)
+			Convey("adding should fail", func() {
+				So(err.Err(), ShouldNotBeNil)
+			})
+		})
+
+		Convey("when a new sink references a non-existing item", func() {
+			err = tb.AddSink("aSink", si).
+				Input("something")
+			So(err, ShouldNotBeNil)
+			Convey("adding should fail", func() {
+				So(err.Err(), ShouldNotBeNil)
+			})
+		})
+
+		Convey("when a new sink references an existing source", func() {
+			err = tb.AddSink("aSink", si).
+				Input("aSource")
+			So(err, ShouldNotBeNil)
+			Convey("adding should work", func() {
+				So(err.Err(), ShouldBeNil)
+			})
+		})
+
+		Convey("when a new sink references an existing box", func() {
+			err = tb.AddSink("aSink", si).
+				Input("aBox")
+			So(err, ShouldNotBeNil)
+			Convey("adding should work", func() {
+				So(err.Err(), ShouldBeNil)
+			})
+		})
+
+		Convey("when a new sink references multiple items", func() {
+			err = tb.AddSink("aSink", si).
+				Input("aBox").
+				Input("aSource")
+			So(err, ShouldNotBeNil)
+			Convey("adding should work", func() {
+				So(err.Err(), ShouldBeNil)
+			})
+		})
+
+		Convey("when a new sink references an existing source twice", func() {
+			err = tb.AddSink("aSink", si).
+				Input("aSource").
+				Input("aSource")
+			So(err, ShouldNotBeNil)
+			Convey("adding should fail", func() {
+				So(err.Err(), ShouldNotBeNil)
+			})
+		})
+
+		Convey("when a new sink references an existing box twice", func() {
+			err = tb.AddSink("aSink", si).
+				Input("aBox").
+				Input("aBox")
 			So(err, ShouldNotBeNil)
 			Convey("adding should fail", func() {
 				So(err.Err(), ShouldNotBeNil)
