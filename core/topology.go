@@ -12,9 +12,20 @@ type TopologyBuilder interface {
 	Build() Topology
 }
 
+type DeclarerError interface {
+	Err() error
+}
+
 type SourceDeclarer interface {
+	DeclarerError
 }
 
 type BoxDeclarer interface {
 	Input(name string, schema *Schema) BoxDeclarer
+	DeclarerError
+}
+
+type SinkDeclarer interface {
+	Input(name string) SinkDeclarer
+	DeclarerError
 }
