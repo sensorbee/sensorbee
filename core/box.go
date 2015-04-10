@@ -5,14 +5,14 @@ import (
 )
 
 type Box interface {
-	Process(t *tuple.Tuple, s Sink) error
+	Process(t *tuple.Tuple, s Writer) error
 	RequiredInputSchema() ([]*Schema, error)
 	OutputSchema([]*Schema) (*Schema, error)
 }
 
-type BoxFunc func(t *tuple.Tuple, s Sink) error
+type BoxFunc func(t *tuple.Tuple, s Writer) error
 
-func (b *BoxFunc) Process(t *tuple.Tuple, s Sink) error {
+func (b *BoxFunc) Process(t *tuple.Tuple, s Writer) error {
 	return (*b)(t, s)
 }
 
