@@ -24,17 +24,31 @@ func NewDefaultTopologyBuilder() TopologyBuilder {
 	return &tb
 }
 
-func (this *DefaultTopologyBuilder) AddSource(name string, source Source) SourceDeclarer {
-	// check name
+// check if the given name can be used as a source, box, or sink
+// name (i.e., it is not used yet)
+func (this *DefaultTopologyBuilder) checkName(name string) error {
 	_, alreadyExists := this.sources[name]
 	if alreadyExists {
 		err := fmt.Errorf("there is already a source called '%s'", name)
-		return &DefaultSourceDeclarer{err}
+		return err
 	}
 	_, alreadyExists = this.boxes[name]
 	if alreadyExists {
 		err := fmt.Errorf("there is already a box called '%s'", name)
-		return &DefaultSourceDeclarer{err}
+		return err
+	}
+	_, alreadyExists = this.sinks[name]
+	if alreadyExists {
+		err := fmt.Errorf("there is already a sink called '%s'", name)
+		return err
+	}
+	return nil
+}
+
+func (this *DefaultTopologyBuilder) AddSource(name string, source Source) SourceDeclarer {
+	// check name
+	if nameErr := this.checkName(name); nameErr != nil {
+		return &DefaultSourceDeclarer{nameErr}
 	}
 	// TODO check that declared schema is a valid JSON Schema string
 	// keep track of source
@@ -44,15 +58,8 @@ func (this *DefaultTopologyBuilder) AddSource(name string, source Source) Source
 
 func (this *DefaultTopologyBuilder) AddBox(name string, box Box) BoxDeclarer {
 	// check name
-	_, alreadyExists := this.sources[name]
-	if alreadyExists {
-		err := fmt.Errorf("there is already a source called '%s'", name)
-		return &DefaultBoxDeclarer{err}
-	}
-	_, alreadyExists = this.boxes[name]
-	if alreadyExists {
-		err := fmt.Errorf("there is already a box called '%s'", name)
-		return &DefaultBoxDeclarer{err}
+	if nameErr := this.checkName(name); nameErr != nil {
+		return &DefaultBoxDeclarer{nameErr}
 	}
 	// TODO check that declared schema is a valid JSON Schema string
 	// keep track of box
@@ -61,6 +68,12 @@ func (this *DefaultTopologyBuilder) AddBox(name string, box Box) BoxDeclarer {
 }
 
 func (this *DefaultTopologyBuilder) AddSink(name string, sink Sink) SinkDeclarer {
+	// check name
+	if nameErr := this.checkName(name); nameErr != nil {
+		return &DefaultSinkDeclarer{nameErr}
+	}
+	// keep track of sink
+	this.sinks[name] = sink
 	return &DefaultSinkDeclarer{}
 }
 
@@ -88,14 +101,16 @@ func (this *DefaultBoxDeclarer) Err() error {
 	return this.err
 }
 
-type DefaultSinkDeclarer struct{}
+type DefaultSinkDeclarer struct {
+	err error
+}
 
 func (this *DefaultSinkDeclarer) Input(name string) SinkDeclarer {
 	return &DefaultSinkDeclarer{}
 }
 
 func (this *DefaultSinkDeclarer) Err() error {
-	return nil
+	return this.err
 }
 
 type DefaultSource struct{}
