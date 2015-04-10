@@ -10,6 +10,8 @@ type DefaultTopology struct {
 
 func (this *DefaultTopology) Run() {}
 
+/**************************************************/
+
 type DefaultTopologyBuilder struct {
 	sources map[string]Source
 	boxes   map[string]Box
@@ -81,6 +83,8 @@ func (this *DefaultTopologyBuilder) Build() Topology {
 	return &DefaultTopology{}
 }
 
+/**************************************************/
+
 type DefaultSourceDeclarer struct {
 	err error
 }
@@ -88,6 +92,8 @@ type DefaultSourceDeclarer struct {
 func (this *DefaultSourceDeclarer) Err() error {
 	return this.err
 }
+
+/**************************************************/
 
 type DefaultBoxDeclarer struct {
 	err error
@@ -101,6 +107,8 @@ func (this *DefaultBoxDeclarer) Err() error {
 	return this.err
 }
 
+/**************************************************/
+
 type DefaultSinkDeclarer struct {
 	err error
 }
@@ -113,6 +121,8 @@ func (this *DefaultSinkDeclarer) Err() error {
 	return this.err
 }
 
+/**************************************************/
+
 type DefaultSource struct{}
 
 func (this *DefaultSource) GenerateStream(w Writer) error {
@@ -123,6 +133,8 @@ func (this *DefaultSource) Schema() *Schema {
 	var s Schema = Schema("test")
 	return &s
 }
+
+/**************************************************/
 
 type DefaultBox struct{}
 
@@ -137,6 +149,8 @@ func (this *DefaultBox) RequiredInputSchema() ([]*Schema, error) {
 func (this *DefaultBox) OutputSchema(s []*Schema) (*Schema, error) {
 	return nil, nil
 }
+
+/**************************************************/
 
 type DefaultSink struct{}
 
