@@ -18,6 +18,9 @@ func (this *DummyTopologyBuilder) AddSource(name string, source Source) SourceDe
 func (this *DummyTopologyBuilder) AddBox(name string, box Box) BoxDeclarer {
 	return &DummyBoxDeclarer{}
 }
+func (this *DummyTopologyBuilder) AddSink(name string, sink Sink) SinkDeclarer {
+	return &DummySinkDeclarer{}
+}
 func (this *DummyTopologyBuilder) Build() Topology {
 	return &DummyTopology{}
 }
