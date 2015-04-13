@@ -4,7 +4,7 @@ type Topology interface {
 	Run()
 }
 
-type TopologyBuilder interface {
+type StaticTopologyBuilder interface {
 	AddSource(name string, source Source) SourceDeclarer
 	AddBox(name string, box Box) BoxDeclarer
 	AddSink(name string, sink Sink) SinkDeclarer
