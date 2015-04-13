@@ -12,7 +12,7 @@ func (this *DefaultTopology) Run() {}
 
 /**************************************************/
 
-type DefaultTopologyBuilder struct {
+type DefaultStaticTopologyBuilder struct {
 	sources map[string]Source
 	boxes   map[string]Box
 	sinks   map[string]Sink
@@ -24,8 +24,8 @@ type DataflowEdge struct {
 	To   string
 }
 
-func NewDefaultTopologyBuilder() TopologyBuilder {
-	tb := DefaultTopologyBuilder{}
+func NewDefaultStaticTopologyBuilder() StaticTopologyBuilder {
+	tb := DefaultStaticTopologyBuilder{}
 	tb.sources = make(map[string]Source)
 	tb.boxes = make(map[string]Box)
 	tb.sinks = make(map[string]Sink)
@@ -35,7 +35,7 @@ func NewDefaultTopologyBuilder() TopologyBuilder {
 
 // check if the given name can be used as a source, box, or sink
 // name (i.e., it is not used yet)
-func (this *DefaultTopologyBuilder) checkName(name string) error {
+func (this *DefaultStaticTopologyBuilder) checkName(name string) error {
 	_, alreadyExists := this.sources[name]
 	if alreadyExists {
 		err := fmt.Errorf("there is already a source called '%s'", name)
@@ -55,13 +55,13 @@ func (this *DefaultTopologyBuilder) checkName(name string) error {
 }
 
 // check if the given name is an existing box or source
-func (this *DefaultTopologyBuilder) IsValidOutputReference(name string) bool {
+func (this *DefaultStaticTopologyBuilder) IsValidOutputReference(name string) bool {
 	_, sourceExists := this.sources[name]
 	_, boxExists := this.boxes[name]
 	return (sourceExists || boxExists)
 }
 
-func (this *DefaultTopologyBuilder) AddSource(name string, source Source) SourceDeclarer {
+func (this *DefaultStaticTopologyBuilder) AddSource(name string, source Source) SourceDeclarer {
 	// check name
 	if nameErr := this.checkName(name); nameErr != nil {
 		return &DefaultSourceDeclarer{nameErr}
@@ -72,7 +72,7 @@ func (this *DefaultTopologyBuilder) AddSource(name string, source Source) Source
 	return &DefaultSourceDeclarer{}
 }
 
-func (this *DefaultTopologyBuilder) AddBox(name string, box Box) BoxDeclarer {
+func (this *DefaultStaticTopologyBuilder) AddBox(name string, box Box) BoxDeclarer {
 	// check name
 	if nameErr := this.checkName(name); nameErr != nil {
 		return &DefaultBoxDeclarer{err: nameErr}
@@ -83,7 +83,7 @@ func (this *DefaultTopologyBuilder) AddBox(name string, box Box) BoxDeclarer {
 	return &DefaultBoxDeclarer{this, name, box, nil}
 }
 
-func (this *DefaultTopologyBuilder) AddSink(name string, sink Sink) SinkDeclarer {
+func (this *DefaultStaticTopologyBuilder) AddSink(name string, sink Sink) SinkDeclarer {
 	// check name
 	if nameErr := this.checkName(name); nameErr != nil {
 		return &DefaultSinkDeclarer{err: nameErr}
@@ -93,7 +93,7 @@ func (this *DefaultTopologyBuilder) AddSink(name string, sink Sink) SinkDeclarer
 	return &DefaultSinkDeclarer{this, name, sink, nil}
 }
 
-func (this *DefaultTopologyBuilder) Build() Topology {
+func (this *DefaultStaticTopologyBuilder) Build() Topology {
 	// every source and every box gets an "output pipe"
 	pipes := make(map[string]*SequentialPipe, len(this.sources)+len(this.boxes))
 	for name, _ := range this.sources {
@@ -179,7 +179,7 @@ func (this *DefaultSourceDeclarer) Err() error {
 /**************************************************/
 
 type DefaultBoxDeclarer struct {
-	tb   *DefaultTopologyBuilder
+	tb   *DefaultStaticTopologyBuilder
 	name string
 	box  Box
 	err  error
@@ -222,7 +222,7 @@ func (this *DefaultBoxDeclarer) Err() error {
 /**************************************************/
 
 type DefaultSinkDeclarer struct {
-	tb   *DefaultTopologyBuilder
+	tb   *DefaultStaticTopologyBuilder
 	name string
 	sink Sink
 	err  error
