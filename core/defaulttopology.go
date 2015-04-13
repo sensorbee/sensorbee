@@ -2,7 +2,6 @@ package core
 
 import (
 	"fmt"
-	"log"
 	"pfi/sensorbee/sensorbee/core/tuple"
 )
 
@@ -126,14 +125,6 @@ func (this *DefaultTopologyBuilder) Build() Topology {
 			pipe.ReceiverBoxes = append(pipe.ReceiverBoxes, recv)
 		}
 	}
-	// debug
-	for _, pipe := range pipes {
-		log.Printf("%#v\n", pipe)
-	}
-	// more debug
-	for name, source := range this.sources {
-		source.GenerateStream(pipes[name])
-	}
 	return &DefaultTopology{}
 }
 
@@ -150,7 +141,6 @@ type SequentialPipe struct {
 }
 
 func (this *SequentialPipe) Write(t *tuple.Tuple) error {
-	log.Printf("pipe %p: received %v\n", this, t)
 	// forward tuple to connected boxes
 	for _, recvBox := range this.ReceiverBoxes {
 		recvBox.Box.Process(t, recvBox.Receiver)
@@ -262,13 +252,6 @@ func (this *DefaultSinkDeclarer) Err() error {
 type DefaultSource struct{}
 
 func (this *DefaultSource) GenerateStream(w Writer) error {
-	log.Printf("start processing\n")
-	log.Printf("emit first item\n")
-	t := &tuple.Tuple{}
-	w.Write(t)
-	log.Printf("emit second item\n")
-	t2 := &tuple.Tuple{}
-	w.Write(t2)
 	return nil
 }
 
@@ -282,9 +265,6 @@ func (this *DefaultSource) Schema() *Schema {
 type DefaultBox struct{}
 
 func (this *DefaultBox) Process(t *tuple.Tuple, s Writer) error {
-	log.Printf("box  %p: processing %v\n", this, t)
-	t.BatchID = 1
-	s.Write(t)
 	return nil
 }
 
@@ -298,11 +278,8 @@ func (this *DefaultBox) OutputSchema(s []*Schema) (*Schema, error) {
 
 /**************************************************/
 
-type DefaultSink struct {
-	x int
-}
+type DefaultSink struct{}
 
 func (this *DefaultSink) Write(t *tuple.Tuple) error {
-	log.Printf("sink %p: received %v\n", this, t)
 	return nil
 }
