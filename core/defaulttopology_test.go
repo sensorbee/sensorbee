@@ -2,6 +2,8 @@ package core
 
 import (
 	. "github.com/smartystreets/goconvey/convey"
+	"pfi/sensorbee/sensorbee/core/tuple"
+	"strings"
 	"testing"
 )
 
@@ -260,5 +262,80 @@ func TestDefaultTopology(t *testing.T) {
 	 * items arrived at the sink(s) in the correct order and where processed
 	 * correctly by all intermediate boxes.
 	 */
+	Convey("Given a default topology", t, func() {
 
+		tb := NewDefaultStaticTopologyBuilder()
+		s1 := &DummyDefaultSource{"value"}
+		tb.AddSource("Source1", s1)
+		s2 := &DummyDefaultSource{"test"}
+		tb.AddSource("Source2", s2)
+		s3 := &DummyDefaultSource{"hoge"}
+		tb.AddSource("Source3", s3)
+		s4 := &DummyDefaultSource{"fuga"}
+		tb.AddSource("Source4", s4)
+		s5 := &DummyDefaultSource{"foo"}
+		tb.AddSource("Source5", s5)
+		b1 := BoxFunc(dummyToUpperBoxFunc)
+		tb.AddBox("aBox", &b1).Input("Source1", nil).
+			Input("Source2", nil).
+			Input("Source3", nil).
+			Input("Source4", nil).
+			Input("Source5", nil)
+		b2 := BoxFunc(dummyFilterBoxFunc)
+		tb.AddBox("bBox", &b2).Input("aBox", nil)
+		si := &DummyDefaultSink{}
+		tb.AddSink("si", si).Input("aBox")
+		t := tb.Build()
+		Convey("Run topology", func() {
+			t.Run()
+			So(si.result, ShouldEqual, "HOGE")
+		})
+	})
+
+}
+
+type DummyDefaultSource struct{ initial string }
+
+func (this *DummyDefaultSource) GenerateStream(w Writer) error {
+	t := &tuple.Tuple{}
+	t.Data = tuple.Map{
+		"source": tuple.String(this.initial),
+	}
+	w.Write(t)
+	return nil
+}
+func (this *DummyDefaultSource) Schema() *Schema {
+	var s Schema = Schema("test")
+	return &s
+}
+
+func dummyToUpperBoxFunc(t *tuple.Tuple, w Writer) error {
+	x, _ := t.Data.Get("source")
+	s, _ := x.String()
+	t.Data = tuple.Map{
+		"source": tuple.String(strings.ToUpper(string(s))),
+	}
+	w.Write(t)
+	return nil
+}
+
+func dummyFilterBoxFunc(t *tuple.Tuple, w Writer) error {
+	x, _ := t.Data.Get("source")
+	s, _ := x.String()
+	if s == "HOGE" {
+		t.Data["filtered"] = s
+	}
+	return nil
+}
+
+type DummyDefaultSink struct{ result string }
+
+func (this *DummyDefaultSink) Write(t *tuple.Tuple) error {
+	x, err := t.Data.Get("filtered")
+	if err != nil {
+		return nil
+	}
+	s, _ := x.String()
+	this.result = string(s)
+	return nil
 }
