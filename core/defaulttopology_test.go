@@ -250,4 +250,15 @@ func TestDefaultTopology(t *testing.T) {
 			})
 		})
 	})
+
+	/* TODO Add tests that show the correct data transport in DefaultTopology.
+	 * We should remove the Default* structs from defaulttopology.go and
+	 * add some replacements in this file that allow us to check data
+	 * flow. For example, a TestSource could just emit two messages with
+	 * different IDs and a TestSink could store all received messages
+	 * in a local array. Then after Run() is finished, check whether all
+	 * items arrived at the sink(s) in the correct order and where processed
+	 * correctly by all intermediate boxes.
+	 */
+
 }
