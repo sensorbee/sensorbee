@@ -7,12 +7,12 @@ import (
 
 func TestDefaultTopology(t *testing.T) {
 	Convey("When creating a default topology builder", t, func() {
-		var tb TopologyBuilder = NewDefaultTopologyBuilder()
+		var tb StaticTopologyBuilder = NewDefaultStaticTopologyBuilder()
 		So(tb, ShouldNotBeNil)
 	})
 
 	Convey("Given a default topology builder", t, func() {
-		tb := NewDefaultTopologyBuilder()
+		tb := NewDefaultStaticTopologyBuilder()
 		s := &DefaultSource{}
 		b := &DefaultBox{}
 		si := &DefaultSink{}
@@ -128,7 +128,7 @@ func TestDefaultTopology(t *testing.T) {
 	})
 
 	Convey("Given a default topology builder with a source", t, func() {
-		tb := NewDefaultTopologyBuilder()
+		tb := NewDefaultStaticTopologyBuilder()
 		s := &DefaultSource{}
 		tb.AddSource("aSource", s)
 		b := &DefaultBox{}
