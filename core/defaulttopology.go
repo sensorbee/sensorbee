@@ -6,9 +6,15 @@ import (
 )
 
 type DefaultTopology struct {
+	sources map[string]Source
+	pipes   map[string]*SequentialPipe
 }
 
-func (this *DefaultTopology) Run() {}
+func (this *DefaultTopology) Run() {
+	for name, source := range this.sources {
+		go source.GenerateStream(this.pipes[name])
+	}
+}
 
 /**************************************************/
 
@@ -139,7 +145,7 @@ func (this *DefaultStaticTopologyBuilder) Build() Topology {
 	 * calls are done. Is this equivalent to "when all processing
 	 * is complete"?)
 	 */
-	return &DefaultTopology{}
+	return &DefaultTopology{this.sources, pipes}
 }
 
 // holds a box and the writer that will receive this box's output
