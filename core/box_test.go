@@ -9,7 +9,7 @@ import (
 func TestBox(t *testing.T) {
 	Convey("Given return nil BoxFunc implementation", t, func() {
 
-		a := func(t *tuple.Tuple, s Sink) error {
+		a := func(t *tuple.Tuple, s Writer) error {
 			return nil
 		}
 		bf := BoxFunc(a)
