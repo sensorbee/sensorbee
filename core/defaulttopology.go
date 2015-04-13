@@ -3,6 +3,7 @@ package core
 import (
 	"fmt"
 	"pfi/sensorbee/sensorbee/core/tuple"
+	"sync"
 )
 
 type DefaultTopology struct {
@@ -11,9 +12,15 @@ type DefaultTopology struct {
 }
 
 func (this *DefaultTopology) Run() {
+	var wg sync.WaitGroup
 	for name, source := range this.sources {
-		go source.GenerateStream(this.pipes[name])
+		wg.Add(1)
+		go func(name string, source Source) {
+			source.GenerateStream(this.pipes[name])
+			wg.Done()
+		}(name, source)
 	}
+	wg.Wait()
 }
 
 /**************************************************/
@@ -145,6 +152,8 @@ func (this *DefaultStaticTopologyBuilder) Build() Topology {
 	 * calls are done. Is this equivalent to "when all processing
 	 * is complete"?)
 	 */
+	// TODO source and sink is reference data,
+	//      so cannot call .Build() more than once
 	return &DefaultTopology{this.sources, pipes}
 }
 
