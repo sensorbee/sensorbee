@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-func TestDefaultTopology(t *testing.T) {
+func TestDefaultTopologyBuilderInterface(t *testing.T) {
 	Convey("When creating a default topology builder", t, func() {
 		var tb StaticTopologyBuilder = NewDefaultStaticTopologyBuilder()
 		So(tb, ShouldNotBeNil)
@@ -253,7 +253,9 @@ func TestDefaultTopology(t *testing.T) {
 			})
 		})
 	})
+}
 
+func TestBasicDefaultTopologyTransport(t *testing.T) {
 	Convey("Given basic topology", t, func() {
 
 		tb := NewDefaultStaticTopologyBuilder()
