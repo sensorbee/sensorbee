@@ -41,3 +41,7 @@ func (f Float) Array() (Array, error) {
 func (f Float) Map() (Map, error) {
 	return nil, castError(f.Type(), TypeMap)
 }
+
+func (f Float) clone() Value {
+	return Float(f)
+}
