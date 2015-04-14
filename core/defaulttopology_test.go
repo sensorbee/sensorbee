@@ -265,7 +265,7 @@ func TestDefaultTopology(t *testing.T) {
 		tb.AddSink("si", si).Input("aBox")
 		t := tb.Build()
 		Convey("Run topology with ToUpperBox", func() {
-			t.Run()
+			t.Run(&Context{})
 			So(si.results[0], ShouldEqual, "VALUE")
 		})
 	})
@@ -286,7 +286,7 @@ func TestDefaultTopology(t *testing.T) {
 		t := tb.Build()
 		Convey("Run topology with ToUpperBox", func() {
 			start := time.Now()
-			t.Run()
+			t.Run(&Context{})
 			So(len(si.results), ShouldEqual, 2)
 			So(si.results, ShouldContain, "VALUE")
 			So(si.results, ShouldContain, "HOGE")
@@ -306,7 +306,7 @@ func TestDefaultTopology(t *testing.T) {
 		tb.AddSink("si", si).Input("aBox")
 		t := tb.Build()
 		Convey("Run topology with ToUpperBox", func() {
-			t.Run()
+			t.Run(&Context{})
 			So(si.results, ShouldResemble, []string{"VALUE", "HOGE"})
 		})
 	})
@@ -324,7 +324,7 @@ func TestDefaultTopology(t *testing.T) {
 		tb.AddSink("si", si).Input("aBox").Input("bBox")
 		t := tb.Build()
 		Convey("Run topology with ToUpperBox", func() {
-			t.Run()
+			t.Run(&Context{})
 			So(si.results[0], ShouldEqual, "VALUE")
 			So(si.results2[0], ShouldEqual, "value_1")
 		})
@@ -343,7 +343,7 @@ func TestDefaultTopology(t *testing.T) {
 		tb.AddSink("si2", si2).Input("aBox")
 		t := tb.Build()
 		Convey("Run topology with ToUpperBox", func() {
-			t.Run()
+			t.Run(&Context{})
 			So(si.results[0], ShouldEqual, "VALUE")
 			So(si2.results[0], ShouldEqual, "VALUE")
 		})
@@ -359,14 +359,12 @@ func TestDefaultTopology(t *testing.T) {
 		si := &DummyDefaultSink{}
 		tb.AddSink("si", si).Input("aBox")
 
-		ctx := &Context{
-			&ConsoleLogManager{},
-		}
-		tb.Init(ctx)
-		t := tb.Build()
-
 		Convey("Run topology with ToUpperBox", func() {
-			t.Run()
+			ctx := &Context{
+				&ConsoleLogManager{},
+			}
+			t := tb.Build()
+			t.Run(ctx)
 			So(si.results[0], ShouldEqual, "VALUE")
 		})
 	})
@@ -425,7 +423,7 @@ func (b *DummyToUpperBox) Process(t *tuple.Tuple, w Writer) error {
 	s, _ := x.String()
 	t.Data["to-upper"] = tuple.String(strings.ToUpper(string(s)))
 	w.Write(t)
-	if b.ctx != nil {
+	if b.ctx.Logger != nil {
 		b.ctx.Logger.Log(DEBUG, "convey test %v", "ToUpperBox Processing")
 	}
 	return nil

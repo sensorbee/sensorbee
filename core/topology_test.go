@@ -8,7 +8,7 @@ import (
 
 type DummyTopology struct{}
 
-func (dt *DummyTopology) Run() {}
+func (dt *DummyTopology) Run(ctx *Context) {}
 
 type DummyTopologyBuilder struct{}
 
