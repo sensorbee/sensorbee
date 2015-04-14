@@ -134,7 +134,7 @@ func (tb *DefaultStaticTopologyBuilder) Build() Topology {
 		}
 		box, isBox := tb.boxes[toName]
 		if isBox {
-			recv := ReceiverBox{box, pipes[toName]}
+			recv := ReceiverBox{toName, box, pipes[toName]}
 			pipe.ReceiverBoxes = append(pipe.ReceiverBoxes, recv)
 		}
 	}
@@ -145,6 +145,7 @@ func (tb *DefaultStaticTopologyBuilder) Build() Topology {
 
 // holds a box and the writer that will receive this box's output
 type ReceiverBox struct {
+	Name     string
 	Box      Box
 	Receiver Writer
 }
@@ -156,6 +157,8 @@ type SequentialPipe struct {
 }
 
 func (p *SequentialPipe) Write(t *tuple.Tuple) error {
+	// TODO add trace information to tuple (if enabled)
+	// TODO copy/clone tuple if there are multiple outputs
 	// forward tuple to connected boxes
 	for _, recvBox := range p.ReceiverBoxes {
 		recvBox.Box.Process(t, recvBox.Receiver)
