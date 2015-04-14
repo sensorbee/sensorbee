@@ -67,6 +67,12 @@ func (tb *DefaultStaticTopologyBuilder) checkName(name string) error {
 	return nil
 }
 
+func (tb *DefaultStaticTopologyBuilder) Init(ctx *Context) {
+	for _, b := range tb.boxes {
+		b.Init(ctx)
+	}
+}
+
 // check if the given name is an existing box or source
 func (tb *DefaultStaticTopologyBuilder) IsValidOutputReference(name string) bool {
 	_, sourceExists := tb.sources[name]
@@ -287,9 +293,14 @@ func (s *DefaultSource) Schema() *Schema {
 
 /**************************************************/
 
-type DefaultBox struct{}
+type DefaultBox struct {
+	ctx *Context
+}
 
 func (b *DefaultBox) Init(ctx *Context) error {
+	//if b.ctx == nil {
+	b.ctx = ctx // TODO need atomic ?
+	//}
 	return nil
 }
 
