@@ -1,11 +1,10 @@
 package core
 
 type Topology interface {
-	Run()
+	Run(ctx *Context)
 }
 
 type StaticTopologyBuilder interface {
-	Init(ctx *Context)
 	AddSource(name string, source Source) SourceDeclarer
 	AddBox(name string, box Box) BoxDeclarer
 	AddSink(name string, sink Sink) SinkDeclarer

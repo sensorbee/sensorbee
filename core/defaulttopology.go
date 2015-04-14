@@ -7,11 +7,16 @@ import (
 )
 
 type DefaultTopology struct {
+	bp      map[*Box]bool
 	sources map[string]Source
 	pipes   map[string]*SequentialPipe
 }
 
-func (t *DefaultTopology) Run() {
+func (t *DefaultTopology) Run(ctx *Context) {
+	for box, _ := range t.bp {
+		(*box).Init(ctx)
+	}
+
 	var wg sync.WaitGroup
 	for name, source := range t.sources {
 		wg.Add(1)
@@ -28,6 +33,7 @@ func (t *DefaultTopology) Run() {
 type DefaultStaticTopologyBuilder struct {
 	sources map[string]Source
 	boxes   map[string]Box
+	bp      map[*Box]bool
 	sinks   map[string]Sink
 	Edges   []DataflowEdge
 }
@@ -41,6 +47,7 @@ func NewDefaultStaticTopologyBuilder() StaticTopologyBuilder {
 	tb := DefaultStaticTopologyBuilder{}
 	tb.sources = make(map[string]Source)
 	tb.boxes = make(map[string]Box)
+	tb.bp = make(map[*Box]bool)
 	tb.sinks = make(map[string]Sink)
 	tb.Edges = make([]DataflowEdge, 0)
 	return &tb
@@ -65,12 +72,6 @@ func (tb *DefaultStaticTopologyBuilder) checkName(name string) error {
 		return err
 	}
 	return nil
-}
-
-func (tb *DefaultStaticTopologyBuilder) Init(ctx *Context) {
-	for _, b := range tb.boxes {
-		b.Init(ctx)
-	}
 }
 
 // check if the given name is an existing box or source
@@ -99,6 +100,7 @@ func (tb *DefaultStaticTopologyBuilder) AddBox(name string, box Box) BoxDeclarer
 	// TODO check that declared schema is a valid JSON Schema string
 	// keep track of box
 	tb.boxes[name] = box
+	tb.bp[&box] = true
 	return &DefaultBoxDeclarer{tb, name, box, nil}
 }
 
@@ -146,7 +148,7 @@ func (tb *DefaultStaticTopologyBuilder) Build() Topology {
 	}
 	// TODO source and sink is reference data,
 	//      so cannot call .Build() more than once
-	return &DefaultTopology{tb.sources, pipes}
+	return &DefaultTopology{tb.bp, tb.sources, pipes}
 }
 
 // holds a box and the writer that will receive this box's output
