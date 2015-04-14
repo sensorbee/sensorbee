@@ -2,7 +2,10 @@ package core
 
 import (
 	. "github.com/smartystreets/goconvey/convey"
+	"pfi/sensorbee/sensorbee/core/tuple"
+	"strings"
 	"testing"
+	"time"
 )
 
 func TestDefaultTopology(t *testing.T) {
@@ -251,14 +254,176 @@ func TestDefaultTopology(t *testing.T) {
 		})
 	})
 
-	/* TODO Add tests that show the correct data transport in DefaultTopology.
-	 * We should remove the Default* structs from defaulttopology.go and
-	 * add some replacements in this file that allow us to check data
-	 * flow. For example, a TestSource could just emit two messages with
-	 * different IDs and a TestSink could store all received messages
-	 * in a local array. Then after Run() is finished, check whether all
-	 * items arrived at the sink(s) in the correct order and where processed
-	 * correctly by all intermediate boxes.
-	 */
+	Convey("Given basic topology", t, func() {
 
+		tb := NewDefaultStaticTopologyBuilder()
+		s1 := &DummyDefaultSource{"value"}
+		tb.AddSource("source1", s1)
+		b1 := BoxFunc(dummyToUpperBoxFunc)
+		tb.AddBox("aBox", &b1).Input("source1", nil)
+		si := &DummyDefaultSink{}
+		tb.AddSink("si", si).Input("aBox")
+		t := tb.Build()
+		Convey("Run topology with ToUpperBox", func() {
+			t.Run()
+			So(si.results[0], ShouldEqual, "VALUE")
+		})
+	})
+
+	Convey("Given 2 sources topology", t, func() {
+
+		tb := NewDefaultStaticTopologyBuilder()
+		s1 := &DummyDefaultSource{"value"}
+		tb.AddSource("source1", s1)
+		s2 := &DummyDefaultSource{"hoge"}
+		tb.AddSource("source2", s2)
+		b1 := BoxFunc(dummyToUpperBoxFunc)
+		tb.AddBox("aBox", &b1).
+			Input("source1", nil).
+			Input("source2", nil)
+		si := &DummyDefaultSink{}
+		tb.AddSink("si", si).Input("aBox")
+		t := tb.Build()
+		Convey("Run topology with ToUpperBox", func() {
+			start := time.Now()
+			t.Run()
+			So(len(si.results), ShouldEqual, 2)
+			So(si.results, ShouldContain, "VALUE")
+			So(si.results, ShouldContain, "HOGE")
+			So(start, ShouldHappenWithin, 600*time.Millisecond, time.Now())
+		})
+	})
+
+	Convey("Given 2 tuples in 1source topology", t, func() {
+
+		tb := NewDefaultStaticTopologyBuilder()
+		s := &DummyDefaultSource2{"value", "hoge"}
+		tb.AddSource("source", s)
+		b1 := BoxFunc(dummyToUpperBoxFunc)
+		tb.AddBox("aBox", &b1).
+			Input("source", nil)
+		si := &DummyDefaultSink{}
+		tb.AddSink("si", si).Input("aBox")
+		t := tb.Build()
+		Convey("Run topology with ToUpperBox", func() {
+			t.Run()
+			So(si.results, ShouldResemble, []string{"VALUE", "HOGE"})
+		})
+	})
+
+	Convey("Given 2 boxes topology", t, func() {
+
+		tb := NewDefaultStaticTopologyBuilder()
+		s1 := &DummyDefaultSource{"value"}
+		tb.AddSource("source1", s1)
+		b1 := BoxFunc(dummyToUpperBoxFunc)
+		tb.AddBox("aBox", &b1).Input("source1", nil)
+		b2 := BoxFunc(dummyAddSuffixBoxFunc)
+		tb.AddBox("bBox", &b2).Input("source1", nil)
+		si := &DummyDefaultSink{}
+		tb.AddSink("si", si).Input("aBox").Input("bBox")
+		t := tb.Build()
+		Convey("Run topology with ToUpperBox", func() {
+			t.Run()
+			So(si.results[0], ShouldEqual, "VALUE")
+			So(si.results2[0], ShouldEqual, "value_1")
+		})
+	})
+
+	Convey("Given 2 sinks topology", t, func() {
+
+		tb := NewDefaultStaticTopologyBuilder()
+		s1 := &DummyDefaultSource{"value"}
+		tb.AddSource("source1", s1)
+		b1 := BoxFunc(dummyToUpperBoxFunc)
+		tb.AddBox("aBox", &b1).Input("source1", nil)
+		si := &DummyDefaultSink{}
+		tb.AddSink("si", si).Input("aBox")
+		si2 := &DummyDefaultSink{}
+		tb.AddSink("si2", si2).Input("aBox")
+		t := tb.Build()
+		Convey("Run topology with ToUpperBox", func() {
+			t.Run()
+			So(si.results[0], ShouldEqual, "VALUE")
+			So(si2.results[0], ShouldEqual, "VALUE")
+		})
+	})
+
+}
+
+type DummyDefaultSource struct{ initial string }
+
+func (s *DummyDefaultSource) GenerateStream(w Writer) error {
+	time.Sleep(0.5 * 1e9) // to confirm .Run() goroutine
+	t := &tuple.Tuple{}
+	t.Data = tuple.Map{
+		"source": tuple.String(s.initial),
+	}
+	w.Write(t)
+	return nil
+}
+func (s *DummyDefaultSource) Schema() *Schema {
+	var sc Schema = Schema("test")
+	return &sc
+}
+
+type DummyDefaultSource2 struct {
+	initial  string
+	initial2 string
+}
+
+func (s *DummyDefaultSource2) GenerateStream(w Writer) error {
+	t := &tuple.Tuple{}
+	t.Data = tuple.Map{
+		"source": tuple.String(s.initial),
+	}
+	w.Write(t)
+	t2 := &tuple.Tuple{}
+	t2.Data = tuple.Map{
+		"source": tuple.String(s.initial2),
+	}
+	w.Write(t2)
+	return nil
+}
+func (s *DummyDefaultSource2) Schema() *Schema {
+	var sc Schema = Schema("test")
+	return &sc
+}
+
+func dummyToUpperBoxFunc(t *tuple.Tuple, w Writer) error {
+	x, _ := t.Data.Get("source")
+	s, _ := x.String()
+	t.Data["to-upper"] = tuple.String(strings.ToUpper(string(s)))
+	w.Write(t)
+	return nil
+}
+
+func dummyAddSuffixBoxFunc(t *tuple.Tuple, w Writer) error {
+	x, _ := t.Data.Get("source")
+	s, _ := x.String()
+	t.Data["add-suffix"] = tuple.String(s + "_1")
+	w.Write(t)
+	return nil
+}
+
+type DummyDefaultSink struct {
+	results  []string
+	results2 []string
+}
+
+func (s *DummyDefaultSink) Write(t *tuple.Tuple) error {
+	x, err := t.Data.Get("to-upper")
+	if err != nil {
+		return nil
+	}
+	str, _ := x.String()
+	s.results = append(s.results, string(str))
+
+	x, err = t.Data.Get("add-suffix")
+	if err != nil {
+		return nil
+	}
+	str, _ = x.String()
+	s.results2 = append(s.results2, string(str))
+	return nil
 }
