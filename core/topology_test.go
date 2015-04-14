@@ -63,7 +63,7 @@ func (this *DummySource) Schema() *Schema {
 
 type DummyBox struct{}
 
-func (this *DummyBox) Init(ctx Context) error {
+func (this *DummyBox) Init(ctx *Context) error {
 	return nil
 }
 func (this *DummyBox) Process(t *tuple.Tuple, s Writer) error {

@@ -289,7 +289,7 @@ func (s *DefaultSource) Schema() *Schema {
 
 type DefaultBox struct{}
 
-func (b *DefaultBox) Init(ctx Context) error {
+func (b *DefaultBox) Init(ctx *Context) error {
 	return nil
 }
 
