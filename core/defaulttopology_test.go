@@ -362,18 +362,18 @@ func TestDefaultTopology(t *testing.T) {
 
 type DummyDefaultSource struct{ initial string }
 
-func (this *DummyDefaultSource) GenerateStream(w Writer) error {
+func (s *DummyDefaultSource) GenerateStream(w Writer) error {
 	time.Sleep(0.5 * 1e9) // to confirm .Run() goroutine
 	t := &tuple.Tuple{}
 	t.Data = tuple.Map{
-		"source": tuple.String(this.initial),
+		"source": tuple.String(s.initial),
 	}
 	w.Write(t)
 	return nil
 }
-func (this *DummyDefaultSource) Schema() *Schema {
-	var s Schema = Schema("test")
-	return &s
+func (s *DummyDefaultSource) Schema() *Schema {
+	var sc Schema = Schema("test")
+	return &sc
 }
 
 type DummyDefaultSource2 struct {
@@ -381,22 +381,22 @@ type DummyDefaultSource2 struct {
 	initial2 string
 }
 
-func (this *DummyDefaultSource2) GenerateStream(w Writer) error {
+func (s *DummyDefaultSource2) GenerateStream(w Writer) error {
 	t := &tuple.Tuple{}
 	t.Data = tuple.Map{
-		"source": tuple.String(this.initial),
+		"source": tuple.String(s.initial),
 	}
 	w.Write(t)
 	t2 := &tuple.Tuple{}
 	t2.Data = tuple.Map{
-		"source": tuple.String(this.initial2),
+		"source": tuple.String(s.initial2),
 	}
 	w.Write(t2)
 	return nil
 }
-func (this *DummyDefaultSource2) Schema() *Schema {
-	var s Schema = Schema("test")
-	return &s
+func (s *DummyDefaultSource2) Schema() *Schema {
+	var sc Schema = Schema("test")
+	return &sc
 }
 
 func dummyToUpperBoxFunc(t *tuple.Tuple, w Writer) error {
@@ -420,19 +420,19 @@ type DummyDefaultSink struct {
 	results2 []string
 }
 
-func (this *DummyDefaultSink) Write(t *tuple.Tuple) error {
+func (s *DummyDefaultSink) Write(t *tuple.Tuple) error {
 	x, err := t.Data.Get("to-upper")
 	if err != nil {
 		return nil
 	}
-	s, _ := x.String()
-	this.results = append(this.results, string(s))
+	str, _ := x.String()
+	s.results = append(s.results, string(str))
 
 	x, err = t.Data.Get("add-suffix")
 	if err != nil {
 		return nil
 	}
-	s, _ = x.String()
-	this.results2 = append(this.results2, string(s))
+	str, _ = x.String()
+	s.results2 = append(s.results2, string(str))
 	return nil
 }
