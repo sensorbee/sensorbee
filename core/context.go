@@ -4,7 +4,8 @@ import (
 	"pfi/sensorbee/sensorbee/core/tuple"
 )
 
-type LogManager interface {
+type Context struct {
+	Logger LogManager
 }
 
 type LogLevel int
@@ -17,7 +18,7 @@ const (
 	FATAL
 )
 
-type Context interface {
+type LogManager interface {
 	Log(level LogLevel, msg string, a ...interface{})
 
 	// If there was an error during processing in a box and
