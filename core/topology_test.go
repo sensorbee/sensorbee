@@ -8,77 +8,77 @@ import (
 
 type DummyTopology struct{}
 
-func (this *DummyTopology) Run() {}
+func (dt *DummyTopology) Run() {}
 
 type DummyTopologyBuilder struct{}
 
-func (this *DummyTopologyBuilder) AddSource(name string, source Source) SourceDeclarer {
+func (dtb *DummyTopologyBuilder) AddSource(name string, source Source) SourceDeclarer {
 	return &DummySourceDeclarer{}
 }
-func (this *DummyTopologyBuilder) AddBox(name string, box Box) BoxDeclarer {
+func (dtb *DummyTopologyBuilder) AddBox(name string, box Box) BoxDeclarer {
 	return &DummyBoxDeclarer{}
 }
-func (this *DummyTopologyBuilder) AddSink(name string, sink Sink) SinkDeclarer {
+func (dtb *DummyTopologyBuilder) AddSink(name string, sink Sink) SinkDeclarer {
 	return &DummySinkDeclarer{}
 }
-func (this *DummyTopologyBuilder) Build() Topology {
+func (dtb *DummyTopologyBuilder) Build() Topology {
 	return &DummyTopology{}
 }
 
 type DummySourceDeclarer struct{}
 
-func (this *DummySourceDeclarer) Err() error {
+func (dsd *DummySourceDeclarer) Err() error {
 	return nil
 }
 
 type DummyBoxDeclarer struct{}
 
-func (this *DummyBoxDeclarer) Input(name string, schema *Schema) BoxDeclarer {
+func (dbd *DummyBoxDeclarer) Input(name string, schema *Schema) BoxDeclarer {
 	return &DummyBoxDeclarer{}
 }
 
-func (this *DummyBoxDeclarer) Err() error {
+func (dbd *DummyBoxDeclarer) Err() error {
 	return nil
 }
 
 type DummySinkDeclarer struct{}
 
-func (this *DummySinkDeclarer) Input(name string) SinkDeclarer {
+func (dsd *DummySinkDeclarer) Input(name string) SinkDeclarer {
 	return &DummySinkDeclarer{}
 }
 
-func (this *DummySinkDeclarer) Err() error {
+func (dsd *DummySinkDeclarer) Err() error {
 	return nil
 }
 
 type DummySource struct{}
 
-func (this *DummySource) GenerateStream(w Writer) error {
+func (ds *DummySource) GenerateStream(w Writer) error {
 	return nil
 }
-func (this *DummySource) Schema() *Schema {
+func (ds *DummySource) Schema() *Schema {
 	var s Schema = Schema("test")
 	return &s
 }
 
 type DummyBox struct{}
 
-func (this *DummyBox) Init(ctx *Context) error {
+func (db *DummyBox) Init(ctx *Context) error {
 	return nil
 }
-func (this *DummyBox) Process(t *tuple.Tuple, s Writer) error {
+func (db *DummyBox) Process(t *tuple.Tuple, s Writer) error {
 	return nil
 }
-func (this *DummyBox) RequiredInputSchema() ([]*Schema, error) {
+func (db *DummyBox) RequiredInputSchema() ([]*Schema, error) {
 	return []*Schema{nil}, nil
 }
-func (this *DummyBox) OutputSchema(s []*Schema) (*Schema, error) {
+func (db *DummyBox) OutputSchema(s []*Schema) (*Schema, error) {
 	return nil, nil
 }
 
 type DummySink struct{}
 
-func (this *DummySink) Write(t *tuple.Tuple) error {
+func (ds *DummySink) Write(t *tuple.Tuple) error {
 	return nil
 }
 
