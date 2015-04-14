@@ -425,6 +425,9 @@ func (b *DummyToUpperBox) Process(t *tuple.Tuple, w Writer) error {
 	s, _ := x.String()
 	t.Data["to-upper"] = tuple.String(strings.ToUpper(string(s)))
 	w.Write(t)
+	if b.ctx != nil {
+		b.ctx.Logger.Log(DEBUG, "convey test %v", "ToUpperBox Processing")
+	}
 	return nil
 }
 
