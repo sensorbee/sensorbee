@@ -349,6 +349,28 @@ func TestDefaultTopology(t *testing.T) {
 		})
 	})
 
+	Convey("Given basic topology with Context & ConsoleLogger", t, func() {
+
+		tb := NewDefaultStaticTopologyBuilder()
+		s1 := &DummyDefaultSource{"value"}
+		tb.AddSource("source1", s1)
+		b1 := BoxFunc(dummyToUpperBoxFunc)
+		tb.AddBox("aBox", &b1).Input("source1", nil)
+		si := &DummyDefaultSink{}
+		tb.AddSink("si", si).Input("aBox")
+
+		ctx := &Context{
+			&ConsoleLogManager{},
+		}
+		tb.Init(ctx)
+		t := tb.Build()
+
+		Convey("Run topology with ToUpperBox", func() {
+			t.Run()
+			So(si.results[0], ShouldEqual, "VALUE")
+		})
+	})
+
 }
 
 type DummyDefaultSource struct{ initial string }

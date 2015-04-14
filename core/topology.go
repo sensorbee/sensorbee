@@ -5,6 +5,7 @@ type Topology interface {
 }
 
 type StaticTopologyBuilder interface {
+	Init(ctx *Context)
 	AddSource(name string, source Source) SourceDeclarer
 	AddBox(name string, box Box) BoxDeclarer
 	AddSink(name string, sink Sink) SinkDeclarer

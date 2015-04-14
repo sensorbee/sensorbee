@@ -18,6 +18,23 @@ const (
 	FATAL
 )
 
+func (l LogLevel) String() string {
+	switch l {
+	case DEBUG:
+		return "DEBUG"
+	case INFO:
+		return "INFO"
+	case WARNING:
+		return "WARNING"
+	case ERROR:
+		return "ERROR"
+	case FATAL:
+		return "FATAL"
+	default:
+		return "unknown"
+	}
+}
+
 type LogManager interface {
 	Log(level LogLevel, msg string, a ...interface{})
 
