@@ -138,20 +138,6 @@ func (tb *DefaultStaticTopologyBuilder) Build() Topology {
 			pipe.ReceiverBoxes = append(pipe.ReceiverBoxes, recv)
 		}
 	}
-	/* TODO hand the necessary data to DefaultTopology:
-	 * DefaultTopology must implement a method Run() and that
-	 * method must call GenerateStream(w) on all sources with
-	 * the associated output pipes. GenerateStream() is a
-	 * blocking method, so we probably must run them as goroutines
-	 * and then wait until all of them are finished.
-	 * Maybe it is a good idea to create a closure here that
-	 * does this and then just hand over the closure to
-	 * DefaultTopology, so that Run() would do nothing else than
-	 * calling this closure and wait for it to return.
-	 * (This means that Run() returns when all GenerateStream()
-	 * calls are done. Is this equivalent to "when all processing
-	 * is complete"?)
-	 */
 	// TODO source and sink is reference data,
 	//      so cannot call .Build() more than once
 	return &DefaultTopology{tb.sources, pipes}
