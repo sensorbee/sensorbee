@@ -5,7 +5,7 @@ import (
 )
 
 type Box interface {
-	Init(ctx Context) error
+	Init(ctx *Context) error
 	Process(t *tuple.Tuple, s Writer) error
 	RequiredInputSchema() ([]*Schema, error)
 	OutputSchema([]*Schema) (*Schema, error)
@@ -17,7 +17,7 @@ func (b *BoxFunc) Process(t *tuple.Tuple, s Writer) error {
 	return (*b)(t, s)
 }
 
-func (b *BoxFunc) Init(ctx Context) error {
+func (b *BoxFunc) Init(ctx *Context) error {
 	return nil
 }
 
