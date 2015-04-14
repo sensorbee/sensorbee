@@ -294,13 +294,9 @@ func (s *DefaultSource) Schema() *Schema {
 /**************************************************/
 
 type DefaultBox struct {
-	ctx *Context
 }
 
 func (b *DefaultBox) Init(ctx *Context) error {
-	//if b.ctx == nil {
-	b.ctx = ctx // TODO need atomic ?
-	//}
 	return nil
 }
 
