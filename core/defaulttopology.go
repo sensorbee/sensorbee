@@ -286,6 +286,10 @@ func (s *DefaultSource) Schema() *Schema {
 
 type DefaultBox struct{}
 
+func (b *DefaultBox) Init(ctx Context) error {
+	return nil
+}
+
 func (b *DefaultBox) Process(t *tuple.Tuple, s Writer) error {
 	return nil
 }
