@@ -14,6 +14,19 @@ type Tuple struct {
 	Tracers []Tracer
 }
 
+func (t *Tuple) AddTracer(tr Tracer) {
+	t.Tracers = append(t.Tracers, tr)
+}
+
+func (t *Tuple) Copy() *Tuple {
+	// except for Data, there are only value types in
+	// Tuple, so we can use normal copy for everything
+	// except Data
+	out := *t
+	out.Data = out.Data.Copy()
+	return &out
+}
+
 type InOutType int
 
 const (
@@ -27,15 +40,13 @@ type Tracer struct {
 	Msg       string
 }
 
-func (t *Tuple) AddTracer(tr Tracer) {
-	t.Tracers = append(t.Tracers, tr)
-}
-
-func (t *Tuple) Copy() *Tuple {
-	// except for Data, there are only value types in
-	// Tuple, so we can use normal copy for everything
-	// except Data
-	out := *t
-	out.Data = out.Data.Copy()
-	return &out
+func (t InOutType) String() string {
+	switch t {
+	case INPUT:
+		return "INPUT"
+	case OUTPUT:
+		return "OUTPUT"
+	default:
+		return "unknown"
+	}
 }

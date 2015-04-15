@@ -112,14 +112,16 @@ func (tb *DefaultStaticTopologyBuilder) Build() Topology {
 	pipes := make(map[string]*SequentialPipe, len(tb.sources)+len(tb.boxes))
 	for name, _ := range tb.sources {
 		pipe := SequentialPipe{}
+		pipe.FromName = name
 		pipe.ReceiverBoxes = make([]ReceiverBox, 0)
-		pipe.ReceiverSinks = make([]Sink, 0)
+		pipe.ReceiverSinks = make([]ReceiverSink, 0)
 		pipes[name] = &pipe
 	}
 	for name, _ := range tb.boxes {
 		pipe := SequentialPipe{}
+		pipe.FromName = name
 		pipe.ReceiverBoxes = make([]ReceiverBox, 0)
-		pipe.ReceiverSinks = make([]Sink, 0)
+		pipe.ReceiverSinks = make([]ReceiverSink, 0)
 		pipes[name] = &pipe
 	}
 	// add the correct receivers to each pipe
@@ -131,7 +133,8 @@ func (tb *DefaultStaticTopologyBuilder) Build() Topology {
 		// pipe's receiver list
 		sink, isSink := tb.sinks[toName]
 		if isSink {
-			pipe.ReceiverSinks = append(pipe.ReceiverSinks, sink)
+			recv := ReceiverSink{toName, sink}
+			pipe.ReceiverSinks = append(pipe.ReceiverSinks, recv)
 		}
 		box, isBox := tb.boxes[toName]
 		if isBox {
@@ -151,43 +154,68 @@ type ReceiverBox struct {
 	Receiver Writer
 }
 
+// holds a sink and the sink's name
+type ReceiverSink struct {
+	Name string
+	Sink Sink
+}
+
 // receives input from a box and forwards it to registered listeners
 type SequentialPipe struct {
+	FromName      string
 	ReceiverBoxes []ReceiverBox
-	ReceiverSinks []Sink
+	ReceiverSinks []ReceiverSink
 }
 
 func (p *SequentialPipe) Write(t *tuple.Tuple) error {
-	// TODO add trace information to tuple (if enabled)
+	in := newDefaultTracer(tuple.INPUT, p.FromName)
+	t.AddTracer(in)
 	// forward tuple to connected boxes
 	var s *tuple.Tuple
+	var trs []tuple.Tracer
 	tupleCopies := 0
 	for _, recvBox := range p.ReceiverBoxes {
 		// copy for all receivers but the first so that
 		// multiple receivers don't operate on the same data
 		if tupleCopies == 0 {
 			s = t
+			trs = make([]tuple.Tracer, len(t.Tracers))
+			copy(trs, t.Tracers)
 		} else {
 			s = t.Copy()
+			s.Tracers = trs
 		}
-		tr := newDefaultTracer(tuple.OUTPUT, fmt.Sprintf("go out the box: %v", recvBox.Name))
+		tr := newDefaultTracer(tuple.OUTPUT, recvBox.Name)
 		s.AddTracer(tr)
 		recvBox.Box.Process(s, recvBox.Receiver)
 		tupleCopies += 1
 	}
 	// forward tuple to connected sinks
-	for _, sink := range p.ReceiverSinks {
+	for _, recvSink := range p.ReceiverSinks {
 		// copy for all receivers but the first so that
 		// multiple receivers don't operate on the same data
 		if tupleCopies == 0 {
 			s = t
+			trs = make([]tuple.Tracer, len(t.Tracers))
+			copy(trs, t.Tracers)
 		} else {
 			s = t.Copy()
+			s.Tracers = trs
 		}
-		sink.Write(s)
+		tr := newDefaultTracer(tuple.OUTPUT, recvSink.Name)
+		s.AddTracer(tr)
+		recvSink.Sink.Write(s)
 		tupleCopies += 1
 	}
 	return nil
+}
+
+func newDefaultTracer(inout tuple.InOutType, msg string) tuple.Tracer {
+	return tuple.Tracer{
+		time.Now(),
+		inout,
+		msg,
+	}
 }
 
 /**************************************************/
@@ -331,14 +359,4 @@ type DefaultSink struct{}
 
 func (s *DefaultSink) Write(t *tuple.Tuple) error {
 	return nil
-}
-
-/**************************************************/
-
-func newDefaultTracer(inout tuple.InOutType, msg string) tuple.Tracer {
-	return tuple.Tracer{
-		time.Now(),
-		inout,
-		msg,
-	}
 }
