@@ -27,6 +27,36 @@ func TestValue(t *testing.T) {
 				So(getErr, ShouldNotBeNil)
 			})
 		})
+
+		Convey("When deep-copying the value", func() {
+			copy := testData.Copy()
+			Convey("Then all values should be the same", func() {
+				simpleTypes := []string{"bool", "int", "float", "string",
+					"array[0]", "map/string"}
+				for _, typeName := range simpleTypes {
+					a, getErrA := testData.Get(typeName)
+					So(getErrA, ShouldBeNil)
+					b, getErrB := copy.Get(typeName)
+					So(getErrB, ShouldBeNil)
+					// objects should have the same value
+					So(a, ShouldEqual, b)
+					// pointers should not be the same
+					So(&a, ShouldNotPointTo, &b)
+				}
+
+				complexTypes := []string{"byte", "time"}
+				for _, typeName := range complexTypes {
+					a, getErrA := testData.Get(typeName)
+					So(getErrA, ShouldBeNil)
+					b, getErrB := copy.Get(typeName)
+					So(getErrB, ShouldBeNil)
+					// objects should have the same value
+					So(a, ShouldResemble, b)
+					// pointers should not be the same
+					So(&a, ShouldNotPointTo, &b)
+				}
+			})
+		})
 	})
 
 	Convey("Given a Map with a Bool value in it", t, func() {

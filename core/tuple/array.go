@@ -38,6 +38,14 @@ func (a Array) Map() (Map, error) {
 	return nil, castError(a.Type(), TypeMap)
 }
 
+func (a Array) clone() Value {
+	out := make([]Value, len(a))
+	for idx, val := range a {
+		out[idx] = val.clone()
+	}
+	return Array(out)
+}
+
 func (a Array) toArrayInterface() []interface{} {
 	t := make([]interface{}, len(a))
 	for idx, value := range a {

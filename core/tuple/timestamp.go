@@ -41,3 +41,7 @@ func (t Timestamp) Array() (Array, error) {
 func (t Timestamp) Map() (Map, error) {
 	return nil, castError(t.Type(), TypeMap)
 }
+
+func (t Timestamp) clone() Value {
+	return Timestamp(t)
+}
