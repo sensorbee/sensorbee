@@ -10,6 +10,25 @@ type Tuple struct {
 	Timestamp     time.Time
 	ProcTimestamp time.Time
 	BatchID       int64
+
+	Tracers []Tracer
+}
+
+type InOutType int
+
+const (
+	INPUT InOutType = iota
+	OUTPUT
+)
+
+type Tracer struct {
+	Timestanp time.Time
+	Inout     InOutType
+	Msg       string
+}
+
+func (t *Tuple) AddTracer(tr Tracer) {
+	t.Tracers = append(t.Tracers, tr)
 }
 
 func (t *Tuple) Copy() *Tuple {

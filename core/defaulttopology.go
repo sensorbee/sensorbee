@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"pfi/sensorbee/sensorbee/core/tuple"
 	"sync"
+	"time"
 )
 
 type DefaultTopology struct {
@@ -169,6 +170,8 @@ func (p *SequentialPipe) Write(t *tuple.Tuple) error {
 		} else {
 			s = t.Copy()
 		}
+		tr := newDefaultTracer(tuple.OUTPUT, fmt.Sprintf("go out the box: %v", recvBox.Name))
+		s.AddTracer(tr)
 		recvBox.Box.Process(s, recvBox.Receiver)
 		tupleCopies += 1
 	}
@@ -328,4 +331,14 @@ type DefaultSink struct{}
 
 func (s *DefaultSink) Write(t *tuple.Tuple) error {
 	return nil
+}
+
+/**************************************************/
+
+func newDefaultTracer(inout tuple.InOutType, msg string) tuple.Tracer {
+	return tuple.Tracer{
+		time.Now(),
+		inout,
+		msg,
+	}
 }
