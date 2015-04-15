@@ -37,3 +37,11 @@ func (b Blob) Array() (Array, error) {
 func (b Blob) Map() (Map, error) {
 	return nil, castError(b.Type(), TypeMap)
 }
+
+func (b Blob) clone() Value {
+	out := make([]byte, len(b))
+	for idx, val := range b {
+		out[idx] = val
+	}
+	return Blob(out)
+}
