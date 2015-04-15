@@ -166,14 +166,31 @@ type SequentialPipe struct {
 
 func (p *SequentialPipe) Write(t *tuple.Tuple) error {
 	// TODO add trace information to tuple (if enabled)
-	// TODO copy/clone tuple if there are multiple outputs
 	// forward tuple to connected boxes
+	var s *tuple.Tuple
+	tupleCopies := 0
 	for _, recvBox := range p.ReceiverBoxes {
-		recvBox.Box.Process(t, recvBox.Receiver)
+		// copy for all receivers but the first so that
+		// multiple receivers don't operate on the same data
+		if tupleCopies == 0 {
+			s = t
+		} else {
+			s = t.Copy()
+		}
+		recvBox.Box.Process(s, recvBox.Receiver)
+		tupleCopies += 1
 	}
 	// forward tuple to connected sinks
 	for _, sink := range p.ReceiverSinks {
-		sink.Write(t)
+		// copy for all receivers but the first so that
+		// multiple receivers don't operate on the same data
+		if tupleCopies == 0 {
+			s = t
+		} else {
+			s = t.Copy()
+		}
+		sink.Write(s)
+		tupleCopies += 1
 	}
 	return nil
 }

@@ -15,6 +15,7 @@ type Value interface {
 	Timestamp() (Timestamp, error)
 	Array() (Array, error)
 	Map() (Map, error)
+	clone() Value
 }
 
 // TODO: Provide NewMap(map[string]interface{}) Map

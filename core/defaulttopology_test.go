@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-func TestDefaultTopology(t *testing.T) {
+func TestDefaultTopologyBuilderInterface(t *testing.T) {
 	Convey("When creating a default topology builder", t, func() {
 		var tb StaticTopologyBuilder = NewDefaultStaticTopologyBuilder()
 		So(tb, ShouldNotBeNil)
@@ -253,7 +253,9 @@ func TestDefaultTopology(t *testing.T) {
 			})
 		})
 	})
+}
 
+func TestBasicDefaultTopologyTransport(t *testing.T) {
 	Convey("Given basic topology", t, func() {
 
 		tb := NewDefaultStaticTopologyBuilder()
@@ -478,5 +480,237 @@ func (s *DummyDefaultSink) Write(t *tuple.Tuple) error {
 	}
 	str, _ = x.String()
 	s.results2 = append(s.results2, string(str))
+	return nil
+}
+
+func TestDefaultTopologyTupleCopying(t *testing.T) {
+	tup1 := tuple.Tuple{
+		Data: tuple.Map{
+			"int": tuple.Int(1),
+		},
+		Timestamp:     time.Date(2015, time.April, 10, 10, 23, 0, 0, time.UTC),
+		ProcTimestamp: time.Date(2015, time.April, 10, 10, 24, 0, 0, time.UTC),
+		BatchID:       7,
+	}
+	tup2 := tuple.Tuple{
+		Data: tuple.Map{
+			"int": tuple.Int(2),
+		},
+		Timestamp:     time.Date(2015, time.April, 10, 10, 23, 1, 0, time.UTC),
+		ProcTimestamp: time.Date(2015, time.April, 10, 10, 24, 1, 0, time.UTC),
+		BatchID:       7,
+	}
+
+	Convey("Given a simple source/sink topology", t, func() {
+		/*
+		 *   so -*--> si
+		 */
+		tb := NewDefaultStaticTopologyBuilder()
+		so := &TupleEmitterSource{
+			Tuples: []*tuple.Tuple{&tup1, &tup2},
+		}
+		tb.AddSource("source", so)
+
+		si := &TupleCollectorSink{}
+		tb.AddSink("sink", si).Input("source")
+
+		t := tb.Build()
+
+		Convey("When a tuple is emitted by the source", func() {
+			t.Run()
+			Convey("Then the sink receives the same object", func() {
+				So(si.Tuples, ShouldNotBeNil)
+				So(len(si.Tuples), ShouldEqual, 2)
+				// pointers point to the same objects
+				So(so.Tuples[0], ShouldPointTo, si.Tuples[0])
+				So(so.Tuples[1], ShouldPointTo, si.Tuples[1])
+			})
+		})
+	})
+
+	Convey("Given a simple source/sink topology with 2 sinks", t, func() {
+		/*
+		 *        /--> si1
+		 *   so -*
+		 *        \--> si2
+		 */
+		tb := NewDefaultStaticTopologyBuilder()
+		so := &TupleEmitterSource{
+			Tuples: []*tuple.Tuple{&tup1, &tup2},
+		}
+		tb.AddSource("source", so)
+
+		si1 := &TupleCollectorSink{}
+		tb.AddSink("si1", si1).Input("source")
+		si2 := &TupleCollectorSink{}
+		tb.AddSink("si2", si2).Input("source")
+
+		t := tb.Build()
+
+		Convey("When a tuple is emitted by the source", func() {
+			t.Run()
+			Convey("Then the sink 1 receives the same object", func() {
+				So(si1.Tuples, ShouldNotBeNil)
+				So(len(si1.Tuples), ShouldEqual, 2)
+				// pointers point to the same objects
+				So(so.Tuples[0], ShouldPointTo, si1.Tuples[0])
+				So(so.Tuples[1], ShouldPointTo, si1.Tuples[1])
+			})
+			Convey("And the sink 2 receives a copy", func() {
+				So(si2.Tuples, ShouldNotBeNil)
+				So(len(si2.Tuples), ShouldEqual, 2)
+				// contents are the same
+				So(so.Tuples, ShouldResemble, si2.Tuples)
+				// pointers point to different objects
+				So(so.Tuples[0], ShouldNotPointTo, si2.Tuples[0])
+				So(so.Tuples[1], ShouldNotPointTo, si2.Tuples[1])
+			})
+		})
+	})
+
+	Convey("Given a simple source/box/sink topology", t, func() {
+		/*
+		 *   so -*--> b -*--> si
+		 */
+		tb := NewDefaultStaticTopologyBuilder()
+		so := &TupleEmitterSource{
+			Tuples: []*tuple.Tuple{&tup1, &tup2},
+		}
+		tb.AddSource("source", so)
+
+		b := BoxFunc(forwardBox)
+		tb.AddBox("box", &b).Input("source", nil)
+
+		si := &TupleCollectorSink{}
+		tb.AddSink("sink", si).Input("box")
+
+		t := tb.Build()
+
+		Convey("When a tuple is emitted by the source", func() {
+			t.Run()
+			Convey("Then the sink receives the same object", func() {
+				So(si.Tuples, ShouldNotBeNil)
+				So(len(si.Tuples), ShouldEqual, 2)
+				// pointers point to the same objects
+				So(so.Tuples[0], ShouldPointTo, si.Tuples[0])
+				So(so.Tuples[1], ShouldPointTo, si.Tuples[1])
+			})
+		})
+	})
+
+	Convey("Given a simple source/box/sink topology with 2 sinks", t, func() {
+		/*
+		 *                /--> si1
+		 *   so -*--> b -*
+		 *                \--> si2
+		 */
+		tb := NewDefaultStaticTopologyBuilder()
+		so := &TupleEmitterSource{
+			Tuples: []*tuple.Tuple{&tup1, &tup2},
+		}
+		tb.AddSource("source", so)
+
+		b := BoxFunc(forwardBox)
+		tb.AddBox("box", &b).Input("source", nil)
+
+		si1 := &TupleCollectorSink{}
+		tb.AddSink("si1", si1).Input("box")
+		si2 := &TupleCollectorSink{}
+		tb.AddSink("si2", si2).Input("box")
+
+		t := tb.Build()
+
+		Convey("When a tuple is emitted by the source", func() {
+			t.Run()
+			Convey("Then the sink 1 receives the same object", func() {
+				So(si1.Tuples, ShouldNotBeNil)
+				So(len(si1.Tuples), ShouldEqual, 2)
+				// pointers point to the same objects
+				So(so.Tuples[0], ShouldPointTo, si1.Tuples[0])
+				So(so.Tuples[1], ShouldPointTo, si1.Tuples[1])
+			})
+			Convey("And the sink 2 receives a copy", func() {
+				So(si2.Tuples, ShouldNotBeNil)
+				So(len(si2.Tuples), ShouldEqual, 2)
+				// contents are the same
+				So(so.Tuples, ShouldResemble, si2.Tuples)
+				// pointers point to different objects
+				So(so.Tuples[0], ShouldNotPointTo, si2.Tuples[0])
+				So(so.Tuples[1], ShouldNotPointTo, si2.Tuples[1])
+			})
+		})
+	})
+
+	Convey("Given a simple source/box/sink topology with 2 boxes and 2 sinks", t, func() {
+		/*
+		 *        /--> b1 -*--> si1
+		 *   so -*
+		 *        \--> b2 -*--> si2
+		 */
+		tb := NewDefaultStaticTopologyBuilder()
+		so := &TupleEmitterSource{
+			Tuples: []*tuple.Tuple{&tup1, &tup2},
+		}
+		tb.AddSource("source", so)
+
+		b1 := BoxFunc(forwardBox)
+		tb.AddBox("box1", &b1).Input("source", nil)
+		b2 := BoxFunc(forwardBox)
+		tb.AddBox("box2", &b2).Input("source", nil)
+
+		si1 := &TupleCollectorSink{}
+		tb.AddSink("si1", si1).Input("box1")
+		si2 := &TupleCollectorSink{}
+		tb.AddSink("si2", si2).Input("box2")
+
+		t := tb.Build()
+
+		Convey("When a tuple is emitted by the source", func() {
+			t.Run()
+			Convey("Then the sink 1 receives the same object", func() {
+				So(si1.Tuples, ShouldNotBeNil)
+				So(len(si1.Tuples), ShouldEqual, 2)
+				// pointers point to the same objects
+				So(so.Tuples[0], ShouldPointTo, si1.Tuples[0])
+				So(so.Tuples[1], ShouldPointTo, si1.Tuples[1])
+			})
+			Convey("And the sink 2 receives a copy", func() {
+				So(si2.Tuples, ShouldNotBeNil)
+				So(len(si2.Tuples), ShouldEqual, 2)
+				// contents are the same
+				So(so.Tuples, ShouldResemble, si2.Tuples)
+				// pointers point to different objects
+				So(so.Tuples[0], ShouldNotPointTo, si2.Tuples[0])
+				So(so.Tuples[1], ShouldNotPointTo, si2.Tuples[1])
+			})
+		})
+	})
+}
+
+type TupleEmitterSource struct {
+	Tuples []*tuple.Tuple
+}
+
+func (s *TupleEmitterSource) GenerateStream(w Writer) error {
+	for _, t := range s.Tuples {
+		w.Write(t)
+	}
+	return nil
+}
+func (s *TupleEmitterSource) Schema() *Schema {
+	return nil
+}
+
+type TupleCollectorSink struct {
+	Tuples []*tuple.Tuple
+}
+
+func (s *TupleCollectorSink) Write(t *tuple.Tuple) error {
+	s.Tuples = append(s.Tuples, t)
+	return nil
+}
+
+func forwardBox(t *tuple.Tuple, w Writer) error {
+	w.Write(t)
 	return nil
 }
