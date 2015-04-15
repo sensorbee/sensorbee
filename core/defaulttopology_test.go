@@ -351,7 +351,7 @@ func TestBasicDefaultTopologyTransport(t *testing.T) {
 		})
 	})
 
-	Convey("Given basic topology with Context & ConsoleLogger", t, func() {
+	Convey("Given basic topology", t, func() {
 
 		tb := NewDefaultStaticTopologyBuilder()
 		s1 := &DummyDefaultSource{"value"}
@@ -361,7 +361,7 @@ func TestBasicDefaultTopologyTransport(t *testing.T) {
 		si := &DummyDefaultSink{}
 		tb.AddSink("si", si).Input("aBox")
 
-		Convey("Run topology with ToUpperBox", func() {
+		Convey("When Run topology with Context & ConsoleLogger", func() {
 			ctx := &Context{
 				&ConsoleLogManager{},
 			}
@@ -517,7 +517,7 @@ func TestDefaultTopologyTupleCopying(t *testing.T) {
 		t := tb.Build()
 
 		Convey("When a tuple is emitted by the source", func() {
-			t.Run()
+			t.Run(&Context{})
 			Convey("Then the sink receives the same object", func() {
 				So(si.Tuples, ShouldNotBeNil)
 				So(len(si.Tuples), ShouldEqual, 2)
@@ -548,7 +548,7 @@ func TestDefaultTopologyTupleCopying(t *testing.T) {
 		t := tb.Build()
 
 		Convey("When a tuple is emitted by the source", func() {
-			t.Run()
+			t.Run(&Context{})
 			Convey("Then the sink 1 receives the same object", func() {
 				So(si1.Tuples, ShouldNotBeNil)
 				So(len(si1.Tuples), ShouldEqual, 2)
@@ -587,7 +587,7 @@ func TestDefaultTopologyTupleCopying(t *testing.T) {
 		t := tb.Build()
 
 		Convey("When a tuple is emitted by the source", func() {
-			t.Run()
+			t.Run(&Context{})
 			Convey("Then the sink receives the same object", func() {
 				So(si.Tuples, ShouldNotBeNil)
 				So(len(si.Tuples), ShouldEqual, 2)
@@ -621,7 +621,7 @@ func TestDefaultTopologyTupleCopying(t *testing.T) {
 		t := tb.Build()
 
 		Convey("When a tuple is emitted by the source", func() {
-			t.Run()
+			t.Run(&Context{})
 			Convey("Then the sink 1 receives the same object", func() {
 				So(si1.Tuples, ShouldNotBeNil)
 				So(len(si1.Tuples), ShouldEqual, 2)
@@ -666,7 +666,7 @@ func TestDefaultTopologyTupleCopying(t *testing.T) {
 		t := tb.Build()
 
 		Convey("When a tuple is emitted by the source", func() {
-			t.Run()
+			t.Run(&Context{})
 			Convey("Then the sink 1 receives the same object", func() {
 				So(si1.Tuples, ShouldNotBeNil)
 				So(len(si1.Tuples), ShouldEqual, 2)
