@@ -37,3 +37,7 @@ func (b Bool) Array() (Array, error) {
 func (b Bool) Map() (Map, error) {
 	return nil, castError(b.Type(), TypeMap)
 }
+
+func (b Bool) clone() Value {
+	return Bool(b)
+}

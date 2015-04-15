@@ -42,6 +42,18 @@ func (m Map) Map() (Map, error) {
 	return m, nil
 }
 
+func (m Map) clone() Value {
+	return m.Copy()
+}
+
+func (m Map) Copy() Map {
+	out := make(map[string]Value, len(m))
+	for key, val := range m {
+		out[key] = val.clone()
+	}
+	return Map(out)
+}
+
 func (m Map) Get(path string) (Value, error) {
 	// TODO: support json path manually
 	var v Value
