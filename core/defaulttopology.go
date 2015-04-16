@@ -383,6 +383,7 @@ func (s *DefaultSource) Schema() *Schema {
 /**************************************************/
 
 type DefaultBox struct {
+	InputSchema map[string]*Schema
 }
 
 func (b *DefaultBox) Init(ctx *Context) error {
@@ -394,6 +395,10 @@ func (b *DefaultBox) Process(t *tuple.Tuple, s Writer) error {
 }
 
 func (b *DefaultBox) InputConstraints() (*InputConstraints, error) {
+	if b.InputSchema != nil {
+		ic := &InputConstraints{b.InputSchema}
+		return ic, nil
+	}
 	return nil, nil
 }
 
