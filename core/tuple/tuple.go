@@ -7,6 +7,8 @@ import (
 type Tuple struct {
 	Data Map
 
+	InputName string
+
 	Timestamp     time.Time
 	ProcTimestamp time.Time
 	BatchID       int64

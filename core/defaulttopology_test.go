@@ -141,7 +141,7 @@ func TestDefaultTopologyBuilderInterface(t *testing.T) {
 
 		Convey("when a new box references a non-existing item", func() {
 			err = tb.AddBox("otherBox", b).
-				Input("something", nil)
+				Input("something")
 			So(err, ShouldNotBeNil)
 			Convey("adding should fail", func() {
 				So(err.Err(), ShouldNotBeNil)
@@ -150,7 +150,7 @@ func TestDefaultTopologyBuilderInterface(t *testing.T) {
 
 		Convey("when a new box references an existing source", func() {
 			err = tb.AddBox("otherBox", b).
-				Input("aSource", nil)
+				Input("aSource")
 			So(err, ShouldNotBeNil)
 			Convey("adding should work", func() {
 				So(err.Err(), ShouldBeNil)
@@ -159,7 +159,7 @@ func TestDefaultTopologyBuilderInterface(t *testing.T) {
 
 		Convey("when a new box references an existing box", func() {
 			err = tb.AddBox("otherBox", b).
-				Input("aBox", nil)
+				Input("aBox")
 			So(err, ShouldNotBeNil)
 			Convey("adding should work", func() {
 				So(err.Err(), ShouldBeNil)
@@ -168,8 +168,8 @@ func TestDefaultTopologyBuilderInterface(t *testing.T) {
 
 		Convey("when a new box references multiple items", func() {
 			err = tb.AddBox("otherBox", b).
-				Input("aBox", nil).
-				Input("aSource", nil)
+				Input("aBox").
+				Input("aSource")
 			So(err, ShouldNotBeNil)
 			Convey("adding should work", func() {
 				So(err.Err(), ShouldBeNil)
@@ -178,8 +178,8 @@ func TestDefaultTopologyBuilderInterface(t *testing.T) {
 
 		Convey("when a new box references an existing source twice", func() {
 			err = tb.AddBox("otherBox", b).
-				Input("aSource", nil).
-				Input("aSource", nil)
+				Input("aSource").
+				Input("aSource")
 			So(err, ShouldNotBeNil)
 			Convey("adding should fail", func() {
 				So(err.Err(), ShouldNotBeNil)
@@ -188,8 +188,8 @@ func TestDefaultTopologyBuilderInterface(t *testing.T) {
 
 		Convey("when a new box references an existing box twice", func() {
 			err = tb.AddBox("otherBox", b).
-				Input("aBox", nil).
-				Input("aBox", nil)
+				Input("aBox").
+				Input("aBox")
 			So(err, ShouldNotBeNil)
 			Convey("adding should fail", func() {
 				So(err.Err(), ShouldNotBeNil)
@@ -262,7 +262,7 @@ func TestBasicDefaultTopologyTransport(t *testing.T) {
 		s1 := &DummyDefaultSource{"value"}
 		tb.AddSource("source1", s1)
 		b1 := &DummyToUpperBox{}
-		tb.AddBox("aBox", b1).Input("source1", nil)
+		tb.AddBox("aBox", b1).Input("source1")
 		si := &DummyDefaultSink{}
 		tb.AddSink("si", si).Input("aBox")
 		t := tb.Build()
@@ -281,8 +281,8 @@ func TestBasicDefaultTopologyTransport(t *testing.T) {
 		tb.AddSource("source2", s2)
 		b1 := &DummyToUpperBox{}
 		tb.AddBox("aBox", b1).
-			Input("source1", nil).
-			Input("source2", nil)
+			Input("source1").
+			Input("source2")
 		si := &DummyDefaultSink{}
 		tb.AddSink("si", si).Input("aBox")
 		t := tb.Build()
@@ -303,7 +303,7 @@ func TestBasicDefaultTopologyTransport(t *testing.T) {
 		tb.AddSource("source", s)
 		b1 := &DummyToUpperBox{}
 		tb.AddBox("aBox", b1).
-			Input("source", nil)
+			Input("source")
 		si := &DummyDefaultSink{}
 		tb.AddSink("si", si).Input("aBox")
 		t := tb.Build()
@@ -319,9 +319,9 @@ func TestBasicDefaultTopologyTransport(t *testing.T) {
 		s1 := &DummyDefaultSource{"value"}
 		tb.AddSource("source1", s1)
 		b1 := &DummyToUpperBox{}
-		tb.AddBox("aBox", b1).Input("source1", nil)
+		tb.AddBox("aBox", b1).Input("source1")
 		b2 := &DummyAddSuffixBox{}
-		tb.AddBox("bBox", b2).Input("source1", nil)
+		tb.AddBox("bBox", b2).Input("source1")
 		si := &DummyDefaultSink{}
 		tb.AddSink("si", si).Input("aBox").Input("bBox")
 		t := tb.Build()
@@ -338,7 +338,7 @@ func TestBasicDefaultTopologyTransport(t *testing.T) {
 		s1 := &DummyDefaultSource{"value"}
 		tb.AddSource("source1", s1)
 		b1 := &DummyToUpperBox{}
-		tb.AddBox("aBox", b1).Input("source1", nil)
+		tb.AddBox("aBox", b1).Input("source1")
 		si := &DummyDefaultSink{}
 		tb.AddSink("si", si).Input("aBox")
 		si2 := &DummyDefaultSink{}
@@ -357,7 +357,7 @@ func TestBasicDefaultTopologyTransport(t *testing.T) {
 		s1 := &DummyDefaultSource{"value"}
 		tb.AddSource("source1", s1)
 		b1 := &DummyToUpperBox{}
-		tb.AddBox("aBox", b1).Input("source1", nil)
+		tb.AddBox("aBox", b1).Input("source1")
 		si := &DummyDefaultSink{}
 		tb.AddSink("si", si).Input("aBox")
 
@@ -601,7 +601,7 @@ func TestDefaultTopologyTupleCopying(t *testing.T) {
 		tb.AddSource("source", so)
 
 		b := BoxFunc(forwardBox)
-		tb.AddBox("box", &b).Input("source", nil)
+		tb.AddBox("box", &b).Input("source")
 
 		si := &TupleCollectorSink{}
 		tb.AddSink("sink", si).Input("box")
@@ -633,7 +633,7 @@ func TestDefaultTopologyTupleCopying(t *testing.T) {
 		tb.AddSource("source", so)
 
 		b := BoxFunc(forwardBox)
-		tb.AddBox("box", &b).Input("source", nil)
+		tb.AddBox("box", &b).Input("source")
 
 		si1 := &TupleCollectorSink{}
 		tb.AddSink("si1", si1).Input("box")
@@ -700,9 +700,9 @@ func TestDefaultTopologyTupleCopying(t *testing.T) {
 		tb.AddSource("source", so)
 
 		b1 := BoxFunc(forwardBox)
-		tb.AddBox("box1", &b1).Input("source", nil)
+		tb.AddBox("box1", &b1).Input("source")
 		b2 := BoxFunc(forwardBox)
-		tb.AddBox("box2", &b2).Input("source", nil)
+		tb.AddBox("box2", &b2).Input("source")
 
 		si1 := &TupleCollectorSink{}
 		tb.AddSink("si1", si1).Input("box1")
@@ -823,16 +823,16 @@ func TestDefaultTopologyTupleTracing(t *testing.T) {
 
 		b1 := BoxFunc(forwardBox)
 		tb.AddBox("box1", &b1).
-			Input("so1", nil).
-			Input("so2", nil)
+			Input("so1").
+			Input("so2")
 		b2 := BoxFunc(forwardBox)
-		tb.AddBox("box2", &b2).Input("box1", nil)
+		tb.AddBox("box2", &b2).Input("box1")
 		b3 := BoxFunc(forwardBox)
-		tb.AddBox("box3", &b3).Input("box1", nil)
+		tb.AddBox("box3", &b3).Input("box1")
 		b4 := BoxFunc(forwardBox)
 		tb.AddBox("box4", &b4).
-			Input("box2", nil).
-			Input("box3", nil)
+			Input("box2").
+			Input("box3")
 
 		si1 := &TupleCollectorSink{}
 		tb.AddSink("si1", si1).Input("box4")
