@@ -792,7 +792,7 @@ func TestDefaultTopologyTupleTracing(t *testing.T) {
 
 		t := tb.Build()
 		Convey("When a tuple is emitted by the source", func() {
-			t.Run()
+			t.Run(&Context{})
 			Convey("Then tracer has 2 kind of route", func() {
 				route1 := []string{
 					"INPUT so1", "OUTPUT box1", "INPUT box1", "OUTPUT box2",
