@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-type DefaultTopology struct {
+type defaultTopology struct {
 	// tb.boxes may contain multiple instances of the same Box object.
 	// Use a set-like map to avoid calling Init() twice on the same object.
 	boxpointers map[*Box]bool
@@ -16,7 +16,7 @@ type DefaultTopology struct {
 	pipes   map[string]*SequentialPipe
 }
 
-func (t *DefaultTopology) Run(ctx *Context) {
+func (t *defaultTopology) Run(ctx *Context) {
 	for box, _ := range t.boxpointers {
 		(*box).Init(ctx)
 	}
@@ -34,7 +34,7 @@ func (t *DefaultTopology) Run(ctx *Context) {
 
 /**************************************************/
 
-type DefaultStaticTopologyBuilder struct {
+type defaultStaticTopologyBuilder struct {
 	sources     map[string]Source
 	boxes       map[string]Box
 	boxpointers map[*Box]bool
@@ -56,7 +56,7 @@ type DataflowEdge struct {
 }
 
 func NewDefaultStaticTopologyBuilder() StaticTopologyBuilder {
-	tb := DefaultStaticTopologyBuilder{}
+	tb := defaultStaticTopologyBuilder{}
 	tb.sources = make(map[string]Source)
 	tb.boxes = make(map[string]Box)
 	tb.boxpointers = make(map[*Box]bool)
@@ -67,7 +67,7 @@ func NewDefaultStaticTopologyBuilder() StaticTopologyBuilder {
 
 // check if the given name can be used as a source, box, or sink
 // name (i.e., it is not used yet)
-func (tb *DefaultStaticTopologyBuilder) checkName(name string) error {
+func (tb *defaultStaticTopologyBuilder) checkName(name string) error {
 	_, alreadyExists := tb.sources[name]
 	if alreadyExists {
 		err := fmt.Errorf("there is already a source called '%s'", name)
@@ -87,46 +87,46 @@ func (tb *DefaultStaticTopologyBuilder) checkName(name string) error {
 }
 
 // check if the given name is an existing box or source
-func (tb *DefaultStaticTopologyBuilder) IsValidOutputReference(name string) bool {
+func (tb *defaultStaticTopologyBuilder) IsValidOutputReference(name string) bool {
 	_, sourceExists := tb.sources[name]
 	_, boxExists := tb.boxes[name]
 	return (sourceExists || boxExists)
 }
 
-func (tb *DefaultStaticTopologyBuilder) AddSource(name string, source Source) SourceDeclarer {
+func (tb *defaultStaticTopologyBuilder) AddSource(name string, source Source) SourceDeclarer {
 	// check name
 	if nameErr := tb.checkName(name); nameErr != nil {
-		return &DefaultSourceDeclarer{nameErr}
+		return &defaultSourceDeclarer{nameErr}
 	}
 	// TODO check that declared schema is a valid JSON Schema string
 	// keep track of source
 	tb.sources[name] = source
-	return &DefaultSourceDeclarer{}
+	return &defaultSourceDeclarer{}
 }
 
-func (tb *DefaultStaticTopologyBuilder) AddBox(name string, box Box) BoxDeclarer {
+func (tb *defaultStaticTopologyBuilder) AddBox(name string, box Box) BoxDeclarer {
 	// check name
 	if nameErr := tb.checkName(name); nameErr != nil {
-		return &DefaultBoxDeclarer{err: nameErr}
+		return &defaultBoxDeclarer{err: nameErr}
 	}
 	// TODO check that declared schema is a valid JSON Schema string
 	// keep track of box
 	tb.boxes[name] = box
 	tb.boxpointers[&box] = true
-	return &DefaultBoxDeclarer{tb, name, box, nil}
+	return &defaultBoxDeclarer{tb, name, box, nil}
 }
 
-func (tb *DefaultStaticTopologyBuilder) AddSink(name string, sink Sink) SinkDeclarer {
+func (tb *defaultStaticTopologyBuilder) AddSink(name string, sink Sink) SinkDeclarer {
 	// check name
 	if nameErr := tb.checkName(name); nameErr != nil {
-		return &DefaultSinkDeclarer{err: nameErr}
+		return &defaultSinkDeclarer{err: nameErr}
 	}
 	// keep track of sink
 	tb.sinks[name] = sink
-	return &DefaultSinkDeclarer{tb, name, sink, nil}
+	return &defaultSinkDeclarer{tb, name, sink, nil}
 }
 
-func (tb *DefaultStaticTopologyBuilder) Build() Topology {
+func (tb *defaultStaticTopologyBuilder) Build() Topology {
 	// every source and every box gets an "output pipe"
 	pipes := make(map[string]*SequentialPipe, len(tb.sources)+len(tb.boxes))
 	for name, _ := range tb.sources {
@@ -163,7 +163,7 @@ func (tb *DefaultStaticTopologyBuilder) Build() Topology {
 	}
 	// TODO source and sink is reference data,
 	//      so cannot call .Build() more than once
-	return &DefaultTopology{tb.boxpointers, tb.sources, pipes}
+	return &defaultTopology{tb.boxpointers, tb.sources, pipes}
 }
 
 // holds a box and the writer that will receive this box's output
@@ -238,28 +238,28 @@ func newDefaultEvent(inout tuple.InOutType, msg string) tuple.TraceEvent {
 
 /**************************************************/
 
-type DefaultSourceDeclarer struct {
+type defaultSourceDeclarer struct {
 	err error
 }
 
-func (sd *DefaultSourceDeclarer) Err() error {
+func (sd *defaultSourceDeclarer) Err() error {
 	return sd.err
 }
 
 /**************************************************/
 
-type DefaultBoxDeclarer struct {
-	tb   *DefaultStaticTopologyBuilder
+type defaultBoxDeclarer struct {
+	tb   *defaultStaticTopologyBuilder
 	name string
 	box  Box
 	err  error
 }
 
-func (bd *DefaultBoxDeclarer) Input(refname string) BoxDeclarer {
+func (bd *defaultBoxDeclarer) Input(refname string) BoxDeclarer {
 	return bd.NamedInput(refname, "*")
 }
 
-func (bd *DefaultBoxDeclarer) NamedInput(refname string, inputName string) BoxDeclarer {
+func (bd *defaultBoxDeclarer) NamedInput(refname string, inputName string) BoxDeclarer {
 	// if there was a previous error, do nothing
 	if bd.err != nil {
 		return bd
@@ -317,20 +317,20 @@ func (bd *DefaultBoxDeclarer) NamedInput(refname string, inputName string) BoxDe
 	return bd
 }
 
-func (bd *DefaultBoxDeclarer) Err() error {
+func (bd *defaultBoxDeclarer) Err() error {
 	return bd.err
 }
 
 /**************************************************/
 
-type DefaultSinkDeclarer struct {
-	tb   *DefaultStaticTopologyBuilder
+type defaultSinkDeclarer struct {
+	tb   *defaultStaticTopologyBuilder
 	name string
 	sink Sink
 	err  error
 }
 
-func (sd *DefaultSinkDeclarer) Input(refname string) SinkDeclarer {
+func (sd *defaultSinkDeclarer) Input(refname string) SinkDeclarer {
 	// if there was a previous error, do nothing
 	if sd.err != nil {
 		return sd
@@ -359,7 +359,7 @@ func (sd *DefaultSinkDeclarer) Input(refname string) SinkDeclarer {
 	return sd
 }
 
-func (sd *DefaultSinkDeclarer) Err() error {
+func (sd *defaultSinkDeclarer) Err() error {
 	return sd.err
 }
 
