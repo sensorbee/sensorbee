@@ -21,7 +21,8 @@ type SourceDeclarer interface {
 }
 
 type BoxDeclarer interface {
-	Input(name string, schema *Schema) BoxDeclarer
+	Input(name string) BoxDeclarer
+	NamedInput(name string, inputName string) BoxDeclarer
 	DeclarerError
 }
 
