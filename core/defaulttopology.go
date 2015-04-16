@@ -8,11 +8,19 @@ import (
 )
 
 type DefaultTopology struct {
+	// tb.boxes may contain multiple instances of the same Box object.
+	// Use a set-like map to avoid calling Init() twice on the same object.
+	boxpointers map[*Box]bool
+
 	sources map[string]Source
 	pipes   map[string]*SequentialPipe
 }
 
-func (t *DefaultTopology) Run() {
+func (t *DefaultTopology) Run(ctx *Context) {
+	for box, _ := range t.boxpointers {
+		(*box).Init(ctx)
+	}
+
 	var wg sync.WaitGroup
 	for name, source := range t.sources {
 		wg.Add(1)
@@ -27,10 +35,11 @@ func (t *DefaultTopology) Run() {
 /**************************************************/
 
 type DefaultStaticTopologyBuilder struct {
-	sources map[string]Source
-	boxes   map[string]Box
-	sinks   map[string]Sink
-	Edges   []DataflowEdge
+	sources     map[string]Source
+	boxes       map[string]Box
+	boxpointers map[*Box]bool
+	sinks       map[string]Sink
+	Edges       []DataflowEdge
 }
 
 type DataflowEdge struct {
@@ -42,6 +51,7 @@ func NewDefaultStaticTopologyBuilder() StaticTopologyBuilder {
 	tb := DefaultStaticTopologyBuilder{}
 	tb.sources = make(map[string]Source)
 	tb.boxes = make(map[string]Box)
+	tb.boxpointers = make(map[*Box]bool)
 	tb.sinks = make(map[string]Sink)
 	tb.Edges = make([]DataflowEdge, 0)
 	return &tb
@@ -94,6 +104,7 @@ func (tb *DefaultStaticTopologyBuilder) AddBox(name string, box Box) BoxDeclarer
 	// TODO check that declared schema is a valid JSON Schema string
 	// keep track of box
 	tb.boxes[name] = box
+	tb.boxpointers[&box] = true
 	return &DefaultBoxDeclarer{tb, name, box, nil}
 }
 
@@ -144,7 +155,7 @@ func (tb *DefaultStaticTopologyBuilder) Build() Topology {
 	}
 	// TODO source and sink is reference data,
 	//      so cannot call .Build() more than once
-	return &DefaultTopology{tb.sources, pipes}
+	return &DefaultTopology{tb.boxpointers, tb.sources, pipes}
 }
 
 // holds a box and the writer that will receive this box's output
@@ -335,7 +346,8 @@ func (s *DefaultSource) Schema() *Schema {
 
 /**************************************************/
 
-type DefaultBox struct{}
+type DefaultBox struct {
+}
 
 func (b *DefaultBox) Init(ctx *Context) error {
 	return nil
