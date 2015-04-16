@@ -15,20 +15,25 @@ type Box interface {
 	OutputSchema([]*Schema) (*Schema, error)
 }
 
-type BoxFunc func(t *tuple.Tuple, s Writer) error
+func BoxFunc(f func(t *tuple.Tuple, s Writer) error) Box {
+	bf := boxFunc(f)
+	return &bf
+}
 
-func (b *BoxFunc) Process(t *tuple.Tuple, s Writer) error {
+type boxFunc func(t *tuple.Tuple, s Writer) error
+
+func (b *boxFunc) Process(t *tuple.Tuple, s Writer) error {
 	return (*b)(t, s)
 }
 
-func (b *BoxFunc) Init(ctx *Context) error {
+func (b *boxFunc) Init(ctx *Context) error {
 	return nil
 }
 
-func (b *BoxFunc) InputConstraints() (*InputConstraints, error) {
+func (b *boxFunc) InputConstraints() (*InputConstraints, error) {
 	return nil, nil
 }
 
-func (b *BoxFunc) OutputSchema(s []*Schema) (*Schema, error) {
+func (b *boxFunc) OutputSchema(s []*Schema) (*Schema, error) {
 	return nil, nil
 }

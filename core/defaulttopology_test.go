@@ -747,7 +747,7 @@ func TestDefaultTopologyTupleTransport(t *testing.T) {
 		tb.AddSource("source", so)
 
 		b := BoxFunc(forwardBox)
-		tb.AddBox("box", &b).Input("source")
+		tb.AddBox("box", b).Input("source")
 
 		si := &TupleCollectorSink{}
 		tb.AddSink("sink", si).Input("box")
@@ -924,7 +924,7 @@ func TestDefaultTopologyTupleTransport(t *testing.T) {
 		tb.AddSource("source", so)
 
 		b := BoxFunc(forwardBox)
-		tb.AddBox("box", &b).Input("source")
+		tb.AddBox("box", b).Input("source")
 
 		si1 := &TupleCollectorSink{}
 		tb.AddSink("si1", si1).Input("box")
@@ -1149,15 +1149,15 @@ func TestDefaultTopologyTupleTracing(t *testing.T) {
 		tb.AddSource("so2", so2)
 
 		b1 := BoxFunc(forwardBox)
-		tb.AddBox("box1", &b1).
+		tb.AddBox("box1", b1).
 			Input("so1").
 			Input("so2")
 		b2 := BoxFunc(forwardBox)
-		tb.AddBox("box2", &b2).Input("box1")
+		tb.AddBox("box2", b2).Input("box1")
 		b3 := BoxFunc(forwardBox)
-		tb.AddBox("box3", &b3).Input("box1")
+		tb.AddBox("box3", b3).Input("box1")
 		b4 := BoxFunc(forwardBox)
-		tb.AddBox("box4", &b4).
+		tb.AddBox("box4", b4).
 			Input("box2").
 			Input("box3")
 
