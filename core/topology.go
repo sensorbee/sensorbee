@@ -1,7 +1,7 @@
 package core
 
 type Topology interface {
-	Run()
+	Run(ctx *Context)
 }
 
 type StaticTopologyBuilder interface {
