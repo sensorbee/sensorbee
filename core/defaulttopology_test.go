@@ -737,26 +737,26 @@ func forwardBox(t *tuple.Tuple, w Writer) error {
 }
 
 func TestDefaultTopologyTupleTracing(t *testing.T) {
-	tup1 := tuple.Tuple{
-		Data: tuple.Map{
-			"int": tuple.Int(1),
-		},
-		Timestamp:     time.Date(2015, time.April, 10, 10, 23, 0, 0, time.UTC),
-		ProcTimestamp: time.Date(2015, time.April, 10, 10, 24, 0, 0, time.UTC),
-		BatchID:       7,
-		Tracers:       make([]tuple.Tracer, 0),
-	}
-	tup2 := tuple.Tuple{
-		Data: tuple.Map{
-			"int": tuple.Int(2),
-		},
-		Timestamp:     time.Date(2015, time.April, 10, 10, 23, 1, 0, time.UTC),
-		ProcTimestamp: time.Date(2015, time.April, 10, 10, 24, 1, 0, time.UTC),
-		BatchID:       7,
-		Tracers:       make([]tuple.Tracer, 0),
-	}
-
 	Convey("Given complex topology, has distribution and aggrigation", t, func() {
+
+		tup1 := tuple.Tuple{
+			Data: tuple.Map{
+				"int": tuple.Int(1),
+			},
+			Timestamp:     time.Date(2015, time.April, 10, 10, 23, 0, 0, time.UTC),
+			ProcTimestamp: time.Date(2015, time.April, 10, 10, 24, 0, 0, time.UTC),
+			BatchID:       7,
+			Tracers:       make([]tuple.Tracer, 0),
+		}
+		tup2 := tuple.Tuple{
+			Data: tuple.Map{
+				"int": tuple.Int(2),
+			},
+			Timestamp:     time.Date(2015, time.April, 10, 10, 23, 1, 0, time.UTC),
+			ProcTimestamp: time.Date(2015, time.April, 10, 10, 24, 1, 0, time.UTC),
+			BatchID:       7,
+			Tracers:       make([]tuple.Tracer, 0),
+		}
 		/*
 		 *   so1 \        /--> b2 \        /-*--> si1
 		 *        *- b1 -*         *- b4 -*
@@ -790,49 +790,86 @@ func TestDefaultTopologyTupleTracing(t *testing.T) {
 		si2 := &TupleCollectorSink{}
 		tb.AddSink("si2", si2).Input("box4")
 
-		t := tb.Build()
+		to := tb.Build()
 		Convey("When a tuple is emitted by the source", func() {
-			t.Run(&Context{})
-			Convey("Then tracer has 2 kind of route", func() {
+			to.Run(&Context{})
+			Convey("Then tracer has 2 kind of route from source1", func() {
+				// make expected routes
 				route1 := []string{
 					"INPUT so1", "OUTPUT box1", "INPUT box1", "OUTPUT box2",
 					"INPUT box2", "OUTPUT box4", "INPUT box4", "OUTPUT si1",
 				}
-				var aRoute1 []string
-				for _, tr := range si1.Tuples[0].Tracers {
-					aRoute1 = append(aRoute1, tr.Inout.String()+" "+tr.Msg)
-				}
-				So(aRoute1, ShouldResemble, route1)
-
 				route2 := []string{
 					"INPUT so1", "OUTPUT box1", "INPUT box1", "OUTPUT box3",
 					"INPUT box3", "OUTPUT box4", "INPUT box4", "OUTPUT si1",
 				}
-				var aRoute2 []string
-				for _, tr := range si1.Tuples[1].Tracers {
-					aRoute2 = append(aRoute2, tr.Inout.String()+" "+tr.Msg)
-				}
-				So(aRoute2, ShouldResemble, route2)
-
 				route3 := []string{
+					"INPUT so2", "OUTPUT box1", "INPUT box1", "OUTPUT box2",
+					"INPUT box2", "OUTPUT box4", "INPUT box4", "OUTPUT si1",
+				}
+				route4 := []string{
+					"INPUT so2", "OUTPUT box1", "INPUT box1", "OUTPUT box3",
+					"INPUT box3", "OUTPUT box4", "INPUT box4", "OUTPUT si1",
+				}
+				eRoutes := []string{
+					strings.Join(route1, "->"),
+					strings.Join(route2, "->"),
+					strings.Join(route3, "->"),
+					strings.Join(route4, "->"),
+				}
+				aRoutes := make([]string, 0)
+				for _, tu := range si1.Tuples {
+					aRoute := make([]string, 0)
+					for _, tr := range tu.Tracers {
+						aRoute = append(aRoute, tr.Inout.String()+" "+tr.Msg)
+					}
+					aRoutes = append(aRoutes, strings.Join(aRoute, "->"))
+				}
+				So(len(aRoutes), ShouldEqual, 4)
+				So(aRoutes, ShouldContain, eRoutes[0])
+				So(aRoutes, ShouldContain, eRoutes[1])
+				So(aRoutes, ShouldContain, eRoutes[2])
+				So(aRoutes, ShouldContain, eRoutes[3])
+			})
+			Convey("Then tracer has 2 kind of route from source2", func() {
+				// make expected routes
+				route1 := []string{
 					"INPUT so1", "OUTPUT box1", "INPUT box1", "OUTPUT box2",
 					"INPUT box2", "OUTPUT box4", "INPUT box4", "OUTPUT si2",
 				}
-				var aRoute3 []string
-				for _, tr := range si2.Tuples[0].Tracers {
-					aRoute3 = append(aRoute3, tr.Inout.String()+" "+tr.Msg)
-				}
-				So(aRoute3, ShouldResemble, route3)
-
-				route4 := []string{
+				route2 := []string{
 					"INPUT so1", "OUTPUT box1", "INPUT box1", "OUTPUT box3",
 					"INPUT box3", "OUTPUT box4", "INPUT box4", "OUTPUT si2",
 				}
-				var aRoute4 []string
-				for _, tr := range si2.Tuples[1].Tracers {
-					aRoute4 = append(aRoute4, tr.Inout.String()+" "+tr.Msg)
+				route3 := []string{
+					"INPUT so2", "OUTPUT box1", "INPUT box1", "OUTPUT box2",
+					"INPUT box2", "OUTPUT box4", "INPUT box4", "OUTPUT si2",
 				}
-				So(aRoute4, ShouldResemble, route4)
+				route4 := []string{
+					"INPUT so2", "OUTPUT box1", "INPUT box1", "OUTPUT box3",
+					"INPUT box3", "OUTPUT box4", "INPUT box4", "OUTPUT si2",
+				}
+				eRoutes := []string{
+					strings.Join(route1, "->"),
+					strings.Join(route2, "->"),
+					strings.Join(route3, "->"),
+					strings.Join(route4, "->"),
+				}
+				aRoutes := make([]string, 0)
+				for _, tu := range si2.Tuples {
+					aRoute := make([]string, 0)
+					for _, tr := range tu.Tracers {
+						aRoute = append(aRoute, tr.Inout.String()+" "+tr.Msg)
+					}
+					aRoutes = append(aRoutes, strings.Join(aRoute, "->"))
+				}
+				So(len(si2.Tuples), ShouldEqual, 4)
+				//fmt.Println(aRoutes[0])
+				So(len(aRoutes), ShouldEqual, 4)
+				So(aRoutes, ShouldContain, eRoutes[0])
+				So(aRoutes, ShouldContain, eRoutes[1])
+				So(aRoutes, ShouldContain, eRoutes[2])
+				So(aRoutes, ShouldContain, eRoutes[3])
 			})
 		})
 	})
