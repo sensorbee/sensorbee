@@ -261,13 +261,13 @@ func TestBasicDefaultTopologyTransport(t *testing.T) {
 		tb := NewDefaultStaticTopologyBuilder()
 		s1 := &DummyDefaultSource{"value"}
 		tb.AddSource("source1", s1)
-		b1 := BoxFunc(dummyToUpperBoxFunc)
-		tb.AddBox("aBox", &b1).Input("source1", nil)
+		b1 := &DummyToUpperBox{}
+		tb.AddBox("aBox", b1).Input("source1", nil)
 		si := &DummyDefaultSink{}
 		tb.AddSink("si", si).Input("aBox")
 		t := tb.Build()
 		Convey("Run topology with ToUpperBox", func() {
-			t.Run()
+			t.Run(&Context{})
 			So(si.results[0], ShouldEqual, "VALUE")
 		})
 	})
@@ -279,8 +279,8 @@ func TestBasicDefaultTopologyTransport(t *testing.T) {
 		tb.AddSource("source1", s1)
 		s2 := &DummyDefaultSource{"hoge"}
 		tb.AddSource("source2", s2)
-		b1 := BoxFunc(dummyToUpperBoxFunc)
-		tb.AddBox("aBox", &b1).
+		b1 := &DummyToUpperBox{}
+		tb.AddBox("aBox", b1).
 			Input("source1", nil).
 			Input("source2", nil)
 		si := &DummyDefaultSink{}
@@ -288,7 +288,7 @@ func TestBasicDefaultTopologyTransport(t *testing.T) {
 		t := tb.Build()
 		Convey("Run topology with ToUpperBox", func() {
 			start := time.Now()
-			t.Run()
+			t.Run(&Context{})
 			So(len(si.results), ShouldEqual, 2)
 			So(si.results, ShouldContain, "VALUE")
 			So(si.results, ShouldContain, "HOGE")
@@ -301,14 +301,14 @@ func TestBasicDefaultTopologyTransport(t *testing.T) {
 		tb := NewDefaultStaticTopologyBuilder()
 		s := &DummyDefaultSource2{"value", "hoge"}
 		tb.AddSource("source", s)
-		b1 := BoxFunc(dummyToUpperBoxFunc)
-		tb.AddBox("aBox", &b1).
+		b1 := &DummyToUpperBox{}
+		tb.AddBox("aBox", b1).
 			Input("source", nil)
 		si := &DummyDefaultSink{}
 		tb.AddSink("si", si).Input("aBox")
 		t := tb.Build()
 		Convey("Run topology with ToUpperBox", func() {
-			t.Run()
+			t.Run(&Context{})
 			So(si.results, ShouldResemble, []string{"VALUE", "HOGE"})
 		})
 	})
@@ -318,15 +318,15 @@ func TestBasicDefaultTopologyTransport(t *testing.T) {
 		tb := NewDefaultStaticTopologyBuilder()
 		s1 := &DummyDefaultSource{"value"}
 		tb.AddSource("source1", s1)
-		b1 := BoxFunc(dummyToUpperBoxFunc)
-		tb.AddBox("aBox", &b1).Input("source1", nil)
-		b2 := BoxFunc(dummyAddSuffixBoxFunc)
-		tb.AddBox("bBox", &b2).Input("source1", nil)
+		b1 := &DummyToUpperBox{}
+		tb.AddBox("aBox", b1).Input("source1", nil)
+		b2 := &DummyAddSuffixBox{}
+		tb.AddBox("bBox", b2).Input("source1", nil)
 		si := &DummyDefaultSink{}
 		tb.AddSink("si", si).Input("aBox").Input("bBox")
 		t := tb.Build()
 		Convey("Run topology with ToUpperBox", func() {
-			t.Run()
+			t.Run(&Context{})
 			So(si.results[0], ShouldEqual, "VALUE")
 			So(si.results2[0], ShouldEqual, "value_1")
 		})
@@ -337,17 +337,37 @@ func TestBasicDefaultTopologyTransport(t *testing.T) {
 		tb := NewDefaultStaticTopologyBuilder()
 		s1 := &DummyDefaultSource{"value"}
 		tb.AddSource("source1", s1)
-		b1 := BoxFunc(dummyToUpperBoxFunc)
-		tb.AddBox("aBox", &b1).Input("source1", nil)
+		b1 := &DummyToUpperBox{}
+		tb.AddBox("aBox", b1).Input("source1", nil)
 		si := &DummyDefaultSink{}
 		tb.AddSink("si", si).Input("aBox")
 		si2 := &DummyDefaultSink{}
 		tb.AddSink("si2", si2).Input("aBox")
 		t := tb.Build()
 		Convey("Run topology with ToUpperBox", func() {
-			t.Run()
+			t.Run(&Context{})
 			So(si.results[0], ShouldEqual, "VALUE")
 			So(si2.results[0], ShouldEqual, "VALUE")
+		})
+	})
+
+	Convey("Given basic topology", t, func() {
+
+		tb := NewDefaultStaticTopologyBuilder()
+		s1 := &DummyDefaultSource{"value"}
+		tb.AddSource("source1", s1)
+		b1 := &DummyToUpperBox{}
+		tb.AddBox("aBox", b1).Input("source1", nil)
+		si := &DummyDefaultSink{}
+		tb.AddSink("si", si).Input("aBox")
+
+		Convey("When Run topology with Context & ConsoleLogger", func() {
+			ctx := &Context{
+				&ConsoleLogManager{},
+			}
+			t := tb.Build()
+			t.Run(ctx)
+			So(si.results[0], ShouldEqual, "VALUE")
 		})
 	})
 
@@ -392,20 +412,53 @@ func (s *DummyDefaultSource2) Schema() *Schema {
 	return &sc
 }
 
-func dummyToUpperBoxFunc(t *tuple.Tuple, w Writer) error {
+type DummyToUpperBox struct {
+	ctx *Context
+}
+
+func (b *DummyToUpperBox) Init(ctx *Context) error {
+	b.ctx = ctx
+	return nil
+}
+func (b *DummyToUpperBox) Process(t *tuple.Tuple, w Writer) error {
 	x, _ := t.Data.Get("source")
 	s, _ := x.String()
 	t.Data["to-upper"] = tuple.String(strings.ToUpper(string(s)))
 	w.Write(t)
+	if b.ctx.Logger != nil {
+		b.ctx.Logger.Log(DEBUG, "convey test %v", "ToUpperBox Processing")
+	}
 	return nil
 }
 
-func dummyAddSuffixBoxFunc(t *tuple.Tuple, w Writer) error {
+func (b *DummyToUpperBox) RequiredInputSchema() ([]*Schema, error) {
+	return []*Schema{nil}, nil
+}
+
+func (b *DummyToUpperBox) OutputSchema(s []*Schema) (*Schema, error) {
+	return nil, nil
+}
+
+type DummyAddSuffixBox struct{}
+
+func (b *DummyAddSuffixBox) Init(ctx *Context) error {
+	return nil
+}
+
+func (b *DummyAddSuffixBox) Process(t *tuple.Tuple, w Writer) error {
 	x, _ := t.Data.Get("source")
 	s, _ := x.String()
 	t.Data["add-suffix"] = tuple.String(s + "_1")
 	w.Write(t)
 	return nil
+}
+
+func (b *DummyAddSuffixBox) RequiredInputSchema() ([]*Schema, error) {
+	return []*Schema{nil}, nil
+}
+
+func (b *DummyAddSuffixBox) OutputSchema(s []*Schema) (*Schema, error) {
+	return nil, nil
 }
 
 type DummyDefaultSink struct {
@@ -464,7 +517,7 @@ func TestDefaultTopologyTupleCopying(t *testing.T) {
 		t := tb.Build()
 
 		Convey("When a tuple is emitted by the source", func() {
-			t.Run()
+			t.Run(&Context{})
 			Convey("Then the sink receives the same object", func() {
 				So(si.Tuples, ShouldNotBeNil)
 				So(len(si.Tuples), ShouldEqual, 2)
@@ -495,7 +548,7 @@ func TestDefaultTopologyTupleCopying(t *testing.T) {
 		t := tb.Build()
 
 		Convey("When a tuple is emitted by the source", func() {
-			t.Run()
+			t.Run(&Context{})
 			Convey("Then the sink 1 receives the same object", func() {
 				So(si1.Tuples, ShouldNotBeNil)
 				So(len(si1.Tuples), ShouldEqual, 2)
@@ -534,7 +587,7 @@ func TestDefaultTopologyTupleCopying(t *testing.T) {
 		t := tb.Build()
 
 		Convey("When a tuple is emitted by the source", func() {
-			t.Run()
+			t.Run(&Context{})
 			Convey("Then the sink receives the same object", func() {
 				So(si.Tuples, ShouldNotBeNil)
 				So(len(si.Tuples), ShouldEqual, 2)
@@ -568,7 +621,7 @@ func TestDefaultTopologyTupleCopying(t *testing.T) {
 		t := tb.Build()
 
 		Convey("When a tuple is emitted by the source", func() {
-			t.Run()
+			t.Run(&Context{})
 			Convey("Then the sink 1 receives the same object", func() {
 				So(si1.Tuples, ShouldNotBeNil)
 				So(len(si1.Tuples), ShouldEqual, 2)
@@ -613,7 +666,7 @@ func TestDefaultTopologyTupleCopying(t *testing.T) {
 		t := tb.Build()
 
 		Convey("When a tuple is emitted by the source", func() {
-			t.Run()
+			t.Run(&Context{})
 			Convey("Then the sink 1 receives the same object", func() {
 				So(si1.Tuples, ShouldNotBeNil)
 				So(len(si1.Tuples), ShouldEqual, 2)
