@@ -69,8 +69,8 @@ func (db *DummyBox) Init(ctx *Context) error {
 func (db *DummyBox) Process(t *tuple.Tuple, s Writer) error {
 	return nil
 }
-func (db *DummyBox) RequiredInputSchema() ([]*Schema, error) {
-	return []*Schema{nil}, nil
+func (db *DummyBox) InputConstraints() (*InputConstraints, error) {
+	return nil, nil
 }
 func (db *DummyBox) OutputSchema(s []*Schema) (*Schema, error) {
 	return nil, nil
@@ -90,9 +90,9 @@ func TestTopology(t *testing.T) {
 		tb.AddSource("test_source1", source)
 
 		box := &DummyBox{}
-		inputSchema, _ := box.RequiredInputSchema()
+		box.InputConstraints() // TODO use return value
 		tb.AddBox("test_box1", box).
-			Input("test_input_schema", inputSchema[0])
+			Input("test_input_schema", nil)
 
 		t := tb.Build()
 

@@ -350,8 +350,8 @@ func (b *DefaultBox) Process(t *tuple.Tuple, s Writer) error {
 	return nil
 }
 
-func (b *DefaultBox) RequiredInputSchema() ([]*Schema, error) {
-	return []*Schema{nil}, nil
+func (b *DefaultBox) InputConstraints() (*InputConstraints, error) {
+	return nil, nil
 }
 
 func (b *DefaultBox) OutputSchema(s []*Schema) (*Schema, error) {

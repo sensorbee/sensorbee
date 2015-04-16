@@ -431,8 +431,8 @@ func (b *DummyToUpperBox) Process(t *tuple.Tuple, w Writer) error {
 	return nil
 }
 
-func (b *DummyToUpperBox) RequiredInputSchema() ([]*Schema, error) {
-	return []*Schema{nil}, nil
+func (b *DummyToUpperBox) InputConstraints() (*InputConstraints, error) {
+	return nil, nil
 }
 
 func (b *DummyToUpperBox) OutputSchema(s []*Schema) (*Schema, error) {
@@ -453,8 +453,8 @@ func (b *DummyAddSuffixBox) Process(t *tuple.Tuple, w Writer) error {
 	return nil
 }
 
-func (b *DummyAddSuffixBox) RequiredInputSchema() ([]*Schema, error) {
-	return []*Schema{nil}, nil
+func (b *DummyAddSuffixBox) InputConstraints() (*InputConstraints, error) {
+	return nil, nil
 }
 
 func (b *DummyAddSuffixBox) OutputSchema(s []*Schema) (*Schema, error) {
