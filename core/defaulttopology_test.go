@@ -4,6 +4,7 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 	"pfi/sensorbee/sensorbee/core/tuple"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -610,11 +611,12 @@ func (s *DummyDefaultSink) Write(t *tuple.Tuple) (err error) {
 	return err
 }
 
-func TestDefaultTopologyTupleCopying(t *testing.T) {
+func TestDefaultTopologyTupleTransport(t *testing.T) {
 	tup1 := tuple.Tuple{
 		Data: tuple.Map{
 			"int": tuple.Int(1),
 		},
+		InputName:     "input",
 		Timestamp:     time.Date(2015, time.April, 10, 10, 23, 0, 0, time.UTC),
 		ProcTimestamp: time.Date(2015, time.April, 10, 10, 24, 0, 0, time.UTC),
 		BatchID:       7,
@@ -623,6 +625,7 @@ func TestDefaultTopologyTupleCopying(t *testing.T) {
 		Data: tuple.Map{
 			"int": tuple.Int(2),
 		},
+		InputName:     "input",
 		Timestamp:     time.Date(2015, time.April, 10, 10, 23, 1, 0, time.UTC),
 		ProcTimestamp: time.Date(2015, time.April, 10, 10, 24, 1, 0, time.UTC),
 		BatchID:       7,
@@ -651,6 +654,10 @@ func TestDefaultTopologyTupleCopying(t *testing.T) {
 				// pointers point to the same objects
 				So(so.Tuples[0], ShouldPointTo, si.Tuples[0])
 				So(so.Tuples[1], ShouldPointTo, si.Tuples[1])
+
+				Convey("And the InputName is set to \"output\"", func() {
+					So(si.Tuples[0].InputName, ShouldEqual, "output")
+				})
 			})
 		})
 	})
@@ -692,6 +699,10 @@ func TestDefaultTopologyTupleCopying(t *testing.T) {
 				// source has two received sinks, so tuples are copied
 				So(so.Tuples[0], ShouldNotPointTo, si.Tuples[0])
 				So(so.Tuples[1], ShouldNotPointTo, si.Tuples[1])
+
+				Convey("And the InputName is set to \"output\"", func() {
+					So(si.Tuples[0].InputName, ShouldEqual, "output")
+				})
 			})
 			Convey("And the sink 2 receives a copy", func() {
 				So(si2.Tuples, ShouldNotBeNil)
@@ -709,6 +720,10 @@ func TestDefaultTopologyTupleCopying(t *testing.T) {
 				// pointers point to different objects
 				So(so.Tuples[0], ShouldNotPointTo, si.Tuples[0])
 				So(so.Tuples[1], ShouldNotPointTo, si.Tuples[1])
+
+				Convey("And the InputName is set to \"output\"", func() {
+					So(si.Tuples[0].InputName, ShouldEqual, "output")
+				})
 			})
 			Convey("And the traces of tuples differ", func() {
 				So(len(si1.Tuples), ShouldEqual, 2)
@@ -745,6 +760,10 @@ func TestDefaultTopologyTupleCopying(t *testing.T) {
 				// pointers point to the same objects
 				So(so.Tuples[0], ShouldPointTo, si.Tuples[0])
 				So(so.Tuples[1], ShouldPointTo, si.Tuples[1])
+
+				Convey("And the InputName is set to \"output\"", func() {
+					So(si.Tuples[0].InputName, ShouldEqual, "output")
+				})
 			})
 		})
 	})
@@ -789,6 +808,10 @@ func TestDefaultTopologyTupleCopying(t *testing.T) {
 				// box has two received sinks, so tuples are copied
 				So(so.Tuples[0], ShouldNotPointTo, si.Tuples[0])
 				So(so.Tuples[1], ShouldNotPointTo, si.Tuples[1])
+
+				Convey("And the InputName is set to \"output\"", func() {
+					So(si.Tuples[0].InputName, ShouldEqual, "output")
+				})
 			})
 			Convey("And the sink 2 receives a copy", func() {
 				So(si2.Tuples, ShouldNotBeNil)
@@ -806,6 +829,10 @@ func TestDefaultTopologyTupleCopying(t *testing.T) {
 				// pointers point to different objects
 				So(so.Tuples[0], ShouldNotPointTo, si.Tuples[0])
 				So(so.Tuples[1], ShouldNotPointTo, si.Tuples[1])
+
+				Convey("And the InputName is set to \"output\"", func() {
+					So(si.Tuples[0].InputName, ShouldEqual, "output")
+				})
 			})
 			Convey("And the traces of tuples differ", func() {
 				So(len(si1.Tuples), ShouldEqual, 2)
@@ -828,9 +855,9 @@ func TestDefaultTopologyTupleCopying(t *testing.T) {
 		}
 		tb.AddSource("source", so)
 
-		b1 := BoxFunc(forwardBox)
-		tb.AddBox("box1", &b1).Input("source")
-		b2 := BoxFunc(forwardBox)
+		b1 := CollectorBox{InputSchema: map[string]*Schema{"hoge": nil}}
+		tb.AddBox("box1", &b1).NamedInput("source", "hoge")
+		b2 := CollectorBox{}
 		tb.AddBox("box2", &b2).Input("source")
 
 		si1 := &TupleCollectorSink{}
@@ -842,7 +869,17 @@ func TestDefaultTopologyTupleCopying(t *testing.T) {
 
 		Convey("When a tuple is emitted by the source", func() {
 			t.Run(&Context{})
-			Convey("Then the sink 1 receives a copy", func() {
+			Convey("Then the box 1 sees this tuple", func() {
+				So(b1.Tuples, ShouldNotBeNil)
+				So(len(b1.Tuples), ShouldEqual, 2)
+				So(b1.Tuples[0].Data, ShouldResemble, tup1.Data)
+				So(b1.Tuples[1].Data, ShouldResemble, tup2.Data)
+
+				Convey("And the InputName is set to \"hoge\"", func() {
+					So(b1.Tuples[0].InputName, ShouldEqual, "hoge")
+				})
+			})
+			Convey("And the sink 1 receives a copy", func() {
 				So(si1.Tuples, ShouldNotBeNil)
 				So(len(si1.Tuples), ShouldEqual, 2)
 				// contents are the same
@@ -858,6 +895,20 @@ func TestDefaultTopologyTupleCopying(t *testing.T) {
 				// source has two received boxes, so tuples are copied
 				So(so.Tuples[0], ShouldNotPointTo, si.Tuples[0])
 				So(so.Tuples[1], ShouldNotPointTo, si.Tuples[1])
+
+				Convey("And the InputName is set to \"output\"", func() {
+					So(si.Tuples[0].InputName, ShouldEqual, "output")
+				})
+			})
+			Convey("Then the box 2 sees this tuple", func() {
+				So(b2.Tuples, ShouldNotBeNil)
+				So(len(b2.Tuples), ShouldEqual, 2)
+				So(b2.Tuples[0].Data, ShouldResemble, tup1.Data)
+				So(b2.Tuples[1].Data, ShouldResemble, tup2.Data)
+
+				Convey("And the InputName is set to \"*\"", func() {
+					So(b2.Tuples[0].InputName, ShouldEqual, "*")
+				})
 			})
 			Convey("And the sink 2 receives a copy", func() {
 				So(si2.Tuples, ShouldNotBeNil)
@@ -875,6 +926,10 @@ func TestDefaultTopologyTupleCopying(t *testing.T) {
 				// pointers point to different objects
 				So(so.Tuples[0], ShouldNotPointTo, si.Tuples[0])
 				So(so.Tuples[1], ShouldNotPointTo, si.Tuples[1])
+
+				Convey("And the InputName is set to \"output\"", func() {
+					So(si.Tuples[0].InputName, ShouldEqual, "output")
+				})
 			})
 			Convey("And the traces of tuples differ", func() {
 				So(len(si1.Tuples), ShouldEqual, 2)
@@ -1051,4 +1106,37 @@ func TestDefaultTopologyTupleTracing(t *testing.T) {
 			})
 		})
 	})
+}
+
+// CollectorBox is a simple forwarder box that also stores a copy
+// of all forwarded data for later inspection.
+type CollectorBox struct {
+	mutex       *sync.Mutex
+	Tuples      []*tuple.Tuple
+	InputSchema map[string]*Schema
+}
+
+func (b *CollectorBox) Init(ctx *Context) error {
+	b.mutex = &sync.Mutex{}
+	return nil
+}
+func (b *CollectorBox) Process(t *tuple.Tuple, s Writer) error {
+	// with multiple sources, there may be multiple concurrent calls
+	// of this method (even in tests) so we need to guard the append
+	// with a mutex
+	b.mutex.Lock()
+	b.Tuples = append(b.Tuples, t.Copy())
+	b.mutex.Unlock()
+	s.Write(t)
+	return nil
+}
+func (b *CollectorBox) InputConstraints() (*InputConstraints, error) {
+	if b.InputSchema != nil {
+		ic := &InputConstraints{b.InputSchema}
+		return ic, nil
+	}
+	return nil, nil
+}
+func (b *CollectorBox) OutputSchema(s []*Schema) (*Schema, error) {
+	return nil, nil
 }

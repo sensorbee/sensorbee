@@ -217,6 +217,9 @@ func (p *SequentialPipe) Write(t *tuple.Tuple) error {
 		} else {
 			s = t.Copy()
 		}
+		// set the name to "output" to prevent leaking
+		// internal identifiers to a sink
+		s.InputName = "output"
 		// add tracing information and hand over to sink
 		in := newDefaultEvent(tuple.INPUT, recvSink.Name)
 		s.AddEvent(in)
