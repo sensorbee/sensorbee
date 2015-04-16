@@ -5,6 +5,17 @@ import (
 	"fmt"
 )
 
+// Value is the generic interface for all data that can be stored
+// inside a Tuple. Since we assume the data not to conform to any
+// schema, data can have any shape and it can also change within a
+// stream from one Tuple to the next. Therefore we need to be
+// careful with respect to type conversions. A Value obtained, e.g.,
+// by Map.Get should always be converted using the appropriate method
+// and error checking must be done.
+//
+// Example:
+//  i, err := val.Int()
+//  if err != nil { ... }
 type Value interface {
 	Type() TypeID
 	Bool() (Bool, error)
