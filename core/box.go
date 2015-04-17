@@ -4,14 +4,15 @@ import (
 	"pfi/sensorbee/sensorbee/core/tuple"
 )
 
-type InputConstraints struct {
+type BoxInputConstraints struct {
 	Schema map[string]*Schema
 }
 
 type Box interface {
 	Init(ctx *Context) error
 	Process(t *tuple.Tuple, s Writer) error
-	InputConstraints() (*InputConstraints, error)
+	// TODO write comment
+	InputConstraints() (*BoxInputConstraints, error)
 	OutputSchema([]*Schema) (*Schema, error)
 }
 
@@ -30,7 +31,7 @@ func (b *boxFunc) Init(ctx *Context) error {
 	return nil
 }
 
-func (b *boxFunc) InputConstraints() (*InputConstraints, error) {
+func (b *boxFunc) InputConstraints() (*BoxInputConstraints, error) {
 	return nil, nil
 }
 
