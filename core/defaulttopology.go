@@ -179,25 +179,25 @@ type SequentialPipe struct {
 }
 
 func (p *SequentialPipe) Write(t *tuple.Tuple) error {
-	in := newDefaultTracer(tuple.OUTPUT, p.FromName)
-	t.AddTracer(in)
+	out := newDefaultTracer(tuple.OUTPUT, p.FromName)
+	t.AddTracer(out)
 	// forward tuple to connected boxes
 	var s *tuple.Tuple
-	var trs []tuple.Tracer
+	var tes []tuple.TraceEvent
 	tupleCopies := 0
 	for _, recvBox := range p.ReceiverBoxes {
 		// copy for all receivers but the first so that
 		// multiple receivers don't operate on the same data
 		if tupleCopies == 0 {
 			s = t
-			trs = make([]tuple.Tracer, len(t.Tracers))
-			copy(trs, t.Tracers)
+			tes = make([]tuple.TraceEvent, len(t.Trace))
+			copy(tes, t.Trace)
 		} else {
 			s = t.Copy()
-			s.Tracers = trs
+			s.Trace = tes
 		}
-		tr := newDefaultTracer(tuple.INPUT, recvBox.Name)
-		s.AddTracer(tr)
+		in := newDefaultTracer(tuple.INPUT, recvBox.Name)
+		s.AddTracer(in)
 		recvBox.Box.Process(s, recvBox.Receiver)
 		tupleCopies += 1
 	}
@@ -207,22 +207,22 @@ func (p *SequentialPipe) Write(t *tuple.Tuple) error {
 		// multiple receivers don't operate on the same data
 		if tupleCopies == 0 {
 			s = t
-			trs = make([]tuple.Tracer, len(t.Tracers))
-			copy(trs, t.Tracers)
+			tes = make([]tuple.TraceEvent, len(t.Trace))
+			copy(tes, t.Trace)
 		} else {
 			s = t.Copy()
-			s.Tracers = trs
+			s.Trace = tes
 		}
-		tr := newDefaultTracer(tuple.INPUT, recvSink.Name)
-		s.AddTracer(tr)
+		in := newDefaultTracer(tuple.INPUT, recvSink.Name)
+		s.AddTracer(in)
 		recvSink.Sink.Write(s)
 		tupleCopies += 1
 	}
 	return nil
 }
 
-func newDefaultTracer(inout tuple.InOutType, msg string) tuple.Tracer {
-	return tuple.Tracer{
+func newDefaultTracer(inout tuple.InOutType, msg string) tuple.TraceEvent {
+	return tuple.TraceEvent{
 		time.Now(),
 		inout,
 		msg,

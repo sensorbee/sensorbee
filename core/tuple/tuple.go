@@ -11,11 +11,11 @@ type Tuple struct {
 	ProcTimestamp time.Time
 	BatchID       int64
 
-	Tracers []Tracer
+	Trace []TraceEvent
 }
 
-func (t *Tuple) AddTracer(tr Tracer) {
-	t.Tracers = append(t.Tracers, tr)
+func (t *Tuple) AddTracer(te TraceEvent) {
+	t.Trace = append(t.Trace, te)
 }
 
 func (t *Tuple) Copy() *Tuple {
@@ -34,7 +34,7 @@ const (
 	OUTPUT
 )
 
-type Tracer struct {
+type TraceEvent struct {
 	Timestanp time.Time
 	Inout     InOutType
 	Msg       string
