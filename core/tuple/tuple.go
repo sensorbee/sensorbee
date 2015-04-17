@@ -37,25 +37,28 @@ func (t *Tuple) Copy() *Tuple {
 	return &out
 }
 
-type InOutType int
+type EventType int
 
 const (
-	INPUT InOutType = iota
+	INPUT EventType = iota
 	OUTPUT
+	OTHER
 )
 
 type TraceEvent struct {
-	Timestanp time.Time
-	Inout     InOutType
+	Timestamp time.Time
+	Type      EventType
 	Msg       string
 }
 
-func (t InOutType) String() string {
+func (t EventType) String() string {
 	switch t {
 	case INPUT:
 		return "INPUT"
 	case OUTPUT:
 		return "OUTPUT"
+	case OTHER:
+		return "OTHER"
 	default:
 		return "unknown"
 	}

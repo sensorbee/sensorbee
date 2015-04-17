@@ -1197,7 +1197,7 @@ func TestDefaultTopologyTupleTracing(t *testing.T) {
 				for _, tu := range si1.Tuples {
 					aRoute := make([]string, 0)
 					for _, ev := range tu.Trace {
-						aRoute = append(aRoute, ev.Inout.String()+" "+ev.Msg)
+						aRoute = append(aRoute, ev.Type.String()+" "+ev.Msg)
 					}
 					aRoutes = append(aRoutes, strings.Join(aRoute, "->"))
 				}
@@ -1235,7 +1235,7 @@ func TestDefaultTopologyTupleTracing(t *testing.T) {
 				for _, tu := range si2.Tuples {
 					aRoute := make([]string, 0)
 					for _, ev := range tu.Trace {
-						aRoute = append(aRoute, ev.Inout.String()+" "+ev.Msg)
+						aRoute = append(aRoute, ev.Type.String()+" "+ev.Msg)
 					}
 					aRoutes = append(aRoutes, strings.Join(aRoute, "->"))
 				}
