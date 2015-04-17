@@ -1,9 +1,5 @@
 package tuple
 
-import (
-	"github.com/mattn/go-scan"
-)
-
 type Map map[string]Value
 
 func (m Map) Type() TypeID {
@@ -57,7 +53,7 @@ func (m Map) Copy() Map {
 func (m Map) Get(path string) (Value, error) {
 	// TODO: support json path manually
 	var v Value
-	err := scan.ScanTree(m.toMapInterface(), path, &v)
+	err := ScanTree(m.toMapInterface(), path, &v)
 	return v, err
 }
 
