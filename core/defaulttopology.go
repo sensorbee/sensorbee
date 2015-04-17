@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"pfi/sensorbee/sensorbee/core/tuple"
 	"sync"
+	"time"
 )
 
 type DefaultTopology struct {
@@ -122,14 +123,16 @@ func (tb *DefaultStaticTopologyBuilder) Build() Topology {
 	pipes := make(map[string]*SequentialPipe, len(tb.sources)+len(tb.boxes))
 	for name, _ := range tb.sources {
 		pipe := SequentialPipe{}
+		pipe.FromName = name
 		pipe.ReceiverBoxes = make([]ReceiverBox, 0)
-		pipe.ReceiverSinks = make([]Sink, 0)
+		pipe.ReceiverSinks = make([]ReceiverSink, 0)
 		pipes[name] = &pipe
 	}
 	for name, _ := range tb.boxes {
 		pipe := SequentialPipe{}
+		pipe.FromName = name
 		pipe.ReceiverBoxes = make([]ReceiverBox, 0)
-		pipe.ReceiverSinks = make([]Sink, 0)
+		pipe.ReceiverSinks = make([]ReceiverSink, 0)
 		pipes[name] = &pipe
 	}
 	// add the correct receivers to each pipe
@@ -141,7 +144,8 @@ func (tb *DefaultStaticTopologyBuilder) Build() Topology {
 		// pipe's receiver list
 		sink, isSink := tb.sinks[toName]
 		if isSink {
-			pipe.ReceiverSinks = append(pipe.ReceiverSinks, sink)
+			recv := ReceiverSink{toName, sink}
+			pipe.ReceiverSinks = append(pipe.ReceiverSinks, recv)
 		}
 		box, isBox := tb.boxes[toName]
 		if isBox {
@@ -161,41 +165,61 @@ type ReceiverBox struct {
 	Receiver Writer
 }
 
+// holds a sink and the sink's name
+type ReceiverSink struct {
+	Name string
+	Sink Sink
+}
+
 // receives input from a box and forwards it to registered listeners
 type SequentialPipe struct {
+	FromName      string
 	ReceiverBoxes []ReceiverBox
-	ReceiverSinks []Sink
+	ReceiverSinks []ReceiverSink
 }
 
 func (p *SequentialPipe) Write(t *tuple.Tuple) error {
-	// TODO add trace information to tuple (if enabled)
+	// add tracing information
+	out := newDefaultEvent(tuple.OUTPUT, p.FromName)
+	t.AddEvent(out)
 	// forward tuple to connected boxes
 	var s *tuple.Tuple
-	tupleCopies := 0
+
+	// copy for all receivers but if this pipe has only
+	// one receiver, there is no need to copy
+	notNeedsCopy := len(p.ReceiverBoxes)+len(p.ReceiverSinks) <= 1
 	for _, recvBox := range p.ReceiverBoxes {
-		// copy for all receivers but the first so that
-		// multiple receivers don't operate on the same data
-		if tupleCopies == 0 {
+		if notNeedsCopy {
 			s = t
 		} else {
 			s = t.Copy()
 		}
+		// add tracing information and hand over to box
+		in := newDefaultEvent(tuple.INPUT, recvBox.Name)
+		s.AddEvent(in)
 		recvBox.Box.Process(s, recvBox.Receiver)
-		tupleCopies += 1
 	}
 	// forward tuple to connected sinks
-	for _, sink := range p.ReceiverSinks {
-		// copy for all receivers but the first so that
-		// multiple receivers don't operate on the same data
-		if tupleCopies == 0 {
+	for _, recvSink := range p.ReceiverSinks {
+		if notNeedsCopy {
 			s = t
 		} else {
 			s = t.Copy()
 		}
-		sink.Write(s)
-		tupleCopies += 1
+		// add tracing information and hand over to sink
+		in := newDefaultEvent(tuple.INPUT, recvSink.Name)
+		s.AddEvent(in)
+		recvSink.Sink.Write(s)
 	}
 	return nil
+}
+
+func newDefaultEvent(inout tuple.InOutType, msg string) tuple.TraceEvent {
+	return tuple.TraceEvent{
+		time.Now(),
+		inout,
+		msg,
+	}
 }
 
 /**************************************************/
