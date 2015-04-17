@@ -737,7 +737,7 @@ func forwardBox(t *tuple.Tuple, w Writer) error {
 }
 
 func TestDefaultTopologyTupleTracing(t *testing.T) {
-	Convey("Given complex topology, has distribution and aggrigation", t, func() {
+	Convey("Given complex topology, has distribution and aggregation", t, func() {
 
 		tup1 := tuple.Tuple{
 			Data: tuple.Map{
