@@ -179,7 +179,7 @@ type SequentialPipe struct {
 }
 
 func (p *SequentialPipe) Write(t *tuple.Tuple) error {
-	in := newDefaultTracer(tuple.INPUT, p.FromName)
+	in := newDefaultTracer(tuple.OUTPUT, p.FromName)
 	t.AddTracer(in)
 	// forward tuple to connected boxes
 	var s *tuple.Tuple
@@ -196,7 +196,7 @@ func (p *SequentialPipe) Write(t *tuple.Tuple) error {
 			s = t.Copy()
 			s.Tracers = trs
 		}
-		tr := newDefaultTracer(tuple.OUTPUT, recvBox.Name)
+		tr := newDefaultTracer(tuple.INPUT, recvBox.Name)
 		s.AddTracer(tr)
 		recvBox.Box.Process(s, recvBox.Receiver)
 		tupleCopies += 1
@@ -213,7 +213,7 @@ func (p *SequentialPipe) Write(t *tuple.Tuple) error {
 			s = t.Copy()
 			s.Tracers = trs
 		}
-		tr := newDefaultTracer(tuple.OUTPUT, recvSink.Name)
+		tr := newDefaultTracer(tuple.INPUT, recvSink.Name)
 		s.AddTracer(tr)
 		recvSink.Sink.Write(s)
 		tupleCopies += 1
