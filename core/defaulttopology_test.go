@@ -559,7 +559,7 @@ func TestDefaultTopologyTupleCopying(t *testing.T) {
 			Convey("And the sink 2 receives a copy", func() {
 				So(si2.Tuples, ShouldNotBeNil)
 				So(len(si2.Tuples), ShouldEqual, 2)
-				// contents are the same (but tracer is not equal)
+				// contents are the same
 				So(so.Tuples[0].Data, ShouldResemble, si2.Tuples[0].Data)
 				So(so.Tuples[0].Timestamp, ShouldResemble, si2.Tuples[0].Timestamp)
 				So(so.Tuples[0].ProcTimestamp, ShouldResemble, si2.Tuples[0].ProcTimestamp)
@@ -568,6 +568,9 @@ func TestDefaultTopologyTupleCopying(t *testing.T) {
 				So(so.Tuples[1].Timestamp, ShouldResemble, si2.Tuples[1].Timestamp)
 				So(so.Tuples[1].ProcTimestamp, ShouldResemble, si2.Tuples[1].ProcTimestamp)
 				So(so.Tuples[1].BatchID, ShouldEqual, si2.Tuples[1].BatchID)
+				// tracer is not equal (last input sink is different between sink1 and sink2)
+				So(si1.Tuples[0].Tracers, ShouldNotResemble, si2.Tuples[0].Tracers)
+				So(si1.Tuples[1].Tracers, ShouldNotResemble, si2.Tuples[1].Tracers)
 				// pointers point to different objects
 				So(so.Tuples[0], ShouldNotPointTo, si2.Tuples[0])
 				So(so.Tuples[1], ShouldNotPointTo, si2.Tuples[1])
@@ -639,7 +642,7 @@ func TestDefaultTopologyTupleCopying(t *testing.T) {
 			Convey("And the sink 2 receives a copy", func() {
 				So(si2.Tuples, ShouldNotBeNil)
 				So(len(si2.Tuples), ShouldEqual, 2)
-				// contents are the same (but tracer is not equal)
+				// contents are the same
 				So(so.Tuples[0].Data, ShouldResemble, si2.Tuples[0].Data)
 				So(so.Tuples[0].Timestamp, ShouldResemble, si2.Tuples[0].Timestamp)
 				So(so.Tuples[0].ProcTimestamp, ShouldResemble, si2.Tuples[0].ProcTimestamp)
@@ -648,6 +651,9 @@ func TestDefaultTopologyTupleCopying(t *testing.T) {
 				So(so.Tuples[1].Timestamp, ShouldResemble, si2.Tuples[1].Timestamp)
 				So(so.Tuples[1].ProcTimestamp, ShouldResemble, si2.Tuples[1].ProcTimestamp)
 				So(so.Tuples[1].BatchID, ShouldEqual, si2.Tuples[1].BatchID)
+				// tracer is not equal (last input sink is different between sink1 and sink2)
+				So(si1.Tuples[0].Tracers, ShouldNotResemble, si2.Tuples[0].Tracers)
+				So(si1.Tuples[1].Tracers, ShouldNotResemble, si2.Tuples[1].Tracers)
 				// pointers point to different objects
 				So(so.Tuples[0], ShouldNotPointTo, si2.Tuples[0])
 				So(so.Tuples[1], ShouldNotPointTo, si2.Tuples[1])
@@ -691,7 +697,7 @@ func TestDefaultTopologyTupleCopying(t *testing.T) {
 			Convey("And the sink 2 receives a copy", func() {
 				So(si2.Tuples, ShouldNotBeNil)
 				So(len(si2.Tuples), ShouldEqual, 2)
-				// contents are the same (but tracer is not equal)
+				// contents are the same
 				So(so.Tuples[0].Data, ShouldResemble, si2.Tuples[0].Data)
 				So(so.Tuples[0].Timestamp, ShouldResemble, si2.Tuples[0].Timestamp)
 				So(so.Tuples[0].ProcTimestamp, ShouldResemble, si2.Tuples[0].ProcTimestamp)
@@ -700,6 +706,9 @@ func TestDefaultTopologyTupleCopying(t *testing.T) {
 				So(so.Tuples[1].Timestamp, ShouldResemble, si2.Tuples[1].Timestamp)
 				So(so.Tuples[1].ProcTimestamp, ShouldResemble, si2.Tuples[1].ProcTimestamp)
 				So(so.Tuples[1].BatchID, ShouldEqual, si2.Tuples[1].BatchID)
+				// tracer is not equal
+				So(si1.Tuples[0].Tracers, ShouldNotResemble, si2.Tuples[0].Tracers)
+				So(si1.Tuples[1].Tracers, ShouldNotResemble, si2.Tuples[1].Tracers)
 				// pointers point to different objects
 				So(so.Tuples[0], ShouldNotPointTo, si2.Tuples[0])
 				So(so.Tuples[1], ShouldNotPointTo, si2.Tuples[1])
