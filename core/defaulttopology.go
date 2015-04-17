@@ -228,7 +228,7 @@ func (p *sequentialPipe) Write(t *tuple.Tuple) error {
 	return nil
 }
 
-func newDefaultEvent(inout tuple.InOutType, msg string) tuple.TraceEvent {
+func newDefaultEvent(inout tuple.EventType, msg string) tuple.TraceEvent {
 	return tuple.TraceEvent{
 		time.Now(),
 		inout,
