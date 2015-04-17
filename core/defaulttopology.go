@@ -179,13 +179,14 @@ type SequentialPipe struct {
 }
 
 func (p *SequentialPipe) Write(t *tuple.Tuple) error {
+	// add tracing information
 	out := newDefaultEvent(tuple.OUTPUT, p.FromName)
 	t.AddEvent(out)
 	// forward tuple to connected boxes
 	var s *tuple.Tuple
 
-	// copy for all receivers but if this pipe have only
-	// one receiver, not need to copy
+	// copy for all receivers but if this pipe has only
+	// one receiver, there is no need to copy
 	notNeedsCopy := len(p.ReceiverBoxes)+len(p.ReceiverSinks) <= 1
 	for _, recvBox := range p.ReceiverBoxes {
 		if notNeedsCopy {
@@ -193,6 +194,7 @@ func (p *SequentialPipe) Write(t *tuple.Tuple) error {
 		} else {
 			s = t.Copy()
 		}
+		// add tracing information and hand over to box
 		in := newDefaultEvent(tuple.INPUT, recvBox.Name)
 		s.AddEvent(in)
 		recvBox.Box.Process(s, recvBox.Receiver)
@@ -204,6 +206,7 @@ func (p *SequentialPipe) Write(t *tuple.Tuple) error {
 		} else {
 			s = t.Copy()
 		}
+		// add tracing information and hand over to sink
 		in := newDefaultEvent(tuple.INPUT, recvSink.Name)
 		s.AddEvent(in)
 		recvSink.Sink.Write(s)
