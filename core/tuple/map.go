@@ -53,28 +53,6 @@ func (m Map) Copy() Map {
 func (m Map) Get(path string) (Value, error) {
 	// TODO: support json path manually
 	var v Value
-	err := ScanTree(m.toMapInterface(), path, &v)
+	err := ScanMap(m, path, &v)
 	return v, err
-}
-
-// toMapInterface converts Map to map[string]interface{}.
-// This is only for go-scan.
-func (m Map) toMapInterface() map[string]interface{} {
-	t := make(map[string]interface{}, len(m))
-	for k, v := range m {
-		switch v.Type() {
-		case TypeBlob:
-			b, _ := v.Blob()
-			t[k] = &b
-		case TypeArray:
-			a, _ := v.Array()
-			t[k] = a.toArrayInterface()
-		case TypeMap:
-			m, _ := v.Map()
-			t[k] = m.toMapInterface()
-		default:
-			t[k] = v
-		}
-	}
-	return t
 }

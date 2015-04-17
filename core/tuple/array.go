@@ -45,25 +45,3 @@ func (a Array) clone() Value {
 	}
 	return Array(out)
 }
-
-func (a Array) toArrayInterface() []interface{} {
-	t := make([]interface{}, len(a))
-	for idx, value := range a {
-		var element interface{}
-		switch value.Type() {
-		case TypeBlob:
-			b, _ := value.Blob()
-			element = &b
-		case TypeArray:
-			a, _ := value.Array()
-			element = a.toArrayInterface()
-		case TypeMap:
-			m, _ := value.Map()
-			element = m.toMapInterface()
-		default:
-			element = value
-		}
-		t[idx] = element
-	}
-	return t
-}
