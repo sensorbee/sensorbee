@@ -466,21 +466,19 @@ type DummyDefaultSink struct {
 	results2 []string
 }
 
-func (s *DummyDefaultSink) Write(t *tuple.Tuple) error {
+func (s *DummyDefaultSink) Write(t *tuple.Tuple) (err error) {
 	x, err := t.Data.Get("to-upper")
-	if err != nil {
-		return nil
+	if err == nil {
+		str, _ := x.String()
+		s.results = append(s.results, string(str))
 	}
-	str, _ := x.String()
-	s.results = append(s.results, string(str))
 
 	x, err = t.Data.Get("add-suffix")
-	if err != nil {
-		return nil
+	if err == nil {
+		str, _ := x.String()
+		s.results2 = append(s.results2, string(str))
 	}
-	str, _ = x.String()
-	s.results2 = append(s.results2, string(str))
-	return nil
+	return err
 }
 
 func TestDefaultTopologyTupleCopying(t *testing.T) {
@@ -549,21 +547,45 @@ func TestDefaultTopologyTupleCopying(t *testing.T) {
 
 		Convey("When a tuple is emitted by the source", func() {
 			t.Run(&Context{})
-			Convey("Then the sink 1 receives the same object", func() {
+			Convey("Then the sink 1 receives a copy", func() {
 				So(si1.Tuples, ShouldNotBeNil)
 				So(len(si1.Tuples), ShouldEqual, 2)
-				// pointers point to the same objects
-				So(so.Tuples[0], ShouldPointTo, si1.Tuples[0])
-				So(so.Tuples[1], ShouldPointTo, si1.Tuples[1])
+				// contents are the same
+				si := si1
+				So(so.Tuples[0].Data, ShouldResemble, si.Tuples[0].Data)
+				So(so.Tuples[0].Timestamp, ShouldResemble, si.Tuples[0].Timestamp)
+				So(so.Tuples[0].ProcTimestamp, ShouldResemble, si.Tuples[0].ProcTimestamp)
+				So(so.Tuples[0].BatchID, ShouldEqual, si.Tuples[0].BatchID)
+				So(so.Tuples[1].Data, ShouldResemble, si.Tuples[1].Data)
+				So(so.Tuples[1].Timestamp, ShouldResemble, si.Tuples[1].Timestamp)
+				So(so.Tuples[1].ProcTimestamp, ShouldResemble, si.Tuples[1].ProcTimestamp)
+				So(so.Tuples[1].BatchID, ShouldEqual, si.Tuples[1].BatchID)
+				// source has two received sinks, so tuples are copied
+				So(so.Tuples[0], ShouldNotPointTo, si.Tuples[0])
+				So(so.Tuples[1], ShouldNotPointTo, si.Tuples[1])
 			})
 			Convey("And the sink 2 receives a copy", func() {
 				So(si2.Tuples, ShouldNotBeNil)
 				So(len(si2.Tuples), ShouldEqual, 2)
 				// contents are the same
-				So(so.Tuples, ShouldResemble, si2.Tuples)
+				si := si2
+				So(so.Tuples[0].Data, ShouldResemble, si.Tuples[0].Data)
+				So(so.Tuples[0].Timestamp, ShouldResemble, si.Tuples[0].Timestamp)
+				So(so.Tuples[0].ProcTimestamp, ShouldResemble, si.Tuples[0].ProcTimestamp)
+				So(so.Tuples[0].BatchID, ShouldEqual, si.Tuples[0].BatchID)
+				So(so.Tuples[1].Data, ShouldResemble, si.Tuples[1].Data)
+				So(so.Tuples[1].Timestamp, ShouldResemble, si.Tuples[1].Timestamp)
+				So(so.Tuples[1].ProcTimestamp, ShouldResemble, si.Tuples[1].ProcTimestamp)
+				So(so.Tuples[1].BatchID, ShouldEqual, si.Tuples[1].BatchID)
 				// pointers point to different objects
-				So(so.Tuples[0], ShouldNotPointTo, si2.Tuples[0])
-				So(so.Tuples[1], ShouldNotPointTo, si2.Tuples[1])
+				So(so.Tuples[0], ShouldNotPointTo, si.Tuples[0])
+				So(so.Tuples[1], ShouldNotPointTo, si.Tuples[1])
+			})
+			Convey("And the traces of tuples differ", func() {
+				So(len(si1.Tuples), ShouldEqual, 2)
+				So(len(si2.Tuples), ShouldEqual, 2)
+				So(si1.Tuples[0].Trace, ShouldNotResemble, si2.Tuples[0].Trace)
+				So(si1.Tuples[1].Trace, ShouldNotResemble, si2.Tuples[1].Trace)
 			})
 		})
 	})
@@ -622,21 +644,45 @@ func TestDefaultTopologyTupleCopying(t *testing.T) {
 
 		Convey("When a tuple is emitted by the source", func() {
 			t.Run(&Context{})
-			Convey("Then the sink 1 receives the same object", func() {
+			Convey("Then the sink 1 receives a copy", func() {
 				So(si1.Tuples, ShouldNotBeNil)
 				So(len(si1.Tuples), ShouldEqual, 2)
-				// pointers point to the same objects
-				So(so.Tuples[0], ShouldPointTo, si1.Tuples[0])
-				So(so.Tuples[1], ShouldPointTo, si1.Tuples[1])
+				// contents are the same
+				si := si1
+				So(so.Tuples[0].Data, ShouldResemble, si.Tuples[0].Data)
+				So(so.Tuples[0].Timestamp, ShouldResemble, si.Tuples[0].Timestamp)
+				So(so.Tuples[0].ProcTimestamp, ShouldResemble, si.Tuples[0].ProcTimestamp)
+				So(so.Tuples[0].BatchID, ShouldEqual, si.Tuples[0].BatchID)
+				So(so.Tuples[1].Data, ShouldResemble, si.Tuples[1].Data)
+				So(so.Tuples[1].Timestamp, ShouldResemble, si.Tuples[1].Timestamp)
+				So(so.Tuples[1].ProcTimestamp, ShouldResemble, si.Tuples[1].ProcTimestamp)
+				So(so.Tuples[1].BatchID, ShouldEqual, si.Tuples[1].BatchID)
+				// box has two received sinks, so tuples are copied
+				So(so.Tuples[0], ShouldNotPointTo, si.Tuples[0])
+				So(so.Tuples[1], ShouldNotPointTo, si.Tuples[1])
 			})
 			Convey("And the sink 2 receives a copy", func() {
 				So(si2.Tuples, ShouldNotBeNil)
 				So(len(si2.Tuples), ShouldEqual, 2)
 				// contents are the same
-				So(so.Tuples, ShouldResemble, si2.Tuples)
+				si := si2
+				So(so.Tuples[0].Data, ShouldResemble, si.Tuples[0].Data)
+				So(so.Tuples[0].Timestamp, ShouldResemble, si.Tuples[0].Timestamp)
+				So(so.Tuples[0].ProcTimestamp, ShouldResemble, si.Tuples[0].ProcTimestamp)
+				So(so.Tuples[0].BatchID, ShouldEqual, si.Tuples[0].BatchID)
+				So(so.Tuples[1].Data, ShouldResemble, si.Tuples[1].Data)
+				So(so.Tuples[1].Timestamp, ShouldResemble, si.Tuples[1].Timestamp)
+				So(so.Tuples[1].ProcTimestamp, ShouldResemble, si.Tuples[1].ProcTimestamp)
+				So(so.Tuples[1].BatchID, ShouldEqual, si.Tuples[1].BatchID)
 				// pointers point to different objects
-				So(so.Tuples[0], ShouldNotPointTo, si2.Tuples[0])
-				So(so.Tuples[1], ShouldNotPointTo, si2.Tuples[1])
+				So(so.Tuples[0], ShouldNotPointTo, si.Tuples[0])
+				So(so.Tuples[1], ShouldNotPointTo, si.Tuples[1])
+			})
+			Convey("And the traces of tuples differ", func() {
+				So(len(si1.Tuples), ShouldEqual, 2)
+				So(len(si2.Tuples), ShouldEqual, 2)
+				So(si1.Tuples[0].Trace, ShouldNotResemble, si2.Tuples[0].Trace)
+				So(si1.Tuples[1].Trace, ShouldNotResemble, si2.Tuples[1].Trace)
 			})
 		})
 	})
@@ -667,21 +713,45 @@ func TestDefaultTopologyTupleCopying(t *testing.T) {
 
 		Convey("When a tuple is emitted by the source", func() {
 			t.Run(&Context{})
-			Convey("Then the sink 1 receives the same object", func() {
+			Convey("Then the sink 1 receives a copy", func() {
 				So(si1.Tuples, ShouldNotBeNil)
 				So(len(si1.Tuples), ShouldEqual, 2)
-				// pointers point to the same objects
-				So(so.Tuples[0], ShouldPointTo, si1.Tuples[0])
-				So(so.Tuples[1], ShouldPointTo, si1.Tuples[1])
+				// contents are the same
+				si := si1
+				So(so.Tuples[0].Data, ShouldResemble, si.Tuples[0].Data)
+				So(so.Tuples[0].Timestamp, ShouldResemble, si.Tuples[0].Timestamp)
+				So(so.Tuples[0].ProcTimestamp, ShouldResemble, si.Tuples[0].ProcTimestamp)
+				So(so.Tuples[0].BatchID, ShouldEqual, si.Tuples[0].BatchID)
+				So(so.Tuples[1].Data, ShouldResemble, si.Tuples[1].Data)
+				So(so.Tuples[1].Timestamp, ShouldResemble, si.Tuples[1].Timestamp)
+				So(so.Tuples[1].ProcTimestamp, ShouldResemble, si.Tuples[1].ProcTimestamp)
+				So(so.Tuples[1].BatchID, ShouldEqual, si.Tuples[1].BatchID)
+				// source has two received boxes, so tuples are copied
+				So(so.Tuples[0], ShouldNotPointTo, si.Tuples[0])
+				So(so.Tuples[1], ShouldNotPointTo, si.Tuples[1])
 			})
 			Convey("And the sink 2 receives a copy", func() {
 				So(si2.Tuples, ShouldNotBeNil)
 				So(len(si2.Tuples), ShouldEqual, 2)
 				// contents are the same
-				So(so.Tuples, ShouldResemble, si2.Tuples)
+				si := si2
+				So(so.Tuples[0].Data, ShouldResemble, si.Tuples[0].Data)
+				So(so.Tuples[0].Timestamp, ShouldResemble, si.Tuples[0].Timestamp)
+				So(so.Tuples[0].ProcTimestamp, ShouldResemble, si.Tuples[0].ProcTimestamp)
+				So(so.Tuples[0].BatchID, ShouldEqual, si.Tuples[0].BatchID)
+				So(so.Tuples[1].Data, ShouldResemble, si.Tuples[1].Data)
+				So(so.Tuples[1].Timestamp, ShouldResemble, si.Tuples[1].Timestamp)
+				So(so.Tuples[1].ProcTimestamp, ShouldResemble, si.Tuples[1].ProcTimestamp)
+				So(so.Tuples[1].BatchID, ShouldEqual, si.Tuples[1].BatchID)
 				// pointers point to different objects
-				So(so.Tuples[0], ShouldNotPointTo, si2.Tuples[0])
-				So(so.Tuples[1], ShouldNotPointTo, si2.Tuples[1])
+				So(so.Tuples[0], ShouldNotPointTo, si.Tuples[0])
+				So(so.Tuples[1], ShouldNotPointTo, si.Tuples[1])
+			})
+			Convey("And the traces of tuples differ", func() {
+				So(len(si1.Tuples), ShouldEqual, 2)
+				So(len(si2.Tuples), ShouldEqual, 2)
+				So(si1.Tuples[0].Trace, ShouldNotResemble, si2.Tuples[0].Trace)
+				So(si1.Tuples[1].Trace, ShouldNotResemble, si2.Tuples[1].Trace)
 			})
 		})
 	})
@@ -713,4 +783,143 @@ func (s *TupleCollectorSink) Write(t *tuple.Tuple) error {
 func forwardBox(t *tuple.Tuple, w Writer) error {
 	w.Write(t)
 	return nil
+}
+
+func TestDefaultTopologyTupleTracing(t *testing.T) {
+	Convey("Given complex topology, has distribution and aggregation", t, func() {
+
+		tup1 := tuple.Tuple{
+			Data: tuple.Map{
+				"int": tuple.Int(1),
+			},
+			Timestamp:     time.Date(2015, time.April, 10, 10, 23, 0, 0, time.UTC),
+			ProcTimestamp: time.Date(2015, time.April, 10, 10, 24, 0, 0, time.UTC),
+			BatchID:       7,
+			Trace:         make([]tuple.TraceEvent, 0),
+		}
+		tup2 := tuple.Tuple{
+			Data: tuple.Map{
+				"int": tuple.Int(2),
+			},
+			Timestamp:     time.Date(2015, time.April, 10, 10, 23, 1, 0, time.UTC),
+			ProcTimestamp: time.Date(2015, time.April, 10, 10, 24, 1, 0, time.UTC),
+			BatchID:       7,
+			Trace:         make([]tuple.TraceEvent, 0),
+		}
+		/*
+		 *   so1 \        /--> b2 \        /-*--> si1
+		 *        *- b1 -*         *- b4 -*
+		 *   so2 /        \--> b3 /        \-*--> si2
+		 */
+		tb := NewDefaultStaticTopologyBuilder()
+		so1 := &TupleEmitterSource{
+			Tuples: []*tuple.Tuple{&tup1},
+		}
+		tb.AddSource("so1", so1)
+		so2 := &TupleEmitterSource{
+			Tuples: []*tuple.Tuple{&tup2},
+		}
+		tb.AddSource("so2", so2)
+
+		b1 := BoxFunc(forwardBox)
+		tb.AddBox("box1", &b1).
+			Input("so1", nil).
+			Input("so2", nil)
+		b2 := BoxFunc(forwardBox)
+		tb.AddBox("box2", &b2).Input("box1", nil)
+		b3 := BoxFunc(forwardBox)
+		tb.AddBox("box3", &b3).Input("box1", nil)
+		b4 := BoxFunc(forwardBox)
+		tb.AddBox("box4", &b4).
+			Input("box2", nil).
+			Input("box3", nil)
+
+		si1 := &TupleCollectorSink{}
+		tb.AddSink("si1", si1).Input("box4")
+		si2 := &TupleCollectorSink{}
+		tb.AddSink("si2", si2).Input("box4")
+
+		to := tb.Build()
+		Convey("When a tuple is emitted by the source", func() {
+			to.Run(&Context{})
+			Convey("Then tracer has 2 kind of route from source1", func() {
+				// make expected routes
+				route1 := []string{
+					"OUTPUT so1", "INPUT box1", "OUTPUT box1", "INPUT box2",
+					"OUTPUT box2", "INPUT box4", "OUTPUT box4", "INPUT si1",
+				}
+				route2 := []string{
+					"OUTPUT so1", "INPUT box1", "OUTPUT box1", "INPUT box3",
+					"OUTPUT box3", "INPUT box4", "OUTPUT box4", "INPUT si1",
+				}
+				route3 := []string{
+					"OUTPUT so2", "INPUT box1", "OUTPUT box1", "INPUT box2",
+					"OUTPUT box2", "INPUT box4", "OUTPUT box4", "INPUT si1",
+				}
+				route4 := []string{
+					"OUTPUT so2", "INPUT box1", "OUTPUT box1", "INPUT box3",
+					"OUTPUT box3", "INPUT box4", "OUTPUT box4", "INPUT si1",
+				}
+				eRoutes := []string{
+					strings.Join(route1, "->"),
+					strings.Join(route2, "->"),
+					strings.Join(route3, "->"),
+					strings.Join(route4, "->"),
+				}
+				aRoutes := make([]string, 0)
+				for _, tu := range si1.Tuples {
+					aRoute := make([]string, 0)
+					for _, ev := range tu.Trace {
+						aRoute = append(aRoute, ev.Inout.String()+" "+ev.Msg)
+					}
+					aRoutes = append(aRoutes, strings.Join(aRoute, "->"))
+				}
+				So(len(aRoutes), ShouldEqual, 4)
+				So(aRoutes, ShouldContain, eRoutes[0])
+				So(aRoutes, ShouldContain, eRoutes[1])
+				So(aRoutes, ShouldContain, eRoutes[2])
+				So(aRoutes, ShouldContain, eRoutes[3])
+			})
+			Convey("Then tracer has 2 kind of route from source2", func() {
+				// make expected routes
+				route1 := []string{
+					"OUTPUT so1", "INPUT box1", "OUTPUT box1", "INPUT box2",
+					"OUTPUT box2", "INPUT box4", "OUTPUT box4", "INPUT si2",
+				}
+				route2 := []string{
+					"OUTPUT so1", "INPUT box1", "OUTPUT box1", "INPUT box3",
+					"OUTPUT box3", "INPUT box4", "OUTPUT box4", "INPUT si2",
+				}
+				route3 := []string{
+					"OUTPUT so2", "INPUT box1", "OUTPUT box1", "INPUT box2",
+					"OUTPUT box2", "INPUT box4", "OUTPUT box4", "INPUT si2",
+				}
+				route4 := []string{
+					"OUTPUT so2", "INPUT box1", "OUTPUT box1", "INPUT box3",
+					"OUTPUT box3", "INPUT box4", "OUTPUT box4", "INPUT si2",
+				}
+				eRoutes := []string{
+					strings.Join(route1, "->"),
+					strings.Join(route2, "->"),
+					strings.Join(route3, "->"),
+					strings.Join(route4, "->"),
+				}
+				aRoutes := make([]string, 0)
+				for _, tu := range si2.Tuples {
+					aRoute := make([]string, 0)
+					for _, ev := range tu.Trace {
+						aRoute = append(aRoute, ev.Inout.String()+" "+ev.Msg)
+					}
+					aRoutes = append(aRoutes, strings.Join(aRoute, "->"))
+				}
+				So(len(si2.Tuples), ShouldEqual, 4)
+				//fmt.Println(aRoutes[0])
+				So(len(aRoutes), ShouldEqual, 4)
+				So(aRoutes, ShouldContain, eRoutes[0])
+				So(aRoutes, ShouldContain, eRoutes[1])
+				So(aRoutes, ShouldContain, eRoutes[2])
+				So(aRoutes, ShouldContain, eRoutes[3])
+			})
+		})
+	})
 }
