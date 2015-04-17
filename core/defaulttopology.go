@@ -13,7 +13,7 @@ type defaultTopology struct {
 	boxpointers map[*Box]bool
 
 	sources map[string]Source
-	pipes   map[string]*SequentialPipe
+	pipes   map[string]*sequentialPipe
 }
 
 func (t *defaultTopology) Run(ctx *Context) {
@@ -39,10 +39,10 @@ type defaultStaticTopologyBuilder struct {
 	boxes       map[string]Box
 	boxpointers map[*Box]bool
 	sinks       map[string]Sink
-	Edges       []DataflowEdge
+	Edges       []dataflowEdge
 }
 
-type DataflowEdge struct {
+type dataflowEdge struct {
 	// From is the name of the source or box at the start of this edge.
 	From string
 
@@ -61,7 +61,7 @@ func NewDefaultStaticTopologyBuilder() StaticTopologyBuilder {
 	tb.boxes = make(map[string]Box)
 	tb.boxpointers = make(map[*Box]bool)
 	tb.sinks = make(map[string]Sink)
-	tb.Edges = make([]DataflowEdge, 0)
+	tb.Edges = make([]dataflowEdge, 0)
 	return &tb
 }
 
@@ -128,19 +128,19 @@ func (tb *defaultStaticTopologyBuilder) AddSink(name string, sink Sink) SinkDecl
 
 func (tb *defaultStaticTopologyBuilder) Build() Topology {
 	// every source and every box gets an "output pipe"
-	pipes := make(map[string]*SequentialPipe, len(tb.sources)+len(tb.boxes))
+	pipes := make(map[string]*sequentialPipe, len(tb.sources)+len(tb.boxes))
 	for name, _ := range tb.sources {
-		pipe := SequentialPipe{}
+		pipe := sequentialPipe{}
 		pipe.FromName = name
-		pipe.ReceiverBoxes = make([]ReceiverBox, 0)
-		pipe.ReceiverSinks = make([]ReceiverSink, 0)
+		pipe.ReceiverBoxes = make([]receiverBox, 0)
+		pipe.ReceiverSinks = make([]receiverSink, 0)
 		pipes[name] = &pipe
 	}
 	for name, _ := range tb.boxes {
-		pipe := SequentialPipe{}
+		pipe := sequentialPipe{}
 		pipe.FromName = name
-		pipe.ReceiverBoxes = make([]ReceiverBox, 0)
-		pipe.ReceiverSinks = make([]ReceiverSink, 0)
+		pipe.ReceiverBoxes = make([]receiverBox, 0)
+		pipe.ReceiverSinks = make([]receiverSink, 0)
 		pipes[name] = &pipe
 	}
 	// add the correct receivers to each pipe
@@ -152,12 +152,12 @@ func (tb *defaultStaticTopologyBuilder) Build() Topology {
 		// pipe's receiver list
 		sink, isSink := tb.sinks[toName]
 		if isSink {
-			recv := ReceiverSink{toName, sink}
+			recv := receiverSink{toName, sink}
 			pipe.ReceiverSinks = append(pipe.ReceiverSinks, recv)
 		}
 		box, isBox := tb.boxes[toName]
 		if isBox {
-			recv := ReceiverBox{toName, box, pipes[toName], edge.InputName}
+			recv := receiverBox{toName, box, pipes[toName], edge.InputName}
 			pipe.ReceiverBoxes = append(pipe.ReceiverBoxes, recv)
 		}
 	}
@@ -167,7 +167,7 @@ func (tb *defaultStaticTopologyBuilder) Build() Topology {
 }
 
 // holds a box and the writer that will receive this box's output
-type ReceiverBox struct {
+type receiverBox struct {
 	Name      string
 	Box       Box
 	Receiver  Writer
@@ -175,19 +175,19 @@ type ReceiverBox struct {
 }
 
 // holds a sink and the sink's name
-type ReceiverSink struct {
+type receiverSink struct {
 	Name string
 	Sink Sink
 }
 
 // receives input from a box and forwards it to registered listeners
-type SequentialPipe struct {
+type sequentialPipe struct {
 	FromName      string
-	ReceiverBoxes []ReceiverBox
-	ReceiverSinks []ReceiverSink
+	ReceiverBoxes []receiverBox
+	ReceiverSinks []receiverSink
 }
 
-func (p *SequentialPipe) Write(t *tuple.Tuple) error {
+func (p *sequentialPipe) Write(t *tuple.Tuple) error {
 	// add tracing information
 	out := newDefaultEvent(tuple.OUTPUT, p.FromName)
 	t.AddEvent(out)
@@ -300,7 +300,7 @@ func (bd *defaultBoxDeclarer) NamedInput(refname string, inputName string) BoxDe
 		return bd
 	}
 	// check if this edge already exists
-	edge := DataflowEdge{refname, bd.name, inputName}
+	edge := dataflowEdge{refname, bd.name, inputName}
 	edgeAlreadyExists := false
 	for _, e := range bd.tb.Edges {
 		edgeAlreadyExists = edge == e
@@ -342,7 +342,7 @@ func (sd *defaultSinkDeclarer) Input(refname string) SinkDeclarer {
 		return sd
 	}
 	// check if this edge already exists
-	edge := DataflowEdge{refname, sd.name, ""}
+	edge := dataflowEdge{refname, sd.name, ""}
 	edgeAlreadyExists := false
 	for _, e := range sd.tb.Edges {
 		edgeAlreadyExists = edge == e
