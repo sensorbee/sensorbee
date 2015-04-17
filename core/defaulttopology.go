@@ -43,8 +43,16 @@ type DefaultStaticTopologyBuilder struct {
 }
 
 type DataflowEdge struct {
+	// From is the name of the source or box at the start of this edge.
 	From string
-	To   string
+
+	// To is the name of the box or sink at the end of this edge.
+	To string
+
+	// InputName is the name that the box at the end of the edge
+	// expects incoming tuples to have. This has no meaning when there
+	// is a sink at the end of this edge.
+	InputName string
 }
 
 func NewDefaultStaticTopologyBuilder() StaticTopologyBuilder {
@@ -149,7 +157,7 @@ func (tb *DefaultStaticTopologyBuilder) Build() Topology {
 		}
 		box, isBox := tb.boxes[toName]
 		if isBox {
-			recv := ReceiverBox{toName, box, pipes[toName]}
+			recv := ReceiverBox{toName, box, pipes[toName], edge.InputName}
 			pipe.ReceiverBoxes = append(pipe.ReceiverBoxes, recv)
 		}
 	}
@@ -160,9 +168,10 @@ func (tb *DefaultStaticTopologyBuilder) Build() Topology {
 
 // holds a box and the writer that will receive this box's output
 type ReceiverBox struct {
-	Name     string
-	Box      Box
-	Receiver Writer
+	Name      string
+	Box       Box
+	Receiver  Writer
+	InputName string
 }
 
 // holds a sink and the sink's name
@@ -194,6 +203,8 @@ func (p *SequentialPipe) Write(t *tuple.Tuple) error {
 		} else {
 			s = t.Copy()
 		}
+		// set the name that the box is expecting
+		s.InputName = recvBox.InputName
 		// add tracing information and hand over to box
 		in := newDefaultEvent(tuple.INPUT, recvBox.Name)
 		s.AddEvent(in)
@@ -206,6 +217,9 @@ func (p *SequentialPipe) Write(t *tuple.Tuple) error {
 		} else {
 			s = t.Copy()
 		}
+		// set the name to "output" to prevent leaking
+		// internal identifiers to a sink
+		s.InputName = "output"
 		// add tracing information and hand over to sink
 		in := newDefaultEvent(tuple.INPUT, recvSink.Name)
 		s.AddEvent(in)
@@ -241,7 +255,11 @@ type DefaultBoxDeclarer struct {
 	err  error
 }
 
-func (bd *DefaultBoxDeclarer) Input(refname string, schema *Schema) BoxDeclarer {
+func (bd *DefaultBoxDeclarer) Input(refname string) BoxDeclarer {
+	return bd.NamedInput(refname, "*")
+}
+
+func (bd *DefaultBoxDeclarer) NamedInput(refname string, inputName string) BoxDeclarer {
 	// if there was a previous error, do nothing
 	if bd.err != nil {
 		return bd
@@ -252,9 +270,37 @@ func (bd *DefaultBoxDeclarer) Input(refname string, schema *Schema) BoxDeclarer 
 		bd.err = err
 		return bd
 	}
-	// TODO check if given schema matches the referenced source or box
+	// The `Input()` caller said that we should attach the name
+	// `inputName` to incoming data (or not if inputName is "*").
+	// This is ok if
+	// - InputConstraints or InputConstraints.schema is nil
+	// - there is a schema (or nil) declared in the InputConstraints
+	//   with that name
+	// - there is a "*" schema declared in the InputConstraints
+	// Otherwise this is an error.
+	ok := false
+	inputConstraints, err := bd.box.InputConstraints()
+	if err != nil {
+		bd.err = err
+		return bd
+	}
+	if inputConstraints == nil || inputConstraints.Schema == nil {
+		ok = true
+	} else if _, declared := inputConstraints.Schema[inputName]; declared {
+		// TODO check if given schema matches the referenced source or box
+		ok = true
+	} else if _, declared := inputConstraints.Schema["*"]; declared {
+		// TODO check if given schema matches the referenced source or box
+		ok = true
+	}
+	if !ok {
+		err := fmt.Errorf("you cannot use %s as an input name with input constraints %v",
+			inputName, inputConstraints)
+		bd.err = err
+		return bd
+	}
 	// check if this edge already exists
-	edge := DataflowEdge{refname, bd.name}
+	edge := DataflowEdge{refname, bd.name, inputName}
 	edgeAlreadyExists := false
 	for _, e := range bd.tb.Edges {
 		edgeAlreadyExists = edge == e
@@ -296,7 +342,7 @@ func (sd *DefaultSinkDeclarer) Input(refname string) SinkDeclarer {
 		return sd
 	}
 	// check if this edge already exists
-	edge := DataflowEdge{refname, sd.name}
+	edge := DataflowEdge{refname, sd.name, ""}
 	edgeAlreadyExists := false
 	for _, e := range sd.tb.Edges {
 		edgeAlreadyExists = edge == e
@@ -340,6 +386,7 @@ func (s *DefaultSource) Schema() *Schema {
 /**************************************************/
 
 type DefaultBox struct {
+	InputSchema map[string]*Schema
 }
 
 func (b *DefaultBox) Init(ctx *Context) error {
@@ -350,8 +397,12 @@ func (b *DefaultBox) Process(t *tuple.Tuple, s Writer) error {
 	return nil
 }
 
-func (b *DefaultBox) RequiredInputSchema() ([]*Schema, error) {
-	return []*Schema{nil}, nil
+func (b *DefaultBox) InputConstraints() (*InputConstraints, error) {
+	if b.InputSchema != nil {
+		ic := &InputConstraints{b.InputSchema}
+		return ic, nil
+	}
+	return nil, nil
 }
 
 func (b *DefaultBox) OutputSchema(s []*Schema) (*Schema, error) {
