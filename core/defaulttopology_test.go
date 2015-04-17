@@ -1,9 +1,12 @@
 package core
 
 import (
+	"fmt"
 	. "github.com/smartystreets/goconvey/convey"
 	"pfi/sensorbee/sensorbee/core/tuple"
+	"reflect"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -141,7 +144,7 @@ func TestDefaultTopologyBuilderInterface(t *testing.T) {
 
 		Convey("when a new box references a non-existing item", func() {
 			err = tb.AddBox("otherBox", b).
-				Input("something", nil)
+				Input("something")
 			So(err, ShouldNotBeNil)
 			Convey("adding should fail", func() {
 				So(err.Err(), ShouldNotBeNil)
@@ -150,7 +153,7 @@ func TestDefaultTopologyBuilderInterface(t *testing.T) {
 
 		Convey("when a new box references an existing source", func() {
 			err = tb.AddBox("otherBox", b).
-				Input("aSource", nil)
+				Input("aSource")
 			So(err, ShouldNotBeNil)
 			Convey("adding should work", func() {
 				So(err.Err(), ShouldBeNil)
@@ -159,7 +162,7 @@ func TestDefaultTopologyBuilderInterface(t *testing.T) {
 
 		Convey("when a new box references an existing box", func() {
 			err = tb.AddBox("otherBox", b).
-				Input("aBox", nil)
+				Input("aBox")
 			So(err, ShouldNotBeNil)
 			Convey("adding should work", func() {
 				So(err.Err(), ShouldBeNil)
@@ -168,8 +171,8 @@ func TestDefaultTopologyBuilderInterface(t *testing.T) {
 
 		Convey("when a new box references multiple items", func() {
 			err = tb.AddBox("otherBox", b).
-				Input("aBox", nil).
-				Input("aSource", nil)
+				Input("aBox").
+				Input("aSource")
 			So(err, ShouldNotBeNil)
 			Convey("adding should work", func() {
 				So(err.Err(), ShouldBeNil)
@@ -178,8 +181,8 @@ func TestDefaultTopologyBuilderInterface(t *testing.T) {
 
 		Convey("when a new box references an existing source twice", func() {
 			err = tb.AddBox("otherBox", b).
-				Input("aSource", nil).
-				Input("aSource", nil)
+				Input("aSource").
+				Input("aSource")
 			So(err, ShouldNotBeNil)
 			Convey("adding should fail", func() {
 				So(err.Err(), ShouldNotBeNil)
@@ -188,8 +191,8 @@ func TestDefaultTopologyBuilderInterface(t *testing.T) {
 
 		Convey("when a new box references an existing box twice", func() {
 			err = tb.AddBox("otherBox", b).
-				Input("aBox", nil).
-				Input("aBox", nil)
+				Input("aBox").
+				Input("aBox")
 			So(err, ShouldNotBeNil)
 			Convey("adding should fail", func() {
 				So(err.Err(), ShouldNotBeNil)
@@ -255,6 +258,135 @@ func TestDefaultTopologyBuilderInterface(t *testing.T) {
 	})
 }
 
+func TestDefaultTopologyBuilderSchemaChecks(t *testing.T) {
+
+	Convey("Given a default topology builder", t, func() {
+		tb := NewDefaultStaticTopologyBuilder()
+		s := &DefaultSource{}
+		tb.AddSource("source", s)
+
+		Convey("When using a box with nil input constraint", func() {
+			// A box with InputConstraint() == nil should allow any and all input
+			b := &DefaultBox{}
+
+			Convey("Then adding an unnamed input should succeed", func() {
+				bdecl := tb.AddBox("box", b).Input("source")
+				So(bdecl.Err(), ShouldBeNil)
+			})
+
+			Convey("Then adding a named input for '*' should succeed", func() {
+				bdecl := tb.AddBox("box", b).NamedInput("source", "*")
+				So(bdecl.Err(), ShouldBeNil)
+			})
+
+			Convey("Then adding a named input for 'hoge' should succeed", func() {
+				bdecl := tb.AddBox("box", b).NamedInput("source", "hoge")
+				So(bdecl.Err(), ShouldBeNil)
+			})
+		})
+
+		Convey("When using a box with {'*' => nil} input constraint", func() {
+			// A box with '*' => nil should allow any and all input
+			b := &DefaultBox{map[string]*Schema{"*": nil}}
+
+			Convey("Then adding an unnamed input should succeed", func() {
+				bdecl := tb.AddBox("box", b).Input("source")
+				So(bdecl.Err(), ShouldBeNil)
+			})
+
+			Convey("Then adding a named input for '*' should succeed", func() {
+				bdecl := tb.AddBox("box", b).NamedInput("source", "*")
+				So(bdecl.Err(), ShouldBeNil)
+			})
+
+			Convey("Then adding a named input for 'hoge' should succeed", func() {
+				bdecl := tb.AddBox("box", b).NamedInput("source", "hoge")
+				So(bdecl.Err(), ShouldBeNil)
+			})
+		})
+
+		SkipConvey("When using a box with {'*' => non-nil} input constraint", func() {
+			// A box with '*' => aSchema should only allow input
+			// if it matches aSchema
+		})
+
+		// Note that the following test reveals a questionable behavior: If
+		// a Box declares just one input stream, there is apparently no need
+		// to tell apart different streams; so what exactly is the value of
+		// requiring a certain name?
+		Convey("When using a box with {'hoge' => nil} input constraint", func() {
+			// A box with 'hoge' => nil should only allow input
+			// if it comes from an input stream called 'hoge'
+			b := &DefaultBox{map[string]*Schema{"hoge": nil}}
+
+			Convey("Then adding an unnamed input should fail", func() {
+				bdecl := tb.AddBox("box", b).Input("source")
+				So(bdecl.Err(), ShouldNotBeNil)
+			})
+
+			Convey("Then adding a named input for '*' should fail", func() {
+				bdecl := tb.AddBox("box", b).NamedInput("source", "*")
+				So(bdecl.Err(), ShouldNotBeNil)
+			})
+
+			Convey("Then adding a named input for 'foo' should fail", func() {
+				bdecl := tb.AddBox("box", b).NamedInput("source", "foo")
+				So(bdecl.Err(), ShouldNotBeNil)
+			})
+
+			Convey("Then adding a named input for 'hoge' should succeed", func() {
+				bdecl := tb.AddBox("box", b).NamedInput("source", "hoge")
+				So(bdecl.Err(), ShouldBeNil)
+			})
+		})
+
+		SkipConvey("When using a box with {'hoge' => non-nil} input constraint", func() {
+			// A box with 'hoge' => aSchema should only allow input
+			// if it comes from an input stream called 'hoge' and
+			// matches aSchema
+		})
+
+		Convey("When using a box with {'hoge' => nil, '*' => nil} input constraint", func() {
+			// A box with 'hoge' => nil, *' => nil should allow any and
+			// all input
+			b := &DefaultBox{map[string]*Schema{"hoge": nil, "*": nil}}
+
+			Convey("Then adding an unnamed input should succeed", func() {
+				bdecl := tb.AddBox("box", b).Input("source")
+				So(bdecl.Err(), ShouldBeNil)
+			})
+
+			Convey("Then adding a named input for '*' should succeed", func() {
+				bdecl := tb.AddBox("box", b).NamedInput("source", "*")
+				So(bdecl.Err(), ShouldBeNil)
+			})
+
+			Convey("Then adding a named input for 'foo' should succeed", func() {
+				bdecl := tb.AddBox("box", b).NamedInput("source", "foo")
+				So(bdecl.Err(), ShouldBeNil)
+			})
+
+			Convey("Then adding a named input for 'hoge' should succeed", func() {
+				bdecl := tb.AddBox("box", b).NamedInput("source", "hoge")
+				So(bdecl.Err(), ShouldBeNil)
+			})
+		})
+
+		SkipConvey("When using a box with {'hoge' => non-nil, '*' => non-nil} input constraint", func() {
+			// A box with 'hoge' => aSchema, '*' => otherSchema should
+			// allow input from arbitrarily named input streams, as long as
+			// they match the corresponding schema
+		})
+
+		SkipConvey("When using a box with {'hoge' => non-nil, 'foo' => non-nil} input constraint", func() {
+			// A box with 'hoge' => aSchema, 'foo' => otherSchema should
+			// only allow input from input streams called 'hoge' or 'foo'
+			// and matching the corresponding schema
+		})
+	})
+
+}
+
 func TestBasicDefaultTopologyTransport(t *testing.T) {
 	Convey("Given basic topology", t, func() {
 
@@ -262,7 +394,7 @@ func TestBasicDefaultTopologyTransport(t *testing.T) {
 		s1 := &DummyDefaultSource{"value"}
 		tb.AddSource("source1", s1)
 		b1 := &DummyToUpperBox{}
-		tb.AddBox("aBox", b1).Input("source1", nil)
+		tb.AddBox("aBox", b1).Input("source1")
 		si := &DummyDefaultSink{}
 		tb.AddSink("si", si).Input("aBox")
 		t := tb.Build()
@@ -281,8 +413,8 @@ func TestBasicDefaultTopologyTransport(t *testing.T) {
 		tb.AddSource("source2", s2)
 		b1 := &DummyToUpperBox{}
 		tb.AddBox("aBox", b1).
-			Input("source1", nil).
-			Input("source2", nil)
+			Input("source1").
+			Input("source2")
 		si := &DummyDefaultSink{}
 		tb.AddSink("si", si).Input("aBox")
 		t := tb.Build()
@@ -303,7 +435,7 @@ func TestBasicDefaultTopologyTransport(t *testing.T) {
 		tb.AddSource("source", s)
 		b1 := &DummyToUpperBox{}
 		tb.AddBox("aBox", b1).
-			Input("source", nil)
+			Input("source")
 		si := &DummyDefaultSink{}
 		tb.AddSink("si", si).Input("aBox")
 		t := tb.Build()
@@ -319,9 +451,9 @@ func TestBasicDefaultTopologyTransport(t *testing.T) {
 		s1 := &DummyDefaultSource{"value"}
 		tb.AddSource("source1", s1)
 		b1 := &DummyToUpperBox{}
-		tb.AddBox("aBox", b1).Input("source1", nil)
+		tb.AddBox("aBox", b1).Input("source1")
 		b2 := &DummyAddSuffixBox{}
-		tb.AddBox("bBox", b2).Input("source1", nil)
+		tb.AddBox("bBox", b2).Input("source1")
 		si := &DummyDefaultSink{}
 		tb.AddSink("si", si).Input("aBox").Input("bBox")
 		t := tb.Build()
@@ -338,7 +470,7 @@ func TestBasicDefaultTopologyTransport(t *testing.T) {
 		s1 := &DummyDefaultSource{"value"}
 		tb.AddSource("source1", s1)
 		b1 := &DummyToUpperBox{}
-		tb.AddBox("aBox", b1).Input("source1", nil)
+		tb.AddBox("aBox", b1).Input("source1")
 		si := &DummyDefaultSink{}
 		tb.AddSink("si", si).Input("aBox")
 		si2 := &DummyDefaultSink{}
@@ -357,7 +489,7 @@ func TestBasicDefaultTopologyTransport(t *testing.T) {
 		s1 := &DummyDefaultSource{"value"}
 		tb.AddSource("source1", s1)
 		b1 := &DummyToUpperBox{}
-		tb.AddBox("aBox", b1).Input("source1", nil)
+		tb.AddBox("aBox", b1).Input("source1")
 		si := &DummyDefaultSink{}
 		tb.AddSink("si", si).Input("aBox")
 
@@ -431,8 +563,8 @@ func (b *DummyToUpperBox) Process(t *tuple.Tuple, w Writer) error {
 	return nil
 }
 
-func (b *DummyToUpperBox) RequiredInputSchema() ([]*Schema, error) {
-	return []*Schema{nil}, nil
+func (b *DummyToUpperBox) InputConstraints() (*InputConstraints, error) {
+	return nil, nil
 }
 
 func (b *DummyToUpperBox) OutputSchema(s []*Schema) (*Schema, error) {
@@ -453,8 +585,8 @@ func (b *DummyAddSuffixBox) Process(t *tuple.Tuple, w Writer) error {
 	return nil
 }
 
-func (b *DummyAddSuffixBox) RequiredInputSchema() ([]*Schema, error) {
-	return []*Schema{nil}, nil
+func (b *DummyAddSuffixBox) InputConstraints() (*InputConstraints, error) {
+	return nil, nil
 }
 
 func (b *DummyAddSuffixBox) OutputSchema(s []*Schema) (*Schema, error) {
@@ -481,11 +613,12 @@ func (s *DummyDefaultSink) Write(t *tuple.Tuple) (err error) {
 	return err
 }
 
-func TestDefaultTopologyTupleCopying(t *testing.T) {
+func TestDefaultTopologyTupleTransport(t *testing.T) {
 	tup1 := tuple.Tuple{
 		Data: tuple.Map{
 			"int": tuple.Int(1),
 		},
+		InputName:     "input",
 		Timestamp:     time.Date(2015, time.April, 10, 10, 23, 0, 0, time.UTC),
 		ProcTimestamp: time.Date(2015, time.April, 10, 10, 24, 0, 0, time.UTC),
 		BatchID:       7,
@@ -494,6 +627,7 @@ func TestDefaultTopologyTupleCopying(t *testing.T) {
 		Data: tuple.Map{
 			"int": tuple.Int(2),
 		},
+		InputName:     "input",
 		Timestamp:     time.Date(2015, time.April, 10, 10, 23, 1, 0, time.UTC),
 		ProcTimestamp: time.Date(2015, time.April, 10, 10, 24, 1, 0, time.UTC),
 		BatchID:       7,
@@ -522,6 +656,10 @@ func TestDefaultTopologyTupleCopying(t *testing.T) {
 				// pointers point to the same objects
 				So(so.Tuples[0], ShouldPointTo, si.Tuples[0])
 				So(so.Tuples[1], ShouldPointTo, si.Tuples[1])
+
+				Convey("And the InputName is set to \"output\"", func() {
+					So(si.Tuples[0].InputName, ShouldEqual, "output")
+				})
 			})
 		})
 	})
@@ -563,6 +701,10 @@ func TestDefaultTopologyTupleCopying(t *testing.T) {
 				// source has two received sinks, so tuples are copied
 				So(so.Tuples[0], ShouldNotPointTo, si.Tuples[0])
 				So(so.Tuples[1], ShouldNotPointTo, si.Tuples[1])
+
+				Convey("And the InputName is set to \"output\"", func() {
+					So(si.Tuples[0].InputName, ShouldEqual, "output")
+				})
 			})
 			Convey("And the sink 2 receives a copy", func() {
 				So(si2.Tuples, ShouldNotBeNil)
@@ -580,6 +722,10 @@ func TestDefaultTopologyTupleCopying(t *testing.T) {
 				// pointers point to different objects
 				So(so.Tuples[0], ShouldNotPointTo, si.Tuples[0])
 				So(so.Tuples[1], ShouldNotPointTo, si.Tuples[1])
+
+				Convey("And the InputName is set to \"output\"", func() {
+					So(si.Tuples[0].InputName, ShouldEqual, "output")
+				})
 			})
 			Convey("And the traces of tuples differ", func() {
 				So(len(si1.Tuples), ShouldEqual, 2)
@@ -601,7 +747,7 @@ func TestDefaultTopologyTupleCopying(t *testing.T) {
 		tb.AddSource("source", so)
 
 		b := BoxFunc(forwardBox)
-		tb.AddBox("box", &b).Input("source", nil)
+		tb.AddBox("box", &b).Input("source")
 
 		si := &TupleCollectorSink{}
 		tb.AddSink("sink", si).Input("box")
@@ -616,6 +762,151 @@ func TestDefaultTopologyTupleCopying(t *testing.T) {
 				// pointers point to the same objects
 				So(so.Tuples[0], ShouldPointTo, si.Tuples[0])
 				So(so.Tuples[1], ShouldPointTo, si.Tuples[1])
+
+				Convey("And the InputName is set to \"output\"", func() {
+					So(si.Tuples[0].InputName, ShouldEqual, "output")
+				})
+			})
+		})
+	})
+
+	Convey("Given a simple source/box/sink topology with 2 sources", t, func() {
+		/*
+		 *   so1 -*-(left)--\
+		 *                   --> b -*--> si
+		 *   so2 -*-(right)-/
+		 */
+
+		// input data
+		tup1 := tuple.Tuple{
+			Data: tuple.Map{
+				"uid":  tuple.Int(1),
+				"key1": tuple.String("tuple1"),
+			},
+		}
+		tup2 := tuple.Tuple{
+			Data: tuple.Map{
+				"uid":  tuple.Int(2),
+				"key2": tuple.String("tuple2"),
+			},
+		}
+		tup3 := tuple.Tuple{
+			Data: tuple.Map{
+				"uid":  tuple.Int(2),
+				"key3": tuple.String("tuple3"),
+			},
+		}
+		tup4 := tuple.Tuple{
+			Data: tuple.Map{
+				"uid":  tuple.Int(1),
+				"key4": tuple.String("tuple4"),
+			},
+		}
+		// expected output when joined on uid (tup1 + tup4, tup2 + tup3)
+		j1 := tuple.Tuple{
+			Data: tuple.Map{
+				"uid":  tuple.Int(1),
+				"key1": tuple.String("tuple1"),
+				"key4": tuple.String("tuple4"),
+			},
+		}
+		j2 := tuple.Tuple{
+			Data: tuple.Map{
+				"uid":  tuple.Int(2),
+				"key2": tuple.String("tuple2"),
+				"key3": tuple.String("tuple3"),
+			},
+		}
+
+		Convey("When two pairs of tuples are emitted by the sources", func() {
+			tb := NewDefaultStaticTopologyBuilder()
+			so1 := &TupleEmitterSource{
+				Tuples: []*tuple.Tuple{&tup1, &tup2},
+			}
+			tb.AddSource("source1", so1)
+			so2 := &TupleEmitterSource{
+				Tuples: []*tuple.Tuple{&tup3, &tup4},
+			}
+			tb.AddSource("source2", so2)
+
+			b := &SimpleJoinBox{}
+			tb.AddBox("box", b).
+				NamedInput("source1", "left").
+				NamedInput("source2", "right")
+
+			si := &TupleCollectorSink{}
+			tb.AddSink("sink", si).Input("box")
+
+			t := tb.Build()
+
+			t.Run(&Context{})
+			Convey("Then the sink receives two objects", func() {
+				So(si.Tuples, ShouldNotBeNil)
+				So(len(si.Tuples), ShouldEqual, 2)
+
+				// the items can arrive in any order, so we can't
+				// use a simple ShouldResemble check
+				Convey("And one of them is joined on uid 1", func() {
+					ok := false
+					for _, tup := range si.Tuples {
+						if reflect.DeepEqual(tup.Data, j1.Data) {
+							ok = true
+							break
+						}
+					}
+					So(ok, ShouldBeTrue)
+				})
+				Convey("And one of them is joined on uid 2", func() {
+					ok := false
+					for _, tup := range si.Tuples {
+						if reflect.DeepEqual(tup.Data, j2.Data) {
+							ok = true
+							break
+						}
+					}
+					So(ok, ShouldBeTrue)
+				})
+
+				Convey("And the InputName is set to \"output\"", func() {
+					So(si.Tuples[0].InputName, ShouldEqual, "output")
+				})
+			})
+
+			Convey("And the buffers in the box are empty", func() {
+				So(b.LeftTuples, ShouldBeEmpty)
+				So(b.RightTuples, ShouldBeEmpty)
+			})
+		})
+
+		Convey("When a non-pair of tuples is emitted by the sources", func() {
+			tb := NewDefaultStaticTopologyBuilder()
+			so1 := &TupleEmitterSource{
+				Tuples: []*tuple.Tuple{&tup1},
+			}
+			tb.AddSource("source1", so1)
+			so2 := &TupleEmitterSource{
+				Tuples: []*tuple.Tuple{&tup2},
+			}
+			tb.AddSource("source2", so2)
+
+			b := &SimpleJoinBox{}
+			tb.AddBox("box", b).
+				NamedInput("source1", "left").
+				NamedInput("source2", "right")
+
+			si := &TupleCollectorSink{}
+			tb.AddSink("sink", si).Input("box")
+
+			t := tb.Build()
+
+			t.Run(&Context{})
+			Convey("Then the sink receives no objects", func() {
+				So(si.Tuples, ShouldBeNil)
+
+				Convey("And the tuples should still be in the boxes", func() {
+					So(len(b.LeftTuples), ShouldEqual, 1)
+					So(len(b.RightTuples), ShouldEqual, 1)
+				})
 			})
 		})
 	})
@@ -633,7 +924,7 @@ func TestDefaultTopologyTupleCopying(t *testing.T) {
 		tb.AddSource("source", so)
 
 		b := BoxFunc(forwardBox)
-		tb.AddBox("box", &b).Input("source", nil)
+		tb.AddBox("box", &b).Input("source")
 
 		si1 := &TupleCollectorSink{}
 		tb.AddSink("si1", si1).Input("box")
@@ -660,6 +951,10 @@ func TestDefaultTopologyTupleCopying(t *testing.T) {
 				// box has two received sinks, so tuples are copied
 				So(so.Tuples[0], ShouldNotPointTo, si.Tuples[0])
 				So(so.Tuples[1], ShouldNotPointTo, si.Tuples[1])
+
+				Convey("And the InputName is set to \"output\"", func() {
+					So(si.Tuples[0].InputName, ShouldEqual, "output")
+				})
 			})
 			Convey("And the sink 2 receives a copy", func() {
 				So(si2.Tuples, ShouldNotBeNil)
@@ -677,6 +972,10 @@ func TestDefaultTopologyTupleCopying(t *testing.T) {
 				// pointers point to different objects
 				So(so.Tuples[0], ShouldNotPointTo, si.Tuples[0])
 				So(so.Tuples[1], ShouldNotPointTo, si.Tuples[1])
+
+				Convey("And the InputName is set to \"output\"", func() {
+					So(si.Tuples[0].InputName, ShouldEqual, "output")
+				})
 			})
 			Convey("And the traces of tuples differ", func() {
 				So(len(si1.Tuples), ShouldEqual, 2)
@@ -699,10 +998,10 @@ func TestDefaultTopologyTupleCopying(t *testing.T) {
 		}
 		tb.AddSource("source", so)
 
-		b1 := BoxFunc(forwardBox)
-		tb.AddBox("box1", &b1).Input("source", nil)
-		b2 := BoxFunc(forwardBox)
-		tb.AddBox("box2", &b2).Input("source", nil)
+		b1 := CollectorBox{InputSchema: map[string]*Schema{"hoge": nil}}
+		tb.AddBox("box1", &b1).NamedInput("source", "hoge")
+		b2 := CollectorBox{}
+		tb.AddBox("box2", &b2).Input("source")
 
 		si1 := &TupleCollectorSink{}
 		tb.AddSink("si1", si1).Input("box1")
@@ -713,7 +1012,17 @@ func TestDefaultTopologyTupleCopying(t *testing.T) {
 
 		Convey("When a tuple is emitted by the source", func() {
 			t.Run(&Context{})
-			Convey("Then the sink 1 receives a copy", func() {
+			Convey("Then the box 1 sees this tuple", func() {
+				So(b1.Tuples, ShouldNotBeNil)
+				So(len(b1.Tuples), ShouldEqual, 2)
+				So(b1.Tuples[0].Data, ShouldResemble, tup1.Data)
+				So(b1.Tuples[1].Data, ShouldResemble, tup2.Data)
+
+				Convey("And the InputName is set to \"hoge\"", func() {
+					So(b1.Tuples[0].InputName, ShouldEqual, "hoge")
+				})
+			})
+			Convey("And the sink 1 receives a copy", func() {
 				So(si1.Tuples, ShouldNotBeNil)
 				So(len(si1.Tuples), ShouldEqual, 2)
 				// contents are the same
@@ -729,6 +1038,20 @@ func TestDefaultTopologyTupleCopying(t *testing.T) {
 				// source has two received boxes, so tuples are copied
 				So(so.Tuples[0], ShouldNotPointTo, si.Tuples[0])
 				So(so.Tuples[1], ShouldNotPointTo, si.Tuples[1])
+
+				Convey("And the InputName is set to \"output\"", func() {
+					So(si.Tuples[0].InputName, ShouldEqual, "output")
+				})
+			})
+			Convey("Then the box 2 sees this tuple", func() {
+				So(b2.Tuples, ShouldNotBeNil)
+				So(len(b2.Tuples), ShouldEqual, 2)
+				So(b2.Tuples[0].Data, ShouldResemble, tup1.Data)
+				So(b2.Tuples[1].Data, ShouldResemble, tup2.Data)
+
+				Convey("And the InputName is set to \"*\"", func() {
+					So(b2.Tuples[0].InputName, ShouldEqual, "*")
+				})
 			})
 			Convey("And the sink 2 receives a copy", func() {
 				So(si2.Tuples, ShouldNotBeNil)
@@ -746,6 +1069,10 @@ func TestDefaultTopologyTupleCopying(t *testing.T) {
 				// pointers point to different objects
 				So(so.Tuples[0], ShouldNotPointTo, si.Tuples[0])
 				So(so.Tuples[1], ShouldNotPointTo, si.Tuples[1])
+
+				Convey("And the InputName is set to \"output\"", func() {
+					So(si.Tuples[0].InputName, ShouldEqual, "output")
+				})
 			})
 			Convey("And the traces of tuples differ", func() {
 				So(len(si1.Tuples), ShouldEqual, 2)
@@ -823,16 +1150,16 @@ func TestDefaultTopologyTupleTracing(t *testing.T) {
 
 		b1 := BoxFunc(forwardBox)
 		tb.AddBox("box1", &b1).
-			Input("so1", nil).
-			Input("so2", nil)
+			Input("so1").
+			Input("so2")
 		b2 := BoxFunc(forwardBox)
-		tb.AddBox("box2", &b2).Input("box1", nil)
+		tb.AddBox("box2", &b2).Input("box1")
 		b3 := BoxFunc(forwardBox)
-		tb.AddBox("box3", &b3).Input("box1", nil)
+		tb.AddBox("box3", &b3).Input("box1")
 		b4 := BoxFunc(forwardBox)
 		tb.AddBox("box4", &b4).
-			Input("box2", nil).
-			Input("box3", nil)
+			Input("box2").
+			Input("box3")
 
 		si1 := &TupleCollectorSink{}
 		tb.AddSink("si1", si1).Input("box4")
@@ -922,4 +1249,125 @@ func TestDefaultTopologyTupleTracing(t *testing.T) {
 			})
 		})
 	})
+}
+
+// CollectorBox is a simple forwarder box that also stores a copy
+// of all forwarded data for later inspection.
+type CollectorBox struct {
+	mutex       *sync.Mutex
+	Tuples      []*tuple.Tuple
+	InputSchema map[string]*Schema
+}
+
+func (b *CollectorBox) Init(ctx *Context) error {
+	b.mutex = &sync.Mutex{}
+	return nil
+}
+func (b *CollectorBox) Process(t *tuple.Tuple, s Writer) error {
+	// with multiple sources, there may be multiple concurrent calls
+	// of this method (even in tests) so we need to guard the append
+	// with a mutex
+	b.mutex.Lock()
+	b.Tuples = append(b.Tuples, t.Copy())
+	b.mutex.Unlock()
+	s.Write(t)
+	return nil
+}
+func (b *CollectorBox) InputConstraints() (*InputConstraints, error) {
+	if b.InputSchema != nil {
+		ic := &InputConstraints{b.InputSchema}
+		return ic, nil
+	}
+	return nil, nil
+}
+func (b *CollectorBox) OutputSchema(s []*Schema) (*Schema, error) {
+	return nil, nil
+}
+
+// SimpleJoinBox is a box that joins two streams, called "left" and "right"
+// on an Int field called "uid". When there is an item in a stream with
+// a uid value that has been seen before in the other stream, a joined
+// tuple is emitted and both are wiped from internal state.
+type SimpleJoinBox struct {
+	ctx         *Context
+	mutex       *sync.Mutex
+	LeftTuples  map[int64]*tuple.Tuple
+	RightTuples map[int64]*tuple.Tuple
+	inputSchema map[string]*Schema
+}
+
+func (b *SimpleJoinBox) Init(ctx *Context) error {
+	b.mutex = &sync.Mutex{}
+	b.ctx = ctx
+	b.LeftTuples = make(map[int64]*tuple.Tuple, 0)
+	b.RightTuples = make(map[int64]*tuple.Tuple, 0)
+	return nil
+}
+
+func (b *SimpleJoinBox) Process(t *tuple.Tuple, s Writer) error {
+	// get user id and convert it to int64
+	userId, err := t.Data.Get("uid")
+	if err != nil {
+		b.ctx.Logger.DroppedTuple(t, "no uid field")
+		return nil
+	}
+	userIdInt, err := userId.Int()
+	if err != nil {
+		b.ctx.Logger.DroppedTuple(t, "uid value was not an integer: %v (%v)",
+			userId, err)
+		return nil
+	}
+	uid := int64(userIdInt)
+	// prevent concurrent access
+	b.mutex.Lock()
+	// check if we have a matching item in the other stream
+	if t.InputName == "left" {
+		match, exists := b.RightTuples[uid]
+		if exists {
+			// we found a match within the tuples from the right stream
+			for key, val := range match.Data {
+				t.Data[key] = val
+			}
+			delete(b.RightTuples, uid)
+			b.mutex.Unlock()
+			fmt.Printf("emit %v\n", t)
+			s.Write(t)
+		} else {
+			// no match, store this for later
+			b.LeftTuples[uid] = t
+			b.mutex.Unlock()
+		}
+	} else if t.InputName == "right" {
+		match, exists := b.LeftTuples[uid]
+		if exists {
+			// we found a match within the tuples from the left stream
+			for key, val := range match.Data {
+				t.Data[key] = val
+			}
+			delete(b.LeftTuples, uid)
+			b.mutex.Unlock()
+			s.Write(t)
+		} else {
+			// no match, store this for later
+			b.RightTuples[uid] = t
+			b.mutex.Unlock()
+		}
+	} else {
+		b.ctx.Logger.DroppedTuple(t, "invalid input name: %s", t.InputName)
+		return fmt.Errorf("tuple %v had an invalid input name: %s "+
+			"(not \"left\" or \"right\")", t, t.InputName)
+	}
+	return nil
+}
+
+// require schemafree input from "left" and "right" named streams
+func (b *SimpleJoinBox) InputConstraints() (*InputConstraints, error) {
+	if b.inputSchema == nil {
+		b.inputSchema = map[string]*Schema{"left": nil, "right": nil}
+	}
+	return &InputConstraints{b.inputSchema}, nil
+}
+
+func (b *SimpleJoinBox) OutputSchema(s []*Schema) (*Schema, error) {
+	return nil, nil
 }
