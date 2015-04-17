@@ -273,10 +273,10 @@ func (bd *defaultBoxDeclarer) NamedInput(refname string, inputName string) BoxDe
 	// The `Input()` caller said that we should attach the name
 	// `inputName` to incoming data (or not if inputName is "*").
 	// This is ok if
-	// - InputConstraints or InputConstraints.schema is nil
-	// - there is a schema (or nil) declared in the InputConstraints
+	// - InputConstraints() or InputConstraints().schema is nil
+	// - there is a schema (or nil) declared in the InputConstraints()
 	//   with that name
-	// - there is a "*" schema declared in the InputConstraints
+	// - there is a "*" schema declared in the InputConstraints()
 	// Otherwise this is an error.
 	ok := false
 	inputConstraints, err := bd.box.InputConstraints()

@@ -563,7 +563,7 @@ func (b *DummyToUpperBox) Process(t *tuple.Tuple, w Writer) error {
 	return nil
 }
 
-func (b *DummyToUpperBox) InputConstraints() (*InputConstraints, error) {
+func (b *DummyToUpperBox) InputConstraints() (*BoxInputConstraints, error) {
 	return nil, nil
 }
 
@@ -585,7 +585,7 @@ func (b *DummyAddSuffixBox) Process(t *tuple.Tuple, w Writer) error {
 	return nil
 }
 
-func (b *DummyAddSuffixBox) InputConstraints() (*InputConstraints, error) {
+func (b *DummyAddSuffixBox) InputConstraints() (*BoxInputConstraints, error) {
 	return nil, nil
 }
 
@@ -1275,9 +1275,9 @@ func (b *CollectorBox) Process(t *tuple.Tuple, s Writer) error {
 	s.Write(t)
 	return nil
 }
-func (b *CollectorBox) InputConstraints() (*InputConstraints, error) {
+func (b *CollectorBox) InputConstraints() (*BoxInputConstraints, error) {
 	if b.InputSchema != nil {
-		ic := &InputConstraints{b.InputSchema}
+		ic := &BoxInputConstraints{b.InputSchema}
 		return ic, nil
 	}
 	return nil, nil
@@ -1365,11 +1365,11 @@ func (b *SimpleJoinBox) Process(t *tuple.Tuple, s Writer) error {
 }
 
 // require schemafree input from "left" and "right" named streams
-func (b *SimpleJoinBox) InputConstraints() (*InputConstraints, error) {
+func (b *SimpleJoinBox) InputConstraints() (*BoxInputConstraints, error) {
 	if b.inputSchema == nil {
 		b.inputSchema = map[string]*Schema{"left": nil, "right": nil}
 	}
-	return &InputConstraints{b.inputSchema}, nil
+	return &BoxInputConstraints{b.inputSchema}, nil
 }
 
 func (b *SimpleJoinBox) OutputSchema(s []*Schema) (*Schema, error) {
@@ -1403,9 +1403,9 @@ func (b *DefaultBox) Process(t *tuple.Tuple, s Writer) error {
 	return nil
 }
 
-func (b *DefaultBox) InputConstraints() (*InputConstraints, error) {
+func (b *DefaultBox) InputConstraints() (*BoxInputConstraints, error) {
 	if b.InputSchema != nil {
-		ic := &InputConstraints{b.InputSchema}
+		ic := &BoxInputConstraints{b.InputSchema}
 		return ic, nil
 	}
 	return nil, nil
