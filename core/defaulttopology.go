@@ -183,40 +183,30 @@ func (p *SequentialPipe) Write(t *tuple.Tuple) error {
 	t.AddEvent(out)
 	// forward tuple to connected boxes
 	var s *tuple.Tuple
-	var tes []tuple.TraceEvent
-	tupleCopies := 0
+
+	// copy for all receivers but if this pipe have only
+	// one receiver, not need to copy
+	notNeedsCopy := len(p.ReceiverBoxes)+len(p.ReceiverSinks) <= 1
 	for _, recvBox := range p.ReceiverBoxes {
-		// copy for all receivers but the first so that
-		// multiple receivers don't operate on the same data
-		if tupleCopies == 0 {
+		if notNeedsCopy {
 			s = t
-			tes = make([]tuple.TraceEvent, len(t.Trace))
-			copy(tes, t.Trace)
 		} else {
 			s = t.Copy()
-			s.Trace = tes
 		}
 		in := newDefaultEvent(tuple.INPUT, recvBox.Name)
 		s.AddEvent(in)
 		recvBox.Box.Process(s, recvBox.Receiver)
-		tupleCopies += 1
 	}
 	// forward tuple to connected sinks
 	for _, recvSink := range p.ReceiverSinks {
-		// copy for all receivers but the first so that
-		// multiple receivers don't operate on the same data
-		if tupleCopies == 0 {
+		if notNeedsCopy {
 			s = t
-			tes = make([]tuple.TraceEvent, len(t.Trace))
-			copy(tes, t.Trace)
 		} else {
 			s = t.Copy()
-			s.Trace = tes
 		}
 		in := newDefaultEvent(tuple.INPUT, recvSink.Name)
 		s.AddEvent(in)
 		recvSink.Sink.Write(s)
-		tupleCopies += 1
 	}
 	return nil
 }
