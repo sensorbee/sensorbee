@@ -24,6 +24,14 @@ func (t *Tuple) Copy() *Tuple {
 	// except Data
 	out := *t
 	out.Data = out.Data.Copy()
+
+	// the copied tuple should have new event history,
+	// which is isolated from the original tuple,
+	// past events are copied from the original tuple
+	tr := make([]TraceEvent, len(t.Trace))
+	copy(tr, t.Trace)
+	out.Trace = tr
+
 	return &out
 }
 

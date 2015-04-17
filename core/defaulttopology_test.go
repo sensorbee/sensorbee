@@ -466,21 +466,19 @@ type DummyDefaultSink struct {
 	results2 []string
 }
 
-func (s *DummyDefaultSink) Write(t *tuple.Tuple) error {
+func (s *DummyDefaultSink) Write(t *tuple.Tuple) (err error) {
 	x, err := t.Data.Get("to-upper")
-	if err != nil {
-		return nil
+	if err == nil {
+		str, _ := x.String()
+		s.results = append(s.results, string(str))
 	}
-	str, _ := x.String()
-	s.results = append(s.results, string(str))
 
 	x, err = t.Data.Get("add-suffix")
-	if err != nil {
-		return nil
+	if err == nil {
+		str, _ := x.String()
+		s.results2 = append(s.results2, string(str))
 	}
-	str, _ = x.String()
-	s.results2 = append(s.results2, string(str))
-	return nil
+	return err
 }
 
 func TestDefaultTopologyTupleCopying(t *testing.T) {
@@ -552,9 +550,9 @@ func TestDefaultTopologyTupleCopying(t *testing.T) {
 			Convey("Then the sink 1 receives the same object", func() {
 				So(si1.Tuples, ShouldNotBeNil)
 				So(len(si1.Tuples), ShouldEqual, 2)
-				// pointers point to the same objects
-				So(so.Tuples[0], ShouldPointTo, si1.Tuples[0])
-				So(so.Tuples[1], ShouldPointTo, si1.Tuples[1])
+				// source has two received sinks, so tuples are copied
+				So(so.Tuples[0], ShouldNotPointTo, si1.Tuples[0])
+				So(so.Tuples[1], ShouldNotPointTo, si1.Tuples[1])
 			})
 			Convey("And the sink 2 receives a copy", func() {
 				So(si2.Tuples, ShouldNotBeNil)
@@ -635,9 +633,9 @@ func TestDefaultTopologyTupleCopying(t *testing.T) {
 			Convey("Then the sink 1 receives the same object", func() {
 				So(si1.Tuples, ShouldNotBeNil)
 				So(len(si1.Tuples), ShouldEqual, 2)
-				// pointers point to the same objects
-				So(so.Tuples[0], ShouldPointTo, si1.Tuples[0])
-				So(so.Tuples[1], ShouldPointTo, si1.Tuples[1])
+				// box has two received sinks, so tuples are copied
+				So(so.Tuples[0], ShouldNotPointTo, si1.Tuples[0])
+				So(so.Tuples[1], ShouldNotPointTo, si1.Tuples[1])
 			})
 			Convey("And the sink 2 receives a copy", func() {
 				So(si2.Tuples, ShouldNotBeNil)
@@ -690,9 +688,9 @@ func TestDefaultTopologyTupleCopying(t *testing.T) {
 			Convey("Then the sink 1 receives the same object", func() {
 				So(si1.Tuples, ShouldNotBeNil)
 				So(len(si1.Tuples), ShouldEqual, 2)
-				// pointers point to the same objects
-				So(so.Tuples[0], ShouldPointTo, si1.Tuples[0])
-				So(so.Tuples[1], ShouldPointTo, si1.Tuples[1])
+				// source has two received boxes, so tuples are copied
+				So(so.Tuples[0], ShouldNotPointTo, si1.Tuples[0])
+				So(so.Tuples[1], ShouldNotPointTo, si1.Tuples[1])
 			})
 			Convey("And the sink 2 receives a copy", func() {
 				So(si2.Tuples, ShouldNotBeNil)
