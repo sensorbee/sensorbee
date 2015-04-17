@@ -1251,6 +1251,8 @@ func TestDefaultTopologyTupleTracing(t *testing.T) {
 	})
 }
 
+/**************************************************/
+
 // CollectorBox is a simple forwarder box that also stores a copy
 // of all forwarded data for later inspection.
 type CollectorBox struct {
@@ -1283,6 +1285,8 @@ func (b *CollectorBox) InputConstraints() (*InputConstraints, error) {
 func (b *CollectorBox) OutputSchema(s []*Schema) (*Schema, error) {
 	return nil, nil
 }
+
+/**************************************************/
 
 // SimpleJoinBox is a box that joins two streams, called "left" and "right"
 // on an Int field called "uid". When there is an item in a stream with
@@ -1370,4 +1374,51 @@ func (b *SimpleJoinBox) InputConstraints() (*InputConstraints, error) {
 
 func (b *SimpleJoinBox) OutputSchema(s []*Schema) (*Schema, error) {
 	return nil, nil
+}
+
+/**************************************************/
+
+type DefaultSource struct{}
+
+func (s *DefaultSource) GenerateStream(w Writer) error {
+	return nil
+}
+
+func (s *DefaultSource) Schema() *Schema {
+	var sc Schema = Schema("test")
+	return &sc
+}
+
+/**************************************************/
+
+type DefaultBox struct {
+	InputSchema map[string]*Schema
+}
+
+func (b *DefaultBox) Init(ctx *Context) error {
+	return nil
+}
+
+func (b *DefaultBox) Process(t *tuple.Tuple, s Writer) error {
+	return nil
+}
+
+func (b *DefaultBox) InputConstraints() (*InputConstraints, error) {
+	if b.InputSchema != nil {
+		ic := &InputConstraints{b.InputSchema}
+		return ic, nil
+	}
+	return nil, nil
+}
+
+func (b *DefaultBox) OutputSchema(s []*Schema) (*Schema, error) {
+	return nil, nil
+}
+
+/**************************************************/
+
+type DefaultSink struct{}
+
+func (s *DefaultSink) Write(t *tuple.Tuple) error {
+	return nil
 }
