@@ -1,8 +1,10 @@
 package core
 
 import (
+	"fmt"
 	. "github.com/smartystreets/goconvey/convey"
 	"pfi/sensorbee/sensorbee/core/tuple"
+	"reflect"
 	"strings"
 	"sync"
 	"testing"
@@ -768,6 +770,147 @@ func TestDefaultTopologyTupleTransport(t *testing.T) {
 		})
 	})
 
+	Convey("Given a simple source/box/sink topology with 2 sources", t, func() {
+		/*
+		 *   so1 -*-(left)--\
+		 *                   --> b -*--> si
+		 *   so2 -*-(right)-/
+		 */
+
+		// input data
+		tup1 := tuple.Tuple{
+			Data: tuple.Map{
+				"uid":  tuple.Int(1),
+				"key1": tuple.String("tuple1"),
+			},
+		}
+		tup2 := tuple.Tuple{
+			Data: tuple.Map{
+				"uid":  tuple.Int(2),
+				"key2": tuple.String("tuple2"),
+			},
+		}
+		tup3 := tuple.Tuple{
+			Data: tuple.Map{
+				"uid":  tuple.Int(2),
+				"key3": tuple.String("tuple3"),
+			},
+		}
+		tup4 := tuple.Tuple{
+			Data: tuple.Map{
+				"uid":  tuple.Int(1),
+				"key4": tuple.String("tuple4"),
+			},
+		}
+		// expected output when joined on uid (tup1 + tup4, tup2 + tup3)
+		j1 := tuple.Tuple{
+			Data: tuple.Map{
+				"uid":  tuple.Int(1),
+				"key1": tuple.String("tuple1"),
+				"key4": tuple.String("tuple4"),
+			},
+		}
+		j2 := tuple.Tuple{
+			Data: tuple.Map{
+				"uid":  tuple.Int(2),
+				"key2": tuple.String("tuple2"),
+				"key3": tuple.String("tuple3"),
+			},
+		}
+
+		Convey("When two pairs of tuples are emitted by the sources", func() {
+			tb := NewDefaultStaticTopologyBuilder()
+			so1 := &TupleEmitterSource{
+				Tuples: []*tuple.Tuple{&tup1, &tup2},
+			}
+			tb.AddSource("source1", so1)
+			so2 := &TupleEmitterSource{
+				Tuples: []*tuple.Tuple{&tup3, &tup4},
+			}
+			tb.AddSource("source2", so2)
+
+			b := &SimpleJoinBox{}
+			tb.AddBox("box", b).
+				NamedInput("source1", "left").
+				NamedInput("source2", "right")
+
+			si := &TupleCollectorSink{}
+			tb.AddSink("sink", si).Input("box")
+
+			t := tb.Build()
+
+			t.Run(&Context{})
+			Convey("Then the sink receives two objects", func() {
+				So(si.Tuples, ShouldNotBeNil)
+				So(len(si.Tuples), ShouldEqual, 2)
+
+				// the items can arrive in any order, so we can't
+				// use a simple ShouldResemble check
+				Convey("And one of them is joined on uid 1", func() {
+					ok := false
+					for _, tup := range si.Tuples {
+						if reflect.DeepEqual(tup.Data, j1.Data) {
+							ok = true
+							break
+						}
+					}
+					So(ok, ShouldBeTrue)
+				})
+				Convey("And one of them is joined on uid 2", func() {
+					ok := false
+					for _, tup := range si.Tuples {
+						if reflect.DeepEqual(tup.Data, j2.Data) {
+							ok = true
+							break
+						}
+					}
+					So(ok, ShouldBeTrue)
+				})
+
+				Convey("And the InputName is set to \"output\"", func() {
+					So(si.Tuples[0].InputName, ShouldEqual, "output")
+				})
+			})
+
+			Convey("And the buffers in the box are empty", func() {
+				So(b.LeftTuples, ShouldBeEmpty)
+				So(b.RightTuples, ShouldBeEmpty)
+			})
+		})
+
+		Convey("When a non-pair of tuples is emitted by the sources", func() {
+			tb := NewDefaultStaticTopologyBuilder()
+			so1 := &TupleEmitterSource{
+				Tuples: []*tuple.Tuple{&tup1},
+			}
+			tb.AddSource("source1", so1)
+			so2 := &TupleEmitterSource{
+				Tuples: []*tuple.Tuple{&tup2},
+			}
+			tb.AddSource("source2", so2)
+
+			b := &SimpleJoinBox{}
+			tb.AddBox("box", b).
+				NamedInput("source1", "left").
+				NamedInput("source2", "right")
+
+			si := &TupleCollectorSink{}
+			tb.AddSink("sink", si).Input("box")
+
+			t := tb.Build()
+
+			t.Run(&Context{})
+			Convey("Then the sink receives no objects", func() {
+				So(si.Tuples, ShouldBeNil)
+
+				Convey("And the tuples should still be in the boxes", func() {
+					So(len(b.LeftTuples), ShouldEqual, 1)
+					So(len(b.RightTuples), ShouldEqual, 1)
+				})
+			})
+		})
+	})
+
 	Convey("Given a simple source/box/sink topology with 2 sinks", t, func() {
 		/*
 		 *                /--> si1
@@ -1138,5 +1281,93 @@ func (b *CollectorBox) InputConstraints() (*InputConstraints, error) {
 	return nil, nil
 }
 func (b *CollectorBox) OutputSchema(s []*Schema) (*Schema, error) {
+	return nil, nil
+}
+
+// SimpleJoinBox is a box that joins two streams, called "left" and "right"
+// on an Int field called "uid". When there is an item in a stream with
+// a uid value that has been seen before in the other stream, a joined
+// tuple is emitted and both are wiped from internal state.
+type SimpleJoinBox struct {
+	ctx         *Context
+	mutex       *sync.Mutex
+	LeftTuples  map[int64]*tuple.Tuple
+	RightTuples map[int64]*tuple.Tuple
+	inputSchema map[string]*Schema
+}
+
+func (b *SimpleJoinBox) Init(ctx *Context) error {
+	b.mutex = &sync.Mutex{}
+	b.ctx = ctx
+	b.LeftTuples = make(map[int64]*tuple.Tuple, 0)
+	b.RightTuples = make(map[int64]*tuple.Tuple, 0)
+	return nil
+}
+
+func (b *SimpleJoinBox) Process(t *tuple.Tuple, s Writer) error {
+	// get user id and convert it to int64
+	userId, err := t.Data.Get("uid")
+	if err != nil {
+		b.ctx.Logger.DroppedTuple(t, "no uid field")
+		return nil
+	}
+	userIdInt, err := userId.Int()
+	if err != nil {
+		b.ctx.Logger.DroppedTuple(t, "uid value was not an integer: %v (%v)",
+			userId, err)
+		return nil
+	}
+	uid := int64(userIdInt)
+	// prevent concurrent access
+	b.mutex.Lock()
+	// check if we have a matching item in the other stream
+	if t.InputName == "left" {
+		match, exists := b.RightTuples[uid]
+		if exists {
+			// we found a match within the tuples from the right stream
+			for key, val := range match.Data {
+				t.Data[key] = val
+			}
+			delete(b.RightTuples, uid)
+			b.mutex.Unlock()
+			fmt.Printf("emit %v\n", t)
+			s.Write(t)
+		} else {
+			// no match, store this for later
+			b.LeftTuples[uid] = t
+			b.mutex.Unlock()
+		}
+	} else if t.InputName == "right" {
+		match, exists := b.LeftTuples[uid]
+		if exists {
+			// we found a match within the tuples from the left stream
+			for key, val := range match.Data {
+				t.Data[key] = val
+			}
+			delete(b.LeftTuples, uid)
+			b.mutex.Unlock()
+			s.Write(t)
+		} else {
+			// no match, store this for later
+			b.RightTuples[uid] = t
+			b.mutex.Unlock()
+		}
+	} else {
+		b.ctx.Logger.DroppedTuple(t, "invalid input name: %s", t.InputName)
+		return fmt.Errorf("tuple %v had an invalid input name: %s "+
+			"(not \"left\" or \"right\")", t, t.InputName)
+	}
+	return nil
+}
+
+// require schemafree input from "left" and "right" named streams
+func (b *SimpleJoinBox) InputConstraints() (*InputConstraints, error) {
+	if b.inputSchema == nil {
+		b.inputSchema = map[string]*Schema{"left": nil, "right": nil}
+	}
+	return &InputConstraints{b.inputSchema}, nil
+}
+
+func (b *SimpleJoinBox) OutputSchema(s []*Schema) (*Schema, error) {
 	return nil, nil
 }
