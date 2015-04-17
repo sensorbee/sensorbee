@@ -14,8 +14,8 @@ type Tuple struct {
 	Trace []TraceEvent
 }
 
-func (t *Tuple) AddTracer(te TraceEvent) {
-	t.Trace = append(t.Trace, te)
+func (t *Tuple) AddEvent(ev TraceEvent) {
+	t.Trace = append(t.Trace, ev)
 }
 
 func (t *Tuple) Copy() *Tuple {
