@@ -569,8 +569,8 @@ func TestDefaultTopologyTupleCopying(t *testing.T) {
 				So(so.Tuples[1].ProcTimestamp, ShouldResemble, si2.Tuples[1].ProcTimestamp)
 				So(so.Tuples[1].BatchID, ShouldEqual, si2.Tuples[1].BatchID)
 				// tracer is not equal (last input sink is different between sink1 and sink2)
-				So(si1.Tuples[0].Tracers, ShouldNotResemble, si2.Tuples[0].Tracers)
-				So(si1.Tuples[1].Tracers, ShouldNotResemble, si2.Tuples[1].Tracers)
+				So(si1.Tuples[0].Trace, ShouldNotResemble, si2.Tuples[0].Trace)
+				So(si1.Tuples[1].Trace, ShouldNotResemble, si2.Tuples[1].Trace)
 				// pointers point to different objects
 				So(so.Tuples[0], ShouldNotPointTo, si2.Tuples[0])
 				So(so.Tuples[1], ShouldNotPointTo, si2.Tuples[1])
@@ -652,8 +652,8 @@ func TestDefaultTopologyTupleCopying(t *testing.T) {
 				So(so.Tuples[1].ProcTimestamp, ShouldResemble, si2.Tuples[1].ProcTimestamp)
 				So(so.Tuples[1].BatchID, ShouldEqual, si2.Tuples[1].BatchID)
 				// tracer is not equal (last input sink is different between sink1 and sink2)
-				So(si1.Tuples[0].Tracers, ShouldNotResemble, si2.Tuples[0].Tracers)
-				So(si1.Tuples[1].Tracers, ShouldNotResemble, si2.Tuples[1].Tracers)
+				So(si1.Tuples[0].Trace, ShouldNotResemble, si2.Tuples[0].Trace)
+				So(si1.Tuples[1].Trace, ShouldNotResemble, si2.Tuples[1].Trace)
 				// pointers point to different objects
 				So(so.Tuples[0], ShouldNotPointTo, si2.Tuples[0])
 				So(so.Tuples[1], ShouldNotPointTo, si2.Tuples[1])
@@ -707,8 +707,8 @@ func TestDefaultTopologyTupleCopying(t *testing.T) {
 				So(so.Tuples[1].ProcTimestamp, ShouldResemble, si2.Tuples[1].ProcTimestamp)
 				So(so.Tuples[1].BatchID, ShouldEqual, si2.Tuples[1].BatchID)
 				// tracer is not equal
-				So(si1.Tuples[0].Tracers, ShouldNotResemble, si2.Tuples[0].Tracers)
-				So(si1.Tuples[1].Tracers, ShouldNotResemble, si2.Tuples[1].Tracers)
+				So(si1.Tuples[0].Trace, ShouldNotResemble, si2.Tuples[0].Trace)
+				So(si1.Tuples[1].Trace, ShouldNotResemble, si2.Tuples[1].Trace)
 				// pointers point to different objects
 				So(so.Tuples[0], ShouldNotPointTo, si2.Tuples[0])
 				So(so.Tuples[1], ShouldNotPointTo, si2.Tuples[1])
@@ -755,7 +755,7 @@ func TestDefaultTopologyTupleTracing(t *testing.T) {
 			Timestamp:     time.Date(2015, time.April, 10, 10, 23, 0, 0, time.UTC),
 			ProcTimestamp: time.Date(2015, time.April, 10, 10, 24, 0, 0, time.UTC),
 			BatchID:       7,
-			Tracers:       make([]tuple.Tracer, 0),
+			Trace:         make([]tuple.TraceEvent, 0),
 		}
 		tup2 := tuple.Tuple{
 			Data: tuple.Map{
@@ -764,7 +764,7 @@ func TestDefaultTopologyTupleTracing(t *testing.T) {
 			Timestamp:     time.Date(2015, time.April, 10, 10, 23, 1, 0, time.UTC),
 			ProcTimestamp: time.Date(2015, time.April, 10, 10, 24, 1, 0, time.UTC),
 			BatchID:       7,
-			Tracers:       make([]tuple.Tracer, 0),
+			Trace:         make([]tuple.TraceEvent, 0),
 		}
 		/*
 		 *   so1 \        /--> b2 \        /-*--> si1
@@ -829,8 +829,8 @@ func TestDefaultTopologyTupleTracing(t *testing.T) {
 				aRoutes := make([]string, 0)
 				for _, tu := range si1.Tuples {
 					aRoute := make([]string, 0)
-					for _, tr := range tu.Tracers {
-						aRoute = append(aRoute, tr.Inout.String()+" "+tr.Msg)
+					for _, te := range tu.Trace {
+						aRoute = append(aRoute, te.Inout.String()+" "+te.Msg)
 					}
 					aRoutes = append(aRoutes, strings.Join(aRoute, "->"))
 				}
@@ -867,8 +867,8 @@ func TestDefaultTopologyTupleTracing(t *testing.T) {
 				aRoutes := make([]string, 0)
 				for _, tu := range si2.Tuples {
 					aRoute := make([]string, 0)
-					for _, tr := range tu.Tracers {
-						aRoute = append(aRoute, tr.Inout.String()+" "+tr.Msg)
+					for _, te := range tu.Trace {
+						aRoute = append(aRoute, te.Inout.String()+" "+te.Msg)
 					}
 					aRoutes = append(aRoutes, strings.Join(aRoute, "->"))
 				}
