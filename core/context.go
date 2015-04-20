@@ -7,7 +7,7 @@ import (
 // Context holds a set of functionality that is made available to
 // each Box at runtime. A context is created by the user before
 // processing starts according to specific application needs
-// (e.g., central log collection) and passed in to Topology.Run().
+// (e.g., central log collection) and passed in to StaticTopology.Run().
 type Context struct {
 	Logger LogManager
 }

@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-type defaultTopology struct {
+type defaultStaticTopology struct {
 	// tb.boxes may contain multiple instances of the same Box object.
 	// Use a set-like map to avoid calling Init() twice on the same object.
 	boxpointers map[*Box]bool
@@ -16,7 +16,7 @@ type defaultTopology struct {
 	pipes   map[string]*sequentialPipe
 }
 
-func (t *defaultTopology) Run(ctx *Context) {
+func (t *defaultStaticTopology) Run(ctx *Context) {
 	for box, _ := range t.boxpointers {
 		(*box).Init(ctx)
 	}
@@ -126,7 +126,7 @@ func (tb *defaultStaticTopologyBuilder) AddSink(name string, sink Sink) SinkDecl
 	return &defaultSinkDeclarer{tb, name, sink, nil}
 }
 
-func (tb *defaultStaticTopologyBuilder) Build() Topology {
+func (tb *defaultStaticTopologyBuilder) Build() StaticTopology {
 	// every source and every box gets an "output pipe"
 	pipes := make(map[string]*sequentialPipe, len(tb.sources)+len(tb.boxes))
 	for name, _ := range tb.sources {
@@ -163,7 +163,7 @@ func (tb *defaultStaticTopologyBuilder) Build() Topology {
 	}
 	// TODO source and sink is reference data,
 	//      so cannot call .Build() more than once
-	return &defaultTopology{tb.boxpointers, tb.sources, pipes}
+	return &defaultStaticTopology{tb.boxpointers, tb.sources, pipes}
 }
 
 // holds a box and the writer that will receive this box's output

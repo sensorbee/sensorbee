@@ -21,7 +21,7 @@ func (dtb *DummyTopologyBuilder) AddBox(name string, box Box) BoxDeclarer {
 func (dtb *DummyTopologyBuilder) AddSink(name string, sink Sink) SinkDeclarer {
 	return &DummySinkDeclarer{}
 }
-func (dtb *DummyTopologyBuilder) Build() Topology {
+func (dtb *DummyTopologyBuilder) Build() StaticTopology {
 	return &DummyTopology{}
 }
 
@@ -99,7 +99,7 @@ func TestTopology(t *testing.T) {
 
 		t := tb.Build()
 
-		Convey("It should satisfy Topology interface", func() {
+		Convey("It should satisfy StaticTopology interface", func() {
 			So(t, ShouldNotBeNil)
 		})
 	})
