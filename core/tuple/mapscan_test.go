@@ -46,7 +46,7 @@ func TestScanMap(t *testing.T) {
 			_, err := testData.Get("string[0]")
 			Convey("Then lookup should fail", func() {
 				So(err, ShouldNotBeNil)
-				So(err.Error(), ShouldEqual, "invalid array path phrase: string[0]")
+				So(err.Error(), ShouldEqual, "unsupported cast array from string")
 			})
 		})
 		Convey("When accessing an out-of-range index", func() {

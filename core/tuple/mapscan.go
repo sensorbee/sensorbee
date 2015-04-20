@@ -7,20 +7,7 @@ import (
 	"strconv"
 )
 
-var re = regexp.MustCompile(`^([^\[]+)?(\[[0-9]+\])?$`)
-
-func toError(v interface{}) error {
-	if v != nil {
-		if e, ok := v.(error); ok {
-			return e
-		}
-		if e, ok := v.(string); ok {
-			return errors.New(e)
-		}
-		return errors.New("Unknown error")
-	}
-	return nil
-}
+var reIndexedArray = regexp.MustCompile(`^([^\[]+)?(\[[0-9]+\])?$`)
 
 func split(s string) []string {
 	i := 0
@@ -58,7 +45,7 @@ func scanMap(m Map, p string, t *Value) (err error) {
 	}
 	var v Value
 	for _, token := range split(p) {
-		sl := re.FindAllStringSubmatch(token, -1)
+		sl := reIndexedArray.FindAllStringSubmatch(token, -1)
 		if len(sl) == 0 {
 			return errors.New("invalid path phrase")
 		}
@@ -79,22 +66,15 @@ func scanMap(m Map, p string, t *Value) (err error) {
 			if i64 > math.MaxInt32 {
 				return errors.New("overflow index number: " + token)
 			}
-			if v.Type() != TypeArray {
-				return errors.New("invalid array path phrase: " + token)
+			a, err := v.Array()
+			if err != nil {
+				return err
 			}
 			i := int(i64)
-			a, _ := v.Array()
-			found := false
-			for n, av := range a {
-				if n == i {
-					found = true
-					v = av
-					break
-				}
-			}
-			if !found {
+			if i >= len(a) {
 				return errors.New("out of range access: " + token)
 			}
+			v = a[i]
 		}
 	}
 	*t = v
