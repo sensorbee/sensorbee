@@ -73,7 +73,7 @@ func (db *DummyBox) Init(ctx *Context) error {
 func (db *DummyBox) Process(t *tuple.Tuple, s Writer) error {
 	return nil
 }
-func (db *DummyBox) InputConstraints() (*InputConstraints, error) {
+func (db *DummyBox) InputConstraints() (*BoxInputConstraints, error) {
 	return nil, nil
 }
 func (db *DummyBox) OutputSchema(s []*Schema) (*Schema, error) {

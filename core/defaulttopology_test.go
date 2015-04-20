@@ -563,7 +563,7 @@ func (b *DummyToUpperBox) Process(t *tuple.Tuple, w Writer) error {
 	return nil
 }
 
-func (b *DummyToUpperBox) InputConstraints() (*InputConstraints, error) {
+func (b *DummyToUpperBox) InputConstraints() (*BoxInputConstraints, error) {
 	return nil, nil
 }
 
@@ -585,7 +585,7 @@ func (b *DummyAddSuffixBox) Process(t *tuple.Tuple, w Writer) error {
 	return nil
 }
 
-func (b *DummyAddSuffixBox) InputConstraints() (*InputConstraints, error) {
+func (b *DummyAddSuffixBox) InputConstraints() (*BoxInputConstraints, error) {
 	return nil, nil
 }
 
@@ -747,7 +747,7 @@ func TestDefaultTopologyTupleTransport(t *testing.T) {
 		tb.AddSource("source", so)
 
 		b := BoxFunc(forwardBox)
-		tb.AddBox("box", &b).Input("source")
+		tb.AddBox("box", b).Input("source")
 
 		si := &TupleCollectorSink{}
 		tb.AddSink("sink", si).Input("box")
@@ -924,7 +924,7 @@ func TestDefaultTopologyTupleTransport(t *testing.T) {
 		tb.AddSource("source", so)
 
 		b := BoxFunc(forwardBox)
-		tb.AddBox("box", &b).Input("source")
+		tb.AddBox("box", b).Input("source")
 
 		si1 := &TupleCollectorSink{}
 		tb.AddSink("si1", si1).Input("box")
@@ -1149,15 +1149,15 @@ func TestDefaultTopologyTupleTracing(t *testing.T) {
 		tb.AddSource("so2", so2)
 
 		b1 := BoxFunc(forwardBox)
-		tb.AddBox("box1", &b1).
+		tb.AddBox("box1", b1).
 			Input("so1").
 			Input("so2")
 		b2 := BoxFunc(forwardBox)
-		tb.AddBox("box2", &b2).Input("box1")
+		tb.AddBox("box2", b2).Input("box1")
 		b3 := BoxFunc(forwardBox)
-		tb.AddBox("box3", &b3).Input("box1")
+		tb.AddBox("box3", b3).Input("box1")
 		b4 := BoxFunc(forwardBox)
-		tb.AddBox("box4", &b4).
+		tb.AddBox("box4", b4).
 			Input("box2").
 			Input("box3")
 
@@ -1197,7 +1197,7 @@ func TestDefaultTopologyTupleTracing(t *testing.T) {
 				for _, tu := range si1.Tuples {
 					aRoute := make([]string, 0)
 					for _, ev := range tu.Trace {
-						aRoute = append(aRoute, ev.Inout.String()+" "+ev.Msg)
+						aRoute = append(aRoute, ev.Type.String()+" "+ev.Msg)
 					}
 					aRoutes = append(aRoutes, strings.Join(aRoute, "->"))
 				}
@@ -1235,7 +1235,7 @@ func TestDefaultTopologyTupleTracing(t *testing.T) {
 				for _, tu := range si2.Tuples {
 					aRoute := make([]string, 0)
 					for _, ev := range tu.Trace {
-						aRoute = append(aRoute, ev.Inout.String()+" "+ev.Msg)
+						aRoute = append(aRoute, ev.Type.String()+" "+ev.Msg)
 					}
 					aRoutes = append(aRoutes, strings.Join(aRoute, "->"))
 				}
@@ -1250,6 +1250,8 @@ func TestDefaultTopologyTupleTracing(t *testing.T) {
 		})
 	})
 }
+
+/**************************************************/
 
 // CollectorBox is a simple forwarder box that also stores a copy
 // of all forwarded data for later inspection.
@@ -1273,9 +1275,9 @@ func (b *CollectorBox) Process(t *tuple.Tuple, s Writer) error {
 	s.Write(t)
 	return nil
 }
-func (b *CollectorBox) InputConstraints() (*InputConstraints, error) {
+func (b *CollectorBox) InputConstraints() (*BoxInputConstraints, error) {
 	if b.InputSchema != nil {
-		ic := &InputConstraints{b.InputSchema}
+		ic := &BoxInputConstraints{b.InputSchema}
 		return ic, nil
 	}
 	return nil, nil
@@ -1283,6 +1285,8 @@ func (b *CollectorBox) InputConstraints() (*InputConstraints, error) {
 func (b *CollectorBox) OutputSchema(s []*Schema) (*Schema, error) {
 	return nil, nil
 }
+
+/**************************************************/
 
 // SimpleJoinBox is a box that joins two streams, called "left" and "right"
 // on an Int field called "uid". When there is an item in a stream with
@@ -1361,13 +1365,60 @@ func (b *SimpleJoinBox) Process(t *tuple.Tuple, s Writer) error {
 }
 
 // require schemafree input from "left" and "right" named streams
-func (b *SimpleJoinBox) InputConstraints() (*InputConstraints, error) {
+func (b *SimpleJoinBox) InputConstraints() (*BoxInputConstraints, error) {
 	if b.inputSchema == nil {
 		b.inputSchema = map[string]*Schema{"left": nil, "right": nil}
 	}
-	return &InputConstraints{b.inputSchema}, nil
+	return &BoxInputConstraints{b.inputSchema}, nil
 }
 
 func (b *SimpleJoinBox) OutputSchema(s []*Schema) (*Schema, error) {
 	return nil, nil
+}
+
+/**************************************************/
+
+type DefaultSource struct{}
+
+func (s *DefaultSource) GenerateStream(w Writer) error {
+	return nil
+}
+
+func (s *DefaultSource) Schema() *Schema {
+	var sc Schema = Schema("test")
+	return &sc
+}
+
+/**************************************************/
+
+type DefaultBox struct {
+	InputSchema map[string]*Schema
+}
+
+func (b *DefaultBox) Init(ctx *Context) error {
+	return nil
+}
+
+func (b *DefaultBox) Process(t *tuple.Tuple, s Writer) error {
+	return nil
+}
+
+func (b *DefaultBox) InputConstraints() (*BoxInputConstraints, error) {
+	if b.InputSchema != nil {
+		ic := &BoxInputConstraints{b.InputSchema}
+		return ic, nil
+	}
+	return nil, nil
+}
+
+func (b *DefaultBox) OutputSchema(s []*Schema) (*Schema, error) {
+	return nil, nil
+}
+
+/**************************************************/
+
+type DefaultSink struct{}
+
+func (s *DefaultSink) Write(t *tuple.Tuple) error {
+	return nil
 }

@@ -7,16 +7,16 @@ import (
 	"time"
 )
 
-type DefaultTopology struct {
+type defaultTopology struct {
 	// tb.boxes may contain multiple instances of the same Box object.
 	// Use a set-like map to avoid calling Init() twice on the same object.
 	boxpointers map[*Box]bool
 
 	sources map[string]Source
-	pipes   map[string]*SequentialPipe
+	pipes   map[string]*sequentialPipe
 }
 
-func (t *DefaultTopology) Run(ctx *Context) {
+func (t *defaultTopology) Run(ctx *Context) {
 	for box, _ := range t.boxpointers {
 		(*box).Init(ctx)
 	}
@@ -34,15 +34,15 @@ func (t *DefaultTopology) Run(ctx *Context) {
 
 /**************************************************/
 
-type DefaultStaticTopologyBuilder struct {
+type defaultStaticTopologyBuilder struct {
 	sources     map[string]Source
 	boxes       map[string]Box
 	boxpointers map[*Box]bool
 	sinks       map[string]Sink
-	Edges       []DataflowEdge
+	Edges       []dataflowEdge
 }
 
-type DataflowEdge struct {
+type dataflowEdge struct {
 	// From is the name of the source or box at the start of this edge.
 	From string
 
@@ -56,18 +56,18 @@ type DataflowEdge struct {
 }
 
 func NewDefaultStaticTopologyBuilder() StaticTopologyBuilder {
-	tb := DefaultStaticTopologyBuilder{}
+	tb := defaultStaticTopologyBuilder{}
 	tb.sources = make(map[string]Source)
 	tb.boxes = make(map[string]Box)
 	tb.boxpointers = make(map[*Box]bool)
 	tb.sinks = make(map[string]Sink)
-	tb.Edges = make([]DataflowEdge, 0)
+	tb.Edges = make([]dataflowEdge, 0)
 	return &tb
 }
 
 // check if the given name can be used as a source, box, or sink
 // name (i.e., it is not used yet)
-func (tb *DefaultStaticTopologyBuilder) checkName(name string) error {
+func (tb *defaultStaticTopologyBuilder) checkName(name string) error {
 	_, alreadyExists := tb.sources[name]
 	if alreadyExists {
 		err := fmt.Errorf("there is already a source called '%s'", name)
@@ -87,60 +87,60 @@ func (tb *DefaultStaticTopologyBuilder) checkName(name string) error {
 }
 
 // check if the given name is an existing box or source
-func (tb *DefaultStaticTopologyBuilder) IsValidOutputReference(name string) bool {
+func (tb *defaultStaticTopologyBuilder) IsValidOutputReference(name string) bool {
 	_, sourceExists := tb.sources[name]
 	_, boxExists := tb.boxes[name]
 	return (sourceExists || boxExists)
 }
 
-func (tb *DefaultStaticTopologyBuilder) AddSource(name string, source Source) SourceDeclarer {
+func (tb *defaultStaticTopologyBuilder) AddSource(name string, source Source) SourceDeclarer {
 	// check name
 	if nameErr := tb.checkName(name); nameErr != nil {
-		return &DefaultSourceDeclarer{nameErr}
+		return &defaultSourceDeclarer{nameErr}
 	}
 	// TODO check that declared schema is a valid JSON Schema string
 	// keep track of source
 	tb.sources[name] = source
-	return &DefaultSourceDeclarer{}
+	return &defaultSourceDeclarer{}
 }
 
-func (tb *DefaultStaticTopologyBuilder) AddBox(name string, box Box) BoxDeclarer {
+func (tb *defaultStaticTopologyBuilder) AddBox(name string, box Box) BoxDeclarer {
 	// check name
 	if nameErr := tb.checkName(name); nameErr != nil {
-		return &DefaultBoxDeclarer{err: nameErr}
+		return &defaultBoxDeclarer{err: nameErr}
 	}
 	// TODO check that declared schema is a valid JSON Schema string
 	// keep track of box
 	tb.boxes[name] = box
 	tb.boxpointers[&box] = true
-	return &DefaultBoxDeclarer{tb, name, box, nil}
+	return &defaultBoxDeclarer{tb, name, box, nil}
 }
 
-func (tb *DefaultStaticTopologyBuilder) AddSink(name string, sink Sink) SinkDeclarer {
+func (tb *defaultStaticTopologyBuilder) AddSink(name string, sink Sink) SinkDeclarer {
 	// check name
 	if nameErr := tb.checkName(name); nameErr != nil {
-		return &DefaultSinkDeclarer{err: nameErr}
+		return &defaultSinkDeclarer{err: nameErr}
 	}
 	// keep track of sink
 	tb.sinks[name] = sink
-	return &DefaultSinkDeclarer{tb, name, sink, nil}
+	return &defaultSinkDeclarer{tb, name, sink, nil}
 }
 
-func (tb *DefaultStaticTopologyBuilder) Build() Topology {
+func (tb *defaultStaticTopologyBuilder) Build() Topology {
 	// every source and every box gets an "output pipe"
-	pipes := make(map[string]*SequentialPipe, len(tb.sources)+len(tb.boxes))
+	pipes := make(map[string]*sequentialPipe, len(tb.sources)+len(tb.boxes))
 	for name, _ := range tb.sources {
-		pipe := SequentialPipe{}
+		pipe := sequentialPipe{}
 		pipe.FromName = name
-		pipe.ReceiverBoxes = make([]ReceiverBox, 0)
-		pipe.ReceiverSinks = make([]ReceiverSink, 0)
+		pipe.ReceiverBoxes = make([]receiverBox, 0)
+		pipe.ReceiverSinks = make([]receiverSink, 0)
 		pipes[name] = &pipe
 	}
 	for name, _ := range tb.boxes {
-		pipe := SequentialPipe{}
+		pipe := sequentialPipe{}
 		pipe.FromName = name
-		pipe.ReceiverBoxes = make([]ReceiverBox, 0)
-		pipe.ReceiverSinks = make([]ReceiverSink, 0)
+		pipe.ReceiverBoxes = make([]receiverBox, 0)
+		pipe.ReceiverSinks = make([]receiverSink, 0)
 		pipes[name] = &pipe
 	}
 	// add the correct receivers to each pipe
@@ -152,22 +152,22 @@ func (tb *DefaultStaticTopologyBuilder) Build() Topology {
 		// pipe's receiver list
 		sink, isSink := tb.sinks[toName]
 		if isSink {
-			recv := ReceiverSink{toName, sink}
+			recv := receiverSink{toName, sink}
 			pipe.ReceiverSinks = append(pipe.ReceiverSinks, recv)
 		}
 		box, isBox := tb.boxes[toName]
 		if isBox {
-			recv := ReceiverBox{toName, box, pipes[toName], edge.InputName}
+			recv := receiverBox{toName, box, pipes[toName], edge.InputName}
 			pipe.ReceiverBoxes = append(pipe.ReceiverBoxes, recv)
 		}
 	}
 	// TODO source and sink is reference data,
 	//      so cannot call .Build() more than once
-	return &DefaultTopology{tb.boxpointers, tb.sources, pipes}
+	return &defaultTopology{tb.boxpointers, tb.sources, pipes}
 }
 
 // holds a box and the writer that will receive this box's output
-type ReceiverBox struct {
+type receiverBox struct {
 	Name      string
 	Box       Box
 	Receiver  Writer
@@ -175,19 +175,19 @@ type ReceiverBox struct {
 }
 
 // holds a sink and the sink's name
-type ReceiverSink struct {
+type receiverSink struct {
 	Name string
 	Sink Sink
 }
 
 // receives input from a box and forwards it to registered listeners
-type SequentialPipe struct {
+type sequentialPipe struct {
 	FromName      string
-	ReceiverBoxes []ReceiverBox
-	ReceiverSinks []ReceiverSink
+	ReceiverBoxes []receiverBox
+	ReceiverSinks []receiverSink
 }
 
-func (p *SequentialPipe) Write(t *tuple.Tuple) error {
+func (p *sequentialPipe) Write(t *tuple.Tuple) error {
 	// add tracing information
 	out := newDefaultEvent(tuple.OUTPUT, p.FromName)
 	t.AddEvent(out)
@@ -228,7 +228,7 @@ func (p *SequentialPipe) Write(t *tuple.Tuple) error {
 	return nil
 }
 
-func newDefaultEvent(inout tuple.InOutType, msg string) tuple.TraceEvent {
+func newDefaultEvent(inout tuple.EventType, msg string) tuple.TraceEvent {
 	return tuple.TraceEvent{
 		time.Now(),
 		inout,
@@ -238,28 +238,28 @@ func newDefaultEvent(inout tuple.InOutType, msg string) tuple.TraceEvent {
 
 /**************************************************/
 
-type DefaultSourceDeclarer struct {
+type defaultSourceDeclarer struct {
 	err error
 }
 
-func (sd *DefaultSourceDeclarer) Err() error {
+func (sd *defaultSourceDeclarer) Err() error {
 	return sd.err
 }
 
 /**************************************************/
 
-type DefaultBoxDeclarer struct {
-	tb   *DefaultStaticTopologyBuilder
+type defaultBoxDeclarer struct {
+	tb   *defaultStaticTopologyBuilder
 	name string
 	box  Box
 	err  error
 }
 
-func (bd *DefaultBoxDeclarer) Input(refname string) BoxDeclarer {
+func (bd *defaultBoxDeclarer) Input(refname string) BoxDeclarer {
 	return bd.NamedInput(refname, "*")
 }
 
-func (bd *DefaultBoxDeclarer) NamedInput(refname string, inputName string) BoxDeclarer {
+func (bd *defaultBoxDeclarer) NamedInput(refname string, inputName string) BoxDeclarer {
 	// if there was a previous error, do nothing
 	if bd.err != nil {
 		return bd
@@ -273,10 +273,10 @@ func (bd *DefaultBoxDeclarer) NamedInput(refname string, inputName string) BoxDe
 	// The `Input()` caller said that we should attach the name
 	// `inputName` to incoming data (or not if inputName is "*").
 	// This is ok if
-	// - InputConstraints or InputConstraints.schema is nil
-	// - there is a schema (or nil) declared in the InputConstraints
+	// - InputConstraints() or InputConstraints().schema is nil
+	// - there is a schema (or nil) declared in the InputConstraints()
 	//   with that name
-	// - there is a "*" schema declared in the InputConstraints
+	// - there is a "*" schema declared in the InputConstraints()
 	// Otherwise this is an error.
 	ok := false
 	inputConstraints, err := bd.box.InputConstraints()
@@ -300,7 +300,7 @@ func (bd *DefaultBoxDeclarer) NamedInput(refname string, inputName string) BoxDe
 		return bd
 	}
 	// check if this edge already exists
-	edge := DataflowEdge{refname, bd.name, inputName}
+	edge := dataflowEdge{refname, bd.name, inputName}
 	edgeAlreadyExists := false
 	for _, e := range bd.tb.Edges {
 		edgeAlreadyExists = edge == e
@@ -317,20 +317,20 @@ func (bd *DefaultBoxDeclarer) NamedInput(refname string, inputName string) BoxDe
 	return bd
 }
 
-func (bd *DefaultBoxDeclarer) Err() error {
+func (bd *defaultBoxDeclarer) Err() error {
 	return bd.err
 }
 
 /**************************************************/
 
-type DefaultSinkDeclarer struct {
-	tb   *DefaultStaticTopologyBuilder
+type defaultSinkDeclarer struct {
+	tb   *defaultStaticTopologyBuilder
 	name string
 	sink Sink
 	err  error
 }
 
-func (sd *DefaultSinkDeclarer) Input(refname string) SinkDeclarer {
+func (sd *defaultSinkDeclarer) Input(refname string) SinkDeclarer {
 	// if there was a previous error, do nothing
 	if sd.err != nil {
 		return sd
@@ -342,7 +342,7 @@ func (sd *DefaultSinkDeclarer) Input(refname string) SinkDeclarer {
 		return sd
 	}
 	// check if this edge already exists
-	edge := DataflowEdge{refname, sd.name, ""}
+	edge := dataflowEdge{refname, sd.name, ""}
 	edgeAlreadyExists := false
 	for _, e := range sd.tb.Edges {
 		edgeAlreadyExists = edge == e
@@ -359,60 +359,6 @@ func (sd *DefaultSinkDeclarer) Input(refname string) SinkDeclarer {
 	return sd
 }
 
-func (sd *DefaultSinkDeclarer) Err() error {
+func (sd *defaultSinkDeclarer) Err() error {
 	return sd.err
-}
-
-/* TODO the default source/sink/box do not belong here.
- * They are not part of the topology implementation.
- * In order to test whether topology setup works correctly,
- * source/box/sink with a dummy implementation should be
- * part of the test suite.
- */
-
-/**************************************************/
-
-type DefaultSource struct{}
-
-func (s *DefaultSource) GenerateStream(w Writer) error {
-	return nil
-}
-
-func (s *DefaultSource) Schema() *Schema {
-	var sc Schema = Schema("test")
-	return &sc
-}
-
-/**************************************************/
-
-type DefaultBox struct {
-	InputSchema map[string]*Schema
-}
-
-func (b *DefaultBox) Init(ctx *Context) error {
-	return nil
-}
-
-func (b *DefaultBox) Process(t *tuple.Tuple, s Writer) error {
-	return nil
-}
-
-func (b *DefaultBox) InputConstraints() (*InputConstraints, error) {
-	if b.InputSchema != nil {
-		ic := &InputConstraints{b.InputSchema}
-		return ic, nil
-	}
-	return nil, nil
-}
-
-func (b *DefaultBox) OutputSchema(s []*Schema) (*Schema, error) {
-	return nil, nil
-}
-
-/**************************************************/
-
-type DefaultSink struct{}
-
-func (s *DefaultSink) Write(t *tuple.Tuple) error {
-	return nil
 }
