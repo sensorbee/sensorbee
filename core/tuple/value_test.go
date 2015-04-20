@@ -255,11 +255,13 @@ func TestValue(t *testing.T) {
 
 	Convey("Given a Map with an Array value in it", t, func() {
 		Convey("When accessing the value by key", func() {
-			_, getErr := testData.Get("array")
-			SkipConvey("Then the value should exist", func() {
-				// TODO this does indeed fail with
-				// "reflect.MakeSlice of non-slice type"
+			a, getErr := testData.Get("array")
+			Convey("Then the value should exist", func() {
 				So(getErr, ShouldBeNil)
+				Convey("and is should match the original array", func() {
+					e := Array([]Value{String("saysay"), String("mammam")})
+					So(a, ShouldResemble, e)
+				})
 			})
 		})
 	})
@@ -315,11 +317,15 @@ func TestValue(t *testing.T) {
 
 	Convey("Given a Map with a Map value in it", t, func() {
 		Convey("When accessing the value by key", func() {
-			_, getErr := testData.Get("map")
-			SkipConvey("Then the value should exist", func() {
-				// TODO this does indeed fail with
-				// "reflect.Set: value of type map[string]interface {} is not assignable to type tuple.Value"
+			m, getErr := testData.Get("map")
+			Convey("Then the value should exist", func() {
 				So(getErr, ShouldBeNil)
+				Convey("and is should match the original map", func() {
+					e := Map{
+						"string": String("homhom"),
+					}
+					So(m, ShouldResemble, e)
+				})
 			})
 		})
 	})
