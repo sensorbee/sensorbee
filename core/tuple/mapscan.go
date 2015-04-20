@@ -36,7 +36,7 @@ func split(s string) []string {
 			if i < l {
 				t += string(rs[i])
 			}
-		case '/':
+		case '.':
 			if t != "" {
 				a = append(a, t)
 				t = ""
@@ -52,7 +52,7 @@ func split(s string) []string {
 	return a
 }
 
-func ScanMap(m Map, p string, t *Value) (err error) {
+func scanMap(m Map, p string, t *Value) (err error) {
 	if p == "" {
 		return errors.New("empty key is not supported")
 	}

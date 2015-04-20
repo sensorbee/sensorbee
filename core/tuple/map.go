@@ -53,6 +53,6 @@ func (m Map) Copy() Map {
 func (m Map) Get(path string) (Value, error) {
 	// TODO: support json path manually
 	var v Value
-	err := ScanMap(m, path, &v)
+	err := scanMap(m, path, &v)
 	return v, err
 }
