@@ -12,7 +12,7 @@ func TestBox(t *testing.T) {
 		a := func(t *tuple.Tuple, s Writer) error {
 			return nil
 		}
-		bf := BoxFunc(a)
+		bf := boxFunc(a)
 		var b Box = &bf
 
 		Convey("It should satisfy Box interface", func() {
