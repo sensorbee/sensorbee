@@ -6,7 +6,7 @@ import (
 	"strconv"
 )
 
-var re = regexp.MustCompile("^([^\\[]+)?(\\[[0-9]+\\])?$")
+var re = regexp.MustCompile(`^([^\[]+)?(\[[0-9]+\])?$`)
 
 func toError(v interface{}) error {
 	if v != nil {
@@ -53,9 +53,8 @@ func split(s string) []string {
 
 func ScanMap(m Map, p string, t *Value) (err error) {
 	if p == "" {
-		return errors.New("emmpty path is not supported")
+		return errors.New("empty path is not supported")
 	}
-	//var ok bool
 	var v Value
 	for _, token := range split(p) {
 		sl := re.FindAllStringSubmatch(token, -1)
@@ -68,34 +67,7 @@ func ScanMap(m Map, p string, t *Value) (err error) {
 			if mv == nil {
 				return errors.New("invalid path phrase")
 			}
-			var err error
-			switch mv.Type() {
-			case TypeBool:
-				v, err = mv.Bool()
-			case TypeInt:
-				v, err = mv.Int()
-			case TypeFloat:
-				v, err = mv.Float()
-			case TypeString:
-				v, err = mv.String()
-			case TypeBlob:
-				b, err := mv.Blob()
-				if err != nil {
-					break
-				}
-				v = &b
-			case TypeTimestamp:
-				v, err = mv.Timestamp()
-			case TypeArray:
-				v, err = mv.Array()
-			case TypeMap:
-				v, err = mv.Map()
-			default:
-				return errors.New("invalid path phrase")
-			}
-			if err != nil {
-				return err
-			}
+			v = mv
 		}
 		// get array index number
 		if ss[2] != "" {
