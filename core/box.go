@@ -38,7 +38,7 @@ type BoxInputConstraints struct {
 // A Box is an elementary building block of a SensorBee topology.
 // It is the equivalent of a StreamTask in Samza or a Bolt in Storm.
 //
-// Init is called on each Box in a Topology when Topology.Run()
+// Init is called on each Box in a Topology when StaticTopology.Run()
 // is executed. It can be used to keep a reference to the Context
 // object or initialize other forms of state. It is called only
 // once, even if the same object is used in multiple places of
