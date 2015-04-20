@@ -7,7 +7,7 @@ import (
 	"strconv"
 )
 
-var reIndexedArray = regexp.MustCompile(`^([^\[]+)?(\[[0-9]+\])?$`)
+var reArray = regexp.MustCompile(`^([^\[]+)?(\[[0-9]+\])?$`)
 
 func split(s string) []string {
 	i := 0
@@ -45,7 +45,7 @@ func scanMap(m Map, p string, t *Value) (err error) {
 	}
 	var v Value
 	for _, token := range split(p) {
-		sl := reIndexedArray.FindAllStringSubmatch(token, -1)
+		sl := reArray.FindAllStringSubmatch(token, -1)
 		if len(sl) == 0 {
 			return errors.New("invalid path phrase")
 		}
