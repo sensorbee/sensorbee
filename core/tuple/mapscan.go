@@ -2,6 +2,7 @@ package tuple
 
 import (
 	"errors"
+	"math"
 	"regexp"
 	"strconv"
 )
@@ -53,7 +54,7 @@ func split(s string) []string {
 
 func ScanMap(m Map, p string, t *Value) (err error) {
 	if p == "" {
-		return errors.New("empty path is not supported")
+		return errors.New("empty key is not supported")
 	}
 	var v Value
 	for _, token := range split(p) {
@@ -65,19 +66,23 @@ func ScanMap(m Map, p string, t *Value) (err error) {
 		if ss[1] != "" {
 			mv := m[ss[1]]
 			if mv == nil {
-				return errors.New("invalid path phrase")
+				return errors.New("not found the key in map")
 			}
 			v = mv
 		}
 		// get array index number
 		if ss[2] != "" {
-			i, err := strconv.Atoi(ss[2][1 : len(ss[2])-1])
+			i64, err := strconv.ParseInt(ss[2][1:len(ss[2])-1], 10, 64)
 			if err != nil {
-				return errors.New("invalid array index phrase: " + ss[2])
+				return errors.New("invalid array index number: " + token)
+			}
+			if i64 > math.MaxInt32 {
+				return errors.New("overflow index number: " + token)
 			}
 			if v.Type() != TypeArray {
-				return errors.New("invalid array path phrase: " + ss[1])
+				return errors.New("invalid array path phrase: " + token)
 			}
+			i := int(i64)
 			a, _ := v.Array()
 			found := false
 			for n, av := range a {
@@ -88,7 +93,7 @@ func ScanMap(m Map, p string, t *Value) (err error) {
 				}
 			}
 			if !found {
-				return errors.New("out of range access: " + ss[1] + ss[2])
+				return errors.New("out of range access: " + token)
 			}
 		}
 	}
