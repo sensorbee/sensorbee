@@ -495,7 +495,7 @@ func TestBasicDefaultTopologyTransport(t *testing.T) {
 
 		Convey("When Run topology with Context & ConsoleLogger", func() {
 			ctx := &Context{
-				&ConsoleLogManager{},
+				NewConsolePrintLogger(),
 			}
 			t := tb.Build()
 			t.Run(ctx)
