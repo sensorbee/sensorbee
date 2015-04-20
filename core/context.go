@@ -23,7 +23,7 @@ const (
 	FATAL
 )
 
-// String returns a string reprsentation of a LogLevel.
+// String returns a string representation of a LogLevel.
 func (l LogLevel) String() string {
 	switch l {
 	case DEBUG:
@@ -49,7 +49,7 @@ func (l LogLevel) String() string {
 // string will be processed using the fmt.Sprintf function.
 //
 // DroppedTuple should be called by a Box for each Tuple
-// where an error occured that was so bad that processing
+// where an error occurred that was so bad that processing
 // cannot continue for that particular Tuple (e.g., schema
 // mismatch), but not grave enough to abort the whole process.
 type LogManager interface {
