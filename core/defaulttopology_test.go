@@ -400,12 +400,15 @@ func TestBasicDefaultTopologyTransport(t *testing.T) {
 			"source": tuple.String("hoge"),
 		}}
 
+	ToUpperBox := BoxFunc(toUpper)
+	AddSuffixBox := BoxFunc(addSuffix)
+
 	Convey("Given basic topology", t, func() {
 
 		tb := NewDefaultStaticTopologyBuilder()
 		s1 := &TupleEmitterSource{[]*tuple.Tuple{&tup1}}
 		tb.AddSource("source1", s1)
-		b1 := &DummyToUpperBox{}
+		b1 := ToUpperBox
 		tb.AddBox("aBox", b1).Input("source1")
 		si := &DummyDefaultSink{}
 		tb.AddSink("si", si).Input("aBox")
@@ -423,7 +426,7 @@ func TestBasicDefaultTopologyTransport(t *testing.T) {
 		tb.AddSource("source1", s1)
 		s2 := &TupleEmitterSource{[]*tuple.Tuple{&tup2}}
 		tb.AddSource("source2", s2)
-		b1 := &DummyToUpperBox{}
+		b1 := ToUpperBox
 		tb.AddBox("aBox", b1).
 			Input("source1").
 			Input("source2")
@@ -445,7 +448,7 @@ func TestBasicDefaultTopologyTransport(t *testing.T) {
 		tb := NewDefaultStaticTopologyBuilder()
 		s := &TupleEmitterSource{[]*tuple.Tuple{&tup1, &tup2}}
 		tb.AddSource("source", s)
-		b1 := &DummyToUpperBox{}
+		b1 := ToUpperBox
 		tb.AddBox("aBox", b1).
 			Input("source")
 		si := &DummyDefaultSink{}
@@ -462,9 +465,9 @@ func TestBasicDefaultTopologyTransport(t *testing.T) {
 		tb := NewDefaultStaticTopologyBuilder()
 		s1 := &TupleEmitterSource{[]*tuple.Tuple{&tup1}}
 		tb.AddSource("source1", s1)
-		b1 := &DummyToUpperBox{}
+		b1 := ToUpperBox
 		tb.AddBox("aBox", b1).Input("source1")
-		b2 := &DummyAddSuffixBox{}
+		b2 := AddSuffixBox
 		tb.AddBox("bBox", b2).Input("source1")
 		si := &DummyDefaultSink{}
 		tb.AddSink("si", si).Input("aBox").Input("bBox")
@@ -481,7 +484,7 @@ func TestBasicDefaultTopologyTransport(t *testing.T) {
 		tb := NewDefaultStaticTopologyBuilder()
 		s1 := &TupleEmitterSource{[]*tuple.Tuple{&tup1}}
 		tb.AddSource("source1", s1)
-		b1 := &DummyToUpperBox{}
+		b1 := ToUpperBox
 		tb.AddBox("aBox", b1).Input("source1")
 		si := &DummyDefaultSink{}
 		tb.AddSink("si", si).Input("aBox")
@@ -500,7 +503,7 @@ func TestBasicDefaultTopologyTransport(t *testing.T) {
 		tb := NewDefaultStaticTopologyBuilder()
 		s1 := &TupleEmitterSource{[]*tuple.Tuple{&tup1}}
 		tb.AddSource("source1", s1)
-		b1 := &DummyToUpperBox{}
+		b1 := ToUpperBox
 		tb.AddBox("aBox", b1).Input("source1")
 		si := &DummyDefaultSink{}
 		tb.AddSink("si", si).Input("aBox")
@@ -516,53 +519,20 @@ func TestBasicDefaultTopologyTransport(t *testing.T) {
 	})
 }
 
-type DummyToUpperBox struct {
-	ctx *Context
-}
-
-func (b *DummyToUpperBox) Init(ctx *Context) error {
-	b.ctx = ctx
-	return nil
-}
-func (b *DummyToUpperBox) Process(t *tuple.Tuple, w Writer) error {
+func toUpper(t *tuple.Tuple, w Writer) error {
 	x, _ := t.Data.Get("source")
 	s, _ := x.String()
 	t.Data["to-upper"] = tuple.String(strings.ToUpper(string(s)))
 	w.Write(t)
-	if b.ctx.Logger != nil {
-		b.ctx.Logger.Log(DEBUG, "convey test %v", "ToUpperBox Processing")
-	}
 	return nil
 }
 
-func (b *DummyToUpperBox) InputConstraints() (*BoxInputConstraints, error) {
-	return nil, nil
-}
-
-func (b *DummyToUpperBox) OutputSchema(s []*Schema) (*Schema, error) {
-	return nil, nil
-}
-
-type DummyAddSuffixBox struct{}
-
-func (b *DummyAddSuffixBox) Init(ctx *Context) error {
-	return nil
-}
-
-func (b *DummyAddSuffixBox) Process(t *tuple.Tuple, w Writer) error {
+func addSuffix(t *tuple.Tuple, w Writer) error {
 	x, _ := t.Data.Get("source")
 	s, _ := x.String()
 	t.Data["add-suffix"] = tuple.String(s + "_1")
 	w.Write(t)
 	return nil
-}
-
-func (b *DummyAddSuffixBox) InputConstraints() (*BoxInputConstraints, error) {
-	return nil, nil
-}
-
-func (b *DummyAddSuffixBox) OutputSchema(s []*Schema) (*Schema, error) {
-	return nil, nil
 }
 
 type DummyDefaultSink struct {
