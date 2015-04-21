@@ -410,12 +410,12 @@ func TestBasicDefaultTopologyTransport(t *testing.T) {
 		tb.AddSource("source1", s1)
 		b1 := ToUpperBox
 		tb.AddBox("aBox", b1).Input("source1")
-		si := &DummyDefaultSink{}
+		si := &TupleContentsCollectorSink{}
 		tb.AddSink("si", si).Input("aBox")
 		t := tb.Build()
 		Convey("Run topology with ToUpperBox", func() {
 			t.Run(&Context{})
-			So(si.results[0], ShouldEqual, "VALUE")
+			So(si.uppercaseResults[0], ShouldEqual, "VALUE")
 		})
 	})
 
@@ -430,15 +430,15 @@ func TestBasicDefaultTopologyTransport(t *testing.T) {
 		tb.AddBox("aBox", b1).
 			Input("source1").
 			Input("source2")
-		si := &DummyDefaultSink{}
+		si := &TupleContentsCollectorSink{}
 		tb.AddSink("si", si).Input("aBox")
 		t := tb.Build()
 		Convey("Run topology with ToUpperBox", func() {
 			start := time.Now()
 			t.Run(&Context{})
-			So(len(si.results), ShouldEqual, 2)
-			So(si.results, ShouldContain, "VALUE")
-			So(si.results, ShouldContain, "HOGE")
+			So(len(si.uppercaseResults), ShouldEqual, 2)
+			So(si.uppercaseResults, ShouldContain, "VALUE")
+			So(si.uppercaseResults, ShouldContain, "HOGE")
 			So(start, ShouldHappenWithin, 600*time.Millisecond, time.Now())
 		})
 	})
@@ -451,12 +451,12 @@ func TestBasicDefaultTopologyTransport(t *testing.T) {
 		b1 := ToUpperBox
 		tb.AddBox("aBox", b1).
 			Input("source")
-		si := &DummyDefaultSink{}
+		si := &TupleContentsCollectorSink{}
 		tb.AddSink("si", si).Input("aBox")
 		t := tb.Build()
 		Convey("Run topology with ToUpperBox", func() {
 			t.Run(&Context{})
-			So(si.results, ShouldResemble, []string{"VALUE", "HOGE"})
+			So(si.uppercaseResults, ShouldResemble, []string{"VALUE", "HOGE"})
 		})
 	})
 
@@ -469,13 +469,13 @@ func TestBasicDefaultTopologyTransport(t *testing.T) {
 		tb.AddBox("aBox", b1).Input("source1")
 		b2 := AddSuffixBox
 		tb.AddBox("bBox", b2).Input("source1")
-		si := &DummyDefaultSink{}
+		si := &TupleContentsCollectorSink{}
 		tb.AddSink("si", si).Input("aBox").Input("bBox")
 		t := tb.Build()
 		Convey("Run topology with ToUpperBox", func() {
 			t.Run(&Context{})
-			So(si.results[0], ShouldEqual, "VALUE")
-			So(si.results2[0], ShouldEqual, "value_1")
+			So(si.uppercaseResults[0], ShouldEqual, "VALUE")
+			So(si.suffixResults[0], ShouldEqual, "value_1")
 		})
 	})
 
@@ -486,15 +486,15 @@ func TestBasicDefaultTopologyTransport(t *testing.T) {
 		tb.AddSource("source1", s1)
 		b1 := ToUpperBox
 		tb.AddBox("aBox", b1).Input("source1")
-		si := &DummyDefaultSink{}
+		si := &TupleContentsCollectorSink{}
 		tb.AddSink("si", si).Input("aBox")
-		si2 := &DummyDefaultSink{}
+		si2 := &TupleContentsCollectorSink{}
 		tb.AddSink("si2", si2).Input("aBox")
 		t := tb.Build()
 		Convey("Run topology with ToUpperBox", func() {
 			t.Run(&Context{})
-			So(si.results[0], ShouldEqual, "VALUE")
-			So(si2.results[0], ShouldEqual, "VALUE")
+			So(si.uppercaseResults[0], ShouldEqual, "VALUE")
+			So(si2.uppercaseResults[0], ShouldEqual, "VALUE")
 		})
 	})
 
@@ -505,7 +505,7 @@ func TestBasicDefaultTopologyTransport(t *testing.T) {
 		tb.AddSource("source1", s1)
 		b1 := ToUpperBox
 		tb.AddBox("aBox", b1).Input("source1")
-		si := &DummyDefaultSink{}
+		si := &TupleContentsCollectorSink{}
 		tb.AddSink("si", si).Input("aBox")
 
 		Convey("When Run topology with Context & ConsoleLogger", func() {
@@ -514,7 +514,7 @@ func TestBasicDefaultTopologyTransport(t *testing.T) {
 			}
 			t := tb.Build()
 			t.Run(ctx)
-			So(si.results[0], ShouldEqual, "VALUE")
+			So(si.uppercaseResults[0], ShouldEqual, "VALUE")
 		})
 	})
 }
@@ -535,22 +535,22 @@ func addSuffix(t *tuple.Tuple, w Writer) error {
 	return nil
 }
 
-type DummyDefaultSink struct {
-	results  []string
-	results2 []string
+type TupleContentsCollectorSink struct {
+	uppercaseResults []string
+	suffixResults    []string
 }
 
-func (s *DummyDefaultSink) Write(t *tuple.Tuple) (err error) {
+func (s *TupleContentsCollectorSink) Write(t *tuple.Tuple) (err error) {
 	x, err := t.Data.Get("to-upper")
 	if err == nil {
 		str, _ := x.String()
-		s.results = append(s.results, string(str))
+		s.uppercaseResults = append(s.uppercaseResults, string(str))
 	}
 
 	x, err = t.Data.Get("add-suffix")
 	if err == nil {
 		str, _ := x.String()
-		s.results2 = append(s.results2, string(str))
+		s.suffixResults = append(s.suffixResults, string(str))
 	}
 	return err
 }
