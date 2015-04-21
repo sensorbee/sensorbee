@@ -391,10 +391,19 @@ func TestDefaultTopologyBuilderSchemaChecks(t *testing.T) {
 }
 
 func TestBasicDefaultTopologyTransport(t *testing.T) {
+	tup1 := tuple.Tuple{
+		Data: tuple.Map{
+			"source": tuple.String("value"),
+		}}
+	tup2 := tuple.Tuple{
+		Data: tuple.Map{
+			"source": tuple.String("hoge"),
+		}}
+
 	Convey("Given basic topology", t, func() {
 
 		tb := NewDefaultStaticTopologyBuilder()
-		s1 := &DummyDefaultSource{"value"}
+		s1 := &TupleEmitterSource{[]*tuple.Tuple{&tup1}}
 		tb.AddSource("source1", s1)
 		b1 := &DummyToUpperBox{}
 		tb.AddBox("aBox", b1).Input("source1")
@@ -410,9 +419,9 @@ func TestBasicDefaultTopologyTransport(t *testing.T) {
 	Convey("Given 2 sources topology", t, func() {
 
 		tb := NewDefaultStaticTopologyBuilder()
-		s1 := &DummyDefaultSource{"value"}
+		s1 := &TupleEmitterSource{[]*tuple.Tuple{&tup1}}
 		tb.AddSource("source1", s1)
-		s2 := &DummyDefaultSource{"hoge"}
+		s2 := &TupleEmitterSource{[]*tuple.Tuple{&tup2}}
 		tb.AddSource("source2", s2)
 		b1 := &DummyToUpperBox{}
 		tb.AddBox("aBox", b1).
@@ -434,7 +443,7 @@ func TestBasicDefaultTopologyTransport(t *testing.T) {
 	Convey("Given 2 tuples in 1source topology", t, func() {
 
 		tb := NewDefaultStaticTopologyBuilder()
-		s := &DummyDefaultSource2{"value", "hoge"}
+		s := &TupleEmitterSource{[]*tuple.Tuple{&tup1, &tup2}}
 		tb.AddSource("source", s)
 		b1 := &DummyToUpperBox{}
 		tb.AddBox("aBox", b1).
@@ -451,7 +460,7 @@ func TestBasicDefaultTopologyTransport(t *testing.T) {
 	Convey("Given 2 boxes topology", t, func() {
 
 		tb := NewDefaultStaticTopologyBuilder()
-		s1 := &DummyDefaultSource{"value"}
+		s1 := &TupleEmitterSource{[]*tuple.Tuple{&tup1}}
 		tb.AddSource("source1", s1)
 		b1 := &DummyToUpperBox{}
 		tb.AddBox("aBox", b1).Input("source1")
@@ -470,7 +479,7 @@ func TestBasicDefaultTopologyTransport(t *testing.T) {
 	Convey("Given 2 sinks topology", t, func() {
 
 		tb := NewDefaultStaticTopologyBuilder()
-		s1 := &DummyDefaultSource{"value"}
+		s1 := &TupleEmitterSource{[]*tuple.Tuple{&tup1}}
 		tb.AddSource("source1", s1)
 		b1 := &DummyToUpperBox{}
 		tb.AddBox("aBox", b1).Input("source1")
@@ -489,7 +498,7 @@ func TestBasicDefaultTopologyTransport(t *testing.T) {
 	Convey("Given basic topology", t, func() {
 
 		tb := NewDefaultStaticTopologyBuilder()
-		s1 := &DummyDefaultSource{"value"}
+		s1 := &TupleEmitterSource{[]*tuple.Tuple{&tup1}}
 		tb.AddSource("source1", s1)
 		b1 := &DummyToUpperBox{}
 		tb.AddBox("aBox", b1).Input("source1")
@@ -505,46 +514,6 @@ func TestBasicDefaultTopologyTransport(t *testing.T) {
 			So(si.results[0], ShouldEqual, "VALUE")
 		})
 	})
-
-}
-
-type DummyDefaultSource struct{ initial string }
-
-func (s *DummyDefaultSource) GenerateStream(w Writer) error {
-	time.Sleep(0.5 * 1e9) // to confirm .Run() goroutine
-	t := &tuple.Tuple{}
-	t.Data = tuple.Map{
-		"source": tuple.String(s.initial),
-	}
-	w.Write(t)
-	return nil
-}
-func (s *DummyDefaultSource) Schema() *Schema {
-	var sc Schema = Schema("test")
-	return &sc
-}
-
-type DummyDefaultSource2 struct {
-	initial  string
-	initial2 string
-}
-
-func (s *DummyDefaultSource2) GenerateStream(w Writer) error {
-	t := &tuple.Tuple{}
-	t.Data = tuple.Map{
-		"source": tuple.String(s.initial),
-	}
-	w.Write(t)
-	t2 := &tuple.Tuple{}
-	t2.Data = tuple.Map{
-		"source": tuple.String(s.initial2),
-	}
-	w.Write(t2)
-	return nil
-}
-func (s *DummyDefaultSource2) Schema() *Schema {
-	var sc Schema = Schema("test")
-	return &sc
 }
 
 type DummyToUpperBox struct {
