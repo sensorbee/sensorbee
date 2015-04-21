@@ -403,8 +403,10 @@ func TestBasicDefaultTopologyTransport(t *testing.T) {
 	ToUpperBox := BoxFunc(toUpper)
 	AddSuffixBox := BoxFunc(addSuffix)
 
-	Convey("Given basic topology", t, func() {
-
+	Convey("Given a simple source/box/sink topology", t, func() {
+		/*
+		 *   so -*--> b -*--> si
+		 */
 		tb := NewDefaultStaticTopologyBuilder()
 		s1 := &TupleEmitterSource{[]*tuple.Tuple{&tup1}}
 		tb.AddSource("source1", s1)
@@ -413,14 +415,21 @@ func TestBasicDefaultTopologyTransport(t *testing.T) {
 		si := &TupleContentsCollectorSink{}
 		tb.AddSink("si", si).Input("aBox")
 		t := tb.Build()
-		Convey("Run topology with ToUpperBox", func() {
+
+		Convey("When a tuple is emitted by the source", func() {
 			t.Run(&Context{})
-			So(si.uppercaseResults[0], ShouldEqual, "VALUE")
+			Convey("Then it is processed by the box", func() {
+				So(si.uppercaseResults[0], ShouldEqual, "VALUE")
+			})
 		})
 	})
 
-	Convey("Given 2 sources topology", t, func() {
-
+	Convey("Given a simple source/box/sink topology with 2 sources", t, func() {
+		/*
+		 *   so1 -*-\
+		 *           --> b -*--> si
+		 *   so2 -*-/
+		 */
 		tb := NewDefaultStaticTopologyBuilder()
 		s1 := &TupleEmitterSource{[]*tuple.Tuple{&tup1}}
 		tb.AddSource("source1", s1)
@@ -433,18 +442,23 @@ func TestBasicDefaultTopologyTransport(t *testing.T) {
 		si := &TupleContentsCollectorSink{}
 		tb.AddSink("si", si).Input("aBox")
 		t := tb.Build()
-		Convey("Run topology with ToUpperBox", func() {
+
+		Convey("When a tuple is emitted by each source", func() {
 			start := time.Now()
 			t.Run(&Context{})
-			So(len(si.uppercaseResults), ShouldEqual, 2)
-			So(si.uppercaseResults, ShouldContain, "VALUE")
-			So(si.uppercaseResults, ShouldContain, "HOGE")
-			So(start, ShouldHappenWithin, 600*time.Millisecond, time.Now())
+			Convey("Then they should both be processed by the box in a reasonable time", func() {
+				So(len(si.uppercaseResults), ShouldEqual, 2)
+				So(si.uppercaseResults, ShouldContain, "VALUE")
+				So(si.uppercaseResults, ShouldContain, "HOGE")
+				So(start, ShouldHappenWithin, 600*time.Millisecond, time.Now())
+			})
 		})
 	})
 
-	Convey("Given 2 tuples in 1source topology", t, func() {
-
+	Convey("Given a simple source/box/sink topology", t, func() {
+		/*
+		 *   so -*--> b -*--> si
+		 */
 		tb := NewDefaultStaticTopologyBuilder()
 		s := &TupleEmitterSource{[]*tuple.Tuple{&tup1, &tup2}}
 		tb.AddSource("source", s)
@@ -454,14 +468,21 @@ func TestBasicDefaultTopologyTransport(t *testing.T) {
 		si := &TupleContentsCollectorSink{}
 		tb.AddSink("si", si).Input("aBox")
 		t := tb.Build()
-		Convey("Run topology with ToUpperBox", func() {
+
+		Convey("When two tuples are emitted by the source", func() {
 			t.Run(&Context{})
-			So(si.uppercaseResults, ShouldResemble, []string{"VALUE", "HOGE"})
+			Convey("Then they are processed both and in order", func() {
+				So(si.uppercaseResults, ShouldResemble, []string{"VALUE", "HOGE"})
+			})
 		})
 	})
 
-	Convey("Given 2 boxes topology", t, func() {
-
+	Convey("Given a simple source/box/sink topology with 2 boxes", t, func() {
+		/*
+		 *        /--> b1 -*-\
+		 *   so -*            --> si
+		 *        \--> b2 -*-/
+		 */
 		tb := NewDefaultStaticTopologyBuilder()
 		s1 := &TupleEmitterSource{[]*tuple.Tuple{&tup1}}
 		tb.AddSource("source1", s1)
@@ -472,15 +493,22 @@ func TestBasicDefaultTopologyTransport(t *testing.T) {
 		si := &TupleContentsCollectorSink{}
 		tb.AddSink("si", si).Input("aBox").Input("bBox")
 		t := tb.Build()
-		Convey("Run topology with ToUpperBox", func() {
+
+		Convey("When a tuple is emitted by the source", func() {
 			t.Run(&Context{})
-			So(si.uppercaseResults[0], ShouldEqual, "VALUE")
-			So(si.suffixResults[0], ShouldEqual, "value_1")
+			Convey("Then it is processed by both boxes", func() {
+				So(si.uppercaseResults[0], ShouldEqual, "VALUE")
+				So(si.suffixResults[0], ShouldEqual, "value_1")
+			})
 		})
 	})
 
-	Convey("Given 2 sinks topology", t, func() {
-
+	Convey("Given a simple source/box/sink topology with 2 sinks", t, func() {
+		/*
+		 *                /--> si1
+		 *   so -*--> b -*
+		 *                \--> si2
+		 */
 		tb := NewDefaultStaticTopologyBuilder()
 		s1 := &TupleEmitterSource{[]*tuple.Tuple{&tup1}}
 		tb.AddSource("source1", s1)
@@ -491,30 +519,13 @@ func TestBasicDefaultTopologyTransport(t *testing.T) {
 		si2 := &TupleContentsCollectorSink{}
 		tb.AddSink("si2", si2).Input("aBox")
 		t := tb.Build()
-		Convey("Run topology with ToUpperBox", func() {
+
+		Convey("When a tuple is emitted by the source", func() {
 			t.Run(&Context{})
-			So(si.uppercaseResults[0], ShouldEqual, "VALUE")
-			So(si2.uppercaseResults[0], ShouldEqual, "VALUE")
-		})
-	})
-
-	Convey("Given basic topology", t, func() {
-
-		tb := NewDefaultStaticTopologyBuilder()
-		s1 := &TupleEmitterSource{[]*tuple.Tuple{&tup1}}
-		tb.AddSource("source1", s1)
-		b1 := ToUpperBox
-		tb.AddBox("aBox", b1).Input("source1")
-		si := &TupleContentsCollectorSink{}
-		tb.AddSink("si", si).Input("aBox")
-
-		Convey("When Run topology with Context & ConsoleLogger", func() {
-			ctx := &Context{
-				NewConsolePrintLogger(),
-			}
-			t := tb.Build()
-			t.Run(ctx)
-			So(si.uppercaseResults[0], ShouldEqual, "VALUE")
+			Convey("Then the processed value arrives in both sinks", func() {
+				So(si.uppercaseResults[0], ShouldEqual, "VALUE")
+				So(si2.uppercaseResults[0], ShouldEqual, "VALUE")
+			})
 		})
 	})
 }
