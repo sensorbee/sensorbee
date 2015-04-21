@@ -7,7 +7,7 @@ import (
 	"strconv"
 )
 
-var reArray = regexp.MustCompile(`^([^\[]+)?(\[[0-9]+\])?$`)
+var reArrayPath = regexp.MustCompile(`^([^\[]+)?(\[[0-9]+\])?$`)
 
 func split(s string) []string {
 	i := 0
@@ -23,11 +23,28 @@ func split(s string) []string {
 			if i < l {
 				t += string(rs[i])
 			}
-		case '.':
+		case '.': //, '/':
 			if t != "" {
 				a = append(a, t)
 				t = ""
 			}
+		case '[':
+			if i < l-1 {
+				nr := rs[i+1]
+				if nr == '"' || nr == '\'' {
+					inbr := splitBracket(rs, i+2, nr)
+					if inbr != "" {
+						if t != "" {
+							a = append(a, t)
+						}
+						a = append(a, inbr)
+						t = ""
+						i += 1 + len(inbr) + 2 // " + inner bracket + "]
+						break
+					}
+				}
+			}
+			t += string(r)
 		default:
 			t += string(r)
 		}
@@ -39,23 +56,46 @@ func split(s string) []string {
 	return a
 }
 
+func splitBracket(rs []rune, i int, b rune) string {
+	l := len(rs)
+	t := ""
+	for i < l {
+		r := rs[i]
+		if r == b {
+			if i < l-1 {
+				if rs[i+1] == ']' {
+					return t
+				}
+			}
+		} else {
+			t += string(r)
+		}
+		i++
+	}
+	return ""
+}
+
 func scanMap(m Map, p string, t *Value) (err error) {
 	if p == "" {
 		return errors.New("empty key is not supported")
 	}
 	var v Value
+	mm := m
 	for _, token := range split(p) {
-		sl := reArray.FindAllStringSubmatch(token, -1)
+		sl := reArrayPath.FindAllStringSubmatch(token, -1)
 		if len(sl) == 0 {
 			return errors.New("invalid path phrase")
 		}
 		ss := sl[0]
 		if ss[1] != "" {
-			mv := m[ss[1]]
+			mv := mm[ss[1]]
 			if mv == nil {
-				return errors.New("not found the key in map")
+				return errors.New("not found the key in map: " + ss[1])
 			}
 			v = mv
+			if mv.Type() == TypeMap {
+				mm, _ = mv.Map()
+			}
 		}
 		// get array index number
 		if ss[2] != "" {
