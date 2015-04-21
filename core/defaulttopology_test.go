@@ -267,7 +267,7 @@ func TestDefaultTopologyBuilderSchemaChecks(t *testing.T) {
 
 		Convey("When using a box with nil input constraint", func() {
 			// A box with InputConstraint() == nil should allow any and all input
-			b := &DefaultBox{}
+			b := &DoesNothingBoxWithSchema{}
 
 			Convey("Then adding an unnamed input should succeed", func() {
 				bdecl := tb.AddBox("box", b).Input("source")
@@ -287,7 +287,8 @@ func TestDefaultTopologyBuilderSchemaChecks(t *testing.T) {
 
 		Convey("When using a box with {'*' => nil} input constraint", func() {
 			// A box with '*' => nil should allow any and all input
-			b := &DefaultBox{map[string]*Schema{"*": nil}}
+			b := &DoesNothingBoxWithSchema{
+				InputSchema: map[string]*Schema{"*": nil}}
 
 			Convey("Then adding an unnamed input should succeed", func() {
 				bdecl := tb.AddBox("box", b).Input("source")
@@ -317,7 +318,8 @@ func TestDefaultTopologyBuilderSchemaChecks(t *testing.T) {
 		Convey("When using a box with {'hoge' => nil} input constraint", func() {
 			// A box with 'hoge' => nil should only allow input
 			// if it comes from an input stream called 'hoge'
-			b := &DefaultBox{map[string]*Schema{"hoge": nil}}
+			b := &DoesNothingBoxWithSchema{
+				InputSchema: map[string]*Schema{"hoge": nil}}
 
 			Convey("Then adding an unnamed input should fail", func() {
 				bdecl := tb.AddBox("box", b).Input("source")
@@ -349,7 +351,8 @@ func TestDefaultTopologyBuilderSchemaChecks(t *testing.T) {
 		Convey("When using a box with {'hoge' => nil, '*' => nil} input constraint", func() {
 			// A box with 'hoge' => nil, *' => nil should allow any and
 			// all input
-			b := &DefaultBox{map[string]*Schema{"hoge": nil, "*": nil}}
+			b := &DoesNothingBoxWithSchema{
+				InputSchema: map[string]*Schema{"hoge": nil, "*": nil}}
 
 			Convey("Then adding an unnamed input should succeed", func() {
 				bdecl := tb.AddBox("box", b).Input("source")
@@ -1416,26 +1419,15 @@ func (s *DoesNothingSink) Write(t *tuple.Tuple) error {
 
 /**************************************************/
 
-type DefaultBox struct {
+type DoesNothingBoxWithSchema struct {
 	InputSchema map[string]*Schema
+	DoesNothingBox
 }
 
-func (b *DefaultBox) Init(ctx *Context) error {
-	return nil
-}
-
-func (b *DefaultBox) Process(t *tuple.Tuple, s Writer) error {
-	return nil
-}
-
-func (b *DefaultBox) InputConstraints() (*BoxInputConstraints, error) {
+func (b *DoesNothingBoxWithSchema) InputConstraints() (*BoxInputConstraints, error) {
 	if b.InputSchema != nil {
 		ic := &BoxInputConstraints{b.InputSchema}
 		return ic, nil
 	}
-	return nil, nil
-}
-
-func (b *DefaultBox) OutputSchema(s []*Schema) (*Schema, error) {
 	return nil, nil
 }
