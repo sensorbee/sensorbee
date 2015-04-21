@@ -16,7 +16,7 @@ func TestValue(t *testing.T) {
 		"time":   Timestamp(time.Date(2015, time.April, 10, 10, 23, 0, 0, time.UTC)),
 		"array":  Array([]Value{String("saysay"), String("mammam")}),
 		"map": Map{
-			"string": String("homhom"),
+			"string": String("homhom2"),
 		},
 	}
 
@@ -322,7 +322,7 @@ func TestValue(t *testing.T) {
 				So(getErr, ShouldBeNil)
 				Convey("and it should match the original map", func() {
 					e := Map{
-						"string": String("homhom"),
+						"string": String("homhom2"),
 					}
 					So(m, ShouldResemble, e)
 				})
@@ -338,7 +338,7 @@ func TestValue(t *testing.T) {
 				Convey("and it should match the original value", func() {
 					val, typeErr := x.String()
 					So(typeErr, ShouldBeNil)
-					So(val, ShouldEqual, "homhom")
+					So(val, ShouldEqual, "homhom2")
 				})
 				Convey("and other type conversions should fail", func() {
 					_, err := x.Bool()
