@@ -116,5 +116,16 @@ func TestScanMap(t *testing.T) {
 				})
 			})
 		})
+		Convey("When accessing bracket array holder", func() {
+			var v Value
+			err := scanMap(testData, "['array'][0]", &v)
+			Convey("Then lookup should exist", func() {
+				So(err, ShouldBeNil)
+				Convey("and is should be match the original value", func() {
+					s, _ := v.String()
+					So(s, ShouldEqual, "saysay")
+				})
+			})
+		})
 	})
 }
