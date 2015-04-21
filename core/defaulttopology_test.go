@@ -19,9 +19,9 @@ func TestDefaultTopologyBuilderInterface(t *testing.T) {
 
 	Convey("Given a default topology builder", t, func() {
 		tb := NewDefaultStaticTopologyBuilder()
-		s := &DefaultSource{}
-		b := &DefaultBox{}
-		si := &DefaultSink{}
+		s := &DoesNothingSource{}
+		b := &DoesNothingBox{}
+		si := &DoesNothingSink{}
 		var err DeclarerError
 
 		Convey("when using a source name twice", func() {
@@ -135,11 +135,11 @@ func TestDefaultTopologyBuilderInterface(t *testing.T) {
 
 	Convey("Given a default topology builder with a source", t, func() {
 		tb := NewDefaultStaticTopologyBuilder()
-		s := &DefaultSource{}
+		s := &DoesNothingSource{}
 		tb.AddSource("aSource", s)
-		b := &DefaultBox{}
+		b := &DoesNothingBox{}
 		tb.AddBox("aBox", b)
-		si := &DefaultSink{}
+		si := &DoesNothingSink{}
 		var err DeclarerError
 
 		Convey("when a new box references a non-existing item", func() {
@@ -262,7 +262,7 @@ func TestDefaultTopologyBuilderSchemaChecks(t *testing.T) {
 
 	Convey("Given a default topology builder", t, func() {
 		tb := NewDefaultStaticTopologyBuilder()
-		s := &DefaultSource{}
+		s := &DoesNothingSource{}
 		tb.AddSource("source", s)
 
 		Convey("When using a box with nil input constraint", func() {
@@ -1378,15 +1378,40 @@ func (b *SimpleJoinBox) OutputSchema(s []*Schema) (*Schema, error) {
 
 /**************************************************/
 
-type DefaultSource struct{}
+type DoesNothingSource struct{}
 
-func (s *DefaultSource) GenerateStream(w Writer) error {
+func (s *DoesNothingSource) GenerateStream(w Writer) error {
 	return nil
 }
-
-func (s *DefaultSource) Schema() *Schema {
+func (s *DoesNothingSource) Schema() *Schema {
 	var sc Schema = Schema("test")
 	return &sc
+}
+
+/**************************************************/
+
+type DoesNothingBox struct {
+}
+
+func (b *DoesNothingBox) Init(ctx *Context) error {
+	return nil
+}
+func (b *DoesNothingBox) Process(t *tuple.Tuple, s Writer) error {
+	return nil
+}
+func (b *DoesNothingBox) InputConstraints() (*BoxInputConstraints, error) {
+	return nil, nil
+}
+func (b *DoesNothingBox) OutputSchema(s []*Schema) (*Schema, error) {
+	return nil, nil
+}
+
+/**************************************************/
+
+type DoesNothingSink struct{}
+
+func (s *DoesNothingSink) Write(t *tuple.Tuple) error {
+	return nil
 }
 
 /**************************************************/
@@ -1413,12 +1438,4 @@ func (b *DefaultBox) InputConstraints() (*BoxInputConstraints, error) {
 
 func (b *DefaultBox) OutputSchema(s []*Schema) (*Schema, error) {
 	return nil, nil
-}
-
-/**************************************************/
-
-type DefaultSink struct{}
-
-func (s *DefaultSink) Write(t *tuple.Tuple) error {
-	return nil
 }
