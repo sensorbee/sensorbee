@@ -23,7 +23,7 @@ func split(s string) []string {
 			if i < l {
 				t += string(rs[i])
 			}
-		case '.': //, '/':
+		case '.':
 			if t != "" {
 				a = append(a, t)
 				t = ""
