@@ -13,12 +13,18 @@ type defaultStaticTopology struct {
 	boxpointers map[*Box]bool
 
 	sources map[string]Source
-	pipes   map[string]*sequentialPipe
+	pipes   map[string]*capacityPipe
 }
 
 func (t *defaultStaticTopology) Run(ctx *Context) {
 	for box, _ := range t.boxpointers {
 		(*box).Init(ctx)
+	}
+
+	for _, pipe := range t.pipes {
+		// we can increase the number of running `processItems()`
+		// goroutines to increase process parallelism
+		go pipe.processItems()
 	}
 
 	var wg sync.WaitGroup
@@ -30,6 +36,10 @@ func (t *defaultStaticTopology) Run(ctx *Context) {
 		}(name, source)
 	}
 	wg.Wait()
+	// as a workaround, sleep a bit so that background goroutines can
+	// finish their work (or else all tests will break)
+	// TODO replace this by proper shutdown method
+	time.Sleep(100 * time.Millisecond)
 }
 
 /**************************************************/
@@ -145,9 +155,28 @@ func (tb *defaultStaticTopologyBuilder) makeSequentialPipes() map[string]*sequen
 	return pipes
 }
 
+func (tb *defaultStaticTopologyBuilder) makeCapacityPipes() map[string]*capacityPipe {
+	pipes := make(map[string]*capacityPipe, len(tb.sources)+len(tb.boxes))
+	for name, _ := range tb.sources {
+		pipe := NewCapacityPipe()
+		pipe.FromName = name
+		pipe.ReceiverBoxes = make([]receiverBox, 0)
+		pipe.ReceiverSinks = make([]receiverSink, 0)
+		pipes[name] = pipe
+	}
+	for name, _ := range tb.boxes {
+		pipe := NewCapacityPipe()
+		pipe.FromName = name
+		pipe.ReceiverBoxes = make([]receiverBox, 0)
+		pipe.ReceiverSinks = make([]receiverSink, 0)
+		pipes[name] = pipe
+	}
+	return pipes
+}
+
 func (tb *defaultStaticTopologyBuilder) Build() StaticTopology {
 	// every source and every box gets an "output pipe"
-	pipes := tb.makeSequentialPipes()
+	pipes := tb.makeCapacityPipes()
 	// add the correct receivers to each pipe
 	for _, edge := range tb.Edges {
 		fromName := edge.From
@@ -232,6 +261,91 @@ func (p *sequentialPipe) Write(t *tuple.Tuple) error {
 	}
 	return nil
 }
+
+/**************************************************/
+
+func NewCapacityPipe() *capacityPipe {
+	p := capacityPipe{}
+	p.itemQueue = make(chan *tuple.Tuple)
+	return &p
+}
+
+// receives input from a box and forwards it to registered listeners
+type capacityPipe struct {
+	FromName      string
+	ReceiverBoxes []receiverBox
+	ReceiverSinks []receiverSink
+	itemQueue     chan *tuple.Tuple
+}
+
+func (p *capacityPipe) processItems() {
+	// If an item is put in the queue (and there is no other processing
+	// taking place), that item will be processed immediately.
+	// If we are still in the middle of processing, then this item will
+	// be processed later.
+	// Note that if we increase the capacity of the channel here, then
+	// this pipe will have a buffering functionality, but it will not
+	// increase the parallelism of downstream operations.
+	for t := range p.itemQueue {
+		p.processItem(t)
+	}
+}
+
+func (p *capacityPipe) processItem(t *tuple.Tuple) {
+	// add tracing information
+	out := newDefaultEvent(tuple.OTHER, fmt.Sprintf(
+		"left %s's outpipe queue", p.FromName))
+	t.AddEvent(out)
+	// forward tuple to connected boxes
+	var s *tuple.Tuple
+
+	// copy for all receivers but if this pipe has only
+	// one receiver, there is no need to copy
+	notNeedsCopy := len(p.ReceiverBoxes)+len(p.ReceiverSinks) <= 1
+	for _, recvBox := range p.ReceiverBoxes {
+		if notNeedsCopy {
+			s = t
+		} else {
+			s = t.Copy()
+		}
+		// set the name that the box is expecting
+		s.InputName = recvBox.InputName
+		// add tracing information and hand over to box
+		in := newDefaultEvent(tuple.INPUT, recvBox.Name)
+		s.AddEvent(in)
+		recvBox.Box.Process(s, recvBox.Receiver)
+	}
+	// forward tuple to connected sinks
+	for _, recvSink := range p.ReceiverSinks {
+		if notNeedsCopy {
+			s = t
+		} else {
+			s = t.Copy()
+		}
+		// set the name to "output" to prevent leaking
+		// internal identifiers to a sink
+		s.InputName = "output"
+		// add tracing information and hand over to sink
+		in := newDefaultEvent(tuple.INPUT, recvSink.Name)
+		s.AddEvent(in)
+		recvSink.Sink.Write(s)
+	}
+}
+
+func (p *capacityPipe) Write(t *tuple.Tuple) error {
+	// add tracing information
+	out := newDefaultEvent(tuple.OUTPUT, p.FromName)
+	t.AddEvent(out)
+	// When Write is called, we add this tuple to our processing channel.
+	// If the queue
+	// - has free capacity or
+	// - there is no item currently processed
+	// then this function will return immediately, otherwise block.
+	p.itemQueue <- t
+	return nil
+}
+
+/**************************************************/
 
 func newDefaultEvent(inout tuple.EventType, msg string) tuple.TraceEvent {
 	return tuple.TraceEvent{
