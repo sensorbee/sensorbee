@@ -5,7 +5,7 @@ import (
 )
 
 // DoesNothingSource is a dummy source that literally does nothing.
-// It just filfills the Source interface so that we can build a
+// It just fulfills the Source interface so that we can build a
 // simple topology.
 type DoesNothingSource struct{}
 
@@ -19,7 +19,7 @@ func (s *DoesNothingSource) Schema() *Schema {
 /**************************************************/
 
 // DoesNothingBox is a dummy source that literally does nothing.
-// It just filfills the Box interface so that we can build a
+// It just fulfills the Box interface so that we can build a
 // simple topology.
 type DoesNothingBox struct {
 }
@@ -40,7 +40,7 @@ func (b *DoesNothingBox) OutputSchema(s []*Schema) (*Schema, error) {
 /**************************************************/
 
 // DoesNothingSink is a dummy source that literally does nothing.
-// It just filfills the Sink interface so that we can build a
+// It just fulfills the Sink interface so that we can build a
 // simple topology.
 type DoesNothingSink struct{}
 
