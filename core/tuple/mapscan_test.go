@@ -129,3 +129,83 @@ func TestScanMap(t *testing.T) {
 		})
 	})
 }
+
+func TestGetArrayIndex(t *testing.T) {
+	Convey("Given strings including array index", t, func() {
+		s := "[0]aaa[1]"
+		Convey("Then return valid index", func() {
+			index1 := getArrayIndex([]rune(s), 1)
+			index2 := getArrayIndex([]rune(s), 7)
+			So(index1, ShouldEqual, "[0]")
+			So(index2, ShouldEqual, "[1]")
+		})
+		Convey("Then return empty index", func() {
+			index1 := getArrayIndex([]rune(s), 0)
+			index2 := getArrayIndex([]rune(s), 2)
+			So(index1, ShouldEqual, "")
+			So(index2, ShouldEqual, "")
+
+		})
+	})
+}
+
+func TestSplitBracket(t *testing.T) {
+	Convey("Given strings start with bracket", t, func() {
+		Convey("When valid expressions", func() {
+			s := []string{`[""]abc`, `["a"]"]`, `['a']['`, `["ab\"]`, `["a]b"]`, `["a"b"]`}
+			Convey("Then return inner strings", func() {
+				expects := []string{"", "a", "a", "ab\\", "a]b", "a\"b"}
+				actuals := make([]string, len(s))
+				actuals[0] = splitBracket([]rune(s[0]), 2, '"')
+				actuals[1] = splitBracket([]rune(s[1]), 2, '"')
+				actuals[2] = splitBracket([]rune(s[2]), 2, '\'')
+				actuals[3] = splitBracket([]rune(s[3]), 2, '"')
+				actuals[4] = splitBracket([]rune(s[4]), 2, '"')
+				actuals[5] = splitBracket([]rune(s[5]), 2, '"')
+				for i, a := range actuals {
+					So(a, ShouldEqual, expects[i])
+				}
+			})
+		})
+		Convey("When invalid invalid expressions", func() {
+			s := []string{`["a`, `['a`, `['a"]`, `["ab']`, `["a]`, `["a"`}
+			Convey("Then return inner strings", func() {
+				actuals := make([]string, len(s))
+				actuals[0] = splitBracket([]rune(s[0]), 2, '"')
+				actuals[1] = splitBracket([]rune(s[1]), 2, '\'')
+				actuals[2] = splitBracket([]rune(s[2]), 2, '\'')
+				actuals[3] = splitBracket([]rune(s[3]), 2, '"')
+				actuals[4] = splitBracket([]rune(s[4]), 2, '"')
+				actuals[5] = splitBracket([]rune(s[5]), 2, '"')
+				for _, a := range actuals {
+					So(a, ShouldEqual, "")
+				}
+			})
+		})
+	})
+}
+
+func TestSplit(t *testing.T) {
+	Convey("Given path expressions", t, func() {
+		Convey("When valid expressions", func() {
+			phrase1 := `path1.pa\.th2.[pa]th3["path4"]['path5'][0]path6[0]`
+			phrase2 := `path1..path2.["path3\"].['pat.h4'].path5`
+			phrase3 := `path1["path1']`
+			phrase4 := `path2['path2"]`
+			Convey("Then split", func() {
+				expected1 := []string{"path1", "pa.th2", "[pa]th3", "path4", "path5[0]", "path6[0]"}
+				expected2 := []string{"path1", "path2", "path3\\", "pat.h4", "path5"}
+				expected3 := []string{"path1[\"path1']"}
+				expected4 := []string{"path2['path2\"]"}
+				actual1 := split(phrase1)
+				actual2 := split(phrase2)
+				actual3 := split(phrase3)
+				actual4 := split(phrase4)
+				So(actual1, ShouldResemble, expected1)
+				So(actual2, ShouldResemble, expected2)
+				So(actual3, ShouldResemble, expected3)
+				So(actual4, ShouldResemble, expected4)
+			})
+		})
+	})
+}
