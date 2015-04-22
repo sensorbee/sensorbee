@@ -138,7 +138,6 @@ func TestDefaultTopologyTupleTracing(t *testing.T) {
 					aRoutes = append(aRoutes, strings.Join(aRoute, "->"))
 				}
 				So(len(si2.Tuples), ShouldEqual, 4)
-				//fmt.Println(aRoutes[0])
 				So(len(aRoutes), ShouldEqual, 4)
 				So(aRoutes, ShouldContain, eRoutes[0])
 				So(aRoutes, ShouldContain, eRoutes[1])
