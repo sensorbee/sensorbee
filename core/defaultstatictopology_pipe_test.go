@@ -289,19 +289,19 @@ func TestCapacityPipe(t *testing.T) {
 			/* Processing should happen as follows:
 			 *
 			 * t ------------------------------------------------>
-			 * so:  | t1 | t2                  | t3                  | t4                  |
-			 * b1:       | t1 .. ;             | t2 .. ;             | t3 .. ;             | t4 .. ;
-			 * si1:              | t1;                 | t2;                 | t3;                 | t4;
-			 * b2:               | t1 .... ;           | t2 .... ;           | t3 .... ;           | t4 ....
-			 * si2:                        | t1;                 | t2;                 | t3;
+			 * so:  | t1 | t2      | t3      | t4      |
+			 * b1:       | t1 .. ; | t2 .. ; | t3 .. ; | t4
+			 * si1:              | t1;     | t2;     | t3;
+			 * b2:       | t1 .... | t2 .... | t3 .... | t4 ....
+			 * si2:                | t1;     | t2;     | t3;
 			 */
 
 			/*
 				 That is,
 				 - at the so-pipe, the waiting time is
 				   - about 0 for the first tuple (is handed over immediately)
-				   - about 400ms for every other item (needs to wait for subsequent
-					 b1-processing (100ms) and b2-processing (300ms) of
+				   - about 300ms for every other item (needs to wait for parallel
+					b1-processing (100ms) and b2-processing (300ms) of
 					 (n-1)-th item to finish)
 				 - at the b1-pipe, the waiting time is about 0 every time
 				 - at the b2-pipe, the waiting time is about 0 every time
@@ -324,9 +324,9 @@ func TestCapacityPipe(t *testing.T) {
 					tup3Wait := si1.Tuples[2].Trace[1].Timestamp.Sub(si1.Tuples[2].Trace[0].Timestamp)
 					tup4Wait := si1.Tuples[3].Trace[1].Timestamp.Sub(si1.Tuples[3].Trace[0].Timestamp)
 					So(tup1Wait, ShouldAlmostEqual, 0*time.Millisecond, time.Millisecond)
-					So(tup2Wait, ShouldAlmostEqual, 400*time.Millisecond, time.Millisecond)
-					So(tup3Wait, ShouldAlmostEqual, 400*time.Millisecond, time.Millisecond)
-					So(tup4Wait, ShouldAlmostEqual, 400*time.Millisecond, time.Millisecond)
+					So(tup2Wait, ShouldAlmostEqual, 300*time.Millisecond, time.Millisecond)
+					So(tup3Wait, ShouldAlmostEqual, 300*time.Millisecond, time.Millisecond)
+					So(tup4Wait, ShouldAlmostEqual, 300*time.Millisecond, time.Millisecond)
 				}
 				{
 					// so-b2-si2 path
@@ -335,9 +335,9 @@ func TestCapacityPipe(t *testing.T) {
 					tup3Wait := si2.Tuples[2].Trace[1].Timestamp.Sub(si2.Tuples[2].Trace[0].Timestamp)
 					tup4Wait := si2.Tuples[3].Trace[1].Timestamp.Sub(si2.Tuples[3].Trace[0].Timestamp)
 					So(tup1Wait, ShouldAlmostEqual, 0*time.Millisecond, time.Millisecond)
-					So(tup2Wait, ShouldAlmostEqual, 400*time.Millisecond, time.Millisecond)
-					So(tup3Wait, ShouldAlmostEqual, 400*time.Millisecond, time.Millisecond)
-					So(tup4Wait, ShouldAlmostEqual, 400*time.Millisecond, time.Millisecond)
+					So(tup2Wait, ShouldAlmostEqual, 300*time.Millisecond, time.Millisecond)
+					So(tup3Wait, ShouldAlmostEqual, 300*time.Millisecond, time.Millisecond)
+					So(tup4Wait, ShouldAlmostEqual, 300*time.Millisecond, time.Millisecond)
 				}
 
 				// b1 pipe: 0
