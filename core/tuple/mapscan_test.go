@@ -147,7 +147,7 @@ func TestScanMap(t *testing.T) {
 				err5 := scanMap(testData, `map['nestedstring"]`, &x5)
 				err6 := scanMap(testData, `map[nested.string]`, &x6)
 				So(err1, ShouldNotBeNil)
-				SkipSo(err2, ShouldNotBeNil)
+				SkipSo(err2, ShouldNotBeNil) // currently invalid path
 				So(err3, ShouldNotBeNil)
 				So(err4, ShouldNotBeNil)
 				So(err5, ShouldNotBeNil)
