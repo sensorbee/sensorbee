@@ -126,8 +126,7 @@ func (tb *defaultStaticTopologyBuilder) AddSink(name string, sink Sink) SinkDecl
 	return &defaultSinkDeclarer{tb, name, sink, nil}
 }
 
-func (tb *defaultStaticTopologyBuilder) Build() StaticTopology {
-	// every source and every box gets an "output pipe"
+func (tb *defaultStaticTopologyBuilder) makeSequentialPipes() map[string]*sequentialPipe {
 	pipes := make(map[string]*sequentialPipe, len(tb.sources)+len(tb.boxes))
 	for name, _ := range tb.sources {
 		pipe := sequentialPipe{}
@@ -143,6 +142,12 @@ func (tb *defaultStaticTopologyBuilder) Build() StaticTopology {
 		pipe.ReceiverSinks = make([]receiverSink, 0)
 		pipes[name] = &pipe
 	}
+	return pipes
+}
+
+func (tb *defaultStaticTopologyBuilder) Build() StaticTopology {
+	// every source and every box gets an "output pipe"
+	pipes := tb.makeSequentialPipes()
 	// add the correct receivers to each pipe
 	for _, edge := range tb.Edges {
 		fromName := edge.From
