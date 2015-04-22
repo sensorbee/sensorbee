@@ -302,6 +302,9 @@ func (p *capacityPipe) processItem(t *tuple.Tuple) {
 	// copy for all receivers but if this pipe has only
 	// one receiver, there is no need to copy
 	notNeedsCopy := len(p.ReceiverBoxes)+len(p.ReceiverSinks) <= 1
+	// we launch all child processing in parallel and wait
+	// until it is done
+	var wg sync.WaitGroup
 	for _, recvBox := range p.ReceiverBoxes {
 		if notNeedsCopy {
 			s = t
@@ -313,7 +316,12 @@ func (p *capacityPipe) processItem(t *tuple.Tuple) {
 		// add tracing information and hand over to box
 		in := newDefaultEvent(tuple.INPUT, recvBox.Name)
 		s.AddEvent(in)
-		recvBox.Box.Process(s, recvBox.Receiver)
+		// launch box processing in the background
+		wg.Add(1)
+		go func(rb receiverBox, tup *tuple.Tuple) {
+			defer wg.Done()
+			rb.Box.Process(tup, rb.Receiver)
+		}(recvBox, s)
 	}
 	// forward tuple to connected sinks
 	for _, recvSink := range p.ReceiverSinks {
@@ -328,8 +336,15 @@ func (p *capacityPipe) processItem(t *tuple.Tuple) {
 		// add tracing information and hand over to sink
 		in := newDefaultEvent(tuple.INPUT, recvSink.Name)
 		s.AddEvent(in)
-		recvSink.Sink.Write(s)
+		// launch sink processing in the background
+		wg.Add(1)
+		go func(rs receiverSink, tup *tuple.Tuple) {
+			defer wg.Done()
+			rs.Sink.Write(tup)
+		}(recvSink, s)
 	}
+	// wait for processing to end
+	wg.Wait()
 }
 
 func (p *capacityPipe) Write(t *tuple.Tuple) error {
