@@ -366,6 +366,114 @@ func TestCapacityPipe(t *testing.T) {
 			})
 		})
 	})
+
+	Convey("Given a simple source/box/sink topology with 2 sources", t, func() {
+		/*
+		 *   so1 -*-\
+		 *           --> b -*--> si
+		 *   so2 -*-/
+		 */
+		tb := NewDefaultStaticTopologyBuilder()
+
+		so1 := &TupleEmitterSource{
+			Tuples: freshTuples()[0:3],
+		}
+		tb.AddSource("source1", so1)
+
+		so2 := &TupleEmitterSource{
+			Tuples: freshTuples()[1:4],
+		}
+		tb.AddSource("source2", so2)
+
+		b1 := BoxFunc(slowForwardBox)
+		tb.AddBox("box", b1).
+			Input("source1").
+			Input("source2")
+		si := &TupleCollectorSink{}
+		tb.AddSink("si", si).Input("box")
+
+		t := tb.Build()
+
+		Convey("When three tuples are emitted by each source", func() {
+			t.Run(&Context{})
+			// wait until tuples arrived
+			loopTimeout := 30
+			i := 0
+			for i = 0; i < loopTimeout; i++ {
+				if len(si.Tuples) >= len(so1.Tuples)+len(so2.Tuples) {
+					break
+				}
+				time.Sleep(100 * time.Millisecond)
+			}
+			So(i, ShouldBeLessThan, loopTimeout)
+
+			/* Processing should happen as follows:
+			 *
+			 * t ------------------------------------------------>
+			 * so1:  | t1 | t2    | t3     |
+			 * so2:  | t2 | t3    | t4     |
+			 * b:         | t1 .. | t2 ..  | t3 ..  |
+			 *            \ t2 .. | t3 ..  | t4 ..  |
+			 * si:                | t1+t2; | t2+t3; | t3+t4;
+			 *
+			 * (b is processing multiple tuples at a time)
+			 */
+
+			/*
+			 That is,
+			 - at the so1-pipe, the waiting time is
+			   - about 0 for the first tuple (is handed over immediately)
+			   - about 100ms for every other tuple (needs to wait for
+			     b-processing of (n-1)-th item to finish)
+			 - at the so2-pipe, the waiting time is
+			   - about 0 for the first tuple (is handed over immediately)
+			   - about 100ms for every other tuple (needs to wait for
+			     b-processing of (n-1)-th item to finish)
+			 - at the b-pipe, the waiting time is about 0 every time
+			*/
+
+			So(si.Tuples, ShouldNotBeNil)
+			So(len(si.Tuples), ShouldEqual, 6)
+
+			So(len(si.Tuples[0].Trace), ShouldEqual, 6) // OUT-OTHER-IN-OUT-OTHER-IN
+
+			Convey("Then waiting time at the intermediate pipes should match", func() {
+				// so1-pipe, so2-pipe: 0/100
+				{
+					// we don't know whether so1's tuple or so2's tuple will arrive
+					// first at the sink, but it does not matter for this check
+					tup1aWait := si.Tuples[0].Trace[1].Timestamp.Sub(si.Tuples[0].Trace[0].Timestamp)
+					tup1bWait := si.Tuples[1].Trace[1].Timestamp.Sub(si.Tuples[1].Trace[0].Timestamp)
+					tup2aWait := si.Tuples[2].Trace[1].Timestamp.Sub(si.Tuples[2].Trace[0].Timestamp)
+					tup2bWait := si.Tuples[3].Trace[1].Timestamp.Sub(si.Tuples[3].Trace[0].Timestamp)
+					tup3aWait := si.Tuples[4].Trace[1].Timestamp.Sub(si.Tuples[4].Trace[0].Timestamp)
+					tup3bWait := si.Tuples[5].Trace[1].Timestamp.Sub(si.Tuples[5].Trace[0].Timestamp)
+					So(tup1aWait, ShouldAlmostEqual, 0*time.Millisecond, time.Millisecond)
+					So(tup1bWait, ShouldAlmostEqual, 0*time.Millisecond, time.Millisecond)
+					So(tup2aWait, ShouldAlmostEqual, 100*time.Millisecond, time.Millisecond)
+					So(tup2bWait, ShouldAlmostEqual, 100*time.Millisecond, time.Millisecond)
+					So(tup3aWait, ShouldAlmostEqual, 100*time.Millisecond, time.Millisecond)
+					So(tup3bWait, ShouldAlmostEqual, 100*time.Millisecond, time.Millisecond)
+				}
+
+				// b-pipe: 0/100
+				{
+					tup1aWait := si.Tuples[0].Trace[4].Timestamp.Sub(si.Tuples[0].Trace[3].Timestamp)
+					tup1bWait := si.Tuples[1].Trace[4].Timestamp.Sub(si.Tuples[1].Trace[3].Timestamp)
+					tup2aWait := si.Tuples[2].Trace[4].Timestamp.Sub(si.Tuples[2].Trace[3].Timestamp)
+					tup2bWait := si.Tuples[3].Trace[4].Timestamp.Sub(si.Tuples[3].Trace[3].Timestamp)
+					tup3aWait := si.Tuples[4].Trace[4].Timestamp.Sub(si.Tuples[4].Trace[3].Timestamp)
+					tup3bWait := si.Tuples[5].Trace[4].Timestamp.Sub(si.Tuples[5].Trace[3].Timestamp)
+					So(tup1aWait, ShouldAlmostEqual, 0*time.Millisecond, time.Millisecond)
+					So(tup1bWait, ShouldAlmostEqual, 0*time.Millisecond, time.Millisecond)
+					So(tup2aWait, ShouldAlmostEqual, 0*time.Millisecond, time.Millisecond)
+					So(tup2bWait, ShouldAlmostEqual, 0*time.Millisecond, time.Millisecond)
+					So(tup3aWait, ShouldAlmostEqual, 0*time.Millisecond, time.Millisecond)
+					So(tup3bWait, ShouldAlmostEqual, 0*time.Millisecond, time.Millisecond)
+				}
+			})
+		})
+	})
 }
 
 func slowForwardBox(t *tuple.Tuple, w Writer) error {
