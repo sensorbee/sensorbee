@@ -9,7 +9,8 @@ import (
 // processing starts according to specific application needs
 // (e.g., central log collection) and passed in to StaticTopology.Run().
 type Context struct {
-	Logger LogManager
+	Logger      LogManager
+	Parallelism int
 }
 
 type LogLevel int
