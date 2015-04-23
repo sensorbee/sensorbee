@@ -22,9 +22,15 @@ func (t *defaultStaticTopology) Run(ctx *Context) {
 	}
 
 	for _, pipe := range t.pipes {
-		// we can increase the number of running `processItems()`
-		// goroutines to increase process parallelism
-		go pipe.processItems()
+		// launch as many processing goroutines as the degree of
+		// parallelism requires (but at least one)
+		par := 1
+		if ctx.Parallelism > 1 {
+			par = ctx.Parallelism
+		}
+		for i := 0; i < par; i++ {
+			go pipe.processItems()
+		}
 	}
 
 	var wg sync.WaitGroup
