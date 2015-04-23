@@ -8,31 +8,28 @@ import (
 )
 
 func freshTuples() []*tuple.Tuple {
-	tup1 := tuple.Tuple{
+	tup1 := &tuple.Tuple{
 		Data: tuple.Map{
 			"seq": tuple.Int(1),
 		},
 		InputName: "input",
 	}
-	tup2 := tuple.Tuple{
-		Data: tuple.Map{
-			"seq": tuple.Int(2),
-		},
-		InputName: "input",
-	}
-	tup3 := tuple.Tuple{
-		Data: tuple.Map{
-			"seq": tuple.Int(3),
-		},
-		InputName: "input",
-	}
-	tup4 := tuple.Tuple{
-		Data: tuple.Map{
-			"seq": tuple.Int(4),
-		},
-		InputName: "input",
-	}
-	return []*tuple.Tuple{&tup1, &tup2, &tup3, &tup4}
+	tup2 := tup1.Copy()
+	tup2.Data["seq"] = tuple.Int(2)
+	tup3 := tup1.Copy()
+	tup3.Data["seq"] = tuple.Int(3)
+	tup4 := tup1.Copy()
+	tup4.Data["seq"] = tuple.Int(4)
+	tup5 := tup1.Copy()
+	tup5.Data["seq"] = tuple.Int(5)
+	tup6 := tup1.Copy()
+	tup6.Data["seq"] = tuple.Int(6)
+	tup7 := tup1.Copy()
+	tup7.Data["seq"] = tuple.Int(7)
+	tup8 := tup1.Copy()
+	tup8.Data["seq"] = tuple.Int(8)
+	return []*tuple.Tuple{tup1, tup2, tup3, tup4,
+		tup5, tup6, tup7, tup8}
 }
 
 func TestCapacityPipe(t *testing.T) {
@@ -62,7 +59,7 @@ func TestCapacityPipe(t *testing.T) {
 
 		t := tb.Build()
 
-		Convey("When four tuples are emitted by the source", func() {
+		Convey("When tuples are emitted by the source with parallelism = 1", func() {
 			t.Run(&Context{})
 			// wait until tuples arrived
 			loopTimeout := 30
@@ -101,7 +98,7 @@ func TestCapacityPipe(t *testing.T) {
 			*/
 
 			So(si.Tuples, ShouldNotBeNil)
-			So(len(si.Tuples), ShouldEqual, 4)
+			So(len(si.Tuples), ShouldEqual, 8)
 
 			So(len(si.Tuples[0].Trace), ShouldEqual, 9) // OUT-OTHER-IN-OUT-OTHER-IN-OUT-OTHER-IN
 
@@ -128,6 +125,81 @@ func TestCapacityPipe(t *testing.T) {
 					So(tup2Wait, ShouldAlmostEqual, 200*time.Millisecond, time.Millisecond)
 					So(tup3Wait, ShouldAlmostEqual, 200*time.Millisecond, time.Millisecond)
 					So(tup4Wait, ShouldAlmostEqual, 200*time.Millisecond, time.Millisecond)
+				}
+
+				// third pipe: 0
+				{
+					tup1Wait := si.Tuples[0].Trace[7].Timestamp.Sub(si.Tuples[0].Trace[6].Timestamp)
+					tup2Wait := si.Tuples[1].Trace[7].Timestamp.Sub(si.Tuples[1].Trace[6].Timestamp)
+					tup3Wait := si.Tuples[2].Trace[7].Timestamp.Sub(si.Tuples[2].Trace[6].Timestamp)
+					tup4Wait := si.Tuples[3].Trace[7].Timestamp.Sub(si.Tuples[3].Trace[6].Timestamp)
+					So(tup1Wait, ShouldAlmostEqual, 0*time.Millisecond, time.Millisecond)
+					So(tup2Wait, ShouldAlmostEqual, 0*time.Millisecond, time.Millisecond)
+					So(tup3Wait, ShouldAlmostEqual, 0*time.Millisecond, time.Millisecond)
+					So(tup4Wait, ShouldAlmostEqual, 0*time.Millisecond, time.Millisecond)
+				}
+			})
+		})
+
+		Convey("When tuples are emitted by the source with parallelism = 2", func() {
+			t.Run(&Context{Parallelism: 2})
+			// wait until tuples arrived
+			loopTimeout := 30
+			i := 0
+			for i = 0; i < loopTimeout; i++ {
+				if len(si.Tuples) >= len(so.Tuples) {
+					break
+				}
+				time.Sleep(100 * time.Millisecond)
+			}
+			So(i, ShouldBeLessThan, loopTimeout)
+
+			// (processing diagram can hardly be drawn using ASCII art)
+
+			So(si.Tuples, ShouldNotBeNil)
+			So(len(si.Tuples), ShouldEqual, 8)
+
+			So(len(si.Tuples[0].Trace), ShouldEqual, 9) // OUT-OTHER-IN-OUT-OTHER-IN-OUT-OTHER-IN
+
+			Convey("Then waiting time at the intermediate pipes should match", func() {
+				// first pipe: 0/0/100/0/300/0/300/0
+				{
+					tup1Wait := si.Tuples[0].Trace[1].Timestamp.Sub(si.Tuples[0].Trace[0].Timestamp)
+					tup2Wait := si.Tuples[1].Trace[1].Timestamp.Sub(si.Tuples[1].Trace[0].Timestamp)
+					tup3Wait := si.Tuples[2].Trace[1].Timestamp.Sub(si.Tuples[2].Trace[0].Timestamp)
+					tup4Wait := si.Tuples[3].Trace[1].Timestamp.Sub(si.Tuples[3].Trace[0].Timestamp)
+					tup5Wait := si.Tuples[4].Trace[1].Timestamp.Sub(si.Tuples[4].Trace[0].Timestamp)
+					tup6Wait := si.Tuples[5].Trace[1].Timestamp.Sub(si.Tuples[5].Trace[0].Timestamp)
+					tup7Wait := si.Tuples[6].Trace[1].Timestamp.Sub(si.Tuples[6].Trace[0].Timestamp)
+					tup8Wait := si.Tuples[7].Trace[1].Timestamp.Sub(si.Tuples[7].Trace[0].Timestamp)
+					So(tup1Wait, ShouldAlmostEqual, 0*time.Millisecond, time.Millisecond)
+					So(tup2Wait, ShouldAlmostEqual, 0*time.Millisecond, time.Millisecond)
+					So(tup3Wait, ShouldAlmostEqual, 100*time.Millisecond, time.Millisecond)
+					So(tup4Wait, ShouldAlmostEqual, 0*time.Millisecond, time.Millisecond)
+					So(tup5Wait, ShouldAlmostEqual, 300*time.Millisecond, time.Millisecond)
+					So(tup6Wait, ShouldAlmostEqual, 0*time.Millisecond, time.Millisecond)
+					So(tup7Wait, ShouldAlmostEqual, 300*time.Millisecond, time.Millisecond)
+					So(tup8Wait, ShouldAlmostEqual, 0*time.Millisecond, time.Millisecond)
+				}
+
+				// second pipe: 0/0/200/...
+				{
+					tup1Wait := si.Tuples[0].Trace[4].Timestamp.Sub(si.Tuples[0].Trace[3].Timestamp)
+					tup2Wait := si.Tuples[1].Trace[4].Timestamp.Sub(si.Tuples[1].Trace[3].Timestamp)
+					tup3Wait := si.Tuples[2].Trace[4].Timestamp.Sub(si.Tuples[2].Trace[3].Timestamp)
+					tup4Wait := si.Tuples[3].Trace[4].Timestamp.Sub(si.Tuples[3].Trace[3].Timestamp)
+					tup5Wait := si.Tuples[4].Trace[4].Timestamp.Sub(si.Tuples[4].Trace[3].Timestamp)
+					tup6Wait := si.Tuples[5].Trace[4].Timestamp.Sub(si.Tuples[5].Trace[3].Timestamp)
+					tup7Wait := si.Tuples[6].Trace[4].Timestamp.Sub(si.Tuples[6].Trace[3].Timestamp)
+					tup8Wait := si.Tuples[7].Trace[4].Timestamp.Sub(si.Tuples[7].Trace[3].Timestamp)
+					So(tup1Wait, ShouldAlmostEqual, 0*time.Millisecond, time.Millisecond)
+					So(tup2Wait, ShouldAlmostEqual, 0*time.Millisecond, time.Millisecond)
+					So(tup3Wait, ShouldAlmostEqual, 200*time.Millisecond, time.Millisecond)
+					So(tup4Wait, ShouldAlmostEqual, 200*time.Millisecond, time.Millisecond)
+					So(tup5Wait, ShouldAlmostEqual, 200*time.Millisecond, time.Millisecond)
+					So(tup6Wait, ShouldAlmostEqual, 200*time.Millisecond, time.Millisecond)
+					So(tup7Wait, ShouldAlmostEqual, 200*time.Millisecond, time.Millisecond)
+					So(tup8Wait, ShouldAlmostEqual, 200*time.Millisecond, time.Millisecond)
 				}
 
 				// third pipe: 0
@@ -170,7 +242,7 @@ func TestCapacityPipe(t *testing.T) {
 
 		t := tb.Build()
 
-		Convey("When four tuples are emitted by the source", func() {
+		Convey("When tuples are emitted by the source with parallelism = 1", func() {
 			t.Run(&Context{})
 			// wait until tuples arrived
 			loopTimeout := 30
@@ -204,7 +276,7 @@ func TestCapacityPipe(t *testing.T) {
 			*/
 
 			So(si.Tuples, ShouldNotBeNil)
-			So(len(si.Tuples), ShouldEqual, 4)
+			So(len(si.Tuples), ShouldEqual, 8)
 
 			So(len(si.Tuples[0].Trace), ShouldEqual, 9) // OUT-OTHER-IN-OUT-OTHER-IN-OUT-OTHER-IN
 
@@ -219,6 +291,73 @@ func TestCapacityPipe(t *testing.T) {
 					So(tup2Wait, ShouldAlmostEqual, 300*time.Millisecond, time.Millisecond)
 					So(tup3Wait, ShouldAlmostEqual, 300*time.Millisecond, time.Millisecond)
 					So(tup4Wait, ShouldAlmostEqual, 300*time.Millisecond, time.Millisecond)
+				}
+
+				// second pipe: 0
+				{
+					tup1Wait := si.Tuples[0].Trace[4].Timestamp.Sub(si.Tuples[0].Trace[3].Timestamp)
+					tup2Wait := si.Tuples[1].Trace[4].Timestamp.Sub(si.Tuples[1].Trace[3].Timestamp)
+					tup3Wait := si.Tuples[2].Trace[4].Timestamp.Sub(si.Tuples[2].Trace[3].Timestamp)
+					tup4Wait := si.Tuples[3].Trace[4].Timestamp.Sub(si.Tuples[3].Trace[3].Timestamp)
+					So(tup1Wait, ShouldAlmostEqual, 0*time.Millisecond, time.Millisecond)
+					So(tup2Wait, ShouldAlmostEqual, 0*time.Millisecond, time.Millisecond)
+					So(tup3Wait, ShouldAlmostEqual, 0*time.Millisecond, time.Millisecond)
+					So(tup4Wait, ShouldAlmostEqual, 0*time.Millisecond, time.Millisecond)
+				}
+
+				// third pipe: 0
+				{
+					tup1Wait := si.Tuples[0].Trace[7].Timestamp.Sub(si.Tuples[0].Trace[6].Timestamp)
+					tup2Wait := si.Tuples[1].Trace[7].Timestamp.Sub(si.Tuples[1].Trace[6].Timestamp)
+					tup3Wait := si.Tuples[2].Trace[7].Timestamp.Sub(si.Tuples[2].Trace[6].Timestamp)
+					tup4Wait := si.Tuples[3].Trace[7].Timestamp.Sub(si.Tuples[3].Trace[6].Timestamp)
+					So(tup1Wait, ShouldAlmostEqual, 0*time.Millisecond, time.Millisecond)
+					So(tup2Wait, ShouldAlmostEqual, 0*time.Millisecond, time.Millisecond)
+					So(tup3Wait, ShouldAlmostEqual, 0*time.Millisecond, time.Millisecond)
+					So(tup4Wait, ShouldAlmostEqual, 0*time.Millisecond, time.Millisecond)
+				}
+			})
+		})
+
+		Convey("When tuples are emitted by the source with parallelism = 2", func() {
+			t.Run(&Context{Parallelism: 2})
+			// wait until tuples arrived
+			loopTimeout := 30
+			i := 0
+			for i = 0; i < loopTimeout; i++ {
+				if len(si.Tuples) >= len(so.Tuples) {
+					break
+				}
+				time.Sleep(100 * time.Millisecond)
+			}
+			So(i, ShouldBeLessThan, loopTimeout)
+
+			// (processing diagram can hardly be drawn using ASCII art)
+
+			So(si.Tuples, ShouldNotBeNil)
+			So(len(si.Tuples), ShouldEqual, 8)
+
+			So(len(si.Tuples[0].Trace), ShouldEqual, 9) // OUT-OTHER-IN-OUT-OTHER-IN-OUT-OTHER-IN
+
+			Convey("Then waiting time at the intermediate pipes should match", func() {
+				// first pipe: 0/0/300/0/300/0
+				{
+					tup1Wait := si.Tuples[0].Trace[1].Timestamp.Sub(si.Tuples[0].Trace[0].Timestamp)
+					tup2Wait := si.Tuples[1].Trace[1].Timestamp.Sub(si.Tuples[1].Trace[0].Timestamp)
+					tup3Wait := si.Tuples[2].Trace[1].Timestamp.Sub(si.Tuples[2].Trace[0].Timestamp)
+					tup4Wait := si.Tuples[3].Trace[1].Timestamp.Sub(si.Tuples[3].Trace[0].Timestamp)
+					tup5Wait := si.Tuples[4].Trace[1].Timestamp.Sub(si.Tuples[4].Trace[0].Timestamp)
+					tup6Wait := si.Tuples[5].Trace[1].Timestamp.Sub(si.Tuples[5].Trace[0].Timestamp)
+					tup7Wait := si.Tuples[6].Trace[1].Timestamp.Sub(si.Tuples[6].Trace[0].Timestamp)
+					tup8Wait := si.Tuples[7].Trace[1].Timestamp.Sub(si.Tuples[7].Trace[0].Timestamp)
+					So(tup1Wait, ShouldAlmostEqual, 0*time.Millisecond, time.Millisecond)
+					So(tup2Wait, ShouldAlmostEqual, 0*time.Millisecond, time.Millisecond)
+					So(tup3Wait, ShouldAlmostEqual, 300*time.Millisecond, time.Millisecond)
+					So(tup4Wait, ShouldAlmostEqual, 0*time.Millisecond, time.Millisecond)
+					So(tup5Wait, ShouldAlmostEqual, 300*time.Millisecond, time.Millisecond)
+					So(tup6Wait, ShouldAlmostEqual, 0*time.Millisecond, time.Millisecond)
+					So(tup7Wait, ShouldAlmostEqual, 300*time.Millisecond, time.Millisecond)
+					So(tup8Wait, ShouldAlmostEqual, 0*time.Millisecond, time.Millisecond)
 				}
 
 				// second pipe: 0
@@ -272,7 +411,7 @@ func TestCapacityPipe(t *testing.T) {
 
 		t := tb.Build()
 
-		Convey("When four tuples are emitted by the source", func() {
+		Convey("When tuples are emitted by the source with parallelism = 1", func() {
 			t.Run(&Context{})
 			// wait until tuples arrived
 			loopTimeout := 30
@@ -308,9 +447,9 @@ func TestCapacityPipe(t *testing.T) {
 			*/
 
 			So(si1.Tuples, ShouldNotBeNil)
-			So(len(si1.Tuples), ShouldEqual, 4)
+			So(len(si1.Tuples), ShouldEqual, 8)
 			So(si2.Tuples, ShouldNotBeNil)
-			So(len(si2.Tuples), ShouldEqual, 4)
+			So(len(si2.Tuples), ShouldEqual, 8)
 
 			So(len(si1.Tuples[0].Trace), ShouldEqual, 6) // OUT-OTHER-IN-OUT-OTHER-IN
 			So(len(si2.Tuples[0].Trace), ShouldEqual, 6) // OUT-OTHER-IN-OUT-OTHER-IN
@@ -365,6 +504,101 @@ func TestCapacityPipe(t *testing.T) {
 				}
 			})
 		})
+
+		Convey("When tuples are emitted by the source with parallelism = 2", func() {
+			t.Run(&Context{Parallelism: 2})
+			// wait until tuples arrived
+			loopTimeout := 30
+			i := 0
+			for i = 0; i < loopTimeout; i++ {
+				if len(si1.Tuples) >= len(so.Tuples) &&
+					len(si2.Tuples) >= len(so.Tuples) {
+					break
+				}
+				time.Sleep(100 * time.Millisecond)
+			}
+			So(i, ShouldBeLessThan, loopTimeout)
+
+			// (processing diagram can hardly be drawn using ASCII art)
+
+			So(si1.Tuples, ShouldNotBeNil)
+			So(len(si1.Tuples), ShouldEqual, 8)
+			So(si2.Tuples, ShouldNotBeNil)
+			So(len(si2.Tuples), ShouldEqual, 8)
+
+			So(len(si1.Tuples[0].Trace), ShouldEqual, 6) // OUT-OTHER-IN-OUT-OTHER-IN
+			So(len(si2.Tuples[0].Trace), ShouldEqual, 6) // OUT-OTHER-IN-OUT-OTHER-IN
+
+			Convey("Then waiting time at the intermediate pipes should match", func() {
+				// so-pipe: 0/0/300/0/300/0
+				{
+					// so-b1-si1 path
+					{
+						si := si1
+						tup1Wait := si.Tuples[0].Trace[1].Timestamp.Sub(si.Tuples[0].Trace[0].Timestamp)
+						tup2Wait := si.Tuples[1].Trace[1].Timestamp.Sub(si.Tuples[1].Trace[0].Timestamp)
+						tup3Wait := si.Tuples[2].Trace[1].Timestamp.Sub(si.Tuples[2].Trace[0].Timestamp)
+						tup4Wait := si.Tuples[3].Trace[1].Timestamp.Sub(si.Tuples[3].Trace[0].Timestamp)
+						tup5Wait := si.Tuples[4].Trace[1].Timestamp.Sub(si.Tuples[4].Trace[0].Timestamp)
+						tup6Wait := si.Tuples[5].Trace[1].Timestamp.Sub(si.Tuples[5].Trace[0].Timestamp)
+						tup7Wait := si.Tuples[6].Trace[1].Timestamp.Sub(si.Tuples[6].Trace[0].Timestamp)
+						tup8Wait := si.Tuples[7].Trace[1].Timestamp.Sub(si.Tuples[7].Trace[0].Timestamp)
+						So(tup1Wait, ShouldAlmostEqual, 0*time.Millisecond, time.Millisecond)
+						So(tup2Wait, ShouldAlmostEqual, 0*time.Millisecond, time.Millisecond)
+						So(tup3Wait, ShouldAlmostEqual, 300*time.Millisecond, time.Millisecond)
+						So(tup4Wait, ShouldAlmostEqual, 0*time.Millisecond, time.Millisecond)
+						So(tup5Wait, ShouldAlmostEqual, 300*time.Millisecond, time.Millisecond)
+						So(tup6Wait, ShouldAlmostEqual, 0*time.Millisecond, time.Millisecond)
+						So(tup7Wait, ShouldAlmostEqual, 300*time.Millisecond, time.Millisecond)
+						So(tup8Wait, ShouldAlmostEqual, 0*time.Millisecond, time.Millisecond)
+					}
+					// so-b2-si2 path
+					{
+						si := si2
+						tup1Wait := si.Tuples[0].Trace[1].Timestamp.Sub(si.Tuples[0].Trace[0].Timestamp)
+						tup2Wait := si.Tuples[1].Trace[1].Timestamp.Sub(si.Tuples[1].Trace[0].Timestamp)
+						tup3Wait := si.Tuples[2].Trace[1].Timestamp.Sub(si.Tuples[2].Trace[0].Timestamp)
+						tup4Wait := si.Tuples[3].Trace[1].Timestamp.Sub(si.Tuples[3].Trace[0].Timestamp)
+						tup5Wait := si.Tuples[4].Trace[1].Timestamp.Sub(si.Tuples[4].Trace[0].Timestamp)
+						tup6Wait := si.Tuples[5].Trace[1].Timestamp.Sub(si.Tuples[5].Trace[0].Timestamp)
+						tup7Wait := si.Tuples[6].Trace[1].Timestamp.Sub(si.Tuples[6].Trace[0].Timestamp)
+						tup8Wait := si.Tuples[7].Trace[1].Timestamp.Sub(si.Tuples[7].Trace[0].Timestamp)
+						So(tup1Wait, ShouldAlmostEqual, 0*time.Millisecond, time.Millisecond)
+						So(tup2Wait, ShouldAlmostEqual, 0*time.Millisecond, time.Millisecond)
+						So(tup3Wait, ShouldAlmostEqual, 300*time.Millisecond, time.Millisecond)
+						So(tup4Wait, ShouldAlmostEqual, 0*time.Millisecond, time.Millisecond)
+						So(tup5Wait, ShouldAlmostEqual, 300*time.Millisecond, time.Millisecond)
+						So(tup6Wait, ShouldAlmostEqual, 0*time.Millisecond, time.Millisecond)
+						So(tup7Wait, ShouldAlmostEqual, 300*time.Millisecond, time.Millisecond)
+						So(tup8Wait, ShouldAlmostEqual, 0*time.Millisecond, time.Millisecond)
+					}
+
+					// b1 pipe: 0
+					{
+						tup1Wait := si1.Tuples[0].Trace[4].Timestamp.Sub(si1.Tuples[0].Trace[3].Timestamp)
+						tup2Wait := si1.Tuples[1].Trace[4].Timestamp.Sub(si1.Tuples[1].Trace[3].Timestamp)
+						tup3Wait := si1.Tuples[2].Trace[4].Timestamp.Sub(si1.Tuples[2].Trace[3].Timestamp)
+						tup4Wait := si1.Tuples[3].Trace[4].Timestamp.Sub(si1.Tuples[3].Trace[3].Timestamp)
+						So(tup1Wait, ShouldAlmostEqual, 0*time.Millisecond, time.Millisecond)
+						So(tup2Wait, ShouldAlmostEqual, 0*time.Millisecond, time.Millisecond)
+						So(tup3Wait, ShouldAlmostEqual, 0*time.Millisecond, time.Millisecond)
+						So(tup4Wait, ShouldAlmostEqual, 0*time.Millisecond, time.Millisecond)
+					}
+
+					// b2 pipe: 0
+					{
+						tup1Wait := si2.Tuples[0].Trace[4].Timestamp.Sub(si2.Tuples[0].Trace[3].Timestamp)
+						tup2Wait := si2.Tuples[1].Trace[4].Timestamp.Sub(si2.Tuples[1].Trace[3].Timestamp)
+						tup3Wait := si2.Tuples[2].Trace[4].Timestamp.Sub(si2.Tuples[2].Trace[3].Timestamp)
+						tup4Wait := si2.Tuples[3].Trace[4].Timestamp.Sub(si2.Tuples[3].Trace[3].Timestamp)
+						So(tup1Wait, ShouldAlmostEqual, 0*time.Millisecond, time.Millisecond)
+						So(tup2Wait, ShouldAlmostEqual, 0*time.Millisecond, time.Millisecond)
+						So(tup3Wait, ShouldAlmostEqual, 0*time.Millisecond, time.Millisecond)
+						So(tup4Wait, ShouldAlmostEqual, 0*time.Millisecond, time.Millisecond)
+					}
+				}
+			})
+		})
 	})
 
 	Convey("Given a simple source/box/sink topology with 2 sources", t, func() {
@@ -376,12 +610,12 @@ func TestCapacityPipe(t *testing.T) {
 		tb := NewDefaultStaticTopologyBuilder()
 
 		so1 := &TupleEmitterSource{
-			Tuples: freshTuples()[0:3],
+			Tuples: freshTuples()[0:4],
 		}
 		tb.AddSource("source1", so1)
 
 		so2 := &TupleEmitterSource{
-			Tuples: freshTuples()[1:4],
+			Tuples: freshTuples()[4:8],
 		}
 		tb.AddSource("source2", so2)
 
@@ -394,7 +628,7 @@ func TestCapacityPipe(t *testing.T) {
 
 		t := tb.Build()
 
-		Convey("When three tuples are emitted by each source", func() {
+		Convey("When tuples are emitted by each source with parallelism = 1", func() {
 			t.Run(&Context{})
 			// wait until tuples arrived
 			loopTimeout := 30
@@ -433,7 +667,7 @@ func TestCapacityPipe(t *testing.T) {
 			*/
 
 			So(si.Tuples, ShouldNotBeNil)
-			So(len(si.Tuples), ShouldEqual, 6)
+			So(len(si.Tuples), ShouldEqual, 8)
 
 			So(len(si.Tuples[0].Trace), ShouldEqual, 6) // OUT-OTHER-IN-OUT-OTHER-IN
 
@@ -454,6 +688,65 @@ func TestCapacityPipe(t *testing.T) {
 					So(tup2bWait, ShouldAlmostEqual, 100*time.Millisecond, time.Millisecond)
 					So(tup3aWait, ShouldAlmostEqual, 100*time.Millisecond, time.Millisecond)
 					So(tup3bWait, ShouldAlmostEqual, 100*time.Millisecond, time.Millisecond)
+				}
+
+				// b-pipe: 0/100
+				{
+					tup1aWait := si.Tuples[0].Trace[4].Timestamp.Sub(si.Tuples[0].Trace[3].Timestamp)
+					tup1bWait := si.Tuples[1].Trace[4].Timestamp.Sub(si.Tuples[1].Trace[3].Timestamp)
+					tup2aWait := si.Tuples[2].Trace[4].Timestamp.Sub(si.Tuples[2].Trace[3].Timestamp)
+					tup2bWait := si.Tuples[3].Trace[4].Timestamp.Sub(si.Tuples[3].Trace[3].Timestamp)
+					tup3aWait := si.Tuples[4].Trace[4].Timestamp.Sub(si.Tuples[4].Trace[3].Timestamp)
+					tup3bWait := si.Tuples[5].Trace[4].Timestamp.Sub(si.Tuples[5].Trace[3].Timestamp)
+					So(tup1aWait, ShouldAlmostEqual, 0*time.Millisecond, time.Millisecond)
+					So(tup1bWait, ShouldAlmostEqual, 0*time.Millisecond, time.Millisecond)
+					So(tup2aWait, ShouldAlmostEqual, 0*time.Millisecond, time.Millisecond)
+					So(tup2bWait, ShouldAlmostEqual, 0*time.Millisecond, time.Millisecond)
+					So(tup3aWait, ShouldAlmostEqual, 0*time.Millisecond, time.Millisecond)
+					So(tup3bWait, ShouldAlmostEqual, 0*time.Millisecond, time.Millisecond)
+				}
+			})
+		})
+
+		Convey("When tuples are emitted by each source with parallelism = 2", func() {
+			t.Run(&Context{Parallelism: 2})
+			// wait until tuples arrived
+			loopTimeout := 30
+			i := 0
+			for i = 0; i < loopTimeout; i++ {
+				if len(si.Tuples) >= len(so1.Tuples)+len(so2.Tuples) {
+					break
+				}
+				time.Sleep(100 * time.Millisecond)
+			}
+			So(i, ShouldBeLessThan, loopTimeout)
+
+			// (processing diagram can hardly be drawn using ASCII art)
+
+			So(si.Tuples, ShouldNotBeNil)
+			So(len(si.Tuples), ShouldEqual, 8)
+
+			So(len(si.Tuples[0].Trace), ShouldEqual, 6) // OUT-OTHER-IN-OUT-OTHER-IN
+
+			Convey("Then waiting time at the intermediate pipes should match", func() {
+				// so1-pipe, so2-pipe: 0/0/100/0/100/0
+				{
+					tup1aWait := so1.Tuples[0].Trace[1].Timestamp.Sub(so1.Tuples[0].Trace[0].Timestamp)
+					tup1bWait := so2.Tuples[0].Trace[1].Timestamp.Sub(so2.Tuples[0].Trace[0].Timestamp)
+					tup2aWait := so1.Tuples[1].Trace[1].Timestamp.Sub(so1.Tuples[1].Trace[0].Timestamp)
+					tup2bWait := so2.Tuples[1].Trace[1].Timestamp.Sub(so2.Tuples[1].Trace[0].Timestamp)
+					tup3aWait := so1.Tuples[2].Trace[1].Timestamp.Sub(so1.Tuples[2].Trace[0].Timestamp)
+					tup3bWait := so2.Tuples[2].Trace[1].Timestamp.Sub(so2.Tuples[2].Trace[0].Timestamp)
+					tup4aWait := so1.Tuples[3].Trace[1].Timestamp.Sub(so1.Tuples[3].Trace[0].Timestamp)
+					tup4bWait := so2.Tuples[3].Trace[1].Timestamp.Sub(so2.Tuples[3].Trace[0].Timestamp)
+					So(tup1aWait, ShouldAlmostEqual, 0*time.Millisecond, time.Millisecond)
+					So(tup1bWait, ShouldAlmostEqual, 0*time.Millisecond, time.Millisecond)
+					So(tup2aWait, ShouldAlmostEqual, 0*time.Millisecond, time.Millisecond)
+					So(tup2bWait, ShouldAlmostEqual, 0*time.Millisecond, time.Millisecond)
+					So(tup3aWait, ShouldAlmostEqual, 100*time.Millisecond, time.Millisecond)
+					So(tup3bWait, ShouldAlmostEqual, 100*time.Millisecond, time.Millisecond)
+					So(tup4aWait, ShouldAlmostEqual, 0*time.Millisecond, time.Millisecond)
+					So(tup4bWait, ShouldAlmostEqual, 0*time.Millisecond, time.Millisecond)
 				}
 
 				// b-pipe: 0/100
