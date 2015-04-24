@@ -39,6 +39,7 @@ type TypeID int
 
 const (
 	TypeUnknown TypeID = iota
+	TypeNull
 	TypeBool
 	TypeInt
 	TypeFloat
@@ -51,6 +52,8 @@ const (
 
 func (t TypeID) String() string {
 	switch t {
+	case TypeNull:
+		return "null"
 	case TypeBool:
 		return "bool"
 	case TypeInt:
