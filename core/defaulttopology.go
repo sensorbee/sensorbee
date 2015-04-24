@@ -142,25 +142,6 @@ func (tb *defaultStaticTopologyBuilder) AddSink(name string, sink Sink) SinkDecl
 	return &defaultSinkDeclarer{tb, name, sink, nil}
 }
 
-func (tb *defaultStaticTopologyBuilder) makeSequentialPipes() map[string]*sequentialPipe {
-	pipes := make(map[string]*sequentialPipe, len(tb.sources)+len(tb.boxes))
-	for name, _ := range tb.sources {
-		pipe := sequentialPipe{}
-		pipe.FromName = name
-		pipe.ReceiverBoxes = make([]receiverBox, 0)
-		pipe.ReceiverSinks = make([]receiverSink, 0)
-		pipes[name] = &pipe
-	}
-	for name, _ := range tb.boxes {
-		pipe := sequentialPipe{}
-		pipe.FromName = name
-		pipe.ReceiverBoxes = make([]receiverBox, 0)
-		pipe.ReceiverSinks = make([]receiverSink, 0)
-		pipes[name] = &pipe
-	}
-	return pipes
-}
-
 func (tb *defaultStaticTopologyBuilder) makeCapacityPipes() map[string]*capacityPipe {
 	pipes := make(map[string]*capacityPipe, len(tb.sources)+len(tb.boxes))
 	for name, _ := range tb.sources {
@@ -218,54 +199,6 @@ type receiverBox struct {
 type receiverSink struct {
 	Name string
 	Sink Sink
-}
-
-// receives input from a box and forwards it to registered listeners
-type sequentialPipe struct {
-	FromName      string
-	ReceiverBoxes []receiverBox
-	ReceiverSinks []receiverSink
-}
-
-func (p *sequentialPipe) Write(t *tuple.Tuple) error {
-	// add tracing information
-	out := newDefaultEvent(tuple.OUTPUT, p.FromName)
-	t.AddEvent(out)
-	// forward tuple to connected boxes
-	var s *tuple.Tuple
-
-	// copy for all receivers but if this pipe has only
-	// one receiver, there is no need to copy
-	notNeedsCopy := len(p.ReceiverBoxes)+len(p.ReceiverSinks) <= 1
-	for _, recvBox := range p.ReceiverBoxes {
-		if notNeedsCopy {
-			s = t
-		} else {
-			s = t.Copy()
-		}
-		// set the name that the box is expecting
-		s.InputName = recvBox.InputName
-		// add tracing information and hand over to box
-		in := newDefaultEvent(tuple.INPUT, recvBox.Name)
-		s.AddEvent(in)
-		recvBox.Box.Process(s, recvBox.Receiver)
-	}
-	// forward tuple to connected sinks
-	for _, recvSink := range p.ReceiverSinks {
-		if notNeedsCopy {
-			s = t
-		} else {
-			s = t.Copy()
-		}
-		// set the name to "output" to prevent leaking
-		// internal identifiers to a sink
-		s.InputName = "output"
-		// add tracing information and hand over to sink
-		in := newDefaultEvent(tuple.INPUT, recvSink.Name)
-		s.AddEvent(in)
-		recvSink.Sink.Write(s)
-	}
-	return nil
 }
 
 /**************************************************/
