@@ -51,7 +51,8 @@ func (m Map) Copy() Map {
 }
 
 // Get value(s) from a structured Map followed by the path expression.
-// Return error when the path expression is invalid.
+// Return error when the path expression is invalid or the path is not found
+// in Map keys.
 // Value interface can be cast for each types using Value interface's methods.
 // Example:
 //  v, err := map.Get("path")
@@ -75,7 +76,7 @@ func (m Map) Copy() Map {
 //  `store.book[0].title -> get "book name"
 // or
 //  `["store"]`                     -> get store's Map
-//  `["store.name"]`                -> get "store name"
+//  `["store"]["name"]`             -> get "store name"
 //  `["store"]["book"][0]["title"]` -> get "book name"
 //
 func (m Map) Get(path string) (Value, error) {
