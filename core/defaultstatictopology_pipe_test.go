@@ -60,6 +60,7 @@ func TestCapacityPipe(t *testing.T) {
 		t := tb.Build()
 
 		for par := 1; par <= maxPar; par++ {
+			par := par // safer to overlay the loop variable when used in closures
 			Convey(fmt.Sprintf("When tuples are emitted with parallelism %d", par), func() {
 				t.Run(&Context{Parallelism: par})
 
@@ -156,6 +157,7 @@ func TestCapacityPipe(t *testing.T) {
 		t := tb.Build()
 
 		for par := 1; par <= maxPar; par++ {
+			par := par // safer to overlay the loop variable when used in closures
 			Convey(fmt.Sprintf("When tuples are emitted with parallelism %d", par), func() {
 				t.Run(&Context{Parallelism: par})
 
@@ -246,6 +248,7 @@ func TestCapacityPipe(t *testing.T) {
 		t := tb.Build()
 
 		for par := 1; par <= maxPar; par++ {
+			par := par // safer to overlay the loop variable when used in closures
 			Convey(fmt.Sprintf("When tuples are emitted with parallelism %d", par), func() {
 				t.Run(&Context{Parallelism: par})
 
@@ -338,6 +341,7 @@ func TestCapacityPipe(t *testing.T) {
 		t := tb.Build()
 
 		for par := 1; par <= maxPar; par++ {
+			par := par // safer to overlay the loop variable when used in closures
 			Convey(fmt.Sprintf("When tuples are emitted with parallelism %d", par), func() {
 				t.Run(&Context{Parallelism: par})
 
