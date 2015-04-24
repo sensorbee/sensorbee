@@ -115,14 +115,14 @@ func scanMap(m Map, p string, v *Value) (err error) {
 		}
 		submatchStr := matchStr[0]
 		if submatchStr[1] != "" {
-			foundMap := tempMap[submatchStr[1]]
-			if foundMap == nil {
+			foundValue := tempMap[submatchStr[1]]
+			if foundValue == nil {
 				return errors.New(
 					"not found the key in map: " + submatchStr[1])
 			}
-			tempValue = foundMap
-			if foundMap.Type() == TypeMap {
-				tempMap, _ = foundMap.Map()
+			tempValue = foundValue
+			if foundValue.Type() == TypeMap {
+				tempMap, _ = foundValue.Map()
 			}
 		}
 		// get array index number
@@ -144,6 +144,9 @@ func scanMap(m Map, p string, v *Value) (err error) {
 				return errors.New("out of range access: " + token)
 			}
 			tempValue = a[i]
+			if a[i].Type() == TypeMap {
+				tempMap, _ = a[i].Map()
+			}
 		}
 	}
 	*v = tempValue

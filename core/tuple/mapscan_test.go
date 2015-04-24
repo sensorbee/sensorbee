@@ -21,6 +21,7 @@ func TestScanMap(t *testing.T) {
 			"内部マップ":            String("内部ﾏｯﾌﾟ"),
 			"nestedstring":     String("nested hoo"),
 		},
+		"arraymap": Array([]Value{Map{"mappedstring": String("boo")}}),
 	}
 	Convey("Given a Map with values in it", t, func() {
 		Convey("When accessing a empty string key", func() {
@@ -156,24 +157,28 @@ func TestScanMap(t *testing.T) {
 		})
 		Convey("When accessing bracket array holder", func() {
 			Convey("With valid array index should exist", func() {
-				var v1, v2, v3, v4 Value
+				var v1, v2, v3, v4, v5 Value
 				err1 := scanMap(testData, "['array'][0]", &v1)
 				err2 := scanMap(testData, "array[0]", &v2)
 				err3 := scanMap(testData, "array.[0]", &v3)
 				err4 := scanMap(testData, "array[0].", &v4)
+				err5 := scanMap(testData, "['arraymap'][0]['mappedstring']", &v5)
 				So(err1, ShouldBeNil)
 				So(err2, ShouldBeNil)
 				So(err3, ShouldBeNil)
 				So(err4, ShouldBeNil)
+				So(err5, ShouldBeNil)
 				Convey("Then lookup should be match the original value", func() {
 					s1, _ := v1.String()
 					s2, _ := v2.String()
 					s3, _ := v3.String()
 					s4, _ := v4.String()
+					s5, _ := v5.String()
 					So(s1, ShouldEqual, "saysay")
 					So(s2, ShouldEqual, "saysay")
 					So(s3, ShouldEqual, "saysay")
 					So(s4, ShouldEqual, "saysay")
+					So(s5, ShouldEqual, "boo")
 				})
 			})
 			Convey("With invalid array index", func() {
