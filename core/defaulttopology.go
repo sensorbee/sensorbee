@@ -23,13 +23,9 @@ func (t *defaultStaticTopology) Run(ctx *Context) {
 
 	// launch a listener goroutine for each receiver of a pipe
 	for _, pipe := range t.pipes {
-		for _, recvBox := range pipe.ReceiverBoxes {
-			recvBox := recvBox
-			go recvBox.processItems()
-		}
-		for _, recvSink := range pipe.ReceiverSinks {
-			recvSink := recvSink
-			go recvSink.processItems()
+		for _, recv := range pipe.Receivers {
+			recv := recv
+			go recv.ProcessItems()
 		}
 	}
 
@@ -147,15 +143,11 @@ func (tb *defaultStaticTopologyBuilder) makeCapacityPipes() map[string]*capacity
 	for name, _ := range tb.sources {
 		pipe := NewCapacityPipe()
 		pipe.FromName = name
-		pipe.ReceiverBoxes = make([]receiverBox, 0)
-		pipe.ReceiverSinks = make([]receiverSink, 0)
 		pipes[name] = pipe
 	}
 	for name, _ := range tb.boxes {
 		pipe := NewCapacityPipe()
 		pipe.FromName = name
-		pipe.ReceiverBoxes = make([]receiverBox, 0)
-		pipe.ReceiverSinks = make([]receiverSink, 0)
 		pipes[name] = pipe
 	}
 	return pipes
@@ -174,12 +166,12 @@ func (tb *defaultStaticTopologyBuilder) Build() StaticTopology {
 		sink, isSink := tb.sinks[toName]
 		if isSink {
 			recv := receiverSink{toName, sink, make(chan *tuple.Tuple)}
-			pipe.ReceiverSinks = append(pipe.ReceiverSinks, recv)
+			pipe.Receivers = append(pipe.Receivers, &recv)
 		}
 		box, isBox := tb.boxes[toName]
 		if isBox {
 			recv := receiverBox{toName, box, pipes[toName], edge.InputName, make(chan *tuple.Tuple)}
-			pipe.ReceiverBoxes = append(pipe.ReceiverBoxes, recv)
+			pipe.Receivers = append(pipe.Receivers, &recv)
 		}
 	}
 	// TODO source and sink is reference data,
@@ -187,16 +179,38 @@ func (tb *defaultStaticTopologyBuilder) Build() StaticTopology {
 	return &defaultStaticTopology{tb.boxpointers, tb.sources, pipes}
 }
 
+/**************************************************/
+
+// A pipeReceiver represents an entity that can receive input from a pipe,
+// i.e., a Box or a Sink.
+//
+// AddToChannel will add the passed tuple to the internal channel
+// (i.e., it will block if there is still a process running) and
+// schedule it for execution.
+//
+// InputName returns the name that the actual receiver Box or Sink
+// expects to be associated with incoming tuples.
+//
+// ProcessItems() is a process to be launched as a goroutine that
+// attaches to the internal channel and then passes each item in that
+// channel to the actual receiver Box or Sink. Calling this multiple
+// times will parallelize execution of items in the channel.
+type pipeReceiver interface {
+	AddToChannel(t *tuple.Tuple)
+	InputName() string
+	ProcessItems()
+}
+
 // holds a box and the writer that will receive this box's output
 type receiverBox struct {
 	Name      string
 	Box       Box
 	Receiver  Writer
-	InputName string
-	Buffer    chan *tuple.Tuple
+	inputName string
+	buffer    chan *tuple.Tuple
 }
 
-func (rb *receiverBox) processItems() {
+func (rb *receiverBox) ProcessItems() {
 	// If an item is put in the queue (and there is no other processing
 	// taking place), that item will be processed immediately.
 	// If we are still in the middle of processing, then this item will
@@ -204,7 +218,7 @@ func (rb *receiverBox) processItems() {
 	// Note that if we increase the capacity of the channel here, then
 	// this pipe will have a buffering functionality, but it will not
 	// increase the parallelism of downstream operations.
-	for t := range rb.Buffer {
+	for t := range rb.buffer {
 		// add tracing information and hand over to box
 		in := newDefaultEvent(tuple.INPUT, rb.Name)
 		t.AddEvent(in)
@@ -212,14 +226,22 @@ func (rb *receiverBox) processItems() {
 	}
 }
 
+func (rb *receiverBox) AddToChannel(t *tuple.Tuple) {
+	rb.buffer <- t
+}
+
+func (rb *receiverBox) InputName() string {
+	return rb.inputName
+}
+
 // holds a sink and the sink's name
 type receiverSink struct {
 	Name   string
 	Sink   Sink
-	Buffer chan *tuple.Tuple
+	buffer chan *tuple.Tuple
 }
 
-func (rs *receiverSink) processItems() {
+func (rs *receiverSink) ProcessItems() {
 	// If an item is put in the queue (and there is no other processing
 	// taking place), that item will be processed immediately.
 	// If we are still in the middle of processing, then this item will
@@ -227,12 +249,20 @@ func (rs *receiverSink) processItems() {
 	// Note that if we increase the capacity of the channel here, then
 	// this pipe will have a buffering functionality, but it will not
 	// increase the parallelism of downstream operations.
-	for t := range rs.Buffer {
+	for t := range rs.buffer {
 		// add tracing information and hand over to sink
 		in := newDefaultEvent(tuple.INPUT, rs.Name)
 		t.AddEvent(in)
 		rs.Sink.Write(t)
 	}
+}
+
+func (rs *receiverSink) AddToChannel(t *tuple.Tuple) {
+	rs.buffer <- t
+}
+
+func (rs *receiverSink) InputName() string {
+	return "output"
 }
 
 /**************************************************/
@@ -244,9 +274,8 @@ func NewCapacityPipe() *capacityPipe {
 
 // receives input from a box and forwards it to registered listeners
 type capacityPipe struct {
-	FromName      string
-	ReceiverBoxes []receiverBox
-	ReceiverSinks []receiverSink
+	FromName  string
+	Receivers []pipeReceiver
 }
 
 func (p *capacityPipe) processItem(t *tuple.Tuple) {
@@ -255,38 +284,18 @@ func (p *capacityPipe) processItem(t *tuple.Tuple) {
 
 	// copy for all receivers but if this pipe has only
 	// one receiver, there is no need to copy
-	notNeedsCopy := len(p.ReceiverBoxes)+len(p.ReceiverSinks) <= 1
-	for _, recvBox := range p.ReceiverBoxes {
+	notNeedsCopy := len(p.Receivers) <= 1
+	for _, recv := range p.Receivers {
 		if notNeedsCopy {
 			s = t
 		} else {
 			s = t.Copy()
 		}
 		// set the name that the box is expecting
-		s.InputName = recvBox.InputName
+		s.InputName = recv.InputName()
 		// If the call below blocks, it means that the receiving
-		// box is still busy processing the previous item(s).
-		// Note that this is runtime-wise equivalent to launching
-		// all Box.Process() calls in goroutines and waiting for
-		// them to finish before returning.
-		recvBox.Buffer <- s
-	}
-	// forward tuple to connected sinks
-	for _, recvSink := range p.ReceiverSinks {
-		if notNeedsCopy {
-			s = t
-		} else {
-			s = t.Copy()
-		}
-		// set the name to "output" to prevent leaking
-		// internal identifiers to a sink
-		s.InputName = "output"
-		// If the call below blocks, it means that the receiving
-		// sink is still busy processing the previous item(s).
-		// Note that this is runtime-wise equivalent to launching
-		// all Sink.Write() calls in goroutines and waiting for
-		// them to finish before returning.
-		recvSink.Buffer <- s
+		// box/sink is still busy processing the previous item(s).
+		recv.AddToChannel(s)
 	}
 }
 
