@@ -2,9 +2,102 @@ package tuple
 
 import (
 	. "github.com/smartystreets/goconvey/convey"
+	"github.com/ugorji/go/codec"
 	"testing"
 	"time"
 )
+
+func TestUnmarshalMsgpack(t *testing.T) {
+	Convey("Given a msgpack byte data", t, func() {
+		var testMap = map[string]interface{}{
+			"bool":    true,
+			"int32":   int32(1),
+			"int64":   int64(2),
+			"float32": float32(0.1),
+			"float64": float64(0.2),
+			"string":  "homhom",
+			"array": []interface{}{true, 10, "inarray",
+				map[string]interface{}{
+					"mapinarray": "arraymap",
+				}},
+			"map": map[string]interface{}{
+				"map_a": "a",
+				"map_b": 2,
+			}, // TODO add []byte, timestamp and null value
+		}
+		var testData []byte
+		codec.NewEncoderBytes(&testData, mh).Encode(testMap)
+		Convey("When convert to Map object", func() {
+			m, _ := UnmarshalMsgpack(testData)
+			Convey("Then decode data should be match with Map data", func() {
+				var expected = Map{
+					"bool":    Bool(true),
+					"int32":   Int(1),
+					"int64":   Int(2),
+					"float32": Float(float32(0.1)),
+					"float64": Float(0.2),
+					"string":  String("homhom"),
+					"array": Array([]Value{Bool(true), Int(10), String("inarray"),
+						Map{
+							"mapinarray": String("arraymap"),
+						}}),
+					"map": Map{
+						"map_a": String("a"),
+						"map_b": Int(2),
+					},
+				}
+				So(m, ShouldResemble, expected)
+			})
+		})
+	})
+}
+
+func TestMarshalMsgpack(t *testing.T) {
+	Convey("Given a Map object data", t, func() {
+		var testMap = Map{
+			"bool":   Bool(true),
+			"int":    Int(1),
+			"float":  Float(0.1),
+			"string": String("homhom"),
+			"array": Array([]Value{Bool(true), Int(10), String("inarray"),
+				Map{
+					"mapinarray": String("arraymap"),
+				}}),
+			"map": Map{
+				"map_a": String("a"),
+				"map_b": Int(2),
+			}, // TODO add Blob, Timestamp and Null value
+		}
+		Convey("When convert to []byte", func() {
+			b, _ := MarshalMsgpack(testMap)
+			Convey("Then encode data should be match with expected bytes", func() {
+				var expected = map[string]interface{}{
+					"bool":   true,
+					"int":    int64(1),
+					"float":  float64(0.1),
+					"string": "homhom",
+					"array": []interface{}{true, 10, "inarray",
+						map[string]interface{}{
+							"mapinarray": "arraymap",
+						}},
+					"map": map[string]interface{}{
+						"map_a": "a",
+						"map_b": 2,
+					},
+				}
+				var expectedBytes []byte
+				codec.NewEncoderBytes(&expectedBytes, mh).Encode(expected)
+
+				// it should compare b and expectedBytes, but byte array order is not
+				// always correspond in converting map to bytes.
+				var actualMap, expectedMap map[string]interface{}
+				codec.NewDecoderBytes(expectedBytes, mh).Decode(&expectedMap)
+				codec.NewDecoderBytes(b, mh).Decode(&actualMap)
+				So(actualMap, ShouldResemble, expectedMap)
+			})
+		})
+	})
+}
 
 func TestValue(t *testing.T) {
 	var testData = Map{
