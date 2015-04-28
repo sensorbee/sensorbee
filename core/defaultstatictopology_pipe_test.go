@@ -33,9 +33,12 @@ func freshTuples() []*tuple.Tuple {
 		tup5, tup6, tup7, tup8}
 }
 
-func TestCapacityPipe(t *testing.T) {
-	maxPar := 3
-	timeTolerance := 3 * time.Millisecond
+var (
+	maxPar        = 3
+	timeTolerance = 5 * time.Millisecond
+)
+
+func TestCapacityPipeLinearTopology(t *testing.T) {
 
 	Convey("Given a simple source/slow box/very slow box/sink topology", t, func() {
 		/*
@@ -222,7 +225,9 @@ func TestCapacityPipe(t *testing.T) {
 			})
 		}
 	})
+}
 
+func TestCapacityPipeForkTopology(t *testing.T) {
 	Convey("Given a simple source/box/sink topology with 2 boxes and 2 sinks", t, func() {
 		/*
 		 *        /--> b1 -*--> si1
@@ -312,7 +317,9 @@ func TestCapacityPipe(t *testing.T) {
 			})
 		}
 	})
+}
 
+func TestCapacityPipeJoinTopology(t *testing.T) {
 	Convey("Given a simple source/box/sink topology with 2 sources", t, func() {
 		/*
 		 *   so1 -*-\
