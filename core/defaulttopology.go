@@ -21,24 +21,15 @@ func (t *defaultStaticTopology) Run(ctx *Context) {
 		(*box).Init(ctx)
 	}
 
+	// launch a listener goroutine for each receiver of a pipe
 	for _, pipe := range t.pipes {
-		// for each pipe, launch as many processing goroutines per receiver
-		// as the degree of parallelism requires (but at least one)
-		par := 1
-		if ctx.Parallelism > 1 {
-			par = ctx.Parallelism
-		}
 		for _, recvBox := range pipe.ReceiverBoxes {
 			recvBox := recvBox
-			for i := 0; i < par; i++ {
-				go recvBox.processItems()
-			}
+			go recvBox.processItems()
 		}
 		for _, recvSink := range pipe.ReceiverSinks {
 			recvSink := recvSink
-			for i := 0; i < par; i++ {
-				go recvSink.processItems()
-			}
+			go recvSink.processItems()
 		}
 	}
 

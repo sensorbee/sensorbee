@@ -34,7 +34,7 @@ func freshTuples() []*tuple.Tuple {
 }
 
 var (
-	maxPar        = 3
+	maxPar        = 1
 	timeTolerance = 5 * time.Millisecond
 )
 
@@ -65,7 +65,7 @@ func TestCapacityPipeLinearTopology(t *testing.T) {
 		for par := 1; par <= maxPar; par++ {
 			par := par // safer to overlay the loop variable when used in closures
 			Convey(fmt.Sprintf("When tuples are emitted with parallelism %d", par), func() {
-				t.Run(&Context{Parallelism: par})
+				t.Run(&Context{})
 
 				// wait until tuples arrived
 				So(waitUntil(func() bool {
@@ -162,7 +162,7 @@ func TestCapacityPipeLinearTopology(t *testing.T) {
 		for par := 1; par <= maxPar; par++ {
 			par := par // safer to overlay the loop variable when used in closures
 			Convey(fmt.Sprintf("When tuples are emitted with parallelism %d", par), func() {
-				t.Run(&Context{Parallelism: par})
+				t.Run(&Context{})
 
 				// wait until tuples arrived
 				So(waitUntil(func() bool {
@@ -255,7 +255,7 @@ func TestCapacityPipeForkTopology(t *testing.T) {
 		for par := 1; par <= maxPar; par++ {
 			par := par // safer to overlay the loop variable when used in closures
 			Convey(fmt.Sprintf("When tuples are emitted with parallelism %d", par), func() {
-				t.Run(&Context{Parallelism: par})
+				t.Run(&Context{})
 
 				// wait until tuples arrived
 				So(waitUntil(func() bool {
@@ -369,7 +369,7 @@ func TestCapacityPipeJoinTopology(t *testing.T) {
 		for par := 1; par <= maxPar; par++ {
 			par := par // safer to overlay the loop variable when used in closures
 			Convey(fmt.Sprintf("When tuples are emitted with parallelism %d", par), func() {
-				t.Run(&Context{Parallelism: par})
+				t.Run(&Context{})
 
 				// wait until tuples arrived
 				So(waitUntil(func() bool {
