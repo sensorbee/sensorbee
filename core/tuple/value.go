@@ -3,6 +3,7 @@ package tuple
 import (
 	"errors"
 	"fmt"
+	"github.com/ugorji/go/codec"
 	"time"
 )
 
@@ -74,4 +75,169 @@ func (t TypeID) String() string {
 	default:
 		return "unknown"
 	}
+}
+
+var mh = &codec.MsgpackHandle{RawToString: true}
+
+func UnmarshalMsgpack(b []byte) (Map, error) {
+	var m map[interface{}]interface{}
+	dec := codec.NewDecoderBytes(b, mh)
+	dec.Decode(&m)
+
+	return newMap(m)
+}
+
+func newMap(m map[interface{}]interface{}) (Map, error) {
+	fmt.Println(m)
+	result := Map{}
+	for k, v := range m {
+		key, ok := k.(string)
+		if !ok {
+			return nil, errors.New("Non string type key is not supported")
+		}
+		switch v.(type) {
+		case []interface{}:
+			innerArray, err := newArray(v.([]interface{}))
+			if err != nil {
+				return nil, err // TODO is it OK to return nil?
+			}
+			result[key] = Array(innerArray)
+		case map[interface{}]interface{}:
+			innerMap, err := newMap(v.(map[interface{}]interface{}))
+			if err != nil {
+				return nil, err // TODO is it OK to return nil?
+			}
+			result[key] = Map(innerMap)
+		case bool:
+			result[key] = Bool(v.(bool))
+		case int:
+			result[key] = Int(v.(int))
+		case int8:
+			result[key] = Int(v.(int8))
+		case int16:
+			result[key] = Int(v.(int16))
+		case int32:
+			result[key] = Int(v.(int32))
+		case int64:
+			result[key] = Int(v.(int64))
+		case float32:
+			result[key] = Float(v.(float32))
+		case float64:
+			result[key] = Float(v.(float64))
+		case string:
+			result[key] = String(v.(string))
+		case []byte:
+			result[key] = Blob(v.([]byte))
+		case nil:
+			result[key] = nil
+		}
+	}
+	return result, nil
+}
+
+func newArray(a []interface{}) ([]Value, error) {
+	result := make([]Value, len(a))
+	for i, v := range a {
+		switch v.(type) {
+		case []interface{}:
+			innerArray, err := newArray(v.([]interface{}))
+			if err != nil {
+				return nil, err
+			}
+			result[i] = Array(innerArray)
+		case map[interface{}]interface{}:
+			innerMap, err := newMap(v.(map[interface{}]interface{}))
+			if err != nil {
+				return nil, err
+			}
+			result[i] = Map(innerMap)
+		case bool:
+			result[i] = Bool(v.(bool))
+		case int:
+			result[i] = Int(v.(int))
+		case int8:
+			result[i] = Int(v.(int8))
+		case int16:
+			result[i] = Int(v.(int16))
+		case int32:
+			result[i] = Int(v.(int32))
+		case int64:
+			result[i] = Int(v.(int64))
+		case float32:
+			result[i] = Float(v.(float32))
+		case float64:
+			result[i] = Float(v.(float64))
+		case string:
+			result[i] = String(v.(string))
+		case []byte:
+			result[i] = Blob(v.([]byte))
+		case nil:
+			result[i] = nil
+		}
+	}
+	return result, nil
+}
+
+func MarshalMsgpack(m Map) ([]byte, error) {
+	// iMap, err := newIMap(m)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	var out []byte
+	enc := codec.NewEncoderBytes(&out, mh)
+	enc.Encode(m) // TODO is it unnecessary to use iMap?
+
+	return out, nil
+}
+
+func newIMap(m Map) (map[string]interface{}, error) {
+	result := map[string]interface{}{}
+	for k, v := range m {
+		switch v.Type() {
+		case TypeBool:
+			result[k], _ = v.AsBool()
+		case TypeInt:
+			result[k], _ = v.AsInt()
+		case TypeFloat:
+			result[k], _ = v.AsFloat()
+		case TypeString:
+			result[k], _ = v.AsString()
+		case TypeBlob:
+			result[k], _ = v.AsBlob()
+		case TypeTimestamp:
+			result[k], _ = v.AsTimestamp()
+		case TypeArray:
+			innerArray, _ := v.AsArray()
+			result[k], _ = newIArray(innerArray)
+		case TypeMap:
+			innerMap, _ := v.AsMap()
+			result[k], _ = newIMap(innerMap)
+		}
+	}
+	return result, nil
+}
+
+func newIArray(a Array) ([]interface{}, error) {
+	result := make([]interface{}, len(a))
+	for i, v := range a {
+		switch v.Type() {
+		case TypeBool:
+			result[i], _ = v.AsBool()
+		case TypeInt:
+			result[i], _ = v.AsInt()
+		case TypeFloat:
+			result[i], _ = v.AsFloat()
+		case TypeString:
+			result[i], _ = v.AsString()
+		case TypeBlob:
+			result[i], _ = v.AsBlob()
+		case TypeArray:
+			innerArray, _ := v.AsArray()
+			result[i], _ = newIArray(innerArray)
+		case TypeMap:
+			innerMap, _ := v.AsMap()
+			result[i], _ = newIMap(innerMap)
+		}
+	}
+	return result, nil
 }
