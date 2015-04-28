@@ -33,8 +33,8 @@ func (t *defaultStaticTopology) Run(ctx *Context) {
 	for name, source := range t.sources {
 		wg.Add(1)
 		go func(name string, source Source) {
+			defer wg.Done()
 			source.GenerateStream(t.pipes[name])
-			wg.Done()
 		}(name, source)
 	}
 	wg.Wait()
