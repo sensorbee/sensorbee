@@ -70,32 +70,20 @@ func TestDefaultTopologyTupleTracing(t *testing.T) {
 			Convey("Then tracer has 2 kind of route from source1", func() {
 				// make expected routes
 				route1 := []string{
-					"OUTPUT so1", "OTHER left so1's outpipe queue",
-					"INPUT box1", "OUTPUT box1", "OTHER left box1's outpipe queue",
-					"INPUT box2", "OUTPUT box2", "OTHER left box2's outpipe queue",
-					"INPUT box4", "OUTPUT box4", "OTHER left box4's outpipe queue",
-					"INPUT si1",
+					"OUTPUT so1", "INPUT box1", "OUTPUT box1", "INPUT box2",
+					"OUTPUT box2", "INPUT box4", "OUTPUT box4", "INPUT si1",
 				}
 				route2 := []string{
-					"OUTPUT so1", "OTHER left so1's outpipe queue",
-					"INPUT box1", "OUTPUT box1", "OTHER left box1's outpipe queue",
-					"INPUT box3", "OUTPUT box3", "OTHER left box3's outpipe queue",
-					"INPUT box4", "OUTPUT box4", "OTHER left box4's outpipe queue",
-					"INPUT si1",
+					"OUTPUT so1", "INPUT box1", "OUTPUT box1", "INPUT box3",
+					"OUTPUT box3", "INPUT box4", "OUTPUT box4", "INPUT si1",
 				}
 				route3 := []string{
-					"OUTPUT so2", "OTHER left so2's outpipe queue",
-					"INPUT box1", "OUTPUT box1", "OTHER left box1's outpipe queue",
-					"INPUT box2", "OUTPUT box2", "OTHER left box2's outpipe queue",
-					"INPUT box4", "OUTPUT box4", "OTHER left box4's outpipe queue",
-					"INPUT si1",
+					"OUTPUT so2", "INPUT box1", "OUTPUT box1", "INPUT box2",
+					"OUTPUT box2", "INPUT box4", "OUTPUT box4", "INPUT si1",
 				}
 				route4 := []string{
-					"OUTPUT so2", "OTHER left so2's outpipe queue",
-					"INPUT box1", "OUTPUT box1", "OTHER left box1's outpipe queue",
-					"INPUT box3", "OUTPUT box3", "OTHER left box3's outpipe queue",
-					"INPUT box4", "OUTPUT box4", "OTHER left box4's outpipe queue",
-					"INPUT si1",
+					"OUTPUT so2", "INPUT box1", "OUTPUT box1", "INPUT box3",
+					"OUTPUT box3", "INPUT box4", "OUTPUT box4", "INPUT si1",
 				}
 				eRoutes := []string{
 					strings.Join(route1, "->"),
@@ -120,32 +108,20 @@ func TestDefaultTopologyTupleTracing(t *testing.T) {
 			Convey("Then tracer has 2 kind of route from source2", func() {
 				// make expected routes
 				route1 := []string{
-					"OUTPUT so1", "OTHER left so1's outpipe queue",
-					"INPUT box1", "OUTPUT box1", "OTHER left box1's outpipe queue",
-					"INPUT box2", "OUTPUT box2", "OTHER left box2's outpipe queue",
-					"INPUT box4", "OUTPUT box4", "OTHER left box4's outpipe queue",
-					"INPUT si2",
+					"OUTPUT so1", "INPUT box1", "OUTPUT box1", "INPUT box2",
+					"OUTPUT box2", "INPUT box4", "OUTPUT box4", "INPUT si2",
 				}
 				route2 := []string{
-					"OUTPUT so1", "OTHER left so1's outpipe queue",
-					"INPUT box1", "OUTPUT box1", "OTHER left box1's outpipe queue",
-					"INPUT box3", "OUTPUT box3", "OTHER left box3's outpipe queue",
-					"INPUT box4", "OUTPUT box4", "OTHER left box4's outpipe queue",
-					"INPUT si2",
+					"OUTPUT so1", "INPUT box1", "OUTPUT box1", "INPUT box3",
+					"OUTPUT box3", "INPUT box4", "OUTPUT box4", "INPUT si2",
 				}
 				route3 := []string{
-					"OUTPUT so2", "OTHER left so2's outpipe queue",
-					"INPUT box1", "OUTPUT box1", "OTHER left box1's outpipe queue",
-					"INPUT box2", "OUTPUT box2", "OTHER left box2's outpipe queue",
-					"INPUT box4", "OUTPUT box4", "OTHER left box4's outpipe queue",
-					"INPUT si2",
+					"OUTPUT so2", "INPUT box1", "OUTPUT box1", "INPUT box2",
+					"OUTPUT box2", "INPUT box4", "OUTPUT box4", "INPUT si2",
 				}
 				route4 := []string{
-					"OUTPUT so2", "OTHER left so2's outpipe queue",
-					"INPUT box1", "OUTPUT box1", "OTHER left box1's outpipe queue",
-					"INPUT box3", "OUTPUT box3", "OTHER left box3's outpipe queue",
-					"INPUT box4", "OUTPUT box4", "OTHER left box4's outpipe queue",
-					"INPUT si2",
+					"OUTPUT so2", "INPUT box1", "OUTPUT box1", "INPUT box3",
+					"OUTPUT box3", "INPUT box4", "OUTPUT box4", "INPUT si2",
 				}
 				eRoutes := []string{
 					strings.Join(route1, "->"),

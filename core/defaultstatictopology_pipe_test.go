@@ -77,7 +77,7 @@ func TestCapacityPipeLinearTopology(t *testing.T) {
 				So(len(si.Tuples), ShouldEqual, 8)
 
 				// check that length of trace matches expectation
-				So(len(si.Tuples[0].Trace), ShouldEqual, 9) // OUT-OTHER-IN-OUT-OTHER-IN-OUT-OTHER-IN
+				So(len(si.Tuples[0].Trace), ShouldEqual, 6) // OUT-IN-OUT-IN-OUT-IN
 
 				Convey("Then waiting time at intermediate pipes matches expectations", func() {
 					// SOURCE'S PIPE
@@ -110,7 +110,7 @@ func TestCapacityPipeLinearTopology(t *testing.T) {
 						// the first `par` items should be emitted without delay
 						// (because `par` items can be processed in parallel)
 						for i := 0; i < par; i++ {
-							waitTime := si.Tuples[i].Trace[4].Timestamp.Sub(si.Tuples[i].Trace[3].Timestamp)
+							waitTime := si.Tuples[i].Trace[3].Timestamp.Sub(si.Tuples[i].Trace[2].Timestamp)
 							So(waitTime, ShouldAlmostEqual, 0, timeTolerance)
 						}
 						// after that, every par'th item should have to wait
@@ -118,7 +118,7 @@ func TestCapacityPipeLinearTopology(t *testing.T) {
 						// duration of this box itself (-> 200 ms),
 						// all others be processed immediately
 						for i := par; i < len(si.Tuples); i++ {
-							waitTime := si.Tuples[i].Trace[4].Timestamp.Sub(si.Tuples[i].Trace[3].Timestamp)
+							waitTime := si.Tuples[i].Trace[3].Timestamp.Sub(si.Tuples[i].Trace[2].Timestamp)
 							So(waitTime, ShouldAlmostEqual, 200*time.Millisecond, timeTolerance)
 						}
 					}
@@ -128,7 +128,7 @@ func TestCapacityPipeLinearTopology(t *testing.T) {
 						// the sink is much faster than the box, so waiting time should
 						// 0 for all items
 						for i := 0; i < len(si.Tuples); i++ {
-							waitTime := si.Tuples[i].Trace[7].Timestamp.Sub(si.Tuples[i].Trace[6].Timestamp)
+							waitTime := si.Tuples[i].Trace[5].Timestamp.Sub(si.Tuples[i].Trace[4].Timestamp)
 							So(waitTime, ShouldAlmostEqual, 0, timeTolerance)
 						}
 					}
@@ -174,7 +174,7 @@ func TestCapacityPipeLinearTopology(t *testing.T) {
 				So(len(si.Tuples), ShouldEqual, 8)
 
 				// check that length of trace matches expectation
-				So(len(si.Tuples[0].Trace), ShouldEqual, 9) // OUT-OTHER-IN-OUT-OTHER-IN-OUT-OTHER-IN
+				So(len(si.Tuples[0].Trace), ShouldEqual, 6) // OUT-IN-OUT-IN-OUT-IN
 
 				Convey("Then waiting time at intermediate pipes matches expectations", func() {
 					// SOURCE'S PIPE
@@ -207,7 +207,7 @@ func TestCapacityPipeLinearTopology(t *testing.T) {
 						// the second box is much faster, so waiting time should be
 						// 0 for all items
 						for i := 0; i < len(si.Tuples); i++ {
-							waitTime := si.Tuples[i].Trace[4].Timestamp.Sub(si.Tuples[i].Trace[3].Timestamp)
+							waitTime := si.Tuples[i].Trace[3].Timestamp.Sub(si.Tuples[i].Trace[2].Timestamp)
 							So(waitTime, ShouldAlmostEqual, 0, timeTolerance)
 						}
 					}
@@ -217,7 +217,7 @@ func TestCapacityPipeLinearTopology(t *testing.T) {
 						// the sink is much faster than the box, so waiting time should
 						// 0 for all items
 						for i := 0; i < len(si.Tuples); i++ {
-							waitTime := si.Tuples[i].Trace[7].Timestamp.Sub(si.Tuples[i].Trace[6].Timestamp)
+							waitTime := si.Tuples[i].Trace[5].Timestamp.Sub(si.Tuples[i].Trace[4].Timestamp)
 							So(waitTime, ShouldAlmostEqual, 0, timeTolerance)
 						}
 					}
@@ -269,8 +269,8 @@ func TestCapacityPipeForkTopology(t *testing.T) {
 				So(len(si2.Tuples), ShouldEqual, 8)
 
 				// check that length of trace matches expectation
-				So(len(si1.Tuples[0].Trace), ShouldEqual, 6) // OUT-OTHER-IN-OUT-OTHER-IN
-				So(len(si2.Tuples[0].Trace), ShouldEqual, 6) // OUT-OTHER-IN-OUT-OTHER-IN
+				So(len(si1.Tuples[0].Trace), ShouldEqual, 4) // OUT-IN-OUT-IN
+				So(len(si2.Tuples[0].Trace), ShouldEqual, 4) // OUT-IN-OUT-IN
 
 				Convey("Then waiting time at intermediate pipes should matches expectations", func() {
 					// SOURCE'S PIPE
@@ -278,14 +278,33 @@ func TestCapacityPipeForkTopology(t *testing.T) {
 						// the first `par` items should be emitted without delay
 						// (because `par` items can be processed in parallel)
 						for i := 0; i < par; i++ {
-							waitTime := so.Tuples[i].Trace[1].Timestamp.Sub(so.Tuples[i].Trace[0].Timestamp)
+							b1waitTime := si1.Tuples[i].Trace[1].Timestamp.Sub(si2.Tuples[i].Trace[0].Timestamp)
+							So(b1waitTime, ShouldAlmostEqual, 0, timeTolerance)
+							b2waitTime := si1.Tuples[i].Trace[1].Timestamp.Sub(si2.Tuples[i].Trace[0].Timestamp)
+							So(b2waitTime, ShouldAlmostEqual, 0, timeTolerance)
+						}
+
+						// box1
+						// the next item should have to wait as long as the first
+						// box processes (100 ms)
+						waitTime := si1.Tuples[par].Trace[1].Timestamp.Sub(si1.Tuples[par].Trace[0].Timestamp)
+						So(waitTime, ShouldAlmostEqual, 100*time.Millisecond, timeTolerance)
+						// after the first `par + 1` items, every item should
+						// be processed immediately. (the source is waiting for
+						// the slower box to finish before reading the next item,
+						// at which point the faster box already has free capacity
+						// again)
+						for i := par + 1; i < len(so.Tuples); i++ {
+							waitTime := si1.Tuples[i].Trace[1].Timestamp.Sub(si1.Tuples[i].Trace[0].Timestamp)
 							So(waitTime, ShouldAlmostEqual, 0, timeTolerance)
 						}
-						// after that, every par'th item should have to wait
-						// as long as the longest processing box needs (300 ms),
-						// all others be processed immediately
+
+						// box2
+						// after the first `par` items, every par'th item should
+						// have to wait as long as the longest processing box
+						// needs (300 ms), all others be processed immediately
 						for i := par; i < len(so.Tuples); i++ {
-							waitTime := so.Tuples[i].Trace[1].Timestamp.Sub(so.Tuples[i].Trace[0].Timestamp)
+							waitTime := si2.Tuples[i].Trace[1].Timestamp.Sub(si2.Tuples[i].Trace[0].Timestamp)
 							if (i-par)%par == 0 {
 								So(waitTime, ShouldAlmostEqual, 300*time.Millisecond, timeTolerance)
 							} else {
@@ -299,7 +318,7 @@ func TestCapacityPipeForkTopology(t *testing.T) {
 						// the sink is much faster than the box, so waiting time should
 						// 0 for all items
 						for i := 0; i < len(si1.Tuples); i++ {
-							waitTime := si1.Tuples[i].Trace[4].Timestamp.Sub(si1.Tuples[i].Trace[3].Timestamp)
+							waitTime := si1.Tuples[i].Trace[3].Timestamp.Sub(si1.Tuples[i].Trace[2].Timestamp)
 							So(waitTime, ShouldAlmostEqual, 0, timeTolerance)
 						}
 					}
@@ -309,7 +328,7 @@ func TestCapacityPipeForkTopology(t *testing.T) {
 						// the sink is much faster than the box, so waiting time should
 						// 0 for all items
 						for i := 0; i < len(si2.Tuples); i++ {
-							waitTime := si2.Tuples[i].Trace[4].Timestamp.Sub(si2.Tuples[i].Trace[3].Timestamp)
+							waitTime := si2.Tuples[i].Trace[3].Timestamp.Sub(si2.Tuples[i].Trace[2].Timestamp)
 							So(waitTime, ShouldAlmostEqual, 0, timeTolerance)
 						}
 					}
@@ -362,7 +381,7 @@ func TestCapacityPipeJoinTopology(t *testing.T) {
 				So(len(si.Tuples), ShouldEqual, 8)
 
 				// check that length of trace matches expectation
-				So(len(si.Tuples[0].Trace), ShouldEqual, 6) // OUT-OTHER-IN-OUT-OTHER-IN
+				So(len(si.Tuples[0].Trace), ShouldEqual, 4) // OUT-IN-OUT-IN
 
 				Convey("Then waiting time at intermediate pipes should matches expectations", func() {
 					// SOURCE 1'S PIPE
@@ -412,7 +431,7 @@ func TestCapacityPipeJoinTopology(t *testing.T) {
 						// the sink is much faster than the box, so waiting time should
 						// 0 for all items
 						for i := 0; i < len(si.Tuples); i++ {
-							waitTime := si.Tuples[i].Trace[4].Timestamp.Sub(si.Tuples[i].Trace[3].Timestamp)
+							waitTime := si.Tuples[i].Trace[3].Timestamp.Sub(si.Tuples[i].Trace[2].Timestamp)
 							So(waitTime, ShouldAlmostEqual, 0, timeTolerance)
 						}
 					}
