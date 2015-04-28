@@ -22,14 +22,23 @@ func (t *defaultStaticTopology) Run(ctx *Context) {
 	}
 
 	for _, pipe := range t.pipes {
-		// launch as many processing goroutines as the degree of
-		// parallelism requires (but at least one)
+		// for each pipe, launch as many processing goroutines per receiver
+		// as the degree of parallelism requires (but at least one)
 		par := 1
 		if ctx.Parallelism > 1 {
 			par = ctx.Parallelism
 		}
-		for i := 0; i < par; i++ {
-			go pipe.processItems()
+		for _, recvBox := range pipe.ReceiverBoxes {
+			recvBox := recvBox
+			for i := 0; i < par; i++ {
+				go recvBox.processItems()
+			}
+		}
+		for _, recvSink := range pipe.ReceiverSinks {
+			recvSink := recvSink
+			for i := 0; i < par; i++ {
+				go recvSink.processItems()
+			}
 		}
 	}
 
@@ -173,12 +182,12 @@ func (tb *defaultStaticTopologyBuilder) Build() StaticTopology {
 		// pipe's receiver list
 		sink, isSink := tb.sinks[toName]
 		if isSink {
-			recv := receiverSink{toName, sink}
+			recv := receiverSink{toName, sink, make(chan *tuple.Tuple)}
 			pipe.ReceiverSinks = append(pipe.ReceiverSinks, recv)
 		}
 		box, isBox := tb.boxes[toName]
 		if isBox {
-			recv := receiverBox{toName, box, pipes[toName], edge.InputName}
+			recv := receiverBox{toName, box, pipes[toName], edge.InputName, make(chan *tuple.Tuple)}
 			pipe.ReceiverBoxes = append(pipe.ReceiverBoxes, recv)
 		}
 	}
@@ -193,19 +202,52 @@ type receiverBox struct {
 	Box       Box
 	Receiver  Writer
 	InputName string
+	Buffer    chan *tuple.Tuple
+}
+
+func (rb *receiverBox) processItems() {
+	// If an item is put in the queue (and there is no other processing
+	// taking place), that item will be processed immediately.
+	// If we are still in the middle of processing, then this item will
+	// be processed later.
+	// Note that if we increase the capacity of the channel here, then
+	// this pipe will have a buffering functionality, but it will not
+	// increase the parallelism of downstream operations.
+	for t := range rb.Buffer {
+		// add tracing information and hand over to box
+		in := newDefaultEvent(tuple.INPUT, rb.Name)
+		t.AddEvent(in)
+		rb.Box.Process(t, rb.Receiver)
+	}
 }
 
 // holds a sink and the sink's name
 type receiverSink struct {
-	Name string
-	Sink Sink
+	Name   string
+	Sink   Sink
+	Buffer chan *tuple.Tuple
+}
+
+func (rs *receiverSink) processItems() {
+	// If an item is put in the queue (and there is no other processing
+	// taking place), that item will be processed immediately.
+	// If we are still in the middle of processing, then this item will
+	// be processed later.
+	// Note that if we increase the capacity of the channel here, then
+	// this pipe will have a buffering functionality, but it will not
+	// increase the parallelism of downstream operations.
+	for t := range rs.Buffer {
+		// add tracing information and hand over to sink
+		in := newDefaultEvent(tuple.INPUT, rs.Name)
+		t.AddEvent(in)
+		rs.Sink.Write(t)
+	}
 }
 
 /**************************************************/
 
 func NewCapacityPipe() *capacityPipe {
 	p := capacityPipe{}
-	p.itemQueue = make(chan *tuple.Tuple)
 	return &p
 }
 
@@ -214,36 +256,15 @@ type capacityPipe struct {
 	FromName      string
 	ReceiverBoxes []receiverBox
 	ReceiverSinks []receiverSink
-	itemQueue     chan *tuple.Tuple
-}
-
-func (p *capacityPipe) processItems() {
-	// If an item is put in the queue (and there is no other processing
-	// taking place), that item will be processed immediately.
-	// If we are still in the middle of processing, then this item will
-	// be processed later.
-	// Note that if we increase the capacity of the channel here, then
-	// this pipe will have a buffering functionality, but it will not
-	// increase the parallelism of downstream operations.
-	for t := range p.itemQueue {
-		p.processItem(t)
-	}
 }
 
 func (p *capacityPipe) processItem(t *tuple.Tuple) {
-	// add tracing information
-	out := newDefaultEvent(tuple.OTHER, fmt.Sprintf(
-		"left %s's outpipe queue", p.FromName))
-	t.AddEvent(out)
 	// forward tuple to connected boxes
 	var s *tuple.Tuple
 
 	// copy for all receivers but if this pipe has only
 	// one receiver, there is no need to copy
 	notNeedsCopy := len(p.ReceiverBoxes)+len(p.ReceiverSinks) <= 1
-	// we launch all child processing in parallel and wait
-	// until it is done
-	var wg sync.WaitGroup
 	for _, recvBox := range p.ReceiverBoxes {
 		if notNeedsCopy {
 			s = t
@@ -252,15 +273,12 @@ func (p *capacityPipe) processItem(t *tuple.Tuple) {
 		}
 		// set the name that the box is expecting
 		s.InputName = recvBox.InputName
-		// add tracing information and hand over to box
-		in := newDefaultEvent(tuple.INPUT, recvBox.Name)
-		s.AddEvent(in)
-		// launch box processing in the background
-		wg.Add(1)
-		go func(rb receiverBox, tup *tuple.Tuple) {
-			defer wg.Done()
-			rb.Box.Process(tup, rb.Receiver)
-		}(recvBox, s)
+		// If the call below blocks, it means that the receiving
+		// box is still busy processing the previous item(s).
+		// Note that this is runtime-wise equivalent to launching
+		// all Box.Process() calls in goroutines and waiting for
+		// them to finish before returning.
+		recvBox.Buffer <- s
 	}
 	// forward tuple to connected sinks
 	for _, recvSink := range p.ReceiverSinks {
@@ -272,30 +290,21 @@ func (p *capacityPipe) processItem(t *tuple.Tuple) {
 		// set the name to "output" to prevent leaking
 		// internal identifiers to a sink
 		s.InputName = "output"
-		// add tracing information and hand over to sink
-		in := newDefaultEvent(tuple.INPUT, recvSink.Name)
-		s.AddEvent(in)
-		// launch sink processing in the background
-		wg.Add(1)
-		go func(rs receiverSink, tup *tuple.Tuple) {
-			defer wg.Done()
-			rs.Sink.Write(tup)
-		}(recvSink, s)
+		// If the call below blocks, it means that the receiving
+		// sink is still busy processing the previous item(s).
+		// Note that this is runtime-wise equivalent to launching
+		// all Sink.Write() calls in goroutines and waiting for
+		// them to finish before returning.
+		recvSink.Buffer <- s
 	}
-	// wait for processing to end
-	wg.Wait()
 }
 
 func (p *capacityPipe) Write(t *tuple.Tuple) error {
 	// add tracing information
 	out := newDefaultEvent(tuple.OUTPUT, p.FromName)
 	t.AddEvent(out)
-	// When Write is called, we add this tuple to our processing channel.
-	// If the queue
-	// - has free capacity or
-	// - there is no item currently processed
-	// then this function will return immediately, otherwise block.
-	p.itemQueue <- t
+	// distribute this item to receivers
+	p.processItem(t)
 	return nil
 }
 
