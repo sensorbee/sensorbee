@@ -2,6 +2,7 @@ package tuple
 
 import (
 	"errors"
+	"fmt"
 	"math"
 	"regexp"
 	"strconv"
@@ -160,24 +161,32 @@ func scanMap(m Map, p string, v *Value) (err error) {
 	if p == "" {
 		return errors.New("empty key is not supported")
 	}
-	var tempValue Value
-	tempMap := m
+	// tempValue will point to the item of the Map that we are
+	// currently investigating
+	var tempValue Value = m
+	// loop over the components of the path, like "key" or "hoge[123]"
 	for _, token := range split(p) {
+		// check that we do indeed have a valid component form
 		matchStr := reArrayPath.FindAllStringSubmatch(token, -1)
 		if len(matchStr) == 0 {
-			return errors.New("invalid path phrase")
+			return errors.New("invalid path component: " + token)
 		}
+		// get the "before brackets" part of the component
 		submatchStr := matchStr[0]
 		if submatchStr[1] != "" {
+			// try to access the current tempValue as a map and
+			// pull out the value therein
+			tempMap, err := tempValue.Map()
+			if err != nil {
+				return fmt.Errorf("cannot access a %T using key \"%s\"",
+					tempValue, token)
+			}
 			foundValue := tempMap[submatchStr[1]]
 			if foundValue == nil {
 				return errors.New(
 					"not found the key in map: " + submatchStr[1])
 			}
 			tempValue = foundValue
-			if foundValue.Type() == TypeMap {
-				tempMap, _ = foundValue.Map()
-			}
 		}
 		// get array index number
 		if submatchStr[2] != "" {
@@ -189,18 +198,18 @@ func scanMap(m Map, p string, v *Value) (err error) {
 			if i64 > math.MaxInt32 {
 				return errors.New("overflow index number: " + token)
 			}
-			a, err := tempValue.Array()
+			// try to access the current tempValue as an array
+			// and access the value therein
+			tempArr, err := tempValue.Array()
 			if err != nil {
-				return err
+				return fmt.Errorf("cannot access a %T using index %d",
+					tempValue, i64)
 			}
 			i := int(i64)
-			if i >= len(a) {
+			if i >= len(tempArr) {
 				return errors.New("out of range access: " + token)
 			}
-			tempValue = a[i]
-			if a[i].Type() == TypeMap {
-				tempMap, _ = a[i].Map()
-			}
+			tempValue = tempArr[i]
 		}
 	}
 	*v = tempValue
