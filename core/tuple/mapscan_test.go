@@ -5,6 +5,66 @@ import (
 	"testing"
 )
 
+func TestMapscanDocstrings(t *testing.T) {
+	storeData := Map{
+		"name": String("store name"),
+		"book": Array([]Value{
+			Map{
+				"title": String("book name"),
+			},
+		}),
+	}
+	m := Map{"store": storeData}
+
+	Convey("Map.Get examples should be correct", t, func() {
+		examples := map[string]interface{}{
+			"store":                         storeData,
+			"store.name":                    String("store name"),
+			"store.book[0].title":           String("book name"),
+			`["store"]`:                     storeData,
+			`["store"]["name"]`:             String("store name"),
+			`["store"]["book"][0]["title"]`: String("book name"),
+		}
+		for input, expected := range examples {
+			actual, err := m.Get(input)
+			So(err, ShouldBeNil)
+			So(actual, ShouldResemble, expected)
+		}
+	})
+
+	Convey("split examples should be correct", t, func() {
+		examples := map[string]interface{}{
+			"store.book[0].title":           []string{"store", "book[0]", "title"},
+			`["store"]["book"][0]["title"]`: []string{"store", "book[0]", "title"},
+		}
+		for input, expected := range examples {
+			actual := split(input)
+			So(actual, ShouldResemble, expected)
+		}
+	})
+
+	Convey("splitBracket examples should be correct", t, func() {
+		examples := map[string]interface{}{
+			`a["hoge"].b`:    "hoge",
+			`a["hoge"][123]`: "hoge[123]",
+		}
+		for input, expected := range examples {
+			actual := splitBracket([]rune(input), 3, '"')
+			So(actual, ShouldResemble, expected)
+		}
+	})
+
+	Convey("getArrayIndex examples should be correct", t, func() {
+		examples := map[string]interface{}{
+			`hoge[123]`: "[123]",
+		}
+		for input, expected := range examples {
+			actual := getArrayIndex([]rune(input), 5)
+			So(actual, ShouldResemble, expected)
+		}
+	})
+}
+
 func TestScanMap(t *testing.T) {
 	var testData = Map{
 		"string": String("homhom"),
