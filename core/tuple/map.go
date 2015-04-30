@@ -50,10 +50,13 @@ func (m Map) Copy() Map {
 	return Map(out)
 }
 
-// Get value(s) from a structured Map followed by the path expression.
-// Return error when the path expression is invalid or the path is not found
-// in Map keys.
-// Value interface can be cast for each types using Value interface's methods.
+// Get returns value(s) from a structured Map as addressed by the
+// given path expression. Returns an error when the path expression
+// is invalid or the path is not found in the Map.
+//
+// Type conversion can be done for each type using the Value
+// interface's methods.
+//
 // Example:
 //  v, err := map.Get("path")
 //  s, err := v.String() // cast to String
