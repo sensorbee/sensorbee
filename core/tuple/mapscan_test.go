@@ -97,7 +97,7 @@ func TestScanMap(t *testing.T) {
 			err := scanMap(testData, "ab[a", &v)
 			Convey("Then lookup should fail", func() {
 				So(err, ShouldNotBeNil)
-				So(err.Error(), ShouldEqual, "invalid path phrase")
+				So(err.Error(), ShouldEqual, "invalid path component: ab[a")
 			})
 		})
 		Convey("When accessing a non-existing key", func() {
@@ -121,7 +121,15 @@ func TestScanMap(t *testing.T) {
 			err := scanMap(testData, "string[0]", &v)
 			Convey("Then lookup should fail", func() {
 				So(err, ShouldNotBeNil)
-				So(err.Error(), ShouldEqual, "unsupported cast array from string")
+				So(err.Error(), ShouldEqual, "cannot access a tuple.String using index 0")
+			})
+		})
+		Convey("When accessing only an array key", func() {
+			var v Value
+			err := scanMap(testData, "[0]", &v)
+			Convey("Then lookup should fail", func() {
+				So(err, ShouldNotBeNil)
+				So(err.Error(), ShouldEqual, "cannot access a tuple.Map using index 0")
 			})
 		})
 		Convey("When accessing an out-of-range index", func() {
@@ -200,19 +208,21 @@ func TestScanMap(t *testing.T) {
 				})
 			})
 			Convey("With invalid nested bracket", func() {
-				var x1, x2, x3, x4, x5, x6 Value
+				var x1, x2, x3, x4, x5, x6, x7 Value
 				err1 := scanMap(testData, `map[]`, &x1)
 				err2 := scanMap(testData, `map..nestedstring`, &x2)
 				err3 := scanMap(testData, `map[nestedstring]`, &x3)
 				err4 := scanMap(testData, `map["nestedstring']`, &x4)
 				err5 := scanMap(testData, `map['nestedstring"]`, &x5)
 				err6 := scanMap(testData, `map[nested.string]`, &x6)
+				err7 := scanMap(testData, `string["string"]`, &x7)
 				So(err1, ShouldNotBeNil)
 				SkipSo(err2, ShouldNotBeNil) // currently invalid path
 				So(err3, ShouldNotBeNil)
 				So(err4, ShouldNotBeNil)
 				So(err5, ShouldNotBeNil)
 				So(err6, ShouldNotBeNil)
+				So(err7, ShouldNotBeNil)
 			})
 		})
 		Convey("When accessing bracket array holder", func() {
