@@ -45,7 +45,7 @@ type StaticTopologyBuilder interface {
 	AddBox(name string, box Box) BoxDeclarer
 	AddSink(name string, sink Sink) SinkDeclarer
 
-	Build() StaticTopology
+	Build() (StaticTopology, error)
 }
 
 // DeclarerError provides for the various Declarer interfaces

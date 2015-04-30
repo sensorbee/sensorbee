@@ -36,7 +36,7 @@ func TestDefaultTopologyTupleProcessing(t *testing.T) {
 		tb.AddBox("aBox", b1).Input("source1")
 		si := &TupleContentsCollectorSink{}
 		tb.AddSink("si", si).Input("aBox")
-		t := tb.Build()
+		t, _ := tb.Build()
 
 		Convey("When a tuple is emitted by the source", func() {
 			t.Run(&Context{})
@@ -63,7 +63,7 @@ func TestDefaultTopologyTupleProcessing(t *testing.T) {
 			Input("source2")
 		si := &TupleContentsCollectorSink{}
 		tb.AddSink("si", si).Input("aBox")
-		t := tb.Build()
+		t, _ := tb.Build()
 
 		Convey("When a tuple is emitted by each source", func() {
 			start := time.Now()
@@ -89,7 +89,7 @@ func TestDefaultTopologyTupleProcessing(t *testing.T) {
 			Input("source")
 		si := &TupleContentsCollectorSink{}
 		tb.AddSink("si", si).Input("aBox")
-		t := tb.Build()
+		t, _ := tb.Build()
 
 		Convey("When two tuples are emitted by the source", func() {
 			t.Run(&Context{})
@@ -114,7 +114,7 @@ func TestDefaultTopologyTupleProcessing(t *testing.T) {
 		tb.AddBox("bBox", b2).Input("source1")
 		si := &TupleContentsCollectorSink{}
 		tb.AddSink("si", si).Input("aBox").Input("bBox")
-		t := tb.Build()
+		t, _ := tb.Build()
 
 		Convey("When a tuple is emitted by the source", func() {
 			t.Run(&Context{})
@@ -140,7 +140,7 @@ func TestDefaultTopologyTupleProcessing(t *testing.T) {
 		tb.AddSink("si", si).Input("aBox")
 		si2 := &TupleContentsCollectorSink{}
 		tb.AddSink("si2", si2).Input("aBox")
-		t := tb.Build()
+		t, _ := tb.Build()
 
 		Convey("When a tuple is emitted by the source", func() {
 			t.Run(&Context{})
