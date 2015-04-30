@@ -5,98 +5,150 @@ import (
 	"math"
 	"regexp"
 	"strconv"
+	"unicode"
 )
 
-var re = regexp.MustCompile(`^([^\[]+)?(\[[0-9]+\])?$`)
-
-func toError(v interface{}) error {
-	if v != nil {
-		if e, ok := v.(error); ok {
-			return e
-		}
-		if e, ok := v.(string); ok {
-			return errors.New(e)
-		}
-		return errors.New("Unknown error")
-	}
-	return nil
-}
+var reArrayPath = regexp.MustCompile(`^([^\[]+)?(\[[0-9]+\])?$`)
 
 func split(s string) []string {
 	i := 0
-	a := []string{}
-	t := ""
-	rs := []rune(s)
-	l := len(rs)
-	for i < l {
-		r := rs[i]
+	result := []string{}
+	part := ""
+	runes := []rune(s)
+	length := len(runes)
+	for i < length {
+		r := runes[i]
 		switch r {
 		case '\\':
 			i++
-			if i < l {
-				t += string(rs[i])
+			if i < length {
+				part += string(runes[i])
 			}
-		case '/':
-			if t != "" {
-				a = append(a, t)
-				t = ""
+		case '.':
+			if part != "" {
+				result = append(result, part)
+				part = ""
 			}
+		case '[':
+			if i < length-1 {
+				nr := runes[i+1]
+				if nr == '"' || nr == '\'' {
+					inbracket := splitBracket(runes, i+2, nr)
+					if inbracket != "" {
+						if part != "" {
+							result = append(result, part)
+						}
+						result = append(result, inbracket)
+						part = ""
+						i += 1 + len(inbracket) + 2 // " + inner bracket + "]
+						break
+					}
+				}
+			}
+			part += string(r)
 		default:
-			t += string(r)
+			part += string(r)
 		}
 		i++
 	}
-	if t != "" {
-		a = append(a, t)
+	if part != "" {
+		result = append(result, part)
 	}
-	return a
+	return result
 }
 
-func ScanMap(m Map, p string, t *Value) (err error) {
+// get inner string, if non-sense brackets then return empty
+func splitBracket(runes []rune, i int, quote rune) string {
+	length := len(runes)
+	result := ""
+	for i < length {
+		r := runes[i]
+		if r == quote {
+			if i < length-1 {
+				if runes[i+1] == ']' {
+					index := ""
+					if i < length-4 && runes[i+2] == '[' {
+						index = getArrayIndex(runes, i+3)
+					}
+					return result + index
+				}
+			}
+		}
+		result += string(r)
+
+		i++
+	}
+	return ""
+}
+
+// get array index string, if not has index then return empty
+func getArrayIndex(runes []rune, i int) string {
+	length := len(runes)
+	result := ""
+	for i < length {
+		r := runes[i]
+		if r == ']' {
+			break
+		} else if unicode.IsNumber(r) {
+			result += string(r)
+		} else {
+			return ""
+		}
+		i++
+	}
+	if result != "" {
+		return "[" + result + "]"
+	}
+	return ""
+}
+
+func scanMap(m Map, p string, v *Value) (err error) {
 	if p == "" {
 		return errors.New("empty key is not supported")
 	}
-	var v Value
+	var tempValue Value
+	tempMap := m
 	for _, token := range split(p) {
-		sl := re.FindAllStringSubmatch(token, -1)
-		if len(sl) == 0 {
+		matchStr := reArrayPath.FindAllStringSubmatch(token, -1)
+		if len(matchStr) == 0 {
 			return errors.New("invalid path phrase")
 		}
-		ss := sl[0]
-		if ss[1] != "" {
-			mv := m[ss[1]]
-			if mv == nil {
-				return errors.New("not found the key in map")
+		submatchStr := matchStr[0]
+		if submatchStr[1] != "" {
+			foundValue := tempMap[submatchStr[1]]
+			if foundValue == nil {
+				return errors.New(
+					"not found the key in map: " + submatchStr[1])
 			}
-			v = mv
+			tempValue = foundValue
+			if foundValue.Type() == TypeMap {
+				tempMap, _ = foundValue.Map()
+			}
 		}
 		// get array index number
-		if ss[2] != "" {
-			i64, err := strconv.ParseInt(ss[2][1:len(ss[2])-1], 10, 64)
+		if submatchStr[2] != "" {
+			i64, err := strconv.ParseInt(
+				submatchStr[2][1:len(submatchStr[2])-1], 10, 64)
 			if err != nil {
 				return errors.New("invalid array index number: " + token)
 			}
 			if i64 > math.MaxInt32 {
 				return errors.New("overflow index number: " + token)
 			}
-			if v.Type() != TypeArray {
-				return errors.New("invalid array path phrase: " + token)
+			a, err := tempValue.Array()
+			if err != nil {
+				return err
 			}
 			i := int(i64)
-			a, _ := v.Array()
-			found := false
-			for n, av := range a {
-				if n == i {
-					found = true
-					v = av
-					break
-				}
-			}
-			if !found {
+			if i >= len(a) {
 				return errors.New("out of range access: " + token)
+			}
+			tempValue = a[i]
+			if a[i].Type() == TypeMap {
+				tempMap, _ = a[i].Map()
 			}
 		}
 	}
-	*t = v
+	*v = tempValue
 	return nil
 }
