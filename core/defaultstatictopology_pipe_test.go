@@ -33,9 +33,11 @@ func freshTuples() []*tuple.Tuple {
 		tup5, tup6, tup7, tup8}
 }
 
-var (
+const (
 	maxPar        = 1
-	timeTolerance = 5 * time.Millisecond
+	timeTolerance = 10 * time.Millisecond
+	shortSleep    = 50 * time.Millisecond
+	longSleep     = 150 * time.Millisecond
 )
 
 func TestCapacityPipeLinearTopology(t *testing.T) {
@@ -89,16 +91,16 @@ func TestCapacityPipeLinearTopology(t *testing.T) {
 							So(waitTime, ShouldAlmostEqual, 0, timeTolerance)
 						}
 						// the next item should have to wait as long as the first
-						// box processes (100 ms)
+						// box processes (shortSleep)
 						waitTime := si.Tuples[par].Trace[1].Timestamp.Sub(si.Tuples[par].Trace[0].Timestamp)
-						So(waitTime, ShouldAlmostEqual, 100*time.Millisecond, timeTolerance)
+						So(waitTime, ShouldAlmostEqual, shortSleep, timeTolerance)
 						// after that, every par'th item should have to wait
-						// as long as the longest processing box needs (300 ms),
+						// as long as the longest processing box needs (longSleep),
 						// all others be processed immediately
 						for i := par + 1; i < len(si.Tuples); i++ {
 							waitTime := si.Tuples[i].Trace[1].Timestamp.Sub(si.Tuples[i].Trace[0].Timestamp)
 							if (i-par)%par == 0 {
-								So(waitTime, ShouldAlmostEqual, 300*time.Millisecond, timeTolerance)
+								So(waitTime, ShouldAlmostEqual, longSleep, timeTolerance)
 							} else {
 								So(waitTime, ShouldAlmostEqual, 0, timeTolerance)
 							}
@@ -115,11 +117,11 @@ func TestCapacityPipeLinearTopology(t *testing.T) {
 						}
 						// after that, every par'th item should have to wait
 						// as long as the next processing box needs, minus the
-						// duration of this box itself (-> 200 ms),
+						// duration of this box itself,
 						// all others be processed immediately
 						for i := par; i < len(si.Tuples); i++ {
 							waitTime := si.Tuples[i].Trace[3].Timestamp.Sub(si.Tuples[i].Trace[2].Timestamp)
-							So(waitTime, ShouldAlmostEqual, 200*time.Millisecond, timeTolerance)
+							So(waitTime, ShouldAlmostEqual, longSleep-shortSleep, timeTolerance)
 						}
 					}
 
@@ -186,16 +188,16 @@ func TestCapacityPipeLinearTopology(t *testing.T) {
 							So(waitTime, ShouldAlmostEqual, 0, timeTolerance)
 						}
 						// the next item should have to wait as long as the first
-						// box processes (300 ms)
+						// box processes (longSleep)
 						waitTime := si.Tuples[par].Trace[1].Timestamp.Sub(si.Tuples[par].Trace[0].Timestamp)
-						So(waitTime, ShouldAlmostEqual, 300*time.Millisecond, timeTolerance)
+						So(waitTime, ShouldAlmostEqual, longSleep, timeTolerance)
 						// after that, every par'th item should have to wait
-						// as long as the longest processing box needs (300 ms),
+						// as long as the longest processing box needs (longSleep),
 						// all others be processed immediately
 						for i := par + 1; i < len(si.Tuples); i++ {
 							waitTime := si.Tuples[i].Trace[1].Timestamp.Sub(si.Tuples[i].Trace[0].Timestamp)
 							if (i-par)%par == 0 {
-								So(waitTime, ShouldAlmostEqual, 300*time.Millisecond, timeTolerance)
+								So(waitTime, ShouldAlmostEqual, longSleep, timeTolerance)
 							} else {
 								So(waitTime, ShouldAlmostEqual, 0, timeTolerance)
 							}
@@ -286,9 +288,9 @@ func TestCapacityPipeForkTopology(t *testing.T) {
 
 						// box1
 						// the next item should have to wait as long as the first
-						// box processes (100 ms)
+						// box processes (shortSleep)
 						waitTime := si1.Tuples[par].Trace[1].Timestamp.Sub(si1.Tuples[par].Trace[0].Timestamp)
-						So(waitTime, ShouldAlmostEqual, 100*time.Millisecond, timeTolerance)
+						So(waitTime, ShouldAlmostEqual, shortSleep, timeTolerance)
 						// after the first `par + 1` items, every item should
 						// be processed immediately. (the source is waiting for
 						// the slower box to finish before reading the next item,
@@ -302,11 +304,11 @@ func TestCapacityPipeForkTopology(t *testing.T) {
 						// box2
 						// after the first `par` items, every par'th item should
 						// have to wait as long as the longest processing box
-						// needs (300 ms), all others be processed immediately
+						// needs (longSleep), all others be processed immediately
 						for i := par; i < len(so.Tuples); i++ {
 							waitTime := si2.Tuples[i].Trace[1].Timestamp.Sub(si2.Tuples[i].Trace[0].Timestamp)
 							if (i-par)%par == 0 {
-								So(waitTime, ShouldAlmostEqual, 300*time.Millisecond, timeTolerance)
+								So(waitTime, ShouldAlmostEqual, longSleep, timeTolerance)
 							} else {
 								So(waitTime, ShouldAlmostEqual, 0, timeTolerance)
 							}
@@ -393,12 +395,12 @@ func TestCapacityPipeJoinTopology(t *testing.T) {
 							So(waitTime, ShouldAlmostEqual, 0, timeTolerance)
 						}
 						// after that, every par'th item should have to wait
-						// as long as the longest processing box needs (100 ms),
+						// as long as the longest processing box needs (shortSleep),
 						// all others be processed immediately
 						for i := par; i < len(so1.Tuples); i++ {
 							waitTime := so1.Tuples[i].Trace[1].Timestamp.Sub(so1.Tuples[i].Trace[0].Timestamp)
 							if (i-par)%par == 0 {
-								So(waitTime, ShouldAlmostEqual, 100*time.Millisecond, timeTolerance)
+								So(waitTime, ShouldAlmostEqual, shortSleep, timeTolerance)
 							} else {
 								So(waitTime, ShouldAlmostEqual, 0, timeTolerance)
 							}
@@ -414,12 +416,12 @@ func TestCapacityPipeJoinTopology(t *testing.T) {
 							So(waitTime, ShouldAlmostEqual, 0, timeTolerance)
 						}
 						// after that, every par'th item should have to wait
-						// as long as the longest processing box needs (100 ms),
+						// as long as the longest processing box needs (shortSleep),
 						// all others be processed immediately
 						for i := par; i < len(so2.Tuples); i++ {
 							waitTime := so2.Tuples[i].Trace[1].Timestamp.Sub(so2.Tuples[i].Trace[0].Timestamp)
 							if (i-par)%par == 0 {
-								So(waitTime, ShouldAlmostEqual, 100*time.Millisecond, timeTolerance)
+								So(waitTime, ShouldAlmostEqual, shortSleep, timeTolerance)
 							} else {
 								So(waitTime, ShouldAlmostEqual, 0, timeTolerance)
 							}
@@ -449,7 +451,7 @@ func waitUntil(condition func() bool) (timedOut bool) {
 		if condition() {
 			break
 		}
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(shortSleep)
 	}
 	if i >= loopTimeout {
 		return true
@@ -458,13 +460,13 @@ func waitUntil(condition func() bool) (timedOut bool) {
 }
 
 func slowForwardBox(t *tuple.Tuple, w Writer) error {
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(shortSleep)
 	w.Write(t)
 	return nil
 }
 
 func verySlowForwardBox(t *tuple.Tuple, w Writer) error {
-	time.Sleep(300 * time.Millisecond)
+	time.Sleep(longSleep)
 	w.Write(t)
 	return nil
 }
