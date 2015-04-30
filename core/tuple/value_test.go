@@ -16,7 +16,7 @@ func TestValue(t *testing.T) {
 		"time":   Timestamp(time.Date(2015, time.April, 10, 10, 23, 0, 0, time.UTC)),
 		"array":  Array([]Value{String("saysay"), String("mammam")}),
 		"map": Map{
-			"string": String("homhom"),
+			"string": String("homhom2"),
 		},
 	}
 
@@ -32,7 +32,7 @@ func TestValue(t *testing.T) {
 			copy := testData.Copy()
 			Convey("Then all values should be the same", func() {
 				simpleTypes := []string{"bool", "int", "float", "string",
-					"array[0]", "map/string"}
+					"array[0]", "map.string"}
 				for _, typeName := range simpleTypes {
 					a, getErrA := testData.Get(typeName)
 					So(getErrA, ShouldBeNil)
@@ -258,7 +258,7 @@ func TestValue(t *testing.T) {
 			a, getErr := testData.Get("array")
 			Convey("Then the value should exist", func() {
 				So(getErr, ShouldBeNil)
-				Convey("and is should match the original array", func() {
+				Convey("and it should match the original array", func() {
 					e := Array([]Value{String("saysay"), String("mammam")})
 					So(a, ShouldResemble, e)
 				})
@@ -320,9 +320,9 @@ func TestValue(t *testing.T) {
 			m, getErr := testData.Get("map")
 			Convey("Then the value should exist", func() {
 				So(getErr, ShouldBeNil)
-				Convey("and is should match the original map", func() {
+				Convey("and it should match the original map", func() {
 					e := Map{
-						"string": String("homhom"),
+						"string": String("homhom2"),
 					}
 					So(m, ShouldResemble, e)
 				})
@@ -332,13 +332,13 @@ func TestValue(t *testing.T) {
 
 	Convey("Given a Map with a Map value in it", t, func() {
 		Convey("When accessing a map element by nested key", func() {
-			x, getErr := testData.Get("map/string")
+			x, getErr := testData.Get("map.string")
 			Convey("Then the value should exist", func() {
 				So(getErr, ShouldBeNil)
 				Convey("and it should match the original value", func() {
 					val, typeErr := x.String()
 					So(typeErr, ShouldBeNil)
-					So(val, ShouldEqual, "homhom")
+					So(val, ShouldEqual, "homhom2")
 				})
 				Convey("and other type conversions should fail", func() {
 					_, err := x.Bool()

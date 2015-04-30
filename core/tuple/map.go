@@ -50,9 +50,37 @@ func (m Map) Copy() Map {
 	return Map(out)
 }
 
+// Get value(s) from a structured Map followed by the path expression.
+// Return error when the path expression is invalid or the path is not found
+// in Map keys.
+// Value interface can be cast for each types using Value interface's methods.
+// Example:
+//  v, err := map.Get("path")
+//  s, err := v.String() // cast to String
+//
+// Path Expression Example:
+// Given the following Map structure
+//  Map{
+//  	"store": Map{
+//  		"name": String("store name"),
+//  		"book": Array([]Value{
+//  			Map{
+//  				"title": String("book name"),
+//  			},
+//  		}),
+//  	},
+//  }
+// To get values, access the following path expressions
+//  `store`              -> get store's Map
+//  `store.name`         -> get "store name"
+//  `store.book[0].title -> get "book name"
+// or
+//  `["store"]`                     -> get store's Map
+//  `["store"]["name"]`             -> get "store name"
+//  `["store"]["book"][0]["title"]` -> get "book name"
+//
 func (m Map) Get(path string) (Value, error) {
-	// TODO: support json path manually
 	var v Value
-	err := ScanMap(m, path, &v)
+	err := scanMap(m, path, &v)
 	return v, err
 }

@@ -43,7 +43,7 @@ func TestTuple(t *testing.T) {
 
 			Convey("Then all values should be the same", func() {
 				simpleTypes := []string{"bool", "int", "float", "string",
-					"array[0]", "map/string"}
+					"array[0]", "map.string"}
 				for _, typeName := range simpleTypes {
 					a, getErrA := tup.Data.Get(typeName)
 					So(getErrA, ShouldBeNil)
