@@ -41,7 +41,7 @@ func (t *defaultStaticTopology) Run(ctx *Context) {
 	// as a workaround, sleep a bit so that background goroutines can
 	// finish their work (or else all tests will break)
 	// TODO replace this by proper shutdown method
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(50 * time.Millisecond)
 }
 
 /**************************************************/
