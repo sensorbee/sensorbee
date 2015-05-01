@@ -1,33 +1,37 @@
 package tuple
 
+import (
+	"time"
+)
+
 type Map map[string]Value
 
 func (m Map) Type() TypeID {
 	return TypeMap
 }
 
-func (m Map) AsBool() (Bool, error) {
+func (m Map) AsBool() (bool, error) {
 	return false, castError(m.Type(), TypeBool)
 }
 
-func (m Map) AsInt() (Int, error) {
+func (m Map) AsInt() (int64, error) {
 	return 0, castError(m.Type(), TypeInt)
 }
 
-func (m Map) AsFloat() (Float, error) {
+func (m Map) AsFloat() (float64, error) {
 	return 0, castError(m.Type(), TypeFloat)
 }
 
-func (m Map) AsString() (String, error) {
+func (m Map) AsString() (string, error) {
 	return "", castError(m.Type(), TypeString)
 }
 
-func (m Map) AsBlob() (Blob, error) {
+func (m Map) AsBlob() ([]byte, error) {
 	return nil, castError(m.Type(), TypeBlob)
 }
 
-func (m Map) AsTimestamp() (Timestamp, error) {
-	return Timestamp{}, castError(m.Type(), TypeTimestamp)
+func (m Map) AsTimestamp() (time.Time, error) {
+	return time.Time{}, castError(m.Type(), TypeTimestamp)
 }
 
 func (m Map) AsArray() (Array, error) {

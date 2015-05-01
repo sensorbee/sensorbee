@@ -1,33 +1,37 @@
 package tuple
 
+import (
+	"time"
+)
+
 type Blob []byte
 
 func (b Blob) Type() TypeID {
 	return TypeBlob
 }
 
-func (b Blob) AsBool() (Bool, error) {
+func (b Blob) AsBool() (bool, error) {
 	return false, castError(b.Type(), TypeBool)
 }
 
-func (b Blob) AsInt() (Int, error) {
+func (b Blob) AsInt() (int64, error) {
 	return 0, castError(b.Type(), TypeInt)
 }
 
-func (b Blob) AsFloat() (Float, error) {
+func (b Blob) AsFloat() (float64, error) {
 	return 0, castError(b.Type(), TypeFloat)
 }
 
-func (b Blob) AsString() (String, error) {
+func (b Blob) AsString() (string, error) {
 	return "", castError(b.Type(), TypeString)
 }
 
-func (b Blob) AsBlob() (Blob, error) {
+func (b Blob) AsBlob() ([]byte, error) {
 	return b, nil
 }
 
-func (b Blob) AsTimestamp() (Timestamp, error) {
-	return Timestamp{}, castError(b.Type(), TypeTimestamp)
+func (b Blob) AsTimestamp() (time.Time, error) {
+	return time.Time{}, castError(b.Type(), TypeTimestamp)
 }
 
 func (b Blob) AsArray() (Array, error) {

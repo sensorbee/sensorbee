@@ -1,33 +1,37 @@
 package tuple
 
+import (
+	"time"
+)
+
 type Array []Value
 
 func (a Array) Type() TypeID {
 	return TypeArray
 }
 
-func (a Array) AsBool() (Bool, error) {
+func (a Array) AsBool() (bool, error) {
 	return false, castError(a.Type(), TypeBool)
 }
 
-func (a Array) AsInt() (Int, error) {
+func (a Array) AsInt() (int64, error) {
 	return 0, castError(a.Type(), TypeInt)
 }
 
-func (a Array) AsFloat() (Float, error) {
+func (a Array) AsFloat() (float64, error) {
 	return 0, castError(a.Type(), TypeFloat)
 }
 
-func (a Array) AsString() (String, error) {
+func (a Array) AsString() (string, error) {
 	return "", castError(a.Type(), TypeString)
 }
 
-func (a Array) AsBlob() (Blob, error) {
+func (a Array) AsBlob() ([]byte, error) {
 	return nil, castError(a.Type(), TypeBlob)
 }
 
-func (a Array) AsTimestamp() (Timestamp, error) {
-	return Timestamp{}, castError(a.Type(), TypeTimestamp)
+func (a Array) AsTimestamp() (time.Time, error) {
+	return time.Time{}, castError(a.Type(), TypeTimestamp)
 }
 
 func (a Array) AsArray() (Array, error) {

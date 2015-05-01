@@ -3,6 +3,7 @@ package tuple
 import (
 	"errors"
 	"fmt"
+	"time"
 )
 
 // Value is the generic interface for all data that can be stored
@@ -18,12 +19,12 @@ import (
 //  if err != nil { ... }
 type Value interface {
 	Type() TypeID
-	AsBool() (Bool, error)
-	AsInt() (Int, error)
-	AsFloat() (Float, error)
-	AsString() (String, error)
-	AsBlob() (Blob, error)
-	AsTimestamp() (Timestamp, error)
+	AsBool() (bool, error)
+	AsInt() (int64, error)
+	AsFloat() (float64, error)
+	AsString() (string, error)
+	AsBlob() ([]byte, error)
+	AsTimestamp() (time.Time, error)
 	AsArray() (Array, error)
 	AsMap() (Map, error)
 	clone() Value
