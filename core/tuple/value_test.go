@@ -1,6 +1,7 @@
 package tuple
 
 import (
+	"fmt"
 	. "github.com/smartystreets/goconvey/convey"
 	"github.com/ugorji/go/codec"
 	"testing"
@@ -16,6 +17,7 @@ func TestUnmarshalMsgpack(t *testing.T) {
 			"float32": float32(0.1),
 			"float64": float64(0.2),
 			"string":  "homhom",
+			"time":    time.Date(2015, time.May, 1, 14, 27, 0, 0, time.UTC),
 			"array": []interface{}{true, 10, "inarray",
 				map[string]interface{}{
 					"mapinarray": "arraymap",
@@ -23,10 +25,13 @@ func TestUnmarshalMsgpack(t *testing.T) {
 			"map": map[string]interface{}{
 				"map_a": "a",
 				"map_b": 2,
-			}, // TODO add []byte, timestamp and null value
+			},
+			"null": nil,
+			// TODO add []byte
 		}
 		var testData []byte
 		codec.NewEncoderBytes(&testData, mh).Encode(testMap)
+		fmt.Println(testData)
 		Convey("When convert to Map object", func() {
 			m, _ := UnmarshalMsgpack(testData)
 			Convey("Then decode data should be match with Map data", func() {
@@ -37,6 +42,7 @@ func TestUnmarshalMsgpack(t *testing.T) {
 					"float32": Float(float32(0.1)),
 					"float64": Float(0.2),
 					"string":  String("homhom"),
+					"time":    Timestamp(time.Date(2015, time.May, 1, 14, 27, 0, 0, time.UTC)),
 					"array": Array([]Value{Bool(true), Int(10), String("inarray"),
 						Map{
 							"mapinarray": String("arraymap"),
@@ -45,6 +51,7 @@ func TestUnmarshalMsgpack(t *testing.T) {
 						"map_a": String("a"),
 						"map_b": Int(2),
 					},
+					"null": Null{},
 				}
 				So(m, ShouldResemble, expected)
 			})
@@ -59,6 +66,7 @@ func TestMarshalMsgpack(t *testing.T) {
 			"int":    Int(1),
 			"float":  Float(0.1),
 			"string": String("homhom"),
+			"time":   Timestamp(time.Date(2015, time.May, 1, 14, 27, 0, 0, time.UTC)),
 			"array": Array([]Value{Bool(true), Int(10), String("inarray"),
 				Map{
 					"mapinarray": String("arraymap"),
@@ -66,7 +74,9 @@ func TestMarshalMsgpack(t *testing.T) {
 			"map": Map{
 				"map_a": String("a"),
 				"map_b": Int(2),
-			}, // TODO add Blob, Timestamp and Null value
+			},
+			"null": Null{},
+			// TODO add Blob, Timestamp and value
 		}
 		Convey("When convert to []byte", func() {
 			b, _ := MarshalMsgpack(testMap)
@@ -76,6 +86,7 @@ func TestMarshalMsgpack(t *testing.T) {
 					"int":    int64(1),
 					"float":  float64(0.1),
 					"string": "homhom",
+					"time":   time.Date(2015, time.May, 1, 14, 27, 0, 0, time.UTC),
 					"array": []interface{}{true, 10, "inarray",
 						map[string]interface{}{
 							"mapinarray": "arraymap",
@@ -84,6 +95,7 @@ func TestMarshalMsgpack(t *testing.T) {
 						"map_a": "a",
 						"map_b": 2,
 					},
+					"null": nil,
 				}
 				var expectedBytes []byte
 				codec.NewEncoderBytes(&expectedBytes, mh).Encode(expected)

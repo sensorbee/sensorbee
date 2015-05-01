@@ -45,3 +45,47 @@ func (t Timestamp) AsMap() (Map, error) {
 func (t Timestamp) clone() Value {
 	return Timestamp(t)
 }
+
+// timeExt is msgpack extension struct for Timestamp
+type timeExt struct {
+}
+
+func (t *timeExt) WriteExt(v interface{}) []byte {
+	switch vt := v.(type) {
+	case time.Time:
+		b, _ := vt.MarshalBinary()
+		return b
+	case *time.Time:
+		b, _ := vt.MarshalBinary()
+		return b
+	default:
+		return nil
+	}
+}
+
+func (t *timeExt) ReadExt(dst interface{}, src []byte) {
+	tt := dst.(*time.Time)
+	tt.UnmarshalBinary(src)
+}
+
+func (t *timeExt) ConvertExt(v interface{}) interface{} {
+	switch vt := v.(type) {
+	case time.Time:
+		return vt.UTC().UnixNano()
+	case *time.Time:
+		return vt.UTC().UnixNano()
+	default:
+		return nil
+	}
+}
+func (t *timeExt) UpdateExt(dst interface{}, src interface{}) {
+	tt := dst.(*time.Time)
+	switch vt := src.(type) {
+	case int64:
+		*tt = time.Unix(0, vt).UTC()
+	case uint64:
+		*tt = time.Unix(0, int64(vt)).UTC()
+	default:
+		// do nothing
+	}
+}

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/ugorji/go/codec"
+	"reflect"
 	"time"
 )
 
@@ -77,7 +78,13 @@ func (t TypeID) String() string {
 	}
 }
 
-var mh = &codec.MsgpackHandle{RawToString: true}
+var mh = &codec.MsgpackHandle{}
+
+func init() {
+	mh.RawToString = true
+	mh.WriteExt = true
+	mh.SetExt(reflect.TypeOf(time.Time{}), 1, &timeExt{})
+}
 
 func UnmarshalMsgpack(b []byte) (Map, error) {
 	var m map[interface{}]interface{}
@@ -88,48 +95,49 @@ func UnmarshalMsgpack(b []byte) (Map, error) {
 }
 
 func newMap(m map[interface{}]interface{}) (Map, error) {
-	fmt.Println(m)
 	result := Map{}
 	for k, v := range m {
 		key, ok := k.(string)
 		if !ok {
 			return nil, errors.New("Non string type key is not supported")
 		}
-		switch v.(type) {
+		switch vt := v.(type) {
 		case []interface{}:
-			innerArray, err := newArray(v.([]interface{}))
+			innerArray, err := newArray(vt)
 			if err != nil {
-				return nil, err // TODO is it OK to return nil?
+				return nil, err
 			}
 			result[key] = Array(innerArray)
 		case map[interface{}]interface{}:
-			innerMap, err := newMap(v.(map[interface{}]interface{}))
+			innerMap, err := newMap(vt)
 			if err != nil {
-				return nil, err // TODO is it OK to return nil?
+				return nil, err
 			}
 			result[key] = Map(innerMap)
 		case bool:
-			result[key] = Bool(v.(bool))
+			result[key] = Bool(vt)
 		case int:
-			result[key] = Int(v.(int))
+			result[key] = Int(vt)
 		case int8:
-			result[key] = Int(v.(int8))
+			result[key] = Int(vt)
 		case int16:
-			result[key] = Int(v.(int16))
+			result[key] = Int(vt)
 		case int32:
-			result[key] = Int(v.(int32))
+			result[key] = Int(vt)
 		case int64:
-			result[key] = Int(v.(int64))
+			result[key] = Int(vt)
 		case float32:
-			result[key] = Float(v.(float32))
+			result[key] = Float(vt)
 		case float64:
-			result[key] = Float(v.(float64))
+			result[key] = Float(vt)
+		case time.Time:
+			result[key] = Timestamp(vt)
 		case string:
-			result[key] = String(v.(string))
+			result[key] = String(vt)
 		case []byte:
-			result[key] = Blob(v.([]byte))
+			result[key] = Blob(vt)
 		case nil:
-			result[key] = nil
+			result[key] = Null{}
 		}
 	}
 	return result, nil
@@ -138,54 +146,56 @@ func newMap(m map[interface{}]interface{}) (Map, error) {
 func newArray(a []interface{}) ([]Value, error) {
 	result := make([]Value, len(a))
 	for i, v := range a {
-		switch v.(type) {
+		switch vt := v.(type) {
 		case []interface{}:
-			innerArray, err := newArray(v.([]interface{}))
+			innerArray, err := newArray(vt)
 			if err != nil {
 				return nil, err
 			}
 			result[i] = Array(innerArray)
 		case map[interface{}]interface{}:
-			innerMap, err := newMap(v.(map[interface{}]interface{}))
+			innerMap, err := newMap(vt)
 			if err != nil {
 				return nil, err
 			}
 			result[i] = Map(innerMap)
 		case bool:
-			result[i] = Bool(v.(bool))
+			result[i] = Bool(vt)
 		case int:
-			result[i] = Int(v.(int))
+			result[i] = Int(vt)
 		case int8:
-			result[i] = Int(v.(int8))
+			result[i] = Int(vt)
 		case int16:
-			result[i] = Int(v.(int16))
+			result[i] = Int(vt)
 		case int32:
-			result[i] = Int(v.(int32))
+			result[i] = Int(vt)
 		case int64:
-			result[i] = Int(v.(int64))
+			result[i] = Int(vt)
 		case float32:
-			result[i] = Float(v.(float32))
+			result[i] = Float(vt)
 		case float64:
-			result[i] = Float(v.(float64))
+			result[i] = Float(vt)
 		case string:
-			result[i] = String(v.(string))
+			result[i] = String(vt)
 		case []byte:
-			result[i] = Blob(v.([]byte))
+			result[i] = Blob(vt)
+		case time.Time:
+			result[i] = Timestamp(vt)
 		case nil:
-			result[i] = nil
+			result[i] = Null{}
 		}
 	}
 	return result, nil
 }
 
 func MarshalMsgpack(m Map) ([]byte, error) {
-	// iMap, err := newIMap(m)
-	// if err != nil {
-	// 	return nil, err
-	// }
+	iMap, err := newIMap(m)
+	if err != nil {
+		return nil, err
+	}
 	var out []byte
 	enc := codec.NewEncoderBytes(&out, mh)
-	enc.Encode(m) // TODO is it unnecessary to use iMap?
+	enc.Encode(iMap)
 
 	return out, nil
 }
@@ -212,6 +222,8 @@ func newIMap(m Map) (map[string]interface{}, error) {
 		case TypeMap:
 			innerMap, _ := v.AsMap()
 			result[k], _ = newIMap(innerMap)
+		case TypeNull:
+			result[k] = nil
 		}
 	}
 	return result, nil
@@ -237,6 +249,8 @@ func newIArray(a Array) ([]interface{}, error) {
 		case TypeMap:
 			innerMap, _ := v.AsMap()
 			result[i], _ = newIMap(innerMap)
+		case TypeNull:
+			result[i] = nil
 		}
 	}
 	return result, nil
