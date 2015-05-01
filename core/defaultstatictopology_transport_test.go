@@ -31,6 +31,8 @@ func TestDefaultTopologyTupleTransport(t *testing.T) {
 		ProcTimestamp: time.Date(2015, time.April, 10, 10, 24, 1, 0, time.UTC),
 		BatchID:       7,
 	}
+	config := Configuration{TupleTraceEnabled: 1}
+	ctx := Context{Config: config}
 
 	Convey("Given a simple source/sink topology", t, func() {
 		/*
@@ -48,7 +50,7 @@ func TestDefaultTopologyTupleTransport(t *testing.T) {
 		t, _ := tb.Build()
 
 		Convey("When a tuple is emitted by the source", func() {
-			t.Run(&Context{})
+			t.Run(&ctx)
 			Convey("Then the sink receives the same object", func() {
 				So(si.Tuples, ShouldNotBeNil)
 				So(len(si.Tuples), ShouldEqual, 2)
@@ -83,7 +85,7 @@ func TestDefaultTopologyTupleTransport(t *testing.T) {
 		t, _ := tb.Build()
 
 		Convey("When a tuple is emitted by the source", func() {
-			t.Run(&Context{})
+			t.Run(&ctx)
 			Convey("Then the sink 1 receives a copy", func() {
 				So(si1.Tuples, ShouldNotBeNil)
 				So(len(si1.Tuples), ShouldEqual, 2)
@@ -154,7 +156,7 @@ func TestDefaultTopologyTupleTransport(t *testing.T) {
 		t, _ := tb.Build()
 
 		Convey("When a tuple is emitted by the source", func() {
-			t.Run(&Context{})
+			t.Run(&ctx)
 			Convey("Then the sink receives the same object", func() {
 				So(si.Tuples, ShouldNotBeNil)
 				So(len(si.Tuples), ShouldEqual, 2)
@@ -238,7 +240,7 @@ func TestDefaultTopologyTupleTransport(t *testing.T) {
 
 			t, _ := tb.Build()
 
-			t.Run(&Context{})
+			t.Run(&ctx)
 			Convey("Then the sink receives two objects", func() {
 				So(si.Tuples, ShouldNotBeNil)
 				So(len(si.Tuples), ShouldEqual, 2)
@@ -298,7 +300,7 @@ func TestDefaultTopologyTupleTransport(t *testing.T) {
 
 			t, _ := tb.Build()
 
-			t.Run(&Context{})
+			t.Run(&ctx)
 			Convey("Then the sink receives no objects", func() {
 				So(si.Tuples, ShouldBeNil)
 
@@ -333,7 +335,7 @@ func TestDefaultTopologyTupleTransport(t *testing.T) {
 		t, _ := tb.Build()
 
 		Convey("When a tuple is emitted by the source", func() {
-			t.Run(&Context{})
+			t.Run(&ctx)
 			Convey("Then the sink 1 receives a copy", func() {
 				So(si1.Tuples, ShouldNotBeNil)
 				So(len(si1.Tuples), ShouldEqual, 2)
@@ -410,7 +412,7 @@ func TestDefaultTopologyTupleTransport(t *testing.T) {
 		t, _ := tb.Build()
 
 		Convey("When a tuple is emitted by the source", func() {
-			t.Run(&Context{})
+			t.Run(&ctx)
 			Convey("Then the box 1 sees this tuple", func() {
 				So(b1.Tuples, ShouldNotBeNil)
 				So(len(b1.Tuples), ShouldEqual, 2)
@@ -497,14 +499,14 @@ func (b *CollectorBox) Init(ctx *Context) error {
 	b.mutex = &sync.Mutex{}
 	return nil
 }
-func (b *CollectorBox) Process(t *tuple.Tuple, s Writer) error {
+func (b *CollectorBox) Process(ctx *Context, t *tuple.Tuple, s Writer) error {
 	// with multiple sources, there may be multiple concurrent calls
 	// of this method (even in tests) so we need to guard the append
 	// with a mutex
 	b.mutex.Lock()
 	b.Tuples = append(b.Tuples, t.Copy())
 	b.mutex.Unlock()
-	s.Write(t)
+	s.Write(ctx, t)
 	return nil
 }
 func (b *CollectorBox) InputConstraints() (*BoxInputConstraints, error) {
@@ -540,7 +542,7 @@ func (b *SimpleJoinBox) Init(ctx *Context) error {
 	return nil
 }
 
-func (b *SimpleJoinBox) Process(t *tuple.Tuple, s Writer) error {
+func (b *SimpleJoinBox) Process(ctx *Context, t *tuple.Tuple, s Writer) error {
 	// get user id and convert it to int64
 	userId, err := t.Data.Get("uid")
 	if err != nil {
@@ -566,7 +568,7 @@ func (b *SimpleJoinBox) Process(t *tuple.Tuple, s Writer) error {
 			delete(b.RightTuples, uid)
 			b.mutex.Unlock()
 			fmt.Printf("emit %v\n", t)
-			s.Write(t)
+			s.Write(ctx, t)
 		} else {
 			// no match, store this for later
 			b.LeftTuples[uid] = t
@@ -581,7 +583,7 @@ func (b *SimpleJoinBox) Process(t *tuple.Tuple, s Writer) error {
 			}
 			delete(b.LeftTuples, uid)
 			b.mutex.Unlock()
-			s.Write(t)
+			s.Write(ctx, t)
 		} else {
 			// no match, store this for later
 			b.RightTuples[uid] = t

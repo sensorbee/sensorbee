@@ -2,6 +2,7 @@ package core
 
 import (
 	"pfi/sensorbee/sensorbee/core/tuple"
+	"sync/atomic"
 )
 
 // Context holds a set of functionality that is made available to
@@ -10,6 +11,26 @@ import (
 // (e.g., central log collection) and passed in to StaticTopology.Run().
 type Context struct {
 	Logger LogManager
+	Config Configuration
+}
+
+// IsTupleTraceEnabled can get from Context Configuration, whether the topology
+// is enabled to trace Tuples' events.
+func (c *Context) IsTupleTraceEnabled() bool {
+	if atomic.LoadInt32(&c.Config.TupleTraceEnabled) != 0 {
+		return true
+	}
+	return false
+}
+
+// SetTupleTraceEnabled can switch th Configuration of tracing tuples events.
+// If the argument bool flag is same as Context's Configuration, does nothing.
+func (c *Context) SetTupleTraceEnabled(b bool) {
+	var i int32 = 0
+	if b {
+		i = int32(1)
+	}
+	atomic.StoreInt32(&c.Config.TupleTraceEnabled, i)
 }
 
 type LogLevel int
@@ -55,4 +76,14 @@ func (l LogLevel) String() string {
 type LogManager interface {
 	Log(level LogLevel, msg string, a ...interface{})
 	DroppedTuple(t *tuple.Tuple, msg string, a ...interface{})
+}
+
+// Configuration is an arrangement of SensorBee processing.
+//
+// TupleTraceEnabled is a Tuple's tracing on/off flag. If the flag is 0
+// (means false), a topology does not trace Tuple's events.
+// The flag can be set when creating a Context, or running the topology.
+// There is a delay between setting the flag and start/stop to trace Tuples.
+type Configuration struct {
+	TupleTraceEnabled int32
 }

@@ -57,7 +57,7 @@ func (dsd *DummySinkDeclarer) Err() error {
 
 type DummySource struct{}
 
-func (ds *DummySource) GenerateStream(w Writer) error {
+func (ds *DummySource) GenerateStream(ctx *Context, w Writer) error {
 	return nil
 }
 func (ds *DummySource) Schema() *Schema {
@@ -70,7 +70,7 @@ type DummyBox struct{}
 func (db *DummyBox) Init(ctx *Context) error {
 	return nil
 }
-func (db *DummyBox) Process(t *tuple.Tuple, s Writer) error {
+func (db *DummyBox) Process(ctx *Context, t *tuple.Tuple, s Writer) error {
 	return nil
 }
 func (db *DummyBox) InputConstraints() (*BoxInputConstraints, error) {
@@ -82,7 +82,7 @@ func (db *DummyBox) OutputSchema(s []*Schema) (*Schema, error) {
 
 type DummySink struct{}
 
-func (ds *DummySink) Write(t *tuple.Tuple) error {
+func (ds *DummySink) Write(ctx *Context, t *tuple.Tuple) error {
 	return nil
 }
 
