@@ -11,6 +11,8 @@ import (
 // TestDefaultTopologyTupleTracing tests that tracing information is
 // correctly added to tuples in a complex topology.
 func TestDefaultTopologyTupleTracing(t *testing.T) {
+	config := Configuration{TupleTraceEnabled: 1}
+	ctx := Context{Config: config}
 	Convey("Given a complex topology with distribution and aggregation", t, func() {
 
 		tup1 := tuple.Tuple{
@@ -66,7 +68,7 @@ func TestDefaultTopologyTupleTracing(t *testing.T) {
 
 		to, _ := tb.Build()
 		Convey("When a tuple is emitted by the source", func() {
-			to.Run(&Context{})
+			to.Run(&ctx)
 			Convey("Then tracer has 2 kind of route from source1", func() {
 				// make expected routes
 				route1 := []string{

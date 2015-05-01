@@ -13,6 +13,6 @@ package core
 // from this Source. It is nil if no guarantees about that schema
 // are made.
 type Source interface {
-	GenerateStream(w Writer) error
+	GenerateStream(ctx *Context, w Writer) error
 	Schema() *Schema
 }

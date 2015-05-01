@@ -41,6 +41,8 @@ const (
 )
 
 func TestCapacityPipeLinearTopology(t *testing.T) {
+	config := Configuration{TupleTraceEnabled: 1}
+	ctx := Context{Config: config}
 
 	Convey("Given a simple source/slow box/very slow box/sink topology", t, func() {
 		/*
@@ -67,7 +69,7 @@ func TestCapacityPipeLinearTopology(t *testing.T) {
 		for par := 1; par <= maxPar; par++ {
 			par := par // safer to overlay the loop variable when used in closures
 			Convey(fmt.Sprintf("When tuples are emitted with parallelism %d", par), func() {
-				t.Run(&Context{})
+				t.Run(&ctx)
 
 				// wait until tuples arrived
 				So(waitUntil(func() bool {
@@ -164,7 +166,7 @@ func TestCapacityPipeLinearTopology(t *testing.T) {
 		for par := 1; par <= maxPar; par++ {
 			par := par // safer to overlay the loop variable when used in closures
 			Convey(fmt.Sprintf("When tuples are emitted with parallelism %d", par), func() {
-				t.Run(&Context{})
+				t.Run(&ctx)
 
 				// wait until tuples arrived
 				So(waitUntil(func() bool {
@@ -230,6 +232,8 @@ func TestCapacityPipeLinearTopology(t *testing.T) {
 }
 
 func TestCapacityPipeForkTopology(t *testing.T) {
+	config := Configuration{TupleTraceEnabled: 1}
+	ctx := Context{Config: config}
 	Convey("Given a simple source/box/sink topology with 2 boxes and 2 sinks", t, func() {
 		/*
 		 *        /--> b1 -*--> si1
@@ -257,7 +261,7 @@ func TestCapacityPipeForkTopology(t *testing.T) {
 		for par := 1; par <= maxPar; par++ {
 			par := par // safer to overlay the loop variable when used in closures
 			Convey(fmt.Sprintf("When tuples are emitted with parallelism %d", par), func() {
-				t.Run(&Context{})
+				t.Run(&ctx)
 
 				// wait until tuples arrived
 				So(waitUntil(func() bool {
@@ -341,6 +345,8 @@ func TestCapacityPipeForkTopology(t *testing.T) {
 }
 
 func TestCapacityPipeJoinTopology(t *testing.T) {
+	config := Configuration{TupleTraceEnabled: 1}
+	ctx := Context{Config: config}
 	Convey("Given a simple source/box/sink topology with 2 sources", t, func() {
 		/*
 		 *   so1 -*-\
@@ -371,7 +377,7 @@ func TestCapacityPipeJoinTopology(t *testing.T) {
 		for par := 1; par <= maxPar; par++ {
 			par := par // safer to overlay the loop variable when used in closures
 			Convey(fmt.Sprintf("When tuples are emitted with parallelism %d", par), func() {
-				t.Run(&Context{})
+				t.Run(&ctx)
 
 				// wait until tuples arrived
 				So(waitUntil(func() bool {
@@ -459,14 +465,14 @@ func waitUntil(condition func() bool) (timedOut bool) {
 	return false
 }
 
-func slowForwardBox(t *tuple.Tuple, w Writer) error {
+func slowForwardBox(ctx *Context, t *tuple.Tuple, w Writer) error {
 	time.Sleep(shortSleep)
-	w.Write(t)
+	w.Write(ctx, t)
 	return nil
 }
 
-func verySlowForwardBox(t *tuple.Tuple, w Writer) error {
+func verySlowForwardBox(ctx *Context, t *tuple.Tuple, w Writer) error {
 	time.Sleep(longSleep)
-	w.Write(t)
+	w.Write(ctx, t)
 	return nil
 }

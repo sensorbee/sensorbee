@@ -9,5 +9,5 @@ import (
 // because it also allows a Box to write multiple (or none)
 // output tuples.
 type Writer interface {
-	Write(t *tuple.Tuple) error
+	Write(ctx *Context, t *tuple.Tuple) error
 }

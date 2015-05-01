@@ -25,7 +25,7 @@ func (t *defaultStaticTopology) Run(ctx *Context) {
 	for _, pipe := range t.pipes {
 		for _, recv := range pipe.Receivers {
 			recv := recv
-			go recv.ProcessItems()
+			go recv.ProcessItems(ctx)
 		}
 	}
 
@@ -34,7 +34,7 @@ func (t *defaultStaticTopology) Run(ctx *Context) {
 		wg.Add(1)
 		go func(name string, source Source) {
 			defer wg.Done()
-			source.GenerateStream(t.pipes[name])
+			source.GenerateStream(ctx, t.pipes[name])
 		}(name, source)
 	}
 	wg.Wait()
@@ -215,7 +215,7 @@ func (tb *defaultStaticTopologyBuilder) Build() (StaticTopology, error) {
 type pipeReceiver interface {
 	AddToChannel(t *tuple.Tuple)
 	InputName() string
-	ProcessItems()
+	ProcessItems(ctx *Context)
 }
 
 // holds a box and the writer that will receive this box's output
@@ -227,7 +227,7 @@ type receiverBox struct {
 	buffer    chan *tuple.Tuple
 }
 
-func (rb *receiverBox) ProcessItems() {
+func (rb *receiverBox) ProcessItems(ctx *Context) {
 	// If an item is put in the queue (and there is no other processing
 	// taking place), that item will be processed immediately.
 	// If we are still in the middle of processing, then this item will
@@ -237,9 +237,8 @@ func (rb *receiverBox) ProcessItems() {
 	// increase the parallelism of downstream operations.
 	for t := range rb.buffer {
 		// add tracing information and hand over to box
-		in := newDefaultEvent(tuple.INPUT, rb.Name)
-		t.AddEvent(in)
-		rb.Box.Process(t, rb.Receiver)
+		tracing(t, ctx, tuple.INPUT, rb.Name)
+		rb.Box.Process(ctx, t, rb.Receiver)
 	}
 }
 
@@ -258,7 +257,7 @@ type receiverSink struct {
 	buffer chan *tuple.Tuple
 }
 
-func (rs *receiverSink) ProcessItems() {
+func (rs *receiverSink) ProcessItems(ctx *Context) {
 	// If an item is put in the queue (and there is no other processing
 	// taking place), that item will be processed immediately.
 	// If we are still in the middle of processing, then this item will
@@ -268,9 +267,8 @@ func (rs *receiverSink) ProcessItems() {
 	// increase the parallelism of downstream operations.
 	for t := range rs.buffer {
 		// add tracing information and hand over to sink
-		in := newDefaultEvent(tuple.INPUT, rs.Name)
-		t.AddEvent(in)
-		rs.Sink.Write(t)
+		tracing(t, ctx, tuple.INPUT, rs.Name)
+		rs.Sink.Write(ctx, t)
 	}
 }
 
@@ -316,16 +314,23 @@ func (p *capacityPipe) processItem(t *tuple.Tuple) {
 	}
 }
 
-func (p *capacityPipe) Write(t *tuple.Tuple) error {
+func (p *capacityPipe) Write(ctx *Context, t *tuple.Tuple) error {
 	// add tracing information
-	out := newDefaultEvent(tuple.OUTPUT, p.FromName)
-	t.AddEvent(out)
+	tracing(t, ctx, tuple.OUTPUT, p.FromName)
 	// distribute this item to receivers
 	p.processItem(t)
 	return nil
 }
 
 /**************************************************/
+
+func tracing(t *tuple.Tuple, ctx *Context, inout tuple.EventType, msg string) {
+	if !ctx.IsTupleTraceEnabled() {
+		return
+	}
+	ev := newDefaultEvent(inout, msg)
+	t.AddEvent(ev)
+}
 
 func newDefaultEvent(inout tuple.EventType, msg string) tuple.TraceEvent {
 	return tuple.TraceEvent{

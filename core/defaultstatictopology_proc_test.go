@@ -154,19 +154,19 @@ func TestDefaultTopologyTupleProcessing(t *testing.T) {
 
 /**************************************************/
 
-func toUpper(t *tuple.Tuple, w Writer) error {
+func toUpper(ctx *Context, t *tuple.Tuple, w Writer) error {
 	x, _ := t.Data.Get("source")
 	s, _ := x.AsString()
 	t.Data["to-upper"] = tuple.String(strings.ToUpper(s))
-	w.Write(t)
+	w.Write(ctx, t)
 	return nil
 }
 
-func addSuffix(t *tuple.Tuple, w Writer) error {
+func addSuffix(ctx *Context, t *tuple.Tuple, w Writer) error {
 	x, _ := t.Data.Get("source")
 	s, _ := x.AsString()
 	t.Data["add-suffix"] = tuple.String(s + "_1")
-	w.Write(t)
+	w.Write(ctx, t)
 	return nil
 }
 
@@ -180,7 +180,7 @@ type TupleContentsCollectorSink struct {
 	suffixResults    []string
 }
 
-func (s *TupleContentsCollectorSink) Write(t *tuple.Tuple) (err error) {
+func (s *TupleContentsCollectorSink) Write(ctx *Context, t *tuple.Tuple) (err error) {
 	x, err := t.Data.Get("to-upper")
 	if err == nil {
 		str, _ := x.AsString()
