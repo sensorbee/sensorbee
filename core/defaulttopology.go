@@ -52,6 +52,7 @@ type defaultStaticTopologyBuilder struct {
 	boxpointers map[*Box]bool
 	sinks       map[string]Sink
 	Edges       []dataflowEdge
+	builtFlag   bool
 }
 
 type dataflowEdge struct {
@@ -74,6 +75,7 @@ func NewDefaultStaticTopologyBuilder() StaticTopologyBuilder {
 	tb.boxpointers = make(map[*Box]bool)
 	tb.sinks = make(map[string]Sink)
 	tb.Edges = make([]dataflowEdge, 0)
+	tb.builtFlag = false
 	return &tb
 }
 
@@ -106,6 +108,10 @@ func (tb *defaultStaticTopologyBuilder) IsValidOutputReference(name string) bool
 }
 
 func (tb *defaultStaticTopologyBuilder) AddSource(name string, source Source) SourceDeclarer {
+	if tb.builtFlag {
+		err := fmt.Errorf(topologyBuilderAlreadyCalledBuildMsg)
+		return &defaultSourceDeclarer{err}
+	}
 	// check name
 	if nameErr := tb.checkName(name); nameErr != nil {
 		return &defaultSourceDeclarer{nameErr}
@@ -117,6 +123,10 @@ func (tb *defaultStaticTopologyBuilder) AddSource(name string, source Source) So
 }
 
 func (tb *defaultStaticTopologyBuilder) AddBox(name string, box Box) BoxDeclarer {
+	if tb.builtFlag {
+		err := fmt.Errorf(topologyBuilderAlreadyCalledBuildMsg)
+		return &defaultBoxDeclarer{err: err}
+	}
 	// check name
 	if nameErr := tb.checkName(name); nameErr != nil {
 		return &defaultBoxDeclarer{err: nameErr}
@@ -129,6 +139,10 @@ func (tb *defaultStaticTopologyBuilder) AddBox(name string, box Box) BoxDeclarer
 }
 
 func (tb *defaultStaticTopologyBuilder) AddSink(name string, sink Sink) SinkDeclarer {
+	if tb.builtFlag {
+		err := fmt.Errorf(topologyBuilderAlreadyCalledBuildMsg)
+		return &defaultSinkDeclarer{err: err}
+	}
 	// check name
 	if nameErr := tb.checkName(name); nameErr != nil {
 		return &defaultSinkDeclarer{err: nameErr}
@@ -153,7 +167,11 @@ func (tb *defaultStaticTopologyBuilder) makeCapacityPipes() map[string]*capacity
 	return pipes
 }
 
-func (tb *defaultStaticTopologyBuilder) Build() StaticTopology {
+func (tb *defaultStaticTopologyBuilder) Build() (StaticTopology, error) {
+	if tb.builtFlag {
+		err := fmt.Errorf(topologyBuilderAlreadyCalledBuildMsg)
+		return nil, err
+	}
 	// every source and every box gets an "output pipe"
 	pipes := tb.makeCapacityPipes()
 	// add the correct receivers to each pipe
@@ -174,9 +192,8 @@ func (tb *defaultStaticTopologyBuilder) Build() StaticTopology {
 			pipe.Receivers = append(pipe.Receivers, &recv)
 		}
 	}
-	// TODO source and sink is reference data,
-	//      so cannot call .Build() more than once
-	return &defaultStaticTopology{tb.boxpointers, tb.sources, pipes}
+	tb.builtFlag = true
+	return &defaultStaticTopology{tb.boxpointers, tb.sources, pipes}, nil
 }
 
 /**************************************************/
@@ -444,3 +461,9 @@ func (sd *defaultSinkDeclarer) Input(refname string) SinkDeclarer {
 func (sd *defaultSinkDeclarer) Err() error {
 	return sd.err
 }
+
+/**************************************************/
+
+const (
+	topologyBuilderAlreadyCalledBuildMsg = "this topology builder has already built the topology"
+)

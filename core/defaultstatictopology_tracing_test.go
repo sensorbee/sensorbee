@@ -64,7 +64,7 @@ func TestDefaultTopologyTupleTracing(t *testing.T) {
 		si2 := &TupleCollectorSink{}
 		tb.AddSink("si2", si2).Input("box4")
 
-		to := tb.Build()
+		to, _ := tb.Build()
 		Convey("When a tuple is emitted by the source", func() {
 			to.Run(&Context{})
 			Convey("Then tracer has 2 kind of route from source1", func() {
