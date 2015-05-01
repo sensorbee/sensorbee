@@ -8,6 +8,8 @@ import (
 	"time"
 )
 
+// TestUnmarshalMsgpack tests that byte array encoded by msgpack
+// is deserialized to Map object correctly
 func TestUnmarshalMsgpack(t *testing.T) {
 	Convey("Given a msgpack byte data", t, func() {
 		var testMap = map[string]interface{}{
@@ -59,6 +61,8 @@ func TestUnmarshalMsgpack(t *testing.T) {
 	})
 }
 
+// TestMarshalMsgpack tests that Map object is serialized to
+// byte array correctly.
 func TestMarshalMsgpack(t *testing.T) {
 	Convey("Given a Map object data", t, func() {
 		var testMap = Map{
@@ -76,7 +80,7 @@ func TestMarshalMsgpack(t *testing.T) {
 				"map_b": Int(2),
 			},
 			"null": Null{},
-			// TODO add Blob, Timestamp and value
+			// TODO add Blob
 		}
 		Convey("When convert to []byte", func() {
 			b, _ := MarshalMsgpack(testMap)
