@@ -231,6 +231,59 @@ func TestToString(t *testing.T) {
 	runConversionTestCases(t, toFun, "ToString", testCases)
 }
 
+func TestToTime(t *testing.T) {
+	now := time.Now()
+
+	testCases := map[string]([]convTestInput){
+		"Null": []convTestInput{
+			convTestInput{"Null", Null{}, time.Time{}},
+		},
+		"Bool": []convTestInput{
+			convTestInput{"true", Bool(true), nil},
+			convTestInput{"false", Bool(false), nil},
+		},
+		"Int": []convTestInput{
+			convTestInput{"positive", Int(2), time.Unix(2, 0)},
+			convTestInput{"negative", Int(-2), time.Unix(-2, 0)},
+			convTestInput{"zero", Int(0), time.Unix(0, 0)},
+		},
+		"Float": []convTestInput{
+			convTestInput{"positive", Float(3.14), time.Unix(3, 14e7)},
+			convTestInput{"negative", Float(-3.14), time.Unix(-3, -14e7)},
+			convTestInput{"negative (alternative)", Float(-3.14), time.Unix(-4, 86e7)},
+			convTestInput{"zero", Float(0.0), time.Unix(0, 0)},
+		},
+		"String": []convTestInput{
+			convTestInput{"empty", String(""), nil},
+			convTestInput{"non-empty", String("hoge"), nil},
+			convTestInput{"valid time string", String("1970-01-01T09:00:02+09:00"), time.Unix(2, 0)},
+			convTestInput{"valid time string with ns", String(now.Format(time.RFC3339Nano)), now},
+		},
+		"Blob": []convTestInput{
+			convTestInput{"empty", Blob(""), nil},
+			convTestInput{"non-empty", Blob("hoge"), nil},
+		},
+		"Timestamp": []convTestInput{
+			convTestInput{"zero", Timestamp(time.Time{}), time.Time{}},
+			convTestInput{"now", Timestamp(now), now},
+		},
+		"Array": []convTestInput{
+			convTestInput{"empty", Array{}, nil},
+			convTestInput{"non-empty", Array{Int(2), String("foo")}, nil},
+		},
+		"Map": []convTestInput{
+			convTestInput{"empty", Map{}, nil},
+			convTestInput{"non-empty", Map{"a": Int(2), "b": String("foo")}, nil},
+		},
+	}
+
+	toFun := func(v Value) (interface{}, error) {
+		val, err := ToTime(v)
+		return val, err
+	}
+	runConversionTestCases(t, toFun, "ToTime", testCases)
+}
+
 func runConversionTestCases(t *testing.T,
 	toFun func(v Value) (interface{}, error),
 	funcName string,
@@ -252,7 +305,7 @@ func runConversionTestCases(t *testing.T,
 						Convey(fmt.Sprintf("Then %s returns %v", funcName, exp), func() {
 							val, err := toFun(inVal)
 							So(err, ShouldBeNil)
-							So(val, ShouldEqual, exp)
+							So(val, ShouldResemble, exp)
 						})
 					}
 				})
