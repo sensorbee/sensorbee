@@ -157,7 +157,7 @@ func TestDefaultTopologyTupleProcessing(t *testing.T) {
 func toUpper(t *tuple.Tuple, w Writer) error {
 	x, _ := t.Data.Get("source")
 	s, _ := x.AsString()
-	t.Data["to-upper"] = tuple.String(strings.ToUpper(string(s)))
+	t.Data["to-upper"] = tuple.String(strings.ToUpper(s))
 	w.Write(t)
 	return nil
 }
@@ -184,13 +184,13 @@ func (s *TupleContentsCollectorSink) Write(t *tuple.Tuple) (err error) {
 	x, err := t.Data.Get("to-upper")
 	if err == nil {
 		str, _ := x.AsString()
-		s.uppercaseResults = append(s.uppercaseResults, string(str))
+		s.uppercaseResults = append(s.uppercaseResults, str)
 	}
 
 	x, err = t.Data.Get("add-suffix")
 	if err == nil {
 		str, _ := x.AsString()
-		s.suffixResults = append(s.suffixResults, string(str))
+		s.suffixResults = append(s.suffixResults, str)
 	}
 	return err
 }

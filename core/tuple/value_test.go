@@ -200,7 +200,7 @@ func TestValue(t *testing.T) {
 				Convey("and it should match the original value", func() {
 					val, typeErr := x.AsBlob()
 					So(typeErr, ShouldBeNil)
-					So(val, ShouldResemble, Blob([]byte("madmad")))
+					So(val, ShouldResemble, []byte("madmad"))
 				})
 				Convey("and other type conversions should fail", func() {
 					_, err := x.AsBool()

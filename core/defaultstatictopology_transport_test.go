@@ -547,13 +547,12 @@ func (b *SimpleJoinBox) Process(t *tuple.Tuple, s Writer) error {
 		b.ctx.Logger.DroppedTuple(t, "no uid field")
 		return nil
 	}
-	userIdInt, err := userId.AsInt()
+	uid, err := userId.AsInt()
 	if err != nil {
 		b.ctx.Logger.DroppedTuple(t, "uid value was not an integer: %v (%v)",
 			userId, err)
 		return nil
 	}
-	uid := int64(userIdInt)
 	// prevent concurrent access
 	b.mutex.Lock()
 	// check if we have a matching item in the other stream

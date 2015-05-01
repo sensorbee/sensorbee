@@ -1,33 +1,37 @@
 package tuple
 
+import (
+	"time"
+)
+
 type Null struct{}
 
 func (n Null) Type() TypeID {
 	return TypeNull
 }
 
-func (n Null) AsBool() (Bool, error) {
+func (n Null) AsBool() (bool, error) {
 	return false, castError(n.Type(), TypeBool)
 }
 
-func (n Null) AsInt() (Int, error) {
+func (n Null) AsInt() (int64, error) {
 	return 0, castError(n.Type(), TypeInt)
 }
 
-func (n Null) AsFloat() (Float, error) {
+func (n Null) AsFloat() (float64, error) {
 	return 0, castError(n.Type(), TypeFloat)
 }
 
-func (n Null) AsString() (String, error) {
+func (n Null) AsString() (string, error) {
 	return "", castError(n.Type(), TypeString)
 }
 
-func (n Null) AsBlob() (Blob, error) {
+func (n Null) AsBlob() ([]byte, error) {
 	return nil, castError(n.Type(), TypeBlob)
 }
 
-func (n Null) AsTimestamp() (Timestamp, error) {
-	return Timestamp{}, castError(n.Type(), TypeTimestamp)
+func (n Null) AsTimestamp() (time.Time, error) {
+	return time.Time{}, castError(n.Type(), TypeTimestamp)
 }
 
 func (n Null) AsArray() (Array, error) {
