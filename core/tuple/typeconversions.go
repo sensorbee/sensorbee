@@ -3,6 +3,7 @@ package tuple
 import (
 	"fmt"
 	"math"
+	"strconv"
 	"time"
 )
 
@@ -92,7 +93,8 @@ func ToBool(v Value) (bool, error) {
 //  * Int: actual value
 //  * Float: conversion as done by int64(value)
 //    (values outside of valid int64 bounds will lead to an error)
-//  * String: (error)
+//  * String: parsed integer with base 0 as per strconv.ParseInt
+//    (values outside of valid int64 bounds will lead to an error)
 //  * Blob: (error)
 //  * Timestamp: Unix time, see time.Time.Unix()
 //  * Array: (error)
@@ -128,6 +130,12 @@ func ToInt(v Value) (int64, error) {
 			return defaultValue,
 				fmt.Errorf("%v is out of bounds for int64 conversion", val)
 		}
+	case TypeString:
+		val, e := v.AsString()
+		if e != nil {
+			return defaultValue, e
+		}
+		return strconv.ParseInt(val, 0, 64)
 	case TypeTimestamp:
 		val, e := v.AsTimestamp()
 		if e != nil {
@@ -147,7 +155,8 @@ func ToInt(v Value) (int64, error) {
 //  * Bool: 0.0 if false, 1.0 if true
 //  * Int: conversion as done by float64(value)
 //  * Float: actual value
-//  * String: (error)
+//  * String: parsed float as per strconv.ParseFloat
+//    (values outside of valid float64 bounds will lead to an error)
 //  * Blob: (error)
 //  * Timestamp: Unix time as float64, see time.Time.Unix()
 //  * Array: (error)
@@ -178,6 +187,12 @@ func ToFloat(v Value) (float64, error) {
 			return defaultValue, e
 		}
 		return val, nil
+	case TypeString:
+		val, e := v.AsString()
+		if e != nil {
+			return defaultValue, e
+		}
+		return strconv.ParseFloat(val, 64)
 	case TypeTimestamp:
 		val, e := v.AsTimestamp()
 		if e != nil {

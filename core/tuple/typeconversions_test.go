@@ -93,6 +93,7 @@ func TestToInt(t *testing.T) {
 		"String": []convTestInput{
 			convTestInput{"empty", String(""), nil},
 			convTestInput{"non-empty", String("hoge"), nil},
+			convTestInput{"numeric", String("123456"), int64(123456)},
 		},
 		"Blob": []convTestInput{
 			convTestInput{"empty", Blob(""), nil},
@@ -150,6 +151,7 @@ func TestToFloat(t *testing.T) {
 		"String": []convTestInput{
 			convTestInput{"empty", String(""), nil},
 			convTestInput{"non-empty", String("hoge"), nil},
+			convTestInput{"numeric", String("123.456"), float64(123.456)},
 		},
 		"Blob": []convTestInput{
 			convTestInput{"empty", Blob(""), nil},
