@@ -10,35 +10,35 @@ func (i Int) Type() TypeID {
 	return TypeInt
 }
 
-func (i Int) Bool() (Bool, error) {
+func (i Int) AsBool() (Bool, error) {
 	return false, castError(i.Type(), TypeBool)
 }
 
-func (i Int) Int() (Int, error) {
+func (i Int) AsInt() (Int, error) {
 	return i, nil
 }
 
-func (i Int) Float() (Float, error) {
+func (i Int) AsFloat() (Float, error) {
 	return Float(i), nil
 }
 
-func (i Int) String() (String, error) {
+func (i Int) AsString() (String, error) {
 	return String(fmt.Sprint(i)), nil
 }
 
-func (i Int) Blob() (Blob, error) {
+func (i Int) AsBlob() (Blob, error) {
 	return nil, castError(i.Type(), TypeBlob)
 }
 
-func (i Int) Timestamp() (Timestamp, error) {
+func (i Int) AsTimestamp() (Timestamp, error) {
 	return Timestamp{}, castError(i.Type(), TypeTimestamp)
 }
 
-func (i Int) Array() (Array, error) {
+func (i Int) AsArray() (Array, error) {
 	return nil, castError(i.Type(), TypeArray)
 }
 
-func (i Int) Map() (Map, error) {
+func (i Int) AsMap() (Map, error) {
 	return nil, castError(i.Type(), TypeMap)
 }
 

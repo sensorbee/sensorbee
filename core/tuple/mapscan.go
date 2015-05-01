@@ -176,7 +176,7 @@ func scanMap(m Map, p string, v *Value) (err error) {
 		if submatchStr[1] != "" {
 			// try to access the current tempValue as a map and
 			// pull out the value therein
-			tempMap, err := tempValue.Map()
+			tempMap, err := tempValue.AsMap()
 			if err != nil {
 				return fmt.Errorf("cannot access a %T using key \"%s\"",
 					tempValue, token)
@@ -200,7 +200,7 @@ func scanMap(m Map, p string, v *Value) (err error) {
 			}
 			// try to access the current tempValue as an array
 			// and access the value therein
-			tempArr, err := tempValue.Array()
+			tempArr, err := tempValue.AsArray()
 			if err != nil {
 				return fmt.Errorf("cannot access a %T using index %d",
 					tempValue, i64)
