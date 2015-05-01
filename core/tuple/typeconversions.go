@@ -3,6 +3,7 @@ package tuple
 import (
 	"fmt"
 	"math"
+	"time"
 )
 
 // Constants defining the largest/smallest float64 numbers that can
@@ -186,5 +187,30 @@ func ToFloat(v Value) (float64, error) {
 	default:
 		return defaultValue,
 			fmt.Errorf("cannot convert %T to float64", v)
+	}
+}
+
+// ToString converts a given Value to a string. The conversion
+// rules are as follows:
+//
+//  * Null: "null"
+//  * Bool, Int, Float, String: Go's "%v" representation
+//  * Timestamp: ISO 8601 representation, see time.RFC3339
+//  * other: Go's "%#v" representation
+func ToString(v Value) (string, error) {
+	defaultValue := ""
+	switch v.Type() {
+	case TypeNull:
+		return "null", nil
+	case TypeBool, TypeInt, TypeFloat, TypeString:
+		return fmt.Sprintf("%v", v), nil
+	case TypeTimestamp:
+		val, e := v.AsTimestamp()
+		if e != nil {
+			return defaultValue, e
+		}
+		return val.Format(time.RFC3339), nil
+	default:
+		return fmt.Sprintf("%#v", v), nil
 	}
 }
