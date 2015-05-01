@@ -1,7 +1,6 @@
 package tuple
 
 import (
-	"fmt"
 	"time"
 )
 
@@ -16,7 +15,7 @@ func (f Float) AsBool() (bool, error) {
 }
 
 func (f Float) AsInt() (int64, error) {
-	return int64(f), nil
+	return 0, castError(f.Type(), TypeInt)
 }
 
 func (f Float) AsFloat() (float64, error) {
@@ -24,7 +23,7 @@ func (f Float) AsFloat() (float64, error) {
 }
 
 func (f Float) AsString() (string, error) {
-	return fmt.Sprint(f), nil
+	return "", castError(f.Type(), TypeString)
 }
 
 func (f Float) AsBlob() ([]byte, error) {
