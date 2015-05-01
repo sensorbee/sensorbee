@@ -15,9 +15,6 @@ type convTestInput struct {
 }
 
 func TestToBool(t *testing.T) {
-	toFun := ToBool
-	funcName := "ToBool"
-
 	testCases := map[string]([]convTestInput){
 		"Null": []convTestInput{
 			convTestInput{"Null", Null{}, false},
@@ -58,29 +55,14 @@ func TestToBool(t *testing.T) {
 		},
 	}
 
-	for valType, cases := range testCases {
-		cases := cases
-		Convey(fmt.Sprintf("Given a %s value", valType), t, func() {
-			for _, testCase := range cases {
-				tc := testCase
-				Convey(fmt.Sprintf("When it is %s", tc.ValueDesc), func() {
-					inVal := tc.Value
-					exp := tc.Expected
-					Convey(fmt.Sprintf("Then %s returns %v", funcName, exp), func() {
-						val, err := toFun(inVal)
-						So(err, ShouldBeNil)
-						So(val, ShouldEqual, exp)
-					})
-				})
-			}
-		})
+	toFun := func(v Value) (interface{}, error) {
+		val, err := ToBool(v)
+		return val, err
 	}
+	runConversionTestCases(t, toFun, "ToBool", testCases)
 }
 
 func TestToInt(t *testing.T) {
-	toFun := ToInt
-	funcName := "ToInt"
-
 	now := time.Now()
 
 	testCases := map[string]([]convTestInput){
@@ -132,6 +114,17 @@ func TestToInt(t *testing.T) {
 		},
 	}
 
+	toFun := func(v Value) (interface{}, error) {
+		val, err := ToInt(v)
+		return val, err
+	}
+	runConversionTestCases(t, toFun, "ToInt", testCases)
+}
+
+func runConversionTestCases(t *testing.T,
+	toFun func(v Value) (interface{}, error),
+	funcName string,
+	testCases map[string][]convTestInput) {
 	for valType, cases := range testCases {
 		cases := cases
 		Convey(fmt.Sprintf("Given a %s value", valType), t, func() {
