@@ -14,18 +14,18 @@ import (
 // and error checking must be done.
 //
 // Example:
-//  i, err := val.Int()
+//  i, err := val.AsInt()
 //  if err != nil { ... }
 type Value interface {
 	Type() TypeID
-	Bool() (Bool, error)
-	Int() (Int, error)
-	Float() (Float, error)
-	String() (String, error)
-	Blob() (Blob, error)
-	Timestamp() (Timestamp, error)
-	Array() (Array, error)
-	Map() (Map, error)
+	AsBool() (Bool, error)
+	AsInt() (Int, error)
+	AsFloat() (Float, error)
+	AsString() (String, error)
+	AsBlob() (Blob, error)
+	AsTimestamp() (Timestamp, error)
+	AsArray() (Array, error)
+	AsMap() (Map, error)
 	clone() Value
 }
 

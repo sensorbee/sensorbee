@@ -6,35 +6,35 @@ func (b Blob) Type() TypeID {
 	return TypeBlob
 }
 
-func (b Blob) Bool() (Bool, error) {
+func (b Blob) AsBool() (Bool, error) {
 	return false, castError(b.Type(), TypeBool)
 }
 
-func (b Blob) Int() (Int, error) {
+func (b Blob) AsInt() (Int, error) {
 	return 0, castError(b.Type(), TypeInt)
 }
 
-func (b Blob) Float() (Float, error) {
+func (b Blob) AsFloat() (Float, error) {
 	return 0, castError(b.Type(), TypeFloat)
 }
 
-func (b Blob) String() (String, error) {
+func (b Blob) AsString() (String, error) {
 	return "", castError(b.Type(), TypeString)
 }
 
-func (b Blob) Blob() (Blob, error) {
+func (b Blob) AsBlob() (Blob, error) {
 	return b, nil
 }
 
-func (b Blob) Timestamp() (Timestamp, error) {
+func (b Blob) AsTimestamp() (Timestamp, error) {
 	return Timestamp{}, castError(b.Type(), TypeTimestamp)
 }
 
-func (b Blob) Array() (Array, error) {
+func (b Blob) AsArray() (Array, error) {
 	return nil, castError(b.Type(), TypeArray)
 }
 
-func (b Blob) Map() (Map, error) {
+func (b Blob) AsMap() (Map, error) {
 	return nil, castError(b.Type(), TypeMap)
 }
 

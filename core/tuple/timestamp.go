@@ -10,35 +10,35 @@ func (t Timestamp) Type() TypeID {
 	return TypeTimestamp
 }
 
-func (t Timestamp) Bool() (Bool, error) {
+func (t Timestamp) AsBool() (Bool, error) {
 	return false, castError(t.Type(), TypeBool)
 }
 
-func (t Timestamp) Int() (Int, error) {
+func (t Timestamp) AsInt() (Int, error) {
 	return 0, castError(t.Type(), TypeInt)
 }
 
-func (t Timestamp) Float() (Float, error) {
+func (t Timestamp) AsFloat() (Float, error) {
 	return 0, castError(t.Type(), TypeFloat)
 }
 
-func (t Timestamp) String() (String, error) {
+func (t Timestamp) AsString() (String, error) {
 	return "", castError(t.Type(), TypeString)
 }
 
-func (t Timestamp) Blob() (Blob, error) {
+func (t Timestamp) AsBlob() (Blob, error) {
 	return nil, castError(t.Type(), TypeBlob)
 }
 
-func (t Timestamp) Timestamp() (Timestamp, error) {
+func (t Timestamp) AsTimestamp() (Timestamp, error) {
 	return t, nil
 }
 
-func (t Timestamp) Array() (Array, error) {
+func (t Timestamp) AsArray() (Array, error) {
 	return nil, castError(t.Type(), TypeArray)
 }
 
-func (t Timestamp) Map() (Map, error) {
+func (t Timestamp) AsMap() (Map, error) {
 	return nil, castError(t.Type(), TypeMap)
 }
 

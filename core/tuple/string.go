@@ -6,35 +6,35 @@ func (s String) Type() TypeID {
 	return TypeString
 }
 
-func (s String) Bool() (Bool, error) {
+func (s String) AsBool() (Bool, error) {
 	return false, castError(s.Type(), TypeBool)
 }
 
-func (s String) Int() (Int, error) {
+func (s String) AsInt() (Int, error) {
 	return 0, castError(s.Type(), TypeInt)
 }
 
-func (s String) Float() (Float, error) {
+func (s String) AsFloat() (Float, error) {
 	return 0, castError(s.Type(), TypeFloat)
 }
 
-func (s String) String() (String, error) {
+func (s String) AsString() (String, error) {
 	return s, nil
 }
 
-func (s String) Blob() (Blob, error) {
+func (s String) AsBlob() (Blob, error) {
 	return nil, castError(s.Type(), TypeBlob)
 }
 
-func (s String) Timestamp() (Timestamp, error) {
+func (s String) AsTimestamp() (Timestamp, error) {
 	return Timestamp{}, castError(s.Type(), TypeTimestamp)
 }
 
-func (s String) Array() (Array, error) {
+func (s String) AsArray() (Array, error) {
 	return nil, castError(s.Type(), TypeArray)
 }
 
-func (s String) Map() (Map, error) {
+func (s String) AsMap() (Map, error) {
 	return nil, castError(s.Type(), TypeMap)
 }
 
