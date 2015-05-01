@@ -253,3 +253,37 @@ func TestDefaultTopologyBuilderInterface(t *testing.T) {
 		})
 	})
 }
+
+// TestMultipleBuild tests that default static topology builder
+// can build only once.
+func TestMultipleBuild(t *testing.T) {
+	Convey("Given basic topology builder called build() once", t, func() {
+		tb := NewDefaultStaticTopologyBuilder()
+		tp, _ := tb.Build()
+		So(tp, ShouldNotBeNil)
+		Convey("When add source", func() {
+			sd := tb.AddSource("src", &DoesNothingSource{})
+			Convey("Then it should occur non-buildable error", func() {
+				So(sd.Err(), ShouldNotBeNil)
+			})
+		})
+		Convey("When add box", func() {
+			bd := tb.AddBox("box", &DoesNothingBox{})
+			Convey("Then it should occur non-buildable error", func() {
+				So(bd.Err(), ShouldNotBeNil)
+			})
+		})
+		Convey("When add sink", func() {
+			sd := tb.AddSink("si", &DoesNothingSink{})
+			Convey("Then it should occur non-buildable error", func() {
+				So(sd.Err(), ShouldNotBeNil)
+			})
+		})
+		Convey("When build topology once again", func() {
+			_, err := tb.Build()
+			Convey("Then it should occur non-buildable error", func() {
+				So(err, ShouldNotBeNil)
+			})
+		})
+	})
+}
