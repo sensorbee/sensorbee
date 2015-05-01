@@ -8,6 +8,76 @@ import (
 	"time"
 )
 
+// TestDefaultTopologyTupleTracingConfiguration test that tracing
+// information is added according to Configuration.
+func TestDefaultTopologyTupleTracingConfiguration(t *testing.T) {
+	Convey("Given a simple topology with tracing disabled", t, func() {
+		config := Configuration{TupleTraceEnabled: 0}
+		ctx := Context{Config: config}
+		tup := tuple.Tuple{
+			Data: tuple.Map{
+				"int": tuple.Int(1),
+			},
+			Timestamp:     time.Date(2015, time.May, 1, 11, 18, 0, 0, time.UTC),
+			ProcTimestamp: time.Date(2015, time.May, 1, 11, 18, 0, 0, time.UTC),
+			BatchID:       7,
+			Trace:         make([]tuple.TraceEvent, 0),
+		}
+		tb := NewDefaultStaticTopologyBuilder()
+		so1 := TupleWaitEmitterSource{
+			tuple:    tup.Copy(),
+			waitTime: 0,
+		}
+		tb.AddSource("so1", &so1)
+		so2 := TupleWaitEmitterSource{
+			tuple:    tup.Copy(),
+			waitTime: 50,
+		}
+		tb.AddSource("so2", &so2)
+		so3 := TupleWaitEmitterSource{
+			tuple:    tup.Copy(),
+			waitTime: 100,
+		}
+		tb.AddSource("so3", &so3)
+		b := BoxFunc(forwardBox)
+		tb.AddBox("box", b).Input("so1").Input("so2").Input("so3")
+		si := &TupleCollectorSink{}
+		tb.AddSink("si", si).Input("box")
+
+		tp, _ := tb.Build()
+		Convey("When switch tracing configuration in running topology", func() {
+			go tp.Run(&ctx)
+			time.Sleep(25 * time.Millisecond)
+			ctx.SetTupleTraceEnabled(true)
+			time.Sleep(50 * time.Millisecond)
+			ctx.SetTupleTraceEnabled(false)
+			time.Sleep(50 * time.Millisecond)
+			Convey("Then trace should be empty", func() {
+				So(len(si.Tuples), ShouldEqual, 3)
+				So(len(si.Tuples[0].Trace), ShouldEqual, 0)
+				So(len(si.Tuples[1].Trace), ShouldEqual, 4)
+				So(len(si.Tuples[2].Trace), ShouldEqual, 0)
+			})
+		})
+	})
+}
+
+type TupleWaitEmitterSource struct {
+	tuple    *tuple.Tuple
+	waitTime uint
+}
+
+func (s *TupleWaitEmitterSource) GenerateStream(ctx *Context, w Writer) error {
+	sleepTime := time.Duration(s.waitTime) * time.Millisecond
+	time.Sleep(sleepTime)
+	w.Write(ctx, s.tuple)
+	return nil
+}
+
+func (s *TupleWaitEmitterSource) Schema() *Schema {
+	return nil
+}
+
 // TestDefaultTopologyTupleTracing tests that tracing information is
 // correctly added to tuples in a complex topology.
 func TestDefaultTopologyTupleTracing(t *testing.T) {
