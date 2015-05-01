@@ -52,7 +52,7 @@ func TestDefaultTopologyTupleTracingConfiguration(t *testing.T) {
 			time.Sleep(50 * time.Millisecond)
 			ctx.SetTupleTraceEnabled(false)
 			time.Sleep(50 * time.Millisecond)
-			Convey("Then trace should be empty", func() {
+			Convey("Then trace should be according to configuration", func() {
 				So(len(si.Tuples), ShouldEqual, 3)
 				So(len(si.Tuples[0].Trace), ShouldEqual, 0)
 				So(len(si.Tuples[1].Trace), ShouldEqual, 4)
