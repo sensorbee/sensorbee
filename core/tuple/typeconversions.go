@@ -138,3 +138,53 @@ func ToInt(v Value) (int64, error) {
 			fmt.Errorf("cannot convert %T to int64", v)
 	}
 }
+
+// ToFloat converts a given Value to a float64, if possible. The conversion
+// rules are as follows:
+//
+//  * Null: 0.0
+//  * Bool: 0.0 if false, 1.0 if true
+//  * Int: conversion as done by float64(value)
+//  * Float: actual value
+//  * String: (error)
+//  * Blob: (error)
+//  * Timestamp: Unix time as float64, see time.Time.Unix()
+//  * Array: (error)
+//  * Map: (error)
+func ToFloat(v Value) (float64, error) {
+	defaultValue := float64(0)
+	switch v.Type() {
+	case TypeNull:
+		return 0.0, nil
+	case TypeBool:
+		val, e := v.AsBool()
+		if e != nil {
+			return defaultValue, e
+		}
+		if val {
+			return 1.0, nil
+		}
+		return 0.0, nil
+	case TypeInt:
+		val, e := v.AsInt()
+		if e != nil {
+			return defaultValue, e
+		}
+		return float64(val), nil
+	case TypeFloat:
+		val, e := v.AsFloat()
+		if e != nil {
+			return defaultValue, e
+		}
+		return val, nil
+	case TypeTimestamp:
+		val, e := v.AsTimestamp()
+		if e != nil {
+			return defaultValue, e
+		}
+		return float64(val.Unix()), nil
+	default:
+		return defaultValue,
+			fmt.Errorf("cannot convert %T to float64", v)
+	}
+}
