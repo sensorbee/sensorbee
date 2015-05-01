@@ -18,6 +18,7 @@ func TestValue(t *testing.T) {
 		"map": Map{
 			"string": String("homhom2"),
 		},
+		"null": Null{},
 	}
 
 	Convey("Given a Map with values in it", t, func() {
@@ -44,7 +45,7 @@ func TestValue(t *testing.T) {
 					So(&a, ShouldNotPointTo, &b)
 				}
 
-				complexTypes := []string{"byte", "time"}
+				complexTypes := []string{"byte", "time", "null"}
 				for _, typeName := range complexTypes {
 					a, getErrA := testData.Get(typeName)
 					So(getErrA, ShouldBeNil)
@@ -363,6 +364,32 @@ func TestValue(t *testing.T) {
 			_, getErr := testData.Get("map/key")
 			Convey("Then the lookup should fail", func() {
 				So(getErr, ShouldNotBeNil)
+			})
+		})
+	})
+
+	Convey("Given a Map with a Null value in it", t, func() {
+		Convey("When accessing the value by key", func() {
+			x, getErr := testData.Get("null")
+			Convey("Then the value should Null type object", func() {
+				So(getErr, ShouldBeNil)
+				So(x.Type(), ShouldEqual, TypeNull)
+				Convey("and all type conversion should fail", func() {
+					_, err := x.Int()
+					So(err, ShouldNotBeNil)
+					_, err = x.Float()
+					So(err, ShouldNotBeNil)
+					_, err = x.String()
+					So(err, ShouldNotBeNil)
+					_, err = x.Blob()
+					So(err, ShouldNotBeNil)
+					_, err = x.Timestamp()
+					So(err, ShouldNotBeNil)
+					_, err = x.Array()
+					So(err, ShouldNotBeNil)
+					_, err = x.Map()
+					So(err, ShouldNotBeNil)
+				})
 			})
 		})
 	})
