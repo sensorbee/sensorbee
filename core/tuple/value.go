@@ -243,6 +243,8 @@ func newIArray(a Array) ([]interface{}, error) {
 			result[i], _ = v.AsString()
 		case TypeBlob:
 			result[i], _ = v.AsBlob()
+		case TypeTimestamp:
+			result[i], _ = v.AsTimestamp()
 		case TypeArray:
 			innerArray, _ := v.AsArray()
 			result[i], _ = newIArray(innerArray)
