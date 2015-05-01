@@ -1,40 +1,44 @@
 package tuple
 
+import (
+	"time"
+)
+
 type Map map[string]Value
 
 func (m Map) Type() TypeID {
 	return TypeMap
 }
 
-func (m Map) Bool() (Bool, error) {
+func (m Map) AsBool() (bool, error) {
 	return false, castError(m.Type(), TypeBool)
 }
 
-func (m Map) Int() (Int, error) {
+func (m Map) AsInt() (int64, error) {
 	return 0, castError(m.Type(), TypeInt)
 }
 
-func (m Map) Float() (Float, error) {
+func (m Map) AsFloat() (float64, error) {
 	return 0, castError(m.Type(), TypeFloat)
 }
 
-func (m Map) String() (String, error) {
+func (m Map) AsString() (string, error) {
 	return "", castError(m.Type(), TypeString)
 }
 
-func (m Map) Blob() (Blob, error) {
+func (m Map) AsBlob() ([]byte, error) {
 	return nil, castError(m.Type(), TypeBlob)
 }
 
-func (m Map) Timestamp() (Timestamp, error) {
-	return Timestamp{}, castError(m.Type(), TypeTimestamp)
+func (m Map) AsTimestamp() (time.Time, error) {
+	return time.Time{}, castError(m.Type(), TypeTimestamp)
 }
 
-func (m Map) Array() (Array, error) {
+func (m Map) AsArray() (Array, error) {
 	return nil, castError(m.Type(), TypeArray)
 }
 
-func (m Map) Map() (Map, error) {
+func (m Map) AsMap() (Map, error) {
 	return m, nil
 }
 
@@ -59,7 +63,7 @@ func (m Map) Copy() Map {
 //
 // Example:
 //  v, err := map.Get("path")
-//  s, err := v.String() // cast to String
+//  s, err := v.AsString() // cast to String
 //
 // Path Expression Example:
 // Given the following Map structure
