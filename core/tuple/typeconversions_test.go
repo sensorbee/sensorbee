@@ -178,6 +178,59 @@ func TestToFloat(t *testing.T) {
 	runConversionTestCases(t, toFun, "ToFloat", testCases)
 }
 
+func TestToString(t *testing.T) {
+	now := time.Now()
+
+	testCases := map[string]([]convTestInput){
+		"Null": []convTestInput{
+			convTestInput{"Null", Null{}, "null"},
+		},
+		"Bool": []convTestInput{
+			convTestInput{"true", Bool(true), "true"},
+			convTestInput{"false", Bool(false), "false"},
+		},
+		"Int": []convTestInput{
+			convTestInput{"positive", Int(2), "2"},
+			convTestInput{"negative", Int(-2), "-2"},
+			convTestInput{"zero", Int(0), "0"},
+		},
+		"Float": []convTestInput{
+			convTestInput{"positive", Float(3.14), "3.14"},
+			convTestInput{"negative", Float(-3.14), "-3.14"},
+			convTestInput{"zero", Float(0.0), "0"},
+		},
+		"String": []convTestInput{
+			convTestInput{"empty", String(""), ""},
+			convTestInput{"non-empty", String("hoge"), "hoge"},
+		},
+		"Blob": []convTestInput{
+			convTestInput{"empty", Blob(""), "tuple.Blob{}"},
+			convTestInput{"non-empty", Blob("hoge"), "tuple.Blob{0x68, 0x6f, 0x67, 0x65}"},
+		},
+		"Timestamp": []convTestInput{
+			convTestInput{"zero", Timestamp(time.Time{}), "0001-01-01T00:00:00Z"},
+			convTestInput{"now", Timestamp(time.Now()), now.Format(time.RFC3339)},
+		},
+		"Array": []convTestInput{
+			convTestInput{"empty", Array{}, "tuple.Array{}"},
+			convTestInput{"non-empty", Array{Int(2), String("foo")}, `tuple.Array{2, "foo"}`},
+		},
+		"Map": []convTestInput{
+			convTestInput{"empty", Map{}, `tuple.Map{}`},
+			// the following test would fail once in a while because
+			// golang randomizes the keys for Maps, i.e., we cannot be sure
+			// that we will always get the same string
+			//convTestInput{"non-empty", Map{"a": Int(2), "b": String("foo")}, `tuple.Map{"a":2, "b":"foo"}`},
+		},
+	}
+
+	toFun := func(v Value) (interface{}, error) {
+		val, err := ToString(v)
+		return val, err
+	}
+	runConversionTestCases(t, toFun, "ToString", testCases)
+}
+
 func runConversionTestCases(t *testing.T,
 	toFun func(v Value) (interface{}, error),
 	funcName string,
