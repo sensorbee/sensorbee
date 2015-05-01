@@ -254,7 +254,7 @@ func TestDefaultTopologyBuilderInterface(t *testing.T) {
 	})
 }
 
-// TestMultipleBuild tests that checks default static topology builder
+// TestMultipleBuild tests that default static topology builder
 // can build only once.
 func TestMultipleBuild(t *testing.T) {
 	Convey("Given basic topology builder called build() once", t, func() {
