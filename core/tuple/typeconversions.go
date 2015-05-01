@@ -214,3 +214,58 @@ func ToString(v Value) (string, error) {
 		return fmt.Sprintf("%#v", v), nil
 	}
 }
+
+// ToTime converts a given Value to a time.Time struct, if possible.
+// The conversion rules are as follows:
+//
+//  * Null: zero time (this is *not* the time with Unix time 0!)
+//  * Int: Time with the given Unix time seconds
+//  * Float: Time with the given Unix time seconds, where the decimal
+//    part will be considered as a part of a second
+//    (values outside of valid int64 bounds will lead to an error)
+//  * String: Time with the given RFC3339/ISO8601 representation
+//  * Timestamp: actual time
+//  * other: (error)
+func ToTime(v Value) (time.Time, error) {
+	defaultValue := time.Time{}
+	switch v.Type() {
+	case TypeNull:
+		return defaultValue, nil
+	case TypeInt:
+		val, e := v.AsInt()
+		if e != nil {
+			return defaultValue, e
+		}
+		return time.Unix(val, 0), nil
+	case TypeFloat:
+		val, e := v.AsFloat()
+		if e != nil {
+			return defaultValue, e
+		}
+		if val >= MinConvFloat64 && val <= MaxConvFloat64 {
+			// say val is 3.7 or -4.6
+			integralPart := int64(val)                 // 3 or -4
+			decimalPart := val - float64(integralPart) // 0.7 or -0.6
+			ns := int64(1e9 * decimalPart)             // nanosecond part
+			return time.Unix(integralPart, ns), nil
+		} else {
+			return defaultValue,
+				fmt.Errorf("%v is out of bounds for int64 conversion", val)
+		}
+	case TypeString:
+		val, e := v.AsString()
+		if e != nil {
+			return defaultValue, e
+		}
+		return time.Parse(time.RFC3339, val)
+	case TypeTimestamp:
+		val, e := v.AsTimestamp()
+		if e != nil {
+			return defaultValue, e
+		}
+		return val, nil
+	default:
+		return defaultValue,
+			fmt.Errorf("cannot convert %T to Time", v)
+	}
+}
