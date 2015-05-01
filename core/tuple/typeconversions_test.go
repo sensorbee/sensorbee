@@ -121,6 +121,63 @@ func TestToInt(t *testing.T) {
 	runConversionTestCases(t, toFun, "ToInt", testCases)
 }
 
+func TestToFloat(t *testing.T) {
+	now := time.Now()
+
+	testCases := map[string]([]convTestInput){
+		"Null": []convTestInput{
+			convTestInput{"Null", Null{}, float64(0.0)},
+		},
+		"Bool": []convTestInput{
+			convTestInput{"true", Bool(true), float64(1.0)},
+			convTestInput{"false", Bool(false), float64(0.0)},
+		},
+		"Int": []convTestInput{
+			// normal conversion
+			convTestInput{"positive", Int(2), float64(2.0)},
+			convTestInput{"negative", Int(-2), float64(-2.0)},
+			convTestInput{"zero", Int(0), float64(0.0)},
+			// float64 can represent all int64 numbers (with loss
+			// of precision, though)
+			convTestInput{"maximal positive", Int(math.MaxInt64), float64(9.223372036854776e+18)},
+			convTestInput{"maximal negative", Int(math.MinInt64), float64(-9.223372036854776e+18)},
+		},
+		"Float": []convTestInput{
+			convTestInput{"positive", Float(3.14), float64(3.14)},
+			convTestInput{"negative", Float(-3.14), float64(-3.14)},
+			convTestInput{"zero", Float(0.0), float64(0)},
+		},
+		"String": []convTestInput{
+			convTestInput{"empty", String(""), nil},
+			convTestInput{"non-empty", String("hoge"), nil},
+		},
+		"Blob": []convTestInput{
+			convTestInput{"empty", Blob(""), nil},
+			convTestInput{"non-empty", Blob("hoge"), nil},
+		},
+		"Timestamp": []convTestInput{
+			// The zero value for a time.Time is *not* the timestamp
+			// that has unix time zero!
+			convTestInput{"zero", Timestamp(time.Time{}), float64(-62135596800)},
+			convTestInput{"now", Timestamp(now), float64(now.Unix())},
+		},
+		"Array": []convTestInput{
+			convTestInput{"empty", Array{}, nil},
+			convTestInput{"non-empty", Array{Int(2), String("foo")}, nil},
+		},
+		"Map": []convTestInput{
+			convTestInput{"empty", Map{}, nil},
+			convTestInput{"non-empty", Map{"a": Int(2), "b": String("foo")}, nil},
+		},
+	}
+
+	toFun := func(v Value) (interface{}, error) {
+		val, err := ToFloat(v)
+		return val, err
+	}
+	runConversionTestCases(t, toFun, "ToFloat", testCases)
+}
+
 func runConversionTestCases(t *testing.T,
 	toFun func(v Value) (interface{}, error),
 	funcName string,
