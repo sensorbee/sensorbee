@@ -86,6 +86,10 @@ func init() {
 	mh.SetExt(reflect.TypeOf(time.Time{}), 1, &timeExt{})
 }
 
+// UnmarshalMsgpack returns a Map object from a byte array encoded
+// by msgpack serialization. The byte is expected to decode key-value
+// style map. Returns an error when key type is not string, or value type
+// is not supported in SensorBee.
 func UnmarshalMsgpack(b []byte) (Map, error) {
 	var m map[interface{}]interface{}
 	dec := codec.NewDecoderBytes(b, mh)
@@ -188,19 +192,18 @@ func newArray(a []interface{}) ([]Value, error) {
 	return result, nil
 }
 
+// MarshalMsgpack returns a byte array encoded by msgpack serialization
+// from a Map object. Returns an error when msgpack serialization failed.
 func MarshalMsgpack(m Map) ([]byte, error) {
-	iMap, err := newIMap(m)
-	if err != nil {
-		return nil, err
-	}
+	iMap := newIMap(m)
 	var out []byte
 	enc := codec.NewEncoderBytes(&out, mh)
-	enc.Encode(iMap)
+	err := enc.Encode(iMap)
 
-	return out, nil
+	return out, err
 }
 
-func newIMap(m Map) (map[string]interface{}, error) {
+func newIMap(m Map) map[string]interface{} {
 	result := map[string]interface{}{}
 	for k, v := range m {
 		switch v.Type() {
@@ -218,18 +221,18 @@ func newIMap(m Map) (map[string]interface{}, error) {
 			result[k], _ = v.AsTimestamp()
 		case TypeArray:
 			innerArray, _ := v.AsArray()
-			result[k], _ = newIArray(innerArray)
+			result[k] = newIArray(innerArray)
 		case TypeMap:
 			innerMap, _ := v.AsMap()
-			result[k], _ = newIMap(innerMap)
+			result[k] = newIMap(innerMap)
 		case TypeNull:
 			result[k] = nil
 		}
 	}
-	return result, nil
+	return result
 }
 
-func newIArray(a Array) ([]interface{}, error) {
+func newIArray(a Array) []interface{} {
 	result := make([]interface{}, len(a))
 	for i, v := range a {
 		switch v.Type() {
@@ -247,13 +250,13 @@ func newIArray(a Array) ([]interface{}, error) {
 			result[i], _ = v.AsTimestamp()
 		case TypeArray:
 			innerArray, _ := v.AsArray()
-			result[i], _ = newIArray(innerArray)
+			result[i] = newIArray(innerArray)
 		case TypeMap:
 			innerMap, _ := v.AsMap()
-			result[i], _ = newIMap(innerMap)
+			result[i] = newIMap(innerMap)
 		case TypeNull:
 			result[i] = nil
 		}
 	}
-	return result, nil
+	return result
 }
