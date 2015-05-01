@@ -159,8 +159,8 @@ func TestScanMap(t *testing.T) {
 				So(err1, ShouldBeNil)
 				So(err2, ShouldBeNil)
 				Convey("and it should be match the original value", func() {
-					s1, _ := x1.String()
-					s2, _ := x2.String()
+					s1, _ := x1.AsString()
+					s2, _ := x2.AsString()
 					So(s1, ShouldEqual, "homhom")
 					So(s2, ShouldEqual, "homhom")
 				})
@@ -184,7 +184,7 @@ func TestScanMap(t *testing.T) {
 						var v Value
 						err := scanMap(testData, input, &v)
 						So(err, ShouldBeNil)
-						actual, _ := v.String()
+						actual, _ := v.AsString()
 						So(actual, ShouldEqual, expected)
 					}
 				})
@@ -227,7 +227,7 @@ func TestScanMap(t *testing.T) {
 						var v Value
 						err := scanMap(testData, input, &v)
 						So(err, ShouldBeNil)
-						actual, _ := v.String()
+						actual, _ := v.AsString()
 						So(actual, ShouldEqual, expected)
 					}
 				})

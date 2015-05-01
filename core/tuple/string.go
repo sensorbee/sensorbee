@@ -1,40 +1,44 @@
 package tuple
 
+import (
+	"time"
+)
+
 type String string
 
 func (s String) Type() TypeID {
 	return TypeString
 }
 
-func (s String) Bool() (Bool, error) {
+func (s String) AsBool() (bool, error) {
 	return false, castError(s.Type(), TypeBool)
 }
 
-func (s String) Int() (Int, error) {
+func (s String) AsInt() (int64, error) {
 	return 0, castError(s.Type(), TypeInt)
 }
 
-func (s String) Float() (Float, error) {
+func (s String) AsFloat() (float64, error) {
 	return 0, castError(s.Type(), TypeFloat)
 }
 
-func (s String) String() (String, error) {
-	return s, nil
+func (s String) AsString() (string, error) {
+	return string(s), nil
 }
 
-func (s String) Blob() (Blob, error) {
+func (s String) AsBlob() ([]byte, error) {
 	return nil, castError(s.Type(), TypeBlob)
 }
 
-func (s String) Timestamp() (Timestamp, error) {
-	return Timestamp{}, castError(s.Type(), TypeTimestamp)
+func (s String) AsTimestamp() (time.Time, error) {
+	return time.Time{}, castError(s.Type(), TypeTimestamp)
 }
 
-func (s String) Array() (Array, error) {
+func (s String) AsArray() (Array, error) {
 	return nil, castError(s.Type(), TypeArray)
 }
 
-func (s String) Map() (Map, error) {
+func (s String) AsMap() (Map, error) {
 	return nil, castError(s.Type(), TypeMap)
 }
 
