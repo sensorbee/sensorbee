@@ -1,6 +1,8 @@
 package tuple
 
 import (
+	"bytes"
+	"encoding/binary"
 	"time"
 )
 
@@ -51,21 +53,29 @@ type timeExt struct {
 }
 
 func (t *timeExt) WriteExt(v interface{}) []byte {
+	buf := new(bytes.Buffer)
+	var nanoTime int64
 	switch vt := v.(type) {
 	case time.Time:
-		b, _ := vt.MarshalBinary()
-		return b
+		nanoTime = vt.UTC().UnixNano()
 	case *time.Time:
-		b, _ := vt.MarshalBinary()
-		return b
+		nanoTime = vt.UTC().UnixNano()
 	default:
 		return nil
 	}
+	err := binary.Write(buf, binary.LittleEndian, nanoTime)
+	if err != nil {
+		return nil
+	}
+	return buf.Bytes()
 }
 
 func (t *timeExt) ReadExt(dst interface{}, src []byte) {
+	buf := bytes.NewReader(src)
+	var nanoTime int64
+	binary.Read(buf, binary.LittleEndian, &nanoTime)
 	tt := dst.(*time.Time)
-	tt.UnmarshalBinary(src)
+	*tt = time.Unix(0, nanoTime).UTC()
 }
 
 func (t *timeExt) ConvertExt(v interface{}) interface{} {
