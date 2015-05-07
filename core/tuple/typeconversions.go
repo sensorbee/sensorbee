@@ -124,10 +124,9 @@ func ToInt(v Value) (int64, error) {
 		}
 		if val >= MinConvFloat64 && val <= MaxConvFloat64 {
 			return int64(val), nil
-		} else {
-			return defaultValue,
-				fmt.Errorf("%v is out of bounds for int64 conversion", val)
 		}
+		return defaultValue,
+			fmt.Errorf("%v is out of bounds for int64 conversion", val)
 	case TypeString:
 		val, e := v.AsString()
 		if e != nil {
@@ -259,10 +258,9 @@ func ToTime(v Value) (time.Time, error) {
 			decimalPart := val - float64(integralPart) // 0.7 or -0.6
 			ns := int64(1e9 * decimalPart)             // nanosecond part
 			return time.Unix(integralPart, ns), nil
-		} else {
-			return defaultValue,
-				fmt.Errorf("%v is out of bounds for int64 conversion", val)
 		}
+		return defaultValue,
+			fmt.Errorf("%v is out of bounds for int64 conversion", val)
 	case TypeString:
 		val, e := v.AsString()
 		if e != nil {
