@@ -25,7 +25,8 @@ func (t *defaultStaticTopology) Run(ctx *Context) {
 	for _, pipe := range t.pipes {
 		for _, recv := range pipe.Receivers {
 			recv := recv
-			go recv.ProcessItems(ctx)
+			recv.Init(ctx)
+			go recv.ProcessItems()
 		}
 	}
 
@@ -183,12 +184,20 @@ func (tb *defaultStaticTopologyBuilder) Build() (StaticTopology, error) {
 		// pipe's receiver list
 		sink, isSink := tb.sinks[toName]
 		if isSink {
-			recv := receiverSink{toName, sink, make(chan *tuple.Tuple)}
+			recv := receiverSink{
+				Name:   toName,
+				Sink:   sink,
+				buffer: make(chan *tuple.Tuple)}
 			pipe.Receivers = append(pipe.Receivers, &recv)
 		}
 		box, isBox := tb.boxes[toName]
 		if isBox {
-			recv := receiverBox{toName, box, pipes[toName], edge.InputName, make(chan *tuple.Tuple)}
+			recv := receiverBox{
+				Name:      toName,
+				Box:       box,
+				Receiver:  pipes[toName],
+				inputName: edge.InputName,
+				buffer:    make(chan *tuple.Tuple)}
 			pipe.Receivers = append(pipe.Receivers, &recv)
 		}
 	}
@@ -200,6 +209,11 @@ func (tb *defaultStaticTopologyBuilder) Build() (StaticTopology, error) {
 
 // A pipeReceiver represents an entity that can receive input from a pipe,
 // i.e., a Box or a Sink.
+//
+// Init is called on each pipeReceiver in a Topology when
+// StaticTopology.Run() is executed. It can be used to store the Context
+// on receiver field in order to pass the Context down the processing
+// pipeline.
 //
 // AddToChannel will add the passed tuple to the internal channel
 // (i.e., it will block if there is still a process running) and
@@ -213,13 +227,15 @@ func (tb *defaultStaticTopologyBuilder) Build() (StaticTopology, error) {
 // channel to the actual receiver Box or Sink. Calling this multiple
 // times will parallelize execution of items in the channel.
 type pipeReceiver interface {
+	Init(ctx *Context)
 	AddToChannel(t *tuple.Tuple)
 	InputName() string
-	ProcessItems(ctx *Context)
+	ProcessItems()
 }
 
 // holds a box and the writer that will receive this box's output
 type receiverBox struct {
+	ctx       *Context
 	Name      string
 	Box       Box
 	Receiver  Writer
@@ -227,7 +243,11 @@ type receiverBox struct {
 	buffer    chan *tuple.Tuple
 }
 
-func (rb *receiverBox) ProcessItems(ctx *Context) {
+func (rb *receiverBox) Init(ctx *Context) {
+	rb.ctx = ctx
+}
+
+func (rb *receiverBox) ProcessItems() {
 	// If an item is put in the queue (and there is no other processing
 	// taking place), that item will be processed immediately.
 	// If we are still in the middle of processing, then this item will
@@ -237,8 +257,8 @@ func (rb *receiverBox) ProcessItems(ctx *Context) {
 	// increase the parallelism of downstream operations.
 	for t := range rb.buffer {
 		// add tracing information and hand over to box
-		tracing(t, ctx, tuple.INPUT, rb.Name)
-		rb.Box.Process(ctx, t, rb.Receiver)
+		tracing(t, rb.ctx, tuple.INPUT, rb.Name)
+		rb.Box.Process(rb.ctx, t, rb.Receiver)
 	}
 }
 
@@ -252,12 +272,17 @@ func (rb *receiverBox) InputName() string {
 
 // holds a sink and the sink's name
 type receiverSink struct {
+	ctx    *Context
 	Name   string
 	Sink   Sink
 	buffer chan *tuple.Tuple
 }
 
-func (rs *receiverSink) ProcessItems(ctx *Context) {
+func (rs *receiverSink) Init(ctx *Context) {
+	rs.ctx = ctx
+}
+
+func (rs *receiverSink) ProcessItems() {
 	// If an item is put in the queue (and there is no other processing
 	// taking place), that item will be processed immediately.
 	// If we are still in the middle of processing, then this item will
@@ -267,8 +292,8 @@ func (rs *receiverSink) ProcessItems(ctx *Context) {
 	// increase the parallelism of downstream operations.
 	for t := range rs.buffer {
 		// add tracing information and hand over to sink
-		tracing(t, ctx, tuple.INPUT, rs.Name)
-		rs.Sink.Write(ctx, t)
+		tracing(t, rs.ctx, tuple.INPUT, rs.Name)
+		rs.Sink.Write(rs.ctx, t)
 	}
 }
 
