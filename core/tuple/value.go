@@ -32,8 +32,6 @@ type Value interface {
 	clone() Value
 }
 
-// TODO: Provide NewMap(map[string]interface{}) Map
-
 func castError(from TypeID, to TypeID) error {
 	return errors.New(fmt.Sprintf("unsupported cast %v from %v", to.String(), from.String()))
 }
@@ -81,6 +79,7 @@ func (t TypeID) String() string {
 var msgpackHandle = &codec.MsgpackHandle{}
 
 func init() {
+	msgpackHandle.MapType = reflect.TypeOf(map[string]interface{}(nil))
 	msgpackHandle.RawToString = true
 	msgpackHandle.WriteExt = true
 	msgpackHandle.SetExt(reflect.TypeOf(time.Time{}), 1, &timeExt{})
@@ -88,106 +87,118 @@ func init() {
 
 // UnmarshalMsgpack returns a Map object from a byte array encoded
 // by msgpack serialization. The byte is expected to decode key-value
-// style map. Returns an error when key type is not string, or value type
-// is not supported in SensorBee.
+// style map. Returns an error when value type is not supported in SensorBee.
 func UnmarshalMsgpack(b []byte) (Map, error) {
-	var m map[interface{}]interface{}
+	var m map[string]interface{}
 	dec := codec.NewDecoderBytes(b, msgpackHandle)
 	dec.Decode(&m)
 
-	return newMap(m)
+	return NewMap(m)
 }
 
-func newMap(m map[interface{}]interface{}) (Map, error) {
+// NewMap returns a Map object from map[string]interface{}.
+// Returns an error when value type is not supported in SensorBee.
+//
+// Example:
+// The following sample interface{} will be changed to mapSample Map.
+//   var sample = map[string]interface{}{
+//  	"bool":   true,
+//  	"int":    int64(1),
+//  	"float":  float64(0.1),
+//  	"string": "homhom",
+//  	"time":   time.Date(2015, time.May, 1, 14, 27, 0, 0, time.UTC),
+//  	"array": []interface{}{true, 10, "inarray",
+//  		map[string]interface{}{
+//  			"mapinarray": "arraymap",
+//  		}},
+//  	"map": map[string]interface{}{
+//  		"map_a": "a",
+//  		"map_b": 2,
+//  	},
+//  	"null": nil,
+//  }
+//  var mapSample = Map{
+//  	"bool":   Bool(true),
+//  	"int":    Int(1),
+//  	"float":  Float(0.1),
+//  	"string": String("homhom"),
+//  	"time":   Timestamp(time.Date(2015, time.May, 1, 14, 27, 0, 0, time.UTC)),
+//  	"array": Array([]Value{Bool(true), Int(10), String("inarray"),
+//  		Map{
+//  			"mapinarray": String("arraymap"),
+//  		}}),
+//  	"map": Map{
+//  		"map_a": String("a"),
+//  		"map_b": Int(2),
+//  	},
+//  	"null": Null{},
+//  }
+//
+func NewMap(m map[string]interface{}) (Map, error) {
 	result := Map{}
 	for k, v := range m {
-		key, ok := k.(string)
-		if !ok {
-			return nil, errors.New("Non string type key is not supported")
+		value, err := newValue(v)
+		if err != nil {
+			return nil, err
 		}
-		switch vt := v.(type) {
-		case []interface{}:
-			innerArray, err := newArray(vt)
-			if err != nil {
-				return nil, err
-			}
-			result[key] = Array(innerArray)
-		case map[interface{}]interface{}:
-			innerMap, err := newMap(vt)
-			if err != nil {
-				return nil, err
-			}
-			result[key] = Map(innerMap)
-		case bool:
-			result[key] = Bool(vt)
-		case int:
-			result[key] = Int(vt)
-		case int8:
-			result[key] = Int(vt)
-		case int16:
-			result[key] = Int(vt)
-		case int32:
-			result[key] = Int(vt)
-		case int64:
-			result[key] = Int(vt)
-		case float32:
-			result[key] = Float(vt)
-		case float64:
-			result[key] = Float(vt)
-		case time.Time:
-			result[key] = Timestamp(vt)
-		case string:
-			result[key] = String(vt)
-		case []byte:
-			result[key] = Blob(vt)
-		case nil:
-			result[key] = Null{}
-		}
+		result[k] = value
 	}
 	return result, nil
 }
 
-func newArray(a []interface{}) ([]Value, error) {
+func newArray(a []interface{}) (Array, error) {
 	result := make([]Value, len(a))
 	for i, v := range a {
-		switch vt := v.(type) {
-		case []interface{}:
-			innerArray, err := newArray(vt)
-			if err != nil {
-				return nil, err
-			}
-			result[i] = Array(innerArray)
-		case map[interface{}]interface{}:
-			innerMap, err := newMap(vt)
-			if err != nil {
-				return nil, err
-			}
-			result[i] = Map(innerMap)
-		case bool:
-			result[i] = Bool(vt)
-		case int:
-			result[i] = Int(vt)
-		case int8:
-			result[i] = Int(vt)
-		case int16:
-			result[i] = Int(vt)
-		case int32:
-			result[i] = Int(vt)
-		case int64:
-			result[i] = Int(vt)
-		case float32:
-			result[i] = Float(vt)
-		case float64:
-			result[i] = Float(vt)
-		case string:
-			result[i] = String(vt)
-		case []byte:
-			result[i] = Blob(vt)
-		case time.Time:
-			result[i] = Timestamp(vt)
-		case nil:
-			result[i] = Null{}
+		value, err := newValue(v)
+		if err != nil {
+			return nil, err
 		}
+		result[i] = value
+	}
+	return result, nil
+}
+
+func newValue(v interface{}) (Value, error) {
+	var result Value
+	switch vt := v.(type) {
+	case []interface{}:
+		a, err := newArray(vt)
+		if err != nil {
+			return nil, err
+		}
+		result = a
+	case map[string]interface{}:
+		m, err := NewMap(vt)
+		if err != nil {
+			return nil, err
+		}
+		result = m
+	case bool:
+		result = Bool(vt)
+	case int:
+		result = Int(vt)
+	case int8:
+		result = Int(vt)
+	case int16:
+		result = Int(vt)
+	case int32:
+		result = Int(vt)
+	case int64:
+		result = Int(vt)
+	case float32:
+		result = Float(vt)
+	case float64:
+		result = Float(vt)
+	case time.Time:
+		result = Timestamp(vt)
+	case string:
+		result = String(vt)
+	case []byte:
+		result = Blob(vt)
+	case nil:
+		result = Null{}
+	default:
+		return nil, errors.New(fmt.Sprintf("unsupported type %T", v))
 	}
 	return result, nil
 }
@@ -206,28 +217,8 @@ func MarshalMsgpack(m Map) ([]byte, error) {
 func newIMap(m Map) map[string]interface{} {
 	result := map[string]interface{}{}
 	for k, v := range m {
-		switch v.Type() {
-		case TypeBool:
-			result[k], _ = v.AsBool()
-		case TypeInt:
-			result[k], _ = v.AsInt()
-		case TypeFloat:
-			result[k], _ = v.AsFloat()
-		case TypeString:
-			result[k], _ = v.AsString()
-		case TypeBlob:
-			result[k], _ = v.AsBlob()
-		case TypeTimestamp:
-			result[k], _ = v.AsTimestamp()
-		case TypeArray:
-			innerArray, _ := v.AsArray()
-			result[k] = newIArray(innerArray)
-		case TypeMap:
-			innerMap, _ := v.AsMap()
-			result[k] = newIMap(innerMap)
-		case TypeNull:
-			result[k] = nil
-		}
+		value := newIValue(v)
+		result[k] = value
 	}
 	return result
 }
@@ -235,28 +226,37 @@ func newIMap(m Map) map[string]interface{} {
 func newIArray(a Array) []interface{} {
 	result := make([]interface{}, len(a))
 	for i, v := range a {
-		switch v.Type() {
-		case TypeBool:
-			result[i], _ = v.AsBool()
-		case TypeInt:
-			result[i], _ = v.AsInt()
-		case TypeFloat:
-			result[i], _ = v.AsFloat()
-		case TypeString:
-			result[i], _ = v.AsString()
-		case TypeBlob:
-			result[i], _ = v.AsBlob()
-		case TypeTimestamp:
-			result[i], _ = v.AsTimestamp()
-		case TypeArray:
-			innerArray, _ := v.AsArray()
-			result[i] = newIArray(innerArray)
-		case TypeMap:
-			innerMap, _ := v.AsMap()
-			result[i] = newIMap(innerMap)
-		case TypeNull:
-			result[i] = nil
-		}
+		value := newIValue(v)
+		result[i] = value
+	}
+	return result
+}
+
+func newIValue(v Value) interface{} {
+	var result interface{}
+	switch v.Type() {
+	case TypeBool:
+		result, _ = v.AsBool()
+	case TypeInt:
+		result, _ = v.AsInt()
+	case TypeFloat:
+		result, _ = v.AsFloat()
+	case TypeString:
+		result, _ = v.AsString()
+	case TypeBlob:
+		result, _ = v.AsBlob()
+	case TypeTimestamp:
+		result, _ = v.AsTimestamp()
+	case TypeArray:
+		innerArray, _ := v.AsArray()
+		result = newIArray(innerArray)
+	case TypeMap:
+		innerMap, _ := v.AsMap()
+		result = newIMap(innerMap)
+	case TypeNull:
+		result = nil
+	default:
+		//do nothing
 	}
 	return result
 }
