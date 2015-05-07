@@ -32,7 +32,7 @@ func TestUnmarshalMsgpack(t *testing.T) {
 			// TODO add []byte
 		}
 		var testData []byte
-		codec.NewEncoderBytes(&testData, mh).Encode(testMap)
+		codec.NewEncoderBytes(&testData, msgpackHandle).Encode(testMap)
 		fmt.Println(testData)
 		Convey("When convert to Map object", func() {
 			m, _ := UnmarshalMsgpack(testData)
@@ -102,13 +102,13 @@ func TestMarshalMsgpack(t *testing.T) {
 					"null": nil,
 				}
 				var expectedBytes []byte
-				codec.NewEncoderBytes(&expectedBytes, mh).Encode(expected)
+				codec.NewEncoderBytes(&expectedBytes, msgpackHandle).Encode(expected)
 
 				// it should compare b and expectedBytes, but byte array order is not
 				// always correspond in converting map to bytes.
 				var actualMap, expectedMap map[string]interface{}
-				codec.NewDecoderBytes(expectedBytes, mh).Decode(&expectedMap)
-				codec.NewDecoderBytes(b, mh).Decode(&actualMap)
+				codec.NewDecoderBytes(expectedBytes, msgpackHandle).Decode(&expectedMap)
+				codec.NewDecoderBytes(b, msgpackHandle).Decode(&actualMap)
 				So(actualMap, ShouldResemble, expectedMap)
 			})
 		})
