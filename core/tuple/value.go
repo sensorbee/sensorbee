@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/ugorji/go/codec"
+	"math"
 	"reflect"
 	"time"
 )
@@ -81,8 +82,7 @@ var msgpackHandle = &codec.MsgpackHandle{}
 func init() {
 	msgpackHandle.MapType = reflect.TypeOf(map[string]interface{}(nil))
 	msgpackHandle.RawToString = true
-	msgpackHandle.WriteExt = true
-	msgpackHandle.SetExt(reflect.TypeOf(time.Time{}), 1, &timeExt{})
+	msgpackHandle.WriteExt = false
 }
 
 // UnmarshalMsgpack returns a Map object from a byte array encoded
@@ -160,8 +160,7 @@ func newArray(a []interface{}) (Array, error) {
 	return result, nil
 }
 
-func newValue(v interface{}) (Value, error) {
-	var result Value
+func newValue(v interface{}) (result Value, err error) {
 	switch vt := v.(type) {
 	case []interface{}:
 		a, err := newArray(vt)
@@ -187,6 +186,24 @@ func newValue(v interface{}) (Value, error) {
 		result = Int(vt)
 	case int64:
 		result = Int(vt)
+	case uint:
+		if vt > math.MaxInt64 {
+			err = errors.New(fmt.Sprintf("overflow value is not supported"))
+			break
+		}
+		result = Int(vt)
+	case uint8:
+		result = Int(vt)
+	case uint16:
+		result = Int(vt)
+	case uint32:
+		result = Int(vt)
+	case uint64:
+		if vt > math.MaxInt64 {
+			err = errors.New(fmt.Sprintf("overflow value is not supported"))
+			break
+		}
+		result = Int(vt)
 	case float32:
 		result = Float(vt)
 	case float64:
@@ -200,9 +217,9 @@ func newValue(v interface{}) (Value, error) {
 	case nil:
 		result = Null{}
 	default:
-		return nil, errors.New(fmt.Sprintf("unsupported type %T", v))
+		err = errors.New(fmt.Sprintf("unsupported type %T", v))
 	}
-	return result, nil
+	return result, err
 }
 
 // MarshalMsgpack returns a byte array encoded by msgpack serialization
@@ -248,7 +265,8 @@ func newIValue(v Value) interface{} {
 	case TypeBlob:
 		result, _ = v.AsBlob()
 	case TypeTimestamp:
-		result, _ = v.AsTimestamp()
+		t, _ := v.AsTimestamp()
+		result = t.UnixNano() / 1000
 	case TypeArray:
 		innerArray, _ := v.AsArray()
 		result = newIArray(innerArray)
