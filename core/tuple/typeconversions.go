@@ -20,7 +20,7 @@ const (
 //  * Null: false
 //  * Bool: actual boolean value
 //  * Int: true if non-zero
-//  * Float: true if non-zero
+//  * Float: true if non-zero and not NaN
 //  * String: true if non-empty
 //  * Blob: true if non-empty
 //  * Timestamp: true if IsZero() is false
@@ -48,7 +48,7 @@ func ToBool(v Value) (bool, error) {
 		if e != nil {
 			return defaultValue, e
 		}
-		return val != 0.0, nil
+		return val != 0.0 && !math.IsNaN(val), nil
 	case TypeString:
 		val, e := v.AsString()
 		if e != nil {
