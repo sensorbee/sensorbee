@@ -109,9 +109,9 @@ func TestNewMapDocMaps(t *testing.T) {
 	})
 }
 
-// TestNewMapHasUnsupportedMap tests that unsupported value (e.g. complex64)
-// can not be converted
-func TestNewMapHasUnsupportedMap(t *testing.T) {
+// TestNewMapIncludeUnsupportedValue tests that unsupported value
+// (e.g. complex64) can not be converted
+func TestNewMapIncludeUnsupportedValue(t *testing.T) {
 	Convey("Given a map[string]interface{} including unsupported value", t, func() {
 		var m = map[string]interface{}{
 			"errortype": complex64(1 + 1i),

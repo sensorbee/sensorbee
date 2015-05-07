@@ -188,7 +188,7 @@ func newValue(v interface{}) (result Value, err error) {
 		result = Int(vt)
 	case uint:
 		if vt > math.MaxInt64 {
-			err = errors.New(fmt.Sprintf("overflow value is not supported"))
+			err = errors.New(fmt.Sprintf("over 64 bit int value is not supported"))
 			break
 		}
 		result = Int(vt)
@@ -200,7 +200,7 @@ func newValue(v interface{}) (result Value, err error) {
 		result = Int(vt)
 	case uint64:
 		if vt > math.MaxInt64 {
-			err = errors.New(fmt.Sprintf("overflow value is not supported"))
+			err = errors.New(fmt.Sprintf("over 64 bit int value is not supported"))
 			break
 		}
 		result = Int(vt)
