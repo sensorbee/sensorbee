@@ -32,6 +32,7 @@ func TestToBool(t *testing.T) {
 			convTestInput{"positive", Float(3.14), true},
 			convTestInput{"negative", Float(-3.14), true},
 			convTestInput{"zero", Float(0.0), false},
+			convTestInput{"NaN", Float(math.NaN()), false},
 		},
 		"String": []convTestInput{
 			convTestInput{"empty", String(""), false},
