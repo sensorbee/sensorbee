@@ -88,7 +88,7 @@ func ToBool(v Value) (bool, error) {
 // ToInt converts a given Value to an int64, if possible. The conversion
 // rules are as follows:
 //
-//  * Null: 0
+//  * Null: (error)
 //  * Bool: 0 if false, 1 if true
 //  * Int: actual value
 //  * Float: conversion as done by int64(value)
@@ -102,8 +102,6 @@ func ToBool(v Value) (bool, error) {
 func ToInt(v Value) (int64, error) {
 	defaultValue := int64(0)
 	switch v.Type() {
-	case TypeNull:
-		return 0, nil
 	case TypeBool:
 		val, e := v.AsBool()
 		if e != nil {
@@ -151,7 +149,7 @@ func ToInt(v Value) (int64, error) {
 // ToFloat converts a given Value to a float64, if possible. The conversion
 // rules are as follows:
 //
-//  * Null: 0.0
+//  * Null: (error)
 //  * Bool: 0.0 if false, 1.0 if true
 //  * Int: conversion as done by float64(value)
 //  * Float: actual value
@@ -164,8 +162,6 @@ func ToInt(v Value) (int64, error) {
 func ToFloat(v Value) (float64, error) {
 	defaultValue := float64(0)
 	switch v.Type() {
-	case TypeNull:
-		return 0.0, nil
 	case TypeBool:
 		val, e := v.AsBool()
 		if e != nil {

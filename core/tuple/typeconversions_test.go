@@ -67,7 +67,7 @@ func TestToInt(t *testing.T) {
 
 	testCases := map[string]([]convTestInput){
 		"Null": []convTestInput{
-			convTestInput{"Null", Null{}, int64(0)},
+			convTestInput{"Null", Null{}, nil},
 		},
 		"Bool": []convTestInput{
 			convTestInput{"true", Bool(true), int64(1)},
@@ -127,7 +127,7 @@ func TestToFloat(t *testing.T) {
 
 	testCases := map[string]([]convTestInput){
 		"Null": []convTestInput{
-			convTestInput{"Null", Null{}, float64(0.0)},
+			convTestInput{"Null", Null{}, nil},
 		},
 		"Bool": []convTestInput{
 			convTestInput{"true", Bool(true), float64(1.0)},
