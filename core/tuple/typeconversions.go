@@ -161,7 +161,8 @@ func ToInt(v Value) (int64, error) {
 //  * String: parsed float as per strconv.ParseFloat
 //    (values outside of valid float64 bounds will lead to an error)
 //  * Blob: (error)
-//  * Timestamp: Unix time as float64, see time.Time.Unix()
+//  * Timestamp: the number of seconds (not microseconds!) elapsed since
+//    January 1, 1970 UTC, with a decimal part
 //  * Array: (error)
 //  * Map: (error)
 func ToFloat(v Value) (float64, error) {
@@ -199,7 +200,11 @@ func ToFloat(v Value) (float64, error) {
 		if e != nil {
 			return defaultValue, e
 		}
-		return float64(val.Unix()), nil
+		// We want to compute `val.UnixNano()/1e9`, but sometimes `UnixNano()`
+		// is not defined, so we switch to `val.Unix() + val.Nanosecond()/1e9`.
+		// Note that due to numerical issues, this sometimes yields different
+		// results within the range of machine precision.
+		return float64(val.Unix()) + float64(val.Nanosecond())/1e9, nil
 	default:
 		return defaultValue,
 			fmt.Errorf("cannot convert %T to float64", v)
@@ -236,7 +241,7 @@ func ToString(v Value) (string, error) {
 //
 //  * Null: zero time (this is *not* the time with Unix time 0!)
 //  * Int: Time with the given Unix time in microseconds
-//  * Float: Time with the given Unix time seconds, where the decimal
+//  * Float: Time with the given Unix time in seconds, where the decimal
 //    part will be considered as a part of a second
 //    (values outside of valid int64 bounds will lead to an error)
 //  * String: Time with the given RFC3339/ISO8601 representation

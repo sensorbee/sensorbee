@@ -127,6 +127,14 @@ func TestToInt(t *testing.T) {
 
 func TestToFloat(t *testing.T) {
 	now := time.Now()
+	// We would like to check whether ToFloat(timestamp) equals the
+	// value of `float64(timestamp.UnixNano()) / 1e9` but actually
+	// this occasionally fails due to numerical rounding. Therefore
+	// we use a computation method closer to the actual computation,
+	// method, but still based on UnixNano().
+	nowSeconds := now.UnixNano() / 1e9
+	nowNanoSeconds := now.UnixNano() % 1e9
+	nowFloatSeconds := float64(nowSeconds) + float64(nowNanoSeconds)/1e9
 
 	testCases := map[string]([]convTestInput){
 		"Null": []convTestInput{
@@ -164,7 +172,7 @@ func TestToFloat(t *testing.T) {
 			// The zero value for a time.Time is *not* the timestamp
 			// that has unix time zero!
 			convTestInput{"zero", Timestamp(time.Time{}), float64(-62135596800)},
-			convTestInput{"now", Timestamp(now), float64(now.Unix())},
+			convTestInput{"now", Timestamp(now), nowFloatSeconds},
 		},
 		"Array": []convTestInput{
 			convTestInput{"empty", Array{}, nil},
@@ -312,7 +320,18 @@ func runConversionTestCases(t *testing.T,
 						Convey(fmt.Sprintf("Then %s returns %v", funcName, exp), func() {
 							val, err := toFun(inVal)
 							So(err, ShouldBeNil)
-							So(val, ShouldResemble, exp)
+							switch fval := val.(type) {
+							case float64:
+								switch fexp := exp.(type) {
+								case float64:
+									// equal up to machine precision
+									So(fval-fexp, ShouldAlmostEqual, 0.0, 1e-15)
+								default:
+									So(val, ShouldResemble, exp)
+								}
+							default:
+								So(val, ShouldResemble, exp)
+							}
 						})
 					}
 				})
