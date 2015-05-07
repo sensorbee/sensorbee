@@ -1,7 +1,6 @@
 package tuple
 
 import (
-	"fmt"
 	. "github.com/smartystreets/goconvey/convey"
 	"github.com/ugorji/go/codec"
 	"testing"
@@ -12,6 +11,8 @@ import (
 // is deserialized to Map object correctly
 func TestUnmarshalMsgpack(t *testing.T) {
 	Convey("Given a msgpack byte data", t, func() {
+		now := time.Now()
+		microTime := now.UnixNano() / 1000
 		var testMap = map[string]interface{}{
 			"bool":    true,
 			"int32":   int32(1),
@@ -19,7 +20,7 @@ func TestUnmarshalMsgpack(t *testing.T) {
 			"float32": float32(0.1),
 			"float64": float64(0.2),
 			"string":  "homhom",
-			"time":    time.Date(2015, time.May, 1, 14, 27, 0, 0, time.UTC),
+			"time":    int64(microTime),
 			"array": []interface{}{true, 10, "inarray",
 				map[string]interface{}{
 					"mapinarray": "arraymap",
@@ -33,7 +34,6 @@ func TestUnmarshalMsgpack(t *testing.T) {
 		}
 		var testData []byte
 		codec.NewEncoderBytes(&testData, msgpackHandle).Encode(testMap)
-		fmt.Println(testData)
 		Convey("When convert to Map object", func() {
 			m, _ := UnmarshalMsgpack(testData)
 			Convey("Then decode data should be match with Map data", func() {
@@ -44,7 +44,7 @@ func TestUnmarshalMsgpack(t *testing.T) {
 					"float32": Float(float32(0.1)),
 					"float64": Float(0.2),
 					"string":  String("homhom"),
-					"time":    Timestamp(time.Date(2015, time.May, 1, 14, 27, 0, 0, time.UTC)),
+					"time":    Int(microTime),
 					"array": Array([]Value{Bool(true), Int(10), String("inarray"),
 						Map{
 							"mapinarray": String("arraymap"),
@@ -109,12 +109,23 @@ func TestNewMapDocMaps(t *testing.T) {
 	})
 }
 
-// TestNewMapHasUnsupportedMap tests that unsupported value type (e.g. complex64)
+// TestNewMapHasUnsupportedMap tests that unsupported value (e.g. complex64)
 // can not be converted
 func TestNewMapHasUnsupportedMap(t *testing.T) {
 	Convey("Given a map[string]interface{} including unsupported value", t, func() {
 		var m = map[string]interface{}{
 			"errortype": complex64(1 + 1i),
+		}
+		Convey("When convert to Map object", func() {
+			_, err := NewMap(m)
+			Convey("Then error should be occurred", func() {
+				So(err, ShouldNotBeNil)
+			})
+		})
+	})
+	Convey("Given a map[string]interface{} including overflow value", t, func() {
+		var m = map[string]interface{}{
+			"errorvalue": uint64(9223372036854775808), // = MaxInt64 + 1
 		}
 		Convey("When convert to Map object", func() {
 			_, err := NewMap(m)
@@ -129,12 +140,14 @@ func TestNewMapHasUnsupportedMap(t *testing.T) {
 // byte array correctly.
 func TestMarshalMsgpack(t *testing.T) {
 	Convey("Given a Map object data", t, func() {
+		now := time.Now()
+		milliSecond := now.UnixNano() / 1000
 		var testMap = Map{
 			"bool":   Bool(true),
 			"int":    Int(1),
 			"float":  Float(0.1),
 			"string": String("homhom"),
-			"time":   Timestamp(time.Date(2015, time.May, 1, 14, 27, 0, 0, time.UTC)),
+			"time":   Timestamp(now),
 			"array": Array([]Value{Bool(true), Int(10), String("inarray"),
 				Map{
 					"mapinarray": String("arraymap"),
@@ -154,7 +167,7 @@ func TestMarshalMsgpack(t *testing.T) {
 					"int":    int64(1),
 					"float":  float64(0.1),
 					"string": "homhom",
-					"time":   time.Date(2015, time.May, 1, 14, 27, 0, 0, time.UTC),
+					"time":   milliSecond,
 					"array": []interface{}{true, 10, "inarray",
 						map[string]interface{}{
 							"mapinarray": "arraymap",
