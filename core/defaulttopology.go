@@ -235,10 +235,10 @@ type pipeReceiver interface {
 
 // holds a box and the writer that will receive this box's output
 type receiverBox struct {
-	ctx       *Context
 	Name      string
 	Box       Box
 	Receiver  Writer
+	ctx       *Context
 	inputName string
 	buffer    chan *tuple.Tuple
 }
@@ -272,9 +272,9 @@ func (rb *receiverBox) InputName() string {
 
 // holds a sink and the sink's name
 type receiverSink struct {
-	ctx    *Context
 	Name   string
 	Sink   Sink
+	ctx    *Context
 	buffer chan *tuple.Tuple
 }
 
