@@ -265,8 +265,7 @@ func newIValue(v Value) interface{} {
 	case TypeBlob:
 		result, _ = v.AsBlob()
 	case TypeTimestamp:
-		t, _ := v.AsTimestamp()
-		result = t.UnixNano() / 1000
+		result, _ = ToInt(v)
 	case TypeArray:
 		innerArray, _ := v.AsArray()
 		result = newIArray(innerArray)
