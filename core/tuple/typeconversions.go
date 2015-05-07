@@ -230,7 +230,7 @@ func ToString(v Value) (string, error) {
 		if e != nil {
 			return defaultValue, e
 		}
-		return val.Format(time.RFC3339), nil
+		return val.Format(time.RFC3339Nano), nil
 	default:
 		return fmt.Sprintf("%#v", v), nil
 	}
