@@ -115,6 +115,7 @@ func UnmarshalMsgpack(b []byte) (Map, error) {
 //  		"map_a": "a",
 //  		"map_b": 2,
 //  	},
+//  	"byte": []byte("test byte"),
 //  	"null": nil,
 //  }
 //  var mapSample = Map{
@@ -131,6 +132,7 @@ func UnmarshalMsgpack(b []byte) (Map, error) {
 //  		"map_a": String("a"),
 //  		"map_b": Int(2),
 //  	},
+//  	"byte": Blob([]byte("test byte")),
 //  	"null": Null{},
 //  }
 //
