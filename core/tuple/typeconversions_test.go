@@ -65,6 +65,7 @@ func TestToBool(t *testing.T) {
 
 func TestToInt(t *testing.T) {
 	now := time.Now()
+	negTime := time.Unix(-1, -1000)
 
 	testCases := map[string]([]convTestInput){
 		"Null": []convTestInput{
@@ -103,8 +104,9 @@ func TestToInt(t *testing.T) {
 		"Timestamp": []convTestInput{
 			// The zero value for a time.Time is *not* the timestamp
 			// that has unix time zero!
-			convTestInput{"zero", Timestamp(time.Time{}), int64(-62135596800)},
-			convTestInput{"now", Timestamp(now), now.Unix()},
+			convTestInput{"zero", Timestamp(time.Time{}), int64(-62135596800000000)},
+			convTestInput{"now", Timestamp(now), now.UnixNano() / 1000},
+			convTestInput{"negative", Timestamp(negTime), negTime.UnixNano() / 1000},
 		},
 		"Array": []convTestInput{
 			convTestInput{"empty", Array{}, nil},
@@ -246,8 +248,10 @@ func TestToTime(t *testing.T) {
 			convTestInput{"false", Bool(false), nil},
 		},
 		"Int": []convTestInput{
-			convTestInput{"positive", Int(2), time.Unix(2, 0)},
-			convTestInput{"negative", Int(-2), time.Unix(-2, 0)},
+			convTestInput{"positive", Int(2), time.Unix(0, 2000)},
+			convTestInput{"negative", Int(-2), time.Unix(0, -2000)},
+			convTestInput{"large and positive", Int(2e6), time.Unix(2, 0)},
+			convTestInput{"large and negative", Int(-2e6), time.Unix(-2, 0)},
 			convTestInput{"zero", Int(0), time.Unix(0, 0)},
 		},
 		"Float": []convTestInput{

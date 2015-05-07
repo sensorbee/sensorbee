@@ -96,7 +96,8 @@ func ToBool(v Value) (bool, error) {
 //  * String: parsed integer with base 0 as per strconv.ParseInt
 //    (values outside of valid int64 bounds will lead to an error)
 //  * Blob: (error)
-//  * Timestamp: Unix time, see time.Time.Unix()
+//  * Timestamp: the number of microseconds elapsed since
+//    January 1, 1970 UTC.
 //  * Array: (error)
 //  * Map: (error)
 func ToInt(v Value) (int64, error) {
@@ -138,7 +139,12 @@ func ToInt(v Value) (int64, error) {
 		if e != nil {
 			return defaultValue, e
 		}
-		return val.Unix(), nil
+		// we use the method below instead of UnixNano()/1000 because
+		// the latter may be out of range for some timestamps
+		seconds := val.Unix()
+		secondsAsMicroseconds := seconds * 1000 * 1000
+		microsecondPart := int64(val.Nanosecond() / 1000)
+		return secondsAsMicroseconds + microsecondPart, nil
 	default:
 		return defaultValue,
 			fmt.Errorf("cannot convert %T to int64", v)
@@ -229,7 +235,7 @@ func ToString(v Value) (string, error) {
 // The conversion rules are as follows:
 //
 //  * Null: zero time (this is *not* the time with Unix time 0!)
-//  * Int: Time with the given Unix time seconds
+//  * Int: Time with the given Unix time in microseconds
 //  * Float: Time with the given Unix time seconds, where the decimal
 //    part will be considered as a part of a second
 //    (values outside of valid int64 bounds will lead to an error)
@@ -246,7 +252,8 @@ func ToTime(v Value) (time.Time, error) {
 		if e != nil {
 			return defaultValue, e
 		}
-		return time.Unix(val, 0), nil
+		micro := int64(1000 * 1000)
+		return time.Unix(val/micro, (val%micro)*1000), nil
 	case TypeFloat:
 		val, e := v.AsFloat()
 		if e != nil {
