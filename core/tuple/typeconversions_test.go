@@ -222,7 +222,7 @@ func TestToString(t *testing.T) {
 		},
 		"Timestamp": []convTestInput{
 			convTestInput{"zero", Timestamp(time.Time{}), "0001-01-01T00:00:00Z"},
-			convTestInput{"now", Timestamp(time.Now()), now.Format(time.RFC3339)},
+			convTestInput{"now", Timestamp(now), now.Format(time.RFC3339Nano)},
 		},
 		"Array": []convTestInput{
 			convTestInput{"empty", Array{}, "tuple.Array{}"},
