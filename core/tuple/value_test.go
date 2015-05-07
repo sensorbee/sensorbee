@@ -61,6 +61,70 @@ func TestUnmarshalMsgpack(t *testing.T) {
 	})
 }
 
+// TestNewMapDocMaps tests that supported type by SensorBee can be converted
+// correctly. A test data is same with doc example.
+func TestNewMapDocMaps(t *testing.T) {
+	Convey("Given a map[string]interface{} including variable type value", t, func() {
+		var m = map[string]interface{}{
+			"bool":   true,
+			"int":    int64(1),
+			"float":  float64(0.1),
+			"string": "homhom",
+			"time":   time.Date(2015, time.May, 1, 14, 27, 0, 0, time.UTC),
+			"array": []interface{}{true, 10, "inarray",
+				map[string]interface{}{
+					"mapinarray": "arraymap",
+				}},
+			"map": map[string]interface{}{
+				"map_a": "a",
+				"map_b": 2,
+			},
+			"byte": []byte("test byte"),
+			"null": nil,
+		}
+		var expected = Map{
+			"bool":   Bool(true),
+			"int":    Int(1),
+			"float":  Float(0.1),
+			"string": String("homhom"),
+			"time":   Timestamp(time.Date(2015, time.May, 1, 14, 27, 0, 0, time.UTC)),
+			"array": Array([]Value{Bool(true), Int(10), String("inarray"),
+				Map{
+					"mapinarray": String("arraymap"),
+				}}),
+			"map": Map{
+				"map_a": String("a"),
+				"map_b": Int(2),
+			},
+			"byte": Blob([]byte("test byte")),
+			"null": Null{},
+		}
+		Convey("When convert to Map object", func() {
+			actual, err := NewMap(m)
+			Convey("Then test data should be converted correctly", func() {
+				So(err, ShouldBeNil)
+				So(actual, ShouldResemble, expected)
+			})
+		})
+	})
+}
+
+// TestNewMapHasUnsupportedMap tests that unsupported value type (e.g. complex64)
+// can not be converted
+func TestNewMapHasUnsupportedMap(t *testing.T) {
+	Convey("Given a map[string]interface{} including unsupported value", t, func() {
+		var m = map[string]interface{}{
+			"errortype": complex64(1 + 1i),
+		}
+		Convey("When convert to Map object", func() {
+			_, err := NewMap(m)
+			Convey("Then error should be occurred", func() {
+				So(err, ShouldNotBeNil)
+			})
+		})
+	})
+}
+
 // TestMarshalMsgpack tests that Map object is serialized to
 // byte array correctly.
 func TestMarshalMsgpack(t *testing.T) {
