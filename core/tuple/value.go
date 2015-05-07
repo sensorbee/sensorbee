@@ -78,12 +78,12 @@ func (t TypeID) String() string {
 	}
 }
 
-var mh = &codec.MsgpackHandle{}
+var msgpackHandle = &codec.MsgpackHandle{}
 
 func init() {
-	mh.RawToString = true
-	mh.WriteExt = true
-	mh.SetExt(reflect.TypeOf(time.Time{}), 1, &timeExt{})
+	msgpackHandle.RawToString = true
+	msgpackHandle.WriteExt = true
+	msgpackHandle.SetExt(reflect.TypeOf(time.Time{}), 1, &timeExt{})
 }
 
 // UnmarshalMsgpack returns a Map object from a byte array encoded
@@ -92,7 +92,7 @@ func init() {
 // is not supported in SensorBee.
 func UnmarshalMsgpack(b []byte) (Map, error) {
 	var m map[interface{}]interface{}
-	dec := codec.NewDecoderBytes(b, mh)
+	dec := codec.NewDecoderBytes(b, msgpackHandle)
 	dec.Decode(&m)
 
 	return newMap(m)
@@ -197,7 +197,7 @@ func newArray(a []interface{}) ([]Value, error) {
 func MarshalMsgpack(m Map) ([]byte, error) {
 	iMap := newIMap(m)
 	var out []byte
-	enc := codec.NewEncoderBytes(&out, mh)
+	enc := codec.NewEncoderBytes(&out, msgpackHandle)
 	err := enc.Encode(iMap)
 
 	return out, err
