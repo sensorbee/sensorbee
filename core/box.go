@@ -54,6 +54,9 @@ type BoxInputConstraints struct {
 // Note that there may be multiple concurrent calls to Process,
 // so if internal state is accessed, proper locking mechanisms
 // must be used.
+// Also note that the same Context pointer that was passed to
+// Process should be handed over to Writer.Write so that the
+// same settings will be used by that Writer.
 //
 // InputConstraints is called on a Box to learn about the
 // requirements of this Box with respect to its input data. If
@@ -70,31 +73,31 @@ type BoxInputConstraints struct {
 // given.
 type Box interface {
 	Init(ctx *Context) error
-	Process(t *tuple.Tuple, s Writer) error
+	Process(ctx *Context, t *tuple.Tuple, s Writer) error
 	InputConstraints() (*BoxInputConstraints, error)
 	OutputSchema([]*Schema) (*Schema, error)
 }
 
 // BoxFunc can be used to add all methods required to fulfill the Box
 // interface to a normal function with the signature
-//   func(t *tuple.Tuple, s Writer) error
+//   func(ctx *Context, t *tuple.Tuple, s Writer) error
 //
 // Example:
 //
-//     forward := func(t *tuple.Tuple, w Writer) error {
-//         w.Write(t)
+//     forward := func(ctx *Context, t *tuple.Tuple, w Writer) error {
+//         w.Write(ctx, t)
 //         return nil
 //     }
 //     var box Box = BoxFunc(forward)
-func BoxFunc(f func(t *tuple.Tuple, s Writer) error) Box {
+func BoxFunc(f func(ctx *Context, t *tuple.Tuple, s Writer) error) Box {
 	bf := boxFunc(f)
 	return &bf
 }
 
-type boxFunc func(t *tuple.Tuple, s Writer) error
+type boxFunc func(ctx *Context, t *tuple.Tuple, s Writer) error
 
-func (b *boxFunc) Process(t *tuple.Tuple, s Writer) error {
-	return (*b)(t, s)
+func (b *boxFunc) Process(ctx *Context, t *tuple.Tuple, s Writer) error {
+	return (*b)(ctx, t, s)
 }
 
 func (b *boxFunc) Init(ctx *Context) error {
