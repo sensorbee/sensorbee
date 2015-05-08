@@ -9,7 +9,7 @@ import (
 // simple topology.
 type DoesNothingSource struct{}
 
-func (s *DoesNothingSource) GenerateStream(w Writer) error {
+func (s *DoesNothingSource) GenerateStream(ctx *Context, w Writer) error {
 	return nil
 }
 func (s *DoesNothingSource) Schema() *Schema {
@@ -27,7 +27,7 @@ type DoesNothingBox struct {
 func (b *DoesNothingBox) Init(ctx *Context) error {
 	return nil
 }
-func (b *DoesNothingBox) Process(t *tuple.Tuple, s Writer) error {
+func (b *DoesNothingBox) Process(ctx *Context, t *tuple.Tuple, s Writer) error {
 	return nil
 }
 func (b *DoesNothingBox) InputConstraints() (*BoxInputConstraints, error) {
@@ -44,7 +44,7 @@ func (b *DoesNothingBox) OutputSchema(s []*Schema) (*Schema, error) {
 // simple topology.
 type DoesNothingSink struct{}
 
-func (s *DoesNothingSink) Write(t *tuple.Tuple) error {
+func (s *DoesNothingSink) Write(ctx *Context, t *tuple.Tuple) error {
 	return nil
 }
 
@@ -56,9 +56,9 @@ type TupleEmitterSource struct {
 	Tuples []*tuple.Tuple
 }
 
-func (s *TupleEmitterSource) GenerateStream(w Writer) error {
+func (s *TupleEmitterSource) GenerateStream(ctx *Context, w Writer) error {
 	for _, t := range s.Tuples {
-		w.Write(t)
+		w.Write(ctx, t)
 	}
 	return nil
 }
@@ -70,7 +70,7 @@ type TupleCollectorSink struct {
 	Tuples []*tuple.Tuple
 }
 
-func (s *TupleCollectorSink) Write(t *tuple.Tuple) error {
+func (s *TupleCollectorSink) Write(ctx *Context, t *tuple.Tuple) error {
 	s.Tuples = append(s.Tuples, t)
 	return nil
 }
@@ -80,7 +80,7 @@ func (s *TupleCollectorSink) Write(t *tuple.Tuple) error {
 // forwardBox sends an input Tuple to the given Writer without
 // modification. It can be wrapped with BoxFunc to match the Box
 // interface.
-func forwardBox(t *tuple.Tuple, w Writer) error {
-	w.Write(t)
+func forwardBox(ctx *Context, t *tuple.Tuple, w Writer) error {
+	w.Write(ctx, t)
 	return nil
 }

@@ -17,14 +17,24 @@ type defaultStaticTopology struct {
 }
 
 func (t *defaultStaticTopology) Run(ctx *Context) {
+	// Pass the context to all boxes so that they can do initialization
+	// tasks before processing starts.
 	for box, _ := range t.boxpointers {
 		(*box).Init(ctx)
 	}
 
-	// launch a listener goroutine for each receiver of a pipe
+	// Launch a listener goroutine for each receiver of a pipe.
 	for _, pipe := range t.pipes {
 		for _, recv := range pipe.Receivers {
 			recv := recv
+			// Pass the Context to all receivers, which they will
+			// use for the Box.Process() call. This means that the
+			// "lifespan" of this context object is
+			//  Receiver -> Box -> Pipe
+			// which is handy, for example, because the INPUT and
+			// OUTPUT tracing for the Box in the middle will be controlled
+			// by the same context object.
+			recv.Init(ctx)
 			go recv.ProcessItems()
 		}
 	}
@@ -34,7 +44,13 @@ func (t *defaultStaticTopology) Run(ctx *Context) {
 		wg.Add(1)
 		go func(name string, source Source) {
 			defer wg.Done()
-			source.GenerateStream(t.pipes[name])
+			// Pass the Context to all sources, which they will use
+			// for the Write() call of the associated pipe. This
+			// means that the "lifespan" ob this context object is
+			//  Source -> Pipe
+			// but the next Box will use the context object passed
+			// to the Receiver that is associated to the source's Pipe.
+			source.GenerateStream(ctx, t.pipes[name])
 		}(name, source)
 	}
 	wg.Wait()
@@ -183,12 +199,20 @@ func (tb *defaultStaticTopologyBuilder) Build() (StaticTopology, error) {
 		// pipe's receiver list
 		sink, isSink := tb.sinks[toName]
 		if isSink {
-			recv := receiverSink{toName, sink, make(chan *tuple.Tuple)}
+			recv := receiverSink{
+				Name:   toName,
+				Sink:   sink,
+				buffer: make(chan *tuple.Tuple)}
 			pipe.Receivers = append(pipe.Receivers, &recv)
 		}
 		box, isBox := tb.boxes[toName]
 		if isBox {
-			recv := receiverBox{toName, box, pipes[toName], edge.InputName, make(chan *tuple.Tuple)}
+			recv := receiverBox{
+				Name:      toName,
+				Box:       box,
+				Receiver:  pipes[toName],
+				inputName: edge.InputName,
+				buffer:    make(chan *tuple.Tuple)}
 			pipe.Receivers = append(pipe.Receivers, &recv)
 		}
 	}
@@ -200,6 +224,11 @@ func (tb *defaultStaticTopologyBuilder) Build() (StaticTopology, error) {
 
 // A pipeReceiver represents an entity that can receive input from a pipe,
 // i.e., a Box or a Sink.
+//
+// Init is called on each pipeReceiver in a Topology when
+// StaticTopology.Run() is executed. It can be used to store the Context
+// on receiver field in order to pass the Context down the processing
+// pipeline.
 //
 // AddToChannel will add the passed tuple to the internal channel
 // (i.e., it will block if there is still a process running) and
@@ -213,6 +242,7 @@ func (tb *defaultStaticTopologyBuilder) Build() (StaticTopology, error) {
 // channel to the actual receiver Box or Sink. Calling this multiple
 // times will parallelize execution of items in the channel.
 type pipeReceiver interface {
+	Init(ctx *Context)
 	AddToChannel(t *tuple.Tuple)
 	InputName() string
 	ProcessItems()
@@ -223,8 +253,13 @@ type receiverBox struct {
 	Name      string
 	Box       Box
 	Receiver  Writer
+	ctx       *Context
 	inputName string
 	buffer    chan *tuple.Tuple
+}
+
+func (rb *receiverBox) Init(ctx *Context) {
+	rb.ctx = ctx
 }
 
 func (rb *receiverBox) ProcessItems() {
@@ -237,9 +272,8 @@ func (rb *receiverBox) ProcessItems() {
 	// increase the parallelism of downstream operations.
 	for t := range rb.buffer {
 		// add tracing information and hand over to box
-		in := newDefaultEvent(tuple.INPUT, rb.Name)
-		t.AddEvent(in)
-		rb.Box.Process(t, rb.Receiver)
+		tracing(t, rb.ctx, tuple.INPUT, rb.Name)
+		rb.Box.Process(rb.ctx, t, rb.Receiver)
 	}
 }
 
@@ -255,7 +289,12 @@ func (rb *receiverBox) InputName() string {
 type receiverSink struct {
 	Name   string
 	Sink   Sink
+	ctx    *Context
 	buffer chan *tuple.Tuple
+}
+
+func (rs *receiverSink) Init(ctx *Context) {
+	rs.ctx = ctx
 }
 
 func (rs *receiverSink) ProcessItems() {
@@ -268,9 +307,8 @@ func (rs *receiverSink) ProcessItems() {
 	// increase the parallelism of downstream operations.
 	for t := range rs.buffer {
 		// add tracing information and hand over to sink
-		in := newDefaultEvent(tuple.INPUT, rs.Name)
-		t.AddEvent(in)
-		rs.Sink.Write(t)
+		tracing(t, rs.ctx, tuple.INPUT, rs.Name)
+		rs.Sink.Write(rs.ctx, t)
 	}
 }
 
@@ -316,16 +354,23 @@ func (p *capacityPipe) processItem(t *tuple.Tuple) {
 	}
 }
 
-func (p *capacityPipe) Write(t *tuple.Tuple) error {
+func (p *capacityPipe) Write(ctx *Context, t *tuple.Tuple) error {
 	// add tracing information
-	out := newDefaultEvent(tuple.OUTPUT, p.FromName)
-	t.AddEvent(out)
+	tracing(t, ctx, tuple.OUTPUT, p.FromName)
 	// distribute this item to receivers
 	p.processItem(t)
 	return nil
 }
 
 /**************************************************/
+
+func tracing(t *tuple.Tuple, ctx *Context, inout tuple.EventType, msg string) {
+	if !ctx.IsTupleTraceEnabled() {
+		return
+	}
+	ev := newDefaultEvent(inout, msg)
+	t.AddEvent(ev)
+}
 
 func newDefaultEvent(inout tuple.EventType, msg string) tuple.TraceEvent {
 	return tuple.TraceEvent{
