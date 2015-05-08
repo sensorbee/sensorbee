@@ -17,14 +17,23 @@ type defaultStaticTopology struct {
 }
 
 func (t *defaultStaticTopology) Run(ctx *Context) {
+	// Pass the context to all boxes so that they can do initialization
+	// tasks before processing starts.
 	for box, _ := range t.boxpointers {
 		(*box).Init(ctx)
 	}
 
-	// launch a listener goroutine for each receiver of a pipe
+	// Launch a listener goroutine for each receiver of a pipe.
 	for _, pipe := range t.pipes {
 		for _, recv := range pipe.Receivers {
 			recv := recv
+			// Pass the Context to all receivers, which they will
+			// use for the Box.Process() call. This means that the
+			// "lifespan" of this context object is
+			//  Receiver -> Box -> Pipe
+			// which is handy, for example, because the INPUT and
+			// OUTPUT tracing for the Box in the middle will be controlled
+			// by the same context object.
 			recv.Init(ctx)
 			go recv.ProcessItems()
 		}
@@ -35,6 +44,12 @@ func (t *defaultStaticTopology) Run(ctx *Context) {
 		wg.Add(1)
 		go func(name string, source Source) {
 			defer wg.Done()
+			// Pass the Context to all sources, which they will use
+			// for the Write() call of the associated pipe. This
+			// means that the "lifespan" ob this context object is
+			//  Source -> Pipe
+			// but the next Box will use the context object passed
+			// to the Receiver that is associated to the source's Pipe.
 			source.GenerateStream(ctx, t.pipes[name])
 		}(name, source)
 	}

@@ -54,6 +54,9 @@ type BoxInputConstraints struct {
 // Note that there may be multiple concurrent calls to Process,
 // so if internal state is accessed, proper locking mechanisms
 // must be used.
+// Also note that the same Context pointer that was passed to
+// Process should be handed over to Writer.Write so that the
+// same settings will be used by that Writer.
 //
 // InputConstraints is called on a Box to learn about the
 // requirements of this Box with respect to its input data. If

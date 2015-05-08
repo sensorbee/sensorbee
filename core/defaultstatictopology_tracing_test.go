@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-// TestDefaultTopologyTupleTracingConfiguration test that tracing
+// TestDefaultTopologyTupleTracingConfiguration tests that tracing
 // information is added according to Configuration.
 func TestDefaultTopologyTupleTracingConfiguration(t *testing.T) {
 	Convey("Given a simple topology with tracing disabled", t, func() {

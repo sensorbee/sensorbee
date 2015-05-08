@@ -23,8 +23,8 @@ func (c *Context) IsTupleTraceEnabled() bool {
 	return false
 }
 
-// SetTupleTraceEnabled can switch th Configuration of tracing tuples events.
-// If the argument bool flag is same as Context's Configuration, does nothing.
+// SetTupleTraceEnabled can switch the setting of tracing tuples events.
+// If the argument flag is the same as Context's Configuration, does nothing.
 func (c *Context) SetTupleTraceEnabled(b bool) {
 	var i int32 = 0
 	if b {
@@ -78,11 +78,13 @@ type LogManager interface {
 	DroppedTuple(t *tuple.Tuple, msg string, a ...interface{})
 }
 
-// Configuration is an arrangement of SensorBee processing.
+// Configuration is an arrangement of SensorBee processing settings.
 //
 // TupleTraceEnabled is a Tuple's tracing on/off flag. If the flag is 0
 // (means false), a topology does not trace Tuple's events.
-// The flag can be set when creating a Context, or running the topology.
+// The flag can be set when creating a Context, or when the topology
+// is running. In the latter case, Context.SetTupleTraceEnabled() should
+// be used for thread safety.
 // There is a delay between setting the flag and start/stop to trace Tuples.
 type Configuration struct {
 	TupleTraceEnabled int32
