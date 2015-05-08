@@ -139,12 +139,14 @@ func ToInt(v Value) (int64, error) {
 		if e != nil {
 			return defaultValue, e
 		}
-		// we use the method below instead of UnixNano()/1000 because
-		// the latter may be out of range for some timestamps
-		seconds := val.Unix()
-		secondsAsMicroseconds := seconds * 1000 * 1000
-		microsecondPart := int64(val.Nanosecond() / 1000)
-		return secondsAsMicroseconds + microsecondPart, nil
+		// What we would like to return is `val.UnixNano()/time.Microsecond`,
+		// but `val.UnixNano()` is not a valid call for some times, so we use
+		// a different computation method.
+		seconds := time.Duration(val.Unix())
+		// if we omit the brackets around the division below, we will overflow
+		secondsAsMicroseconds := seconds * (time.Second / time.Microsecond)
+		microsecondPart := time.Duration(val.Nanosecond()) / time.Microsecond
+		return int64(secondsAsMicroseconds + microsecondPart), nil
 	default:
 		return defaultValue,
 			fmt.Errorf("cannot convert %T to int64", v)
@@ -257,8 +259,17 @@ func ToTime(v Value) (time.Time, error) {
 		if e != nil {
 			return defaultValue, e
 		}
-		micro := int64(1000 * 1000)
-		return time.Unix(val/micro, (val%micro)*1000), nil
+		// val is a number of microseconds, e.g. 12345678
+		// To get only the second part (12), the straightforward way would
+		// be `val * time.Microsecond / time.Second`, but this may overflow
+		// for some timestamps, so we rearrange the operations:
+		secondPart := time.Duration(val) / time.Second * time.Microsecond
+		// To get only the fractional part of a second as microseconds
+		// (345678), we can subtract the secondPart as microseconds (12000000)
+		// from the original value (12345678).
+		fracMicroSeconds := time.Duration(val) - secondPart*(time.Second/time.Microsecond)
+		fracNanoSeconds := fracMicroSeconds * time.Microsecond
+		return time.Unix(int64(secondPart), int64(fracNanoSeconds)), nil
 	case TypeFloat:
 		val, e := v.AsFloat()
 		if e != nil {
