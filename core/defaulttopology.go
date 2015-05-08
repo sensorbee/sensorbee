@@ -46,7 +46,7 @@ func (t *defaultStaticTopology) Run(ctx *Context) {
 			defer wg.Done()
 			// Pass the Context to all sources, which they will use
 			// for the Write() call of the associated pipe. This
-			// means that the "lifespan" ob this context object is
+			// means that the "lifespan" of this context object is
 			//  Source -> Pipe
 			// but the next Box will use the context object passed
 			// to the Receiver that is associated to the source's Pipe.
