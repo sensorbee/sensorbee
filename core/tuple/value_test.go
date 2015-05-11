@@ -1,8 +1,10 @@
 package tuple
 
 import (
+	"fmt"
 	. "github.com/smartystreets/goconvey/convey"
 	"github.com/ugorji/go/codec"
+	"math"
 	"testing"
 	"time"
 )
@@ -124,13 +126,16 @@ func TestNewMapIncludeUnsupportedValue(t *testing.T) {
 		})
 	})
 	Convey("Given a map[string]interface{} including overflow value", t, func() {
+		mxint64 := uint64(math.MaxInt64 + 1)
 		var m = map[string]interface{}{
-			"errorvalue": uint64(9223372036854775808), // = MaxInt64 + 1
+			"errorvalue": mxint64,
 		}
 		Convey("When convert to Map object", func() {
 			_, err := NewMap(m)
 			Convey("Then error should be occurred", func() {
 				So(err, ShouldNotBeNil)
+				So(err.Error(), ShouldEqual, fmt.Sprintf(
+					"an int value must be less than 2^63: %v", mxint64))
 			})
 		})
 	})

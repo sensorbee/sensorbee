@@ -191,7 +191,7 @@ func NewValue(v interface{}) (result Value, err error) {
 		result = Int(vt)
 	case uint:
 		if vt > math.MaxInt64 {
-			err = fmt.Errorf("an int value must be less than 2^63")
+			err = fmt.Errorf("an int value must be less than 2^63: %v", vt)
 			break
 		}
 		result = Int(vt)
@@ -203,7 +203,7 @@ func NewValue(v interface{}) (result Value, err error) {
 		result = Int(vt)
 	case uint64:
 		if vt > math.MaxInt64 {
-			err = fmt.Errorf("an int value must be less than 2^63")
+			err = fmt.Errorf("an int value must be less than 2^63: %v", vt)
 			break
 		}
 		result = Int(vt)
