@@ -1,7 +1,6 @@
 package tuple
 
 import (
-	"errors"
 	"fmt"
 	"github.com/ugorji/go/codec"
 	"math"
@@ -34,7 +33,7 @@ type Value interface {
 }
 
 func castError(from TypeID, to TypeID) error {
-	return errors.New(fmt.Sprintf("unsupported cast %v from %v", to.String(), from.String()))
+	return fmt.Errorf("unsupported cast %v from %v", to.String(), from.String())
 }
 
 type TypeID int
@@ -102,38 +101,38 @@ func UnmarshalMsgpack(b []byte) (Map, error) {
 // Example:
 // The following sample interface{} will be converted to mapSample Map.
 //   var sample = map[string]interface{}{
-//  	"bool":   true,
-//  	"int":    int64(1),
-//  	"float":  float64(0.1),
-//  	"string": "homhom",
-//  	"time":   time.Date(2015, time.May, 1, 14, 27, 0, 0, time.UTC),
-//  	"array": []interface{}{true, 10, "inarray",
-//  		map[string]interface{}{
-//  			"mapinarray": "arraymap",
-//  		}},
-//  	"map": map[string]interface{}{
-//  		"map_a": "a",
-//  		"map_b": 2,
-//  	},
-//  	"byte": []byte("test byte"),
-//  	"null": nil,
+//      "bool":   true,
+//      "int":    int64(1),
+//      "float":  float64(0.1),
+//      "string": "homhom",
+//      "time":   time.Date(2015, time.May, 1, 14, 27, 0, 0, time.UTC),
+//      "array": []interface{}{true, 10, "inarray",
+//          map[string]interface{}{
+//              "mapinarray": "arraymap",
+//          }},
+//      "map": map[string]interface{}{
+//          "map_a": "a",
+//          "map_b": 2,
+//      },
+//      "byte": []byte("test byte"),
+//      "null": nil,
 //  }
 //  var mapSample = Map{
-//  	"bool":   Bool(true),
-//  	"int":    Int(1),
-//  	"float":  Float(0.1),
-//  	"string": String("homhom"),
-//  	"time":   Timestamp(time.Date(2015, time.May, 1, 14, 27, 0, 0, time.UTC)),
-//  	"array": Array([]Value{Bool(true), Int(10), String("inarray"),
-//  		Map{
-//  			"mapinarray": String("arraymap"),
-//  		}}),
-//  	"map": Map{
-//  		"map_a": String("a"),
-//  		"map_b": Int(2),
-//  	},
-//  	"byte": Blob([]byte("test byte")),
-//  	"null": Null{},
+//      "bool":   Bool(true),
+//      "int":    Int(1),
+//      "float":  Float(0.1),
+//      "string": String("homhom"),
+//      "time":   Timestamp(time.Date(2015, time.May, 1, 14, 27, 0, 0, time.UTC)),
+//      "array": Array([]Value{Bool(true), Int(10), String("inarray"),
+//          Map{
+//              "mapinarray": String("arraymap"),
+//          }}),
+//      "map": Map{
+//          "map_a": String("a"),
+//          "map_b": Int(2),
+//      },
+//      "byte": Blob([]byte("test byte")),
+//      "null": Null{},
 //  }
 //
 func NewMap(m map[string]interface{}) (Map, error) {
@@ -192,7 +191,7 @@ func NewValue(v interface{}) (result Value, err error) {
 		result = Int(vt)
 	case uint:
 		if vt > math.MaxInt64 {
-			err = errors.New(fmt.Sprintf("over 64 bit int value is not supported"))
+			err = fmt.Errorf("an int value must be less than 2^63")
 			break
 		}
 		result = Int(vt)
@@ -204,7 +203,7 @@ func NewValue(v interface{}) (result Value, err error) {
 		result = Int(vt)
 	case uint64:
 		if vt > math.MaxInt64 {
-			err = errors.New(fmt.Sprintf("over 64 bit int value is not supported"))
+			err = fmt.Errorf("an int value must be less than 2^63")
 			break
 		}
 		result = Int(vt)
@@ -221,7 +220,7 @@ func NewValue(v interface{}) (result Value, err error) {
 	case nil:
 		result = Null{}
 	default:
-		err = errors.New(fmt.Sprintf("unsupported type %T", v))
+		err = fmt.Errorf("unsupported type %T", v)
 	}
 	return result, err
 }
