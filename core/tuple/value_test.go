@@ -1,10 +1,201 @@
 package tuple
 
 import (
+	"fmt"
 	. "github.com/smartystreets/goconvey/convey"
+	"github.com/ugorji/go/codec"
+	"math"
 	"testing"
 	"time"
 )
+
+// TestUnmarshalMsgpack tests that byte array encoded by msgpack
+// is deserialized to Map object correctly
+func TestUnmarshalMsgpack(t *testing.T) {
+	Convey("Given a msgpack byte data", t, func() {
+		now := time.Now()
+		microTime := now.UnixNano() / 1000
+		var testMap = map[string]interface{}{
+			"bool":    true,
+			"int32":   int32(1),
+			"int64":   int64(2),
+			"float32": float32(0.1),
+			"float64": float64(0.2),
+			"string":  "homhom",
+			"time":    int64(microTime),
+			"array": []interface{}{true, 10, "inarray",
+				map[string]interface{}{
+					"mapinarray": "arraymap",
+				}},
+			"map": map[string]interface{}{
+				"map_a": "a",
+				"map_b": 2,
+			},
+			"null": nil,
+			// TODO add []byte
+		}
+		var testData []byte
+		codec.NewEncoderBytes(&testData, msgpackHandle).Encode(testMap)
+		Convey("When convert to Map object", func() {
+			m, _ := UnmarshalMsgpack(testData)
+			Convey("Then decode data should be match with Map data", func() {
+				var expected = Map{
+					"bool":    Bool(true),
+					"int32":   Int(1),
+					"int64":   Int(2),
+					"float32": Float(float32(0.1)),
+					"float64": Float(0.2),
+					"string":  String("homhom"),
+					"time":    Int(microTime),
+					"array": Array([]Value{Bool(true), Int(10), String("inarray"),
+						Map{
+							"mapinarray": String("arraymap"),
+						}}),
+					"map": Map{
+						"map_a": String("a"),
+						"map_b": Int(2),
+					},
+					"null": Null{},
+				}
+				So(m, ShouldResemble, expected)
+			})
+		})
+	})
+}
+
+// TestNewMapDocMaps tests that supported type by SensorBee can be converted
+// correctly. A test data is same with doc example.
+func TestNewMapDocMaps(t *testing.T) {
+	Convey("Given a map[string]interface{} including variable type value", t, func() {
+		var m = map[string]interface{}{
+			"bool":   true,
+			"int":    int64(1),
+			"float":  float64(0.1),
+			"string": "homhom",
+			"time":   time.Date(2015, time.May, 1, 14, 27, 0, 0, time.UTC),
+			"array": []interface{}{true, 10, "inarray",
+				map[string]interface{}{
+					"mapinarray": "arraymap",
+				}},
+			"map": map[string]interface{}{
+				"map_a": "a",
+				"map_b": 2,
+			},
+			"byte": []byte("test byte"),
+			"null": nil,
+		}
+		var expected = Map{
+			"bool":   Bool(true),
+			"int":    Int(1),
+			"float":  Float(0.1),
+			"string": String("homhom"),
+			"time":   Timestamp(time.Date(2015, time.May, 1, 14, 27, 0, 0, time.UTC)),
+			"array": Array([]Value{Bool(true), Int(10), String("inarray"),
+				Map{
+					"mapinarray": String("arraymap"),
+				}}),
+			"map": Map{
+				"map_a": String("a"),
+				"map_b": Int(2),
+			},
+			"byte": Blob([]byte("test byte")),
+			"null": Null{},
+		}
+		Convey("When convert to Map object", func() {
+			actual, err := NewMap(m)
+			Convey("Then test data should be converted correctly", func() {
+				So(err, ShouldBeNil)
+				So(actual, ShouldResemble, expected)
+			})
+		})
+	})
+}
+
+// TestNewMapIncludeUnsupportedValue tests that unsupported value
+// (e.g. complex64) can not be converted
+func TestNewMapIncludeUnsupportedValue(t *testing.T) {
+	Convey("Given a map[string]interface{} including unsupported value", t, func() {
+		var m = map[string]interface{}{
+			"errortype": complex64(1 + 1i),
+		}
+		Convey("When convert to Map object", func() {
+			_, err := NewMap(m)
+			Convey("Then error should be occurred", func() {
+				So(err, ShouldNotBeNil)
+			})
+		})
+	})
+	Convey("Given a map[string]interface{} including overflow value", t, func() {
+		mxint64 := uint64(math.MaxInt64 + 1)
+		var m = map[string]interface{}{
+			"errorvalue": mxint64,
+		}
+		Convey("When convert to Map object", func() {
+			_, err := NewMap(m)
+			Convey("Then error should be occurred", func() {
+				So(err, ShouldNotBeNil)
+				So(err.Error(), ShouldEqual, fmt.Sprintf(
+					"an int value must be less than 2^63: %v", mxint64))
+			})
+		})
+	})
+}
+
+// TestMarshalMsgpack tests that Map object is serialized to
+// byte array correctly.
+func TestMarshalMsgpack(t *testing.T) {
+	Convey("Given a Map object data", t, func() {
+		now := time.Now()
+		milliSecond := now.UnixNano() / 1000
+		var testMap = Map{
+			"bool":   Bool(true),
+			"int":    Int(1),
+			"float":  Float(0.1),
+			"string": String("homhom"),
+			"time":   Timestamp(now),
+			"array": Array([]Value{Bool(true), Int(10), String("inarray"),
+				Map{
+					"mapinarray": String("arraymap"),
+				}}),
+			"map": Map{
+				"map_a": String("a"),
+				"map_b": Int(2),
+			},
+			"null": Null{},
+			// TODO add Blob
+		}
+		Convey("When convert to []byte", func() {
+			b, _ := MarshalMsgpack(testMap)
+			Convey("Then encode data should be match with expected bytes", func() {
+				var expected = map[string]interface{}{
+					"bool":   true,
+					"int":    int64(1),
+					"float":  float64(0.1),
+					"string": "homhom",
+					"time":   milliSecond,
+					"array": []interface{}{true, 10, "inarray",
+						map[string]interface{}{
+							"mapinarray": "arraymap",
+						}},
+					"map": map[string]interface{}{
+						"map_a": "a",
+						"map_b": 2,
+					},
+					"null": nil,
+				}
+				var expectedBytes []byte
+				codec.NewEncoderBytes(&expectedBytes, msgpackHandle).Encode(expected)
+
+				// it should compare b and expectedBytes, but byte array order is not
+				// always correspond in converting map to bytes.
+				var actualMap, expectedMap map[string]interface{}
+				codec.NewDecoderBytes(expectedBytes, msgpackHandle).Decode(&expectedMap)
+				codec.NewDecoderBytes(b, msgpackHandle).Decode(&actualMap)
+				So(actualMap, ShouldResemble, expectedMap)
+			})
+		})
+	})
+}
 
 func TestValue(t *testing.T) {
 	var testData = Map{
