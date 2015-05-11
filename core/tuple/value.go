@@ -100,7 +100,7 @@ func UnmarshalMsgpack(b []byte) (Map, error) {
 // Returns an error when value type is not supported in SensorBee.
 //
 // Example:
-// The following sample interface{} will be changed to mapSample Map.
+// The following sample interface{} will be converted to mapSample Map.
 //   var sample = map[string]interface{}{
 //  	"bool":   true,
 //  	"int":    int64(1),
@@ -139,7 +139,7 @@ func UnmarshalMsgpack(b []byte) (Map, error) {
 func NewMap(m map[string]interface{}) (Map, error) {
 	result := Map{}
 	for k, v := range m {
-		value, err := newValue(v)
+		value, err := NewValue(v)
 		if err != nil {
 			return nil, err
 		}
@@ -148,10 +148,12 @@ func NewMap(m map[string]interface{}) (Map, error) {
 	return result, nil
 }
 
-func newArray(a []interface{}) (Array, error) {
+// NewArray returns a Array object from []interface{}.
+// Returns an error when value type is not supported in SensorBee.
+func NewArray(a []interface{}) (Array, error) {
 	result := make([]Value, len(a))
 	for i, v := range a {
-		value, err := newValue(v)
+		value, err := NewValue(v)
 		if err != nil {
 			return nil, err
 		}
@@ -160,10 +162,12 @@ func newArray(a []interface{}) (Array, error) {
 	return result, nil
 }
 
-func newValue(v interface{}) (result Value, err error) {
+// NewValue returns a Value object from interface{}.
+// Returns an error when value type is not supported in SensorBee.
+func NewValue(v interface{}) (result Value, err error) {
 	switch vt := v.(type) {
 	case []interface{}:
-		a, err := newArray(vt)
+		a, err := NewArray(vt)
 		if err != nil {
 			return nil, err
 		}
