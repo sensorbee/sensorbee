@@ -15,5 +15,10 @@ package core
 // are made.
 type Source interface {
 	GenerateStream(ctx *Context, w Writer) error
+
+	// Stop will tell the Source to stop emitting tuples. After this
+	// function returns, no more calls to Write shall be made on the
+	// Writer passed in to GenerateStream.
+	Stop(ctx *Context) error
 	Schema() *Schema
 }

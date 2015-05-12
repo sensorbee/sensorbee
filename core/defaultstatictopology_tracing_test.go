@@ -4,6 +4,7 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 	"pfi/sensorbee/sensorbee/core/tuple"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -65,12 +66,26 @@ func TestDefaultTopologyTupleTracingConfiguration(t *testing.T) {
 type TupleWaitEmitterSource struct {
 	tuple    *tuple.Tuple
 	waitTime uint
+	m        sync.Mutex
+	stopped  bool
 }
 
 func (s *TupleWaitEmitterSource) GenerateStream(ctx *Context, w Writer) error {
 	sleepTime := time.Duration(s.waitTime) * time.Millisecond
+	s.m.Lock()
+	if s.stopped {
+		return nil
+	}
+	defer s.m.Unlock()
 	time.Sleep(sleepTime)
 	w.Write(ctx, s.tuple)
+	return nil
+}
+
+func (s *TupleWaitEmitterSource) Stop(ctx *Context) error {
+	s.m.Lock()
+	s.stopped = true
+	s.m.Unlock()
 	return nil
 }
 

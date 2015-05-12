@@ -4,5 +4,5 @@ package core
 // was processed by a topology, i.e., it represents an entity
 // outside of the topology (e.g., a fluentd instance).
 type Sink interface {
-	Writer
+	WriteCloser
 }
