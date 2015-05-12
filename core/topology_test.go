@@ -8,7 +8,12 @@ import (
 
 type DummyTopology struct{}
 
-func (dt *DummyTopology) Run(ctx *Context) {}
+func (dt *DummyTopology) Run(ctx *Context) error {
+	return nil
+}
+func (dt *DummyTopology) Stop(ctx *Context) error {
+	return nil
+}
 
 type DummyTopologyBuilder struct{}
 
@@ -60,6 +65,9 @@ type DummySource struct{}
 func (ds *DummySource) GenerateStream(ctx *Context, w Writer) error {
 	return nil
 }
+func (ds *DummySource) Stop(ctx *Context) error {
+	return nil
+}
 func (ds *DummySource) Schema() *Schema {
 	var s Schema = Schema("test")
 	return &s
@@ -83,6 +91,9 @@ func (db *DummyBox) OutputSchema(s []*Schema) (*Schema, error) {
 type DummySink struct{}
 
 func (ds *DummySink) Write(ctx *Context, t *tuple.Tuple) error {
+	return nil
+}
+func (ds *DummySink) Close(ctx *Context) error {
 	return nil
 }
 

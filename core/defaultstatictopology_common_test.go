@@ -2,6 +2,7 @@ package core
 
 import (
 	"pfi/sensorbee/sensorbee/core/tuple"
+	"sync"
 )
 
 // DoesNothingSource is a dummy source that literally does nothing.
@@ -10,6 +11,9 @@ import (
 type DoesNothingSource struct{}
 
 func (s *DoesNothingSource) GenerateStream(ctx *Context, w Writer) error {
+	return nil
+}
+func (s *DoesNothingSource) Stop(ctx *Context) error {
 	return nil
 }
 func (s *DoesNothingSource) Schema() *Schema {
@@ -47,6 +51,9 @@ type DoesNothingSink struct{}
 func (s *DoesNothingSink) Write(ctx *Context, t *tuple.Tuple) error {
 	return nil
 }
+func (s *DoesNothingSink) Close(ctx *Context) error {
+	return nil
+}
 
 /**************************************************/
 
@@ -54,11 +61,38 @@ func (s *DoesNothingSink) Write(ctx *Context, t *tuple.Tuple) error {
 // slice once when GenerateStream is called.
 type TupleEmitterSource struct {
 	Tuples []*tuple.Tuple
+	m      sync.Mutex
+	c      *sync.Cond
+
+	// 0: running, 1: stopping, 2: stopped
+	state int
 }
 
 func (s *TupleEmitterSource) GenerateStream(ctx *Context, w Writer) error {
+	s.c = sync.NewCond(&s.m)
 	for _, t := range s.Tuples {
+		s.m.Lock()
+		if s.state > 0 {
+			s.state = 2
+			s.c.Broadcast()
+			s.m.Unlock()
+			break
+		}
+		s.m.Unlock()
+
 		w.Write(ctx, t)
+	}
+	return nil
+}
+func (s *TupleEmitterSource) Stop(ctx *Context) error {
+	s.m.Lock()
+	defer s.m.Unlock()
+	if s.state == 2 {
+		return nil
+	}
+	s.state = 1
+	for s.state < 2 {
+		s.c.Wait()
 	}
 	return nil
 }
@@ -72,6 +106,9 @@ type TupleCollectorSink struct {
 
 func (s *TupleCollectorSink) Write(ctx *Context, t *tuple.Tuple) error {
 	s.Tuples = append(s.Tuples, t)
+	return nil
+}
+func (s *TupleCollectorSink) Close(ctx *Context) error {
 	return nil
 }
 

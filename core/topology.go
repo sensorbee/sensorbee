@@ -1,12 +1,41 @@
 package core
 
+// TopologyState represents a status of a topology.
+type TopologyState int
+
+const (
+	// TSInitialized means that a topology is just initialized and ready
+	// to be run.
+	TSInitialized TopologyState = iota
+
+	// TSStarting means a topology is now booting itself and will run shortly.
+	TSStarting
+
+	// TSRunning means a topology is currently running and emitting tuples
+	// to sinks.
+	TSRunning
+
+	// TSStopping means a topology is stopping all sources and closing
+	// channels between sources, boxes, and sinks.
+	TSStopping
+
+	// TSStopped means a topology is stopped. A stopped topology doesn't
+	// have to be able to run again.
+	TSStopped
+)
+
 // A StaticTopology is returned by StaticTopologyBuilder.Build and is
 // used to control the actual processing.
 //
 // Run starts processing in a blocking way. It should return when all
 // Source.GenerateStream methods of this topology have finished.
 type StaticTopology interface {
-	Run(ctx *Context)
+	Run(ctx *Context) error
+
+	// Stop gracefully stops processing in a blocking way. It will stop all
+	// sources, finish the processing of all tuples that are still in
+	// the system, and then return.
+	Stop(ctx *Context) error
 }
 
 // A StaticTopologyBuilder can be used to assemble a processing

@@ -30,7 +30,7 @@ func TestDefaultTopologyTupleProcessing(t *testing.T) {
 		 *   so -*--> b -*--> si
 		 */
 		tb := NewDefaultStaticTopologyBuilder()
-		s1 := &TupleEmitterSource{[]*tuple.Tuple{&tup1}}
+		s1 := &TupleEmitterSource{Tuples: []*tuple.Tuple{&tup1}}
 		tb.AddSource("source1", s1)
 		b1 := ToUpperBox
 		tb.AddBox("aBox", b1).Input("source1")
@@ -53,9 +53,9 @@ func TestDefaultTopologyTupleProcessing(t *testing.T) {
 		 *   so2 -*-/
 		 */
 		tb := NewDefaultStaticTopologyBuilder()
-		s1 := &TupleEmitterSource{[]*tuple.Tuple{&tup1}}
+		s1 := &TupleEmitterSource{Tuples: []*tuple.Tuple{&tup1}}
 		tb.AddSource("source1", s1)
-		s2 := &TupleEmitterSource{[]*tuple.Tuple{&tup2}}
+		s2 := &TupleEmitterSource{Tuples: []*tuple.Tuple{&tup2}}
 		tb.AddSource("source2", s2)
 		b1 := ToUpperBox
 		tb.AddBox("aBox", b1).
@@ -82,7 +82,7 @@ func TestDefaultTopologyTupleProcessing(t *testing.T) {
 		 *   so -*--> b -*--> si
 		 */
 		tb := NewDefaultStaticTopologyBuilder()
-		s := &TupleEmitterSource{[]*tuple.Tuple{&tup1, &tup2}}
+		s := &TupleEmitterSource{Tuples: []*tuple.Tuple{&tup1, &tup2}}
 		tb.AddSource("source", s)
 		b1 := ToUpperBox
 		tb.AddBox("aBox", b1).
@@ -106,7 +106,7 @@ func TestDefaultTopologyTupleProcessing(t *testing.T) {
 		 *        \--> b2 -*-/
 		 */
 		tb := NewDefaultStaticTopologyBuilder()
-		s1 := &TupleEmitterSource{[]*tuple.Tuple{&tup1}}
+		s1 := &TupleEmitterSource{Tuples: []*tuple.Tuple{&tup1}}
 		tb.AddSource("source1", s1)
 		b1 := ToUpperBox
 		tb.AddBox("aBox", b1).Input("source1")
@@ -132,7 +132,7 @@ func TestDefaultTopologyTupleProcessing(t *testing.T) {
 		 *                \--> si2
 		 */
 		tb := NewDefaultStaticTopologyBuilder()
-		s1 := &TupleEmitterSource{[]*tuple.Tuple{&tup1}}
+		s1 := &TupleEmitterSource{Tuples: []*tuple.Tuple{&tup1}}
 		tb.AddSource("source1", s1)
 		b1 := ToUpperBox
 		tb.AddBox("aBox", b1).Input("source1")
@@ -193,4 +193,8 @@ func (s *TupleContentsCollectorSink) Write(ctx *Context, t *tuple.Tuple) (err er
 		s.suffixResults = append(s.suffixResults, str)
 	}
 	return err
+}
+
+func (s *TupleContentsCollectorSink) Close(ctx *Context) error {
+	return nil
 }
