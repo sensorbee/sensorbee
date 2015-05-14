@@ -24,7 +24,7 @@ func TestDefaultTopologyTupleProcessing(t *testing.T) {
 
 	ToUpperBox := BoxFunc(toUpper)
 	AddSuffixBox := BoxFunc(addSuffix)
-
+	ctx := newTestContext(Configuration{})
 	Convey("Given a simple source/box/sink topology", t, func() {
 		/*
 		 *   so -*--> b -*--> si
@@ -39,7 +39,7 @@ func TestDefaultTopologyTupleProcessing(t *testing.T) {
 		t, _ := tb.Build()
 
 		Convey("When a tuple is emitted by the source", func() {
-			t.Run(&Context{})
+			t.Run(ctx)
 			Convey("Then it is processed by the box", func() {
 				So(si.uppercaseResults[0], ShouldEqual, "VALUE")
 			})
@@ -67,7 +67,7 @@ func TestDefaultTopologyTupleProcessing(t *testing.T) {
 
 		Convey("When a tuple is emitted by each source", func() {
 			start := time.Now()
-			t.Run(&Context{})
+			t.Run(ctx)
 			Convey("Then they should both be processed by the box in a reasonable time", func() {
 				So(len(si.uppercaseResults), ShouldEqual, 2)
 				So(si.uppercaseResults, ShouldContain, "VALUE")
@@ -92,7 +92,7 @@ func TestDefaultTopologyTupleProcessing(t *testing.T) {
 		t, _ := tb.Build()
 
 		Convey("When two tuples are emitted by the source", func() {
-			t.Run(&Context{})
+			t.Run(ctx)
 			Convey("Then they are processed both and in order", func() {
 				So(si.uppercaseResults, ShouldResemble, []string{"VALUE", "HOGE"})
 			})
@@ -117,7 +117,7 @@ func TestDefaultTopologyTupleProcessing(t *testing.T) {
 		t, _ := tb.Build()
 
 		Convey("When a tuple is emitted by the source", func() {
-			t.Run(&Context{})
+			t.Run(ctx)
 			Convey("Then it is processed by both boxes", func() {
 				So(si.uppercaseResults[0], ShouldEqual, "VALUE")
 				So(si.suffixResults[0], ShouldEqual, "value_1")
@@ -143,7 +143,7 @@ func TestDefaultTopologyTupleProcessing(t *testing.T) {
 		t, _ := tb.Build()
 
 		Convey("When a tuple is emitted by the source", func() {
-			t.Run(&Context{})
+			t.Run(ctx)
 			Convey("Then the processed value arrives in both sinks", func() {
 				So(si.uppercaseResults[0], ShouldEqual, "VALUE")
 				So(si2.uppercaseResults[0], ShouldEqual, "VALUE")

@@ -9,7 +9,7 @@ import (
 
 func TestShutdownLinearTopology(t *testing.T) {
 	config := Configuration{TupleTraceEnabled: 1}
-	ctx := &Context{Config: config}
+	ctx := newTestContext(config)
 
 	Convey("Given a simple source/slow box/very slow box/sink topology", t, func() {
 		/*
@@ -182,7 +182,7 @@ func TestShutdownLinearTopology(t *testing.T) {
 
 func TestShutdownForkTopology(t *testing.T) {
 	config := Configuration{TupleTraceEnabled: 1}
-	ctx := &Context{Config: config}
+	ctx := newTestContext(config)
 	Convey("Given a simple source/box/sink topology with 2 boxes and 2 sinks", t, func() {
 		/*
 		 *        /--> b1 -*--> si1
@@ -288,7 +288,7 @@ func TestShutdownForkTopology(t *testing.T) {
 
 func TestShutdownJoinTopology(t *testing.T) {
 	config := Configuration{TupleTraceEnabled: 1}
-	ctx := &Context{Config: config}
+	ctx := newTestContext(config)
 	Convey("Given a simple source/box/sink topology with 2 sources", t, func() {
 		/*
 		 *   so1 -*-\

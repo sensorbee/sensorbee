@@ -42,7 +42,7 @@ const (
 
 func TestCapacityPipeLinearTopology(t *testing.T) {
 	config := Configuration{TupleTraceEnabled: 1}
-	ctx := Context{Config: config}
+	ctx := newTestContext(config)
 
 	Convey("Given a simple source/slow box/very slow box/sink topology", t, func() {
 		/*
@@ -69,7 +69,7 @@ func TestCapacityPipeLinearTopology(t *testing.T) {
 		for par := 1; par <= maxPar; par++ {
 			par := par // safer to overlay the loop variable when used in closures
 			Convey(fmt.Sprintf("When tuples are emitted with parallelism %d", par), func() {
-				t.Run(&ctx)
+				t.Run(ctx)
 
 				// check that tuples arrived
 				So(si.Tuples, ShouldNotBeNil)
@@ -161,7 +161,7 @@ func TestCapacityPipeLinearTopology(t *testing.T) {
 		for par := 1; par <= maxPar; par++ {
 			par := par // safer to overlay the loop variable when used in closures
 			Convey(fmt.Sprintf("When tuples are emitted with parallelism %d", par), func() {
-				t.Run(&ctx)
+				t.Run(ctx)
 
 				// check that tuples arrived
 				So(si.Tuples, ShouldNotBeNil)
@@ -223,7 +223,7 @@ func TestCapacityPipeLinearTopology(t *testing.T) {
 
 func TestCapacityPipeForkTopology(t *testing.T) {
 	config := Configuration{TupleTraceEnabled: 1}
-	ctx := Context{Config: config}
+	ctx := newTestContext(config)
 	Convey("Given a simple source/box/sink topology with 2 boxes and 2 sinks", t, func() {
 		/*
 		 *        /--> b1 -*--> si1
@@ -251,7 +251,7 @@ func TestCapacityPipeForkTopology(t *testing.T) {
 		for par := 1; par <= maxPar; par++ {
 			par := par // safer to overlay the loop variable when used in closures
 			Convey(fmt.Sprintf("When tuples are emitted with parallelism %d", par), func() {
-				t.Run(&ctx)
+				t.Run(ctx)
 
 				// check that tuples arrived
 				So(si1.Tuples, ShouldNotBeNil)
@@ -331,7 +331,7 @@ func TestCapacityPipeForkTopology(t *testing.T) {
 
 func TestCapacityPipeJoinTopology(t *testing.T) {
 	config := Configuration{TupleTraceEnabled: 1}
-	ctx := Context{Config: config}
+	ctx := newTestContext(config)
 	Convey("Given a simple source/box/sink topology with 2 sources", t, func() {
 		/*
 		 *   so1 -*-\
@@ -362,7 +362,7 @@ func TestCapacityPipeJoinTopology(t *testing.T) {
 		for par := 1; par <= maxPar; par++ {
 			par := par // safer to overlay the loop variable when used in closures
 			Convey(fmt.Sprintf("When tuples are emitted with parallelism %d", par), func() {
-				t.Run(&ctx)
+				t.Run(ctx)
 
 				// check that tuples arrived
 				So(si.Tuples, ShouldNotBeNil)
