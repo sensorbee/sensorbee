@@ -3,6 +3,7 @@ package core
 import (
 	"fmt"
 	"pfi/sensorbee/sensorbee/core/tuple"
+	"strings"
 	"sync"
 	"time"
 )
@@ -115,8 +116,13 @@ func (tb *defaultStaticTopologyBuilder) AddSink(name string, sink Sink) SinkDecl
 
 func (tb *defaultStaticTopologyBuilder) Build() (StaticTopology, error) {
 	if tb.builtFlag {
-		err := fmt.Errorf(topologyBuilderAlreadyCalledBuildMsg)
-		return nil, err
+		return nil, fmt.Errorf(topologyBuilderAlreadyCalledBuildMsg)
+	}
+	if len(tb.sources) == 0 {
+		return nil, fmt.Errorf("there must be at least one source")
+	}
+	if has, path := tb.hasCycle(); has {
+		return nil, fmt.Errorf("the topology has a cycle: %v", strings.Join(path, "->"))
 	}
 
 	stateMutex := &sync.Mutex{}
@@ -157,10 +163,56 @@ func (tb *defaultStaticTopologyBuilder) Build() (StaticTopology, error) {
 		st.srcDsts[name] = dsts[name]
 	}
 
-	// TODO: detect circle
-
 	tb.builtFlag = true
 	return st, nil
+}
+
+// hasCycle returns true when the topology has a cycle.
+// It also returns the path on a cycle.
+func (tb *defaultStaticTopologyBuilder) hasCycle() (bool, []string) {
+	// assumes there's at least one source.
+	adj := map[string][]string{}
+	for _, e := range tb.Edges {
+		adj[e.From] = append(adj[e.From], e.To)
+	}
+
+	visited := map[string]int{} // 0: not yet, 1: visiting, 2: visited
+	for s := range tb.sources {
+		path := tb.detectCycle(s, adj, visited)
+		if len(path) != 0 {
+			for i := 0; i < len(path)/2; i++ {
+				p := len(path) - i - 1
+				path[i], path[p] = path[p], path[i]
+			}
+			return true, path
+		}
+	}
+
+	// TODO: visited can be used to detect unused boxes or sinks
+	return false, nil
+}
+
+// detectCycle returns non-empty path in the reverse order when it detected a cycle in the graph.
+func (tb *defaultStaticTopologyBuilder) detectCycle(node string, adj map[string][]string, visited map[string]int) []string {
+	switch visited[node] {
+	case 0:
+	case 1:
+		return []string{node}
+	default:
+		return nil
+	}
+	visited[node] = 1
+	for _, n := range adj[node] {
+		if path := tb.detectCycle(n, adj, visited); path != nil {
+			if len(path) > 1 && path[0] == path[len(path)-1] {
+				return path
+			}
+			path = append(path, node)
+			return path
+		}
+	}
+	visited[node] = 2
+	return nil
 }
 
 /**************************************************/
