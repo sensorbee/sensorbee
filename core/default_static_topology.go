@@ -3,6 +3,7 @@ package core
 import (
 	"fmt"
 	"pfi/sensorbee/sensorbee/core/tuple"
+	"strings"
 	"sync"
 )
 
@@ -14,10 +15,13 @@ type defaultStaticTopology struct {
 	// srcDsts have a set of destinations to which each source write tuples.
 	// This is necessary because Source cannot directly close writers and
 	// defaultStaticTopology has to take care of it.
-	srcDsts map[string]WriteCloser
+	//
+	// srcDsts will not be thread-safe once the topology started running.
+	srcDsts      map[string]WriteCloser
+	srcDstsMutex sync.Mutex
 
 	// conns have connectors of boxes and sinks. defaultStaticTopology will run
-	// a separated goroutine for each connector so that connectors can concurrently
+	// a separate goroutine for each input of a connector so that connectors can concurrently
 	// send/receive tuples to/from other connectors.
 	conns map[string]*staticConnector
 
@@ -45,7 +49,7 @@ func (t *defaultStaticTopology) Run(ctx *Context) error {
 			fallthrough
 
 		default:
-			return fmt.Errorf("the static topology has alread started")
+			return fmt.Errorf("the static topology has already started")
 		}
 		t.state = TSStarting
 		return nil
@@ -64,48 +68,87 @@ func (t *defaultStaticTopology) Run(ctx *Context) error {
 			return err
 		}
 	}
+	return t.run(ctx)
+}
+
+func (t *defaultStaticTopology) run(ctx *Context) error {
+	defer func() {
+		t.stateMutex.Lock()
+		t.state = TSStopped
+		t.stateCond.Broadcast()
+		t.stateMutex.Unlock()
+	}()
 
 	// Run goroutines for each connector(boxes and sinks).
-	wg := sync.WaitGroup{}
-	for _, conn := range t.conns {
-		conn := conn
+	var wg sync.WaitGroup
+	for name, conn := range t.conns {
 		wg.Add(1)
-		go func() {
+		go func(name string, conn *staticConnector) {
 			defer wg.Done()
-			conn.Run(ctx)
-		}()
+			conn.Run(name, ctx)
+		}(name, conn)
 	}
 
-	// Start all sources
+	// Create closures for goroutines here because srcDsts will not
+	// be thread-safe once those goroutines start.
+	fs := make([]func(), 0, len(t.srcs))
 	for name, src := range t.srcs {
 		name := name
 		src := src
 		dst := t.srcDsts[name]
-
-		wg.Add(1)
-		go func() {
+		f := func() {
 			defer wg.Done()
 			defer func() {
-				if err := dst.Close(ctx); err != nil {
-					// TODO: logging
+				if err := recover(); err != nil {
+					ctx.Logger.Log(ERROR, "%v paniced: %v", name, err)
+				}
+
+				// Because dst could be closed by defaultStaticTopology.Stop when
+				// Source.Stop failed in that method, closing dst must be done
+				// via closeDestination method.
+				if err := t.closeDestination(ctx, name); err != nil {
+					ctx.Logger.Log(ERROR, "%v cannot close the destination: %v", name, err)
 				}
 			}()
 			if err := src.GenerateStream(ctx, newTraceWriter(dst, tuple.OUTPUT, name)); err != nil {
-				// TODO: logging
+				ctx.Logger.Log(ERROR, "%v cannot generate tuples: %v", name, err)
 			}
-		}()
+		}
+		fs = append(fs, f)
 	}
+	for _, f := range fs {
+		wg.Add(1)
+		go f()
+	}
+
 	t.stateMutex.Lock()
 	t.state = TSRunning
 	t.stateCond.Broadcast()
 	t.stateMutex.Unlock()
 	wg.Wait()
-
-	t.stateMutex.Lock()
-	t.state = TSStopped
-	t.stateCond.Broadcast()
-	t.stateMutex.Unlock()
 	return nil
+}
+
+func (t *defaultStaticTopology) closeDestination(ctx *Context, src string) error {
+	dst := func() WriteCloser {
+		t.srcDstsMutex.Lock()
+		defer t.srcDstsMutex.Unlock()
+
+		// Since WriteCloser.Close doesn't have to be idempotent, it should
+		// only be called exactly once.
+		dst, ok := t.srcDsts[src]
+		if !ok {
+			return nil
+		}
+		delete(t.srcDsts, src)
+		return dst
+	}()
+
+	// srcDstsMutex is unlocked here.
+	if dst == nil {
+		return nil
+	}
+	return dst.Close(ctx)
 }
 
 // State returns the current state of the topology. See TopologyState for details.
@@ -179,17 +222,30 @@ func (t *defaultStaticTopology) Stop(ctx *Context) error {
 		return nil
 	}
 
-	for _, src := range t.srcs {
+	var stopFailures []string
+	for name, src := range t.srcs {
 		if err := src.Stop(ctx); err != nil {
-			// TODO: logging
-			// TODO: appropriate error handling
+			ctx.Logger.Log(ERROR, "Cannot stop source %v: ", name, err)
+			stopFailures = append(stopFailures, name)
+			if err := t.closeDestination(ctx, name); err != nil {
+				ctx.Logger.Log(ERROR, "Cannot close the source %v's destination: %v", name, err)
+			}
 		}
 	}
+
+	// TODO: There might be some WriteClosers which still haven't been closed
+	// and some connectors attached to them are still running. There might
+	// have to be some way to force shutdown connectors.
 
 	// Once all sources are stopped, the stream will eventually stop.
 	t.stateMutex.Lock()
 	defer t.stateMutex.Unlock()
 	_, err = t.wait(TSStopped)
+
+	if err == nil && len(stopFailures) > 0 {
+		return fmt.Errorf("%v sources couldn't be stopped but the topology has stopped: failed sources = %v",
+			len(stopFailures), strings.Join(stopFailures, ", "))
+	}
 	return err
 }
 
@@ -216,18 +272,32 @@ func (sc *staticConnector) AddInput(name string, c <-chan *tuple.Tuple) {
 	sc.inputs[name] = c
 }
 
-func (sc *staticConnector) Run(ctx *Context) {
-	wg := sync.WaitGroup{}
+func (sc *staticConnector) Run(name string, ctx *Context) {
+	var (
+		wg           sync.WaitGroup
+		panicLogging sync.Once
+	)
 	for _, in := range sc.inputs {
 		in := in
 
 		wg.Add(1)
+		// TODO: These goroutines should be assembled to one goroutine with reflect.Select.
 		go func() {
 			defer wg.Done()
+			defer func() {
+				if err := recover(); err != nil {
+					// Once a Box panics, it'll always panic after that. So,
+					// the log should only be written once.
+					panicLogging.Do(func() {
+						ctx.Logger.Log(ERROR, "%v paniced: %v", name, err)
+					})
+				}
+			}()
+
 			for t := range in {
 				if err := sc.dst.Write(ctx, t); err != nil {
-					// TODO: logging
-					// TODO: appropriate error handling
+					ctx.Logger.Log(ERROR, "%v cannot write a tuple: %v", name, err)
+					// All regular errors are considered resumable.
 				}
 			}
 		}()
@@ -235,7 +305,7 @@ func (sc *staticConnector) Run(ctx *Context) {
 	wg.Wait()
 
 	if err := sc.dst.Close(ctx); err != nil {
-		// TODO: logging
+		ctx.Logger.Log(ERROR, "%v cannot close its output channel: %v", name, err)
 	}
 }
 
@@ -263,41 +333,43 @@ func (sc *staticSingleChan) Close(ctx *Context) error {
 }
 
 type staticDestinations struct {
-	dsts []WriteCloser
+	names []string
+	dsts  []WriteCloser
 }
 
 func newStaticDestinations() *staticDestinations {
 	return &staticDestinations{}
 }
 
-func (mc *staticDestinations) AddDestination(w WriteCloser) {
+func (mc *staticDestinations) AddDestination(name string, w WriteCloser) {
+	mc.names = append(mc.names, name)
 	mc.dsts = append(mc.dsts, w)
 }
 
 func (mc *staticDestinations) Write(ctx *Context, t *tuple.Tuple) error {
+	e := &bulkErrors{}
 	needsCopy := len(mc.dsts) > 1
-	for _, o := range mc.dsts {
+	for i, d := range mc.dsts {
 		s := t
 		if needsCopy {
 			s = t.Copy()
 		}
-		if err := o.Write(ctx, s); err != nil {
-			// TODO: logging and appropriate error handling
+		if err := d.Write(ctx, s); err != nil {
+			// TODO: this error message could be a little redundant.
+			e.append(fmt.Errorf("a tuple cannot be written to %v: %v", mc.names[i], err))
 		}
 	}
-	return nil
+	return e.returnError()
 }
 
 func (mc *staticDestinations) Close(ctx *Context) error {
-	var err error
-	for _, o := range mc.dsts {
-		if e := o.Close(ctx); e != nil {
-			// TODO: logging
-			// TODO: appropriate error handling
-			err = e
+	e := &bulkErrors{}
+	for i, d := range mc.dsts {
+		if err := d.Close(ctx); err != nil {
+			e.append(fmt.Errorf("output channel to %v cannot be closed: %v", mc.names[i], err))
 		}
 	}
-	return err
+	return e.returnError()
 }
 
 type boxWriterAdapter struct {

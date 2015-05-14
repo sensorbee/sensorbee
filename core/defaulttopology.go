@@ -149,7 +149,7 @@ func (tb *defaultStaticTopologyBuilder) Build() (StaticTopology, error) {
 
 	for _, e := range tb.Edges {
 		ch := make(chan *tuple.Tuple) // TODO: add capacity
-		dsts[e.From].AddDestination(newStaticSingleChan(e.InputName, ch))
+		dsts[e.From].AddDestination(e.To, newStaticSingleChan(e.InputName, ch))
 		st.conns[e.To].AddInput(e.From, ch)
 	}
 

@@ -14,7 +14,7 @@ import (
 func TestDefaultTopologyTupleTracingConfiguration(t *testing.T) {
 	Convey("Given a simple topology with tracing disabled", t, func() {
 		config := Configuration{TupleTraceEnabled: 0}
-		ctx := Context{Config: config}
+		ctx := newTestContext(config)
 		tup := tuple.Tuple{
 			Data: tuple.Map{
 				"int": tuple.Int(1),
@@ -47,7 +47,7 @@ func TestDefaultTopologyTupleTracingConfiguration(t *testing.T) {
 
 		tp, _ := tb.Build()
 		Convey("When switch tracing configuration in running topology", func() {
-			go tp.Run(&ctx)
+			go tp.Run(ctx)
 			time.Sleep(25 * time.Millisecond)
 			ctx.SetTupleTraceEnabled(true)
 			time.Sleep(50 * time.Millisecond)
@@ -97,7 +97,7 @@ func (s *TupleWaitEmitterSource) Schema() *Schema {
 // correctly added to tuples in a complex topology.
 func TestDefaultTopologyTupleTracing(t *testing.T) {
 	config := Configuration{TupleTraceEnabled: 1}
-	ctx := Context{Config: config}
+	ctx := newTestContext(config)
 	Convey("Given a complex topology with distribution and aggregation", t, func() {
 
 		tup1 := tuple.Tuple{
@@ -153,7 +153,7 @@ func TestDefaultTopologyTupleTracing(t *testing.T) {
 
 		to, _ := tb.Build()
 		Convey("When a tuple is emitted by the source", func() {
-			to.Run(&ctx)
+			to.Run(ctx)
 			Convey("Then tracer has 2 kind of route from source1", func() {
 				// make expected routes
 				route1 := []string{
