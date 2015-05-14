@@ -567,7 +567,6 @@ func (b *SimpleJoinBox) Process(ctx *Context, t *tuple.Tuple, s Writer) error {
 			}
 			delete(b.RightTuples, uid)
 			b.mutex.Unlock()
-			fmt.Printf("emit %v\n", t)
 			s.Write(ctx, t)
 		} else {
 			// no match, store this for later
