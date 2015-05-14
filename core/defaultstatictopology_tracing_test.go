@@ -4,7 +4,6 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 	"pfi/sensorbee/sensorbee/core/tuple"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 )
@@ -25,34 +24,24 @@ func TestDefaultTopologyTupleTracingConfiguration(t *testing.T) {
 			Trace:         make([]tuple.TraceEvent, 0),
 		}
 		tb := NewDefaultStaticTopologyBuilder()
-		so1 := TupleWaitEmitterSource{
-			tuple:    tup.Copy(),
-			waitTime: 0,
-		}
-		tb.AddSource("so1", &so1)
-		so2 := TupleWaitEmitterSource{
-			tuple:    tup.Copy(),
-			waitTime: 50,
-		}
-		tb.AddSource("so2", &so2)
-		so3 := TupleWaitEmitterSource{
-			tuple:    tup.Copy(),
-			waitTime: 100,
-		}
-		tb.AddSource("so3", &so3)
+		so1 := NewTupleIncrementalEmitterSource([]*tuple.Tuple{tup.Copy(), tup.Copy(), tup.Copy()})
+		tb.AddSource("so1", so1)
 		b := BoxFunc(forwardBox)
-		tb.AddBox("box", b).Input("so1").Input("so2").Input("so3")
-		si := &TupleCollectorSink{}
+		tb.AddBox("box", b).Input("so1")
+		si := NewTupleCollectorSink()
 		tb.AddSink("si", si).Input("box")
 
 		tp, _ := tb.Build()
 		Convey("When switch tracing configuration in running topology", func() {
 			go tp.Run(ctx)
-			time.Sleep(25 * time.Millisecond)
+			so1.EmitTuples(1)
+			si.Wait(1)
 			ctx.SetTupleTraceEnabled(true)
-			time.Sleep(50 * time.Millisecond)
+			so1.EmitTuples(1)
+			si.Wait(2)
 			ctx.SetTupleTraceEnabled(false)
-			time.Sleep(50 * time.Millisecond)
+			so1.EmitTuples(1)
+			si.Wait(3)
 			Convey("Then trace should be according to configuration", func() {
 				So(len(si.Tuples), ShouldEqual, 3)
 				So(len(si.Tuples[0].Trace), ShouldEqual, 0)
@@ -61,36 +50,6 @@ func TestDefaultTopologyTupleTracingConfiguration(t *testing.T) {
 			})
 		})
 	})
-}
-
-type TupleWaitEmitterSource struct {
-	tuple    *tuple.Tuple
-	waitTime uint
-	m        sync.Mutex
-	stopped  bool
-}
-
-func (s *TupleWaitEmitterSource) GenerateStream(ctx *Context, w Writer) error {
-	sleepTime := time.Duration(s.waitTime) * time.Millisecond
-	s.m.Lock()
-	if s.stopped {
-		return nil
-	}
-	defer s.m.Unlock()
-	time.Sleep(sleepTime)
-	w.Write(ctx, s.tuple)
-	return nil
-}
-
-func (s *TupleWaitEmitterSource) Stop(ctx *Context) error {
-	s.m.Lock()
-	s.stopped = true
-	s.m.Unlock()
-	return nil
-}
-
-func (s *TupleWaitEmitterSource) Schema() *Schema {
-	return nil
 }
 
 // TestDefaultTopologyTupleTracing tests that tracing information is
