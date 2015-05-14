@@ -58,27 +58,30 @@ func (t *defaultStaticTopology) Run(ctx *Context) error {
 		return err
 	}
 
+	// Don't move this defer to the head of the method otherwise calling
+	// Run method when the state is TSRunning will set TSStopped without
+	// actually stopping the topology.
+	defer t.setState(TSStopped)
+
 	// Initialize boxes in advance.
 	for _, box := range t.boxes {
 		if err := box.Init(ctx); err != nil {
-			t.stateMutex.Lock()
-			defer t.stateMutex.Unlock()
-			t.state = TSStopped
-			t.stateCond.Broadcast()
 			return err
 		}
 	}
 	return t.run(ctx)
 }
 
-func (t *defaultStaticTopology) run(ctx *Context) error {
-	defer func() {
-		t.stateMutex.Lock()
-		t.state = TSStopped
-		t.stateCond.Broadcast()
-		t.stateMutex.Unlock()
-	}()
+func (t *defaultStaticTopology) setState(s TopologyState) {
+	t.stateMutex.Lock()
+	defer t.stateMutex.Unlock()
+	t.state = s
+	t.stateCond.Broadcast()
+}
 
+// run spawns goroutines for sources, boxes, and sinks.
+// The caller of it must set TSStop after it returns.
+func (t *defaultStaticTopology) run(ctx *Context) error {
 	// Run goroutines for each connector(boxes and sinks).
 	var wg sync.WaitGroup
 	for name, conn := range t.conns {
@@ -121,10 +124,7 @@ func (t *defaultStaticTopology) run(ctx *Context) error {
 		go f()
 	}
 
-	t.stateMutex.Lock()
-	t.state = TSRunning
-	t.stateCond.Broadcast()
-	t.stateMutex.Unlock()
+	t.setState(TSRunning)
 	wg.Wait()
 	return nil
 }
