@@ -3,44 +3,11 @@ package core
 import (
 	"fmt"
 	. "github.com/smartystreets/goconvey/convey"
-	"pfi/sensorbee/sensorbee/core/tuple"
 	"testing"
 	"time"
 )
 
-func freshTuples() []*tuple.Tuple {
-	tup1 := &tuple.Tuple{
-		Data: tuple.Map{
-			"seq": tuple.Int(1),
-		},
-		InputName: "input",
-	}
-	tup2 := tup1.Copy()
-	tup2.Data["seq"] = tuple.Int(2)
-	tup3 := tup1.Copy()
-	tup3.Data["seq"] = tuple.Int(3)
-	tup4 := tup1.Copy()
-	tup4.Data["seq"] = tuple.Int(4)
-	tup5 := tup1.Copy()
-	tup5.Data["seq"] = tuple.Int(5)
-	tup6 := tup1.Copy()
-	tup6.Data["seq"] = tuple.Int(6)
-	tup7 := tup1.Copy()
-	tup7.Data["seq"] = tuple.Int(7)
-	tup8 := tup1.Copy()
-	tup8.Data["seq"] = tuple.Int(8)
-	return []*tuple.Tuple{tup1, tup2, tup3, tup4,
-		tup5, tup6, tup7, tup8}
-}
-
-const (
-	maxPar        = 1
-	timeTolerance = 10 * time.Millisecond
-	shortSleep    = 50 * time.Millisecond
-	longSleep     = 150 * time.Millisecond
-)
-
-func TestCapacityPipeLinearTopology(t *testing.T) {
+func TestShutdownLinearTopology(t *testing.T) {
 	config := Configuration{TupleTraceEnabled: 1}
 	ctx := newTestContext(config)
 
@@ -69,11 +36,18 @@ func TestCapacityPipeLinearTopology(t *testing.T) {
 		for par := 1; par <= maxPar; par++ {
 			par := par // safer to overlay the loop variable when used in closures
 			Convey(fmt.Sprintf("When tuples are emitted with parallelism %d", par), func() {
+				go func() {
+					// we should be able to emit two tuples before stopping,
+					// but time is not enough to process both of them. the call
+					// to Stop() should wait for processing to complete, though.
+					time.Sleep(time.Duration(0.5 * float64(shortSleep)))
+					t.Stop(ctx)
+				}()
 				t.Run(ctx)
 
 				// check that tuples arrived
 				So(si.Tuples, ShouldNotBeNil)
-				So(len(si.Tuples), ShouldEqual, 8)
+				So(len(si.Tuples), ShouldEqual, 2)
 
 				// check that length of trace matches expectation
 				So(len(si.Tuples[0].Trace), ShouldEqual, 6) // OUT-IN-OUT-IN-OUT-IN
@@ -91,17 +65,6 @@ func TestCapacityPipeLinearTopology(t *testing.T) {
 						// box processes (shortSleep)
 						waitTime := si.Tuples[par].Trace[1].Timestamp.Sub(si.Tuples[par].Trace[0].Timestamp)
 						So(waitTime, ShouldAlmostEqual, shortSleep, timeTolerance)
-						// after that, every par'th item should have to wait
-						// as long as the longest processing box needs (longSleep),
-						// all others be processed immediately
-						for i := par + 1; i < len(si.Tuples); i++ {
-							waitTime := si.Tuples[i].Trace[1].Timestamp.Sub(si.Tuples[i].Trace[0].Timestamp)
-							if (i-par)%par == 0 {
-								So(waitTime, ShouldAlmostEqual, longSleep, timeTolerance)
-							} else {
-								So(waitTime, ShouldAlmostEqual, 0, timeTolerance)
-							}
-						}
 					}
 
 					// FIRST BOX'S PIPE
@@ -161,11 +124,18 @@ func TestCapacityPipeLinearTopology(t *testing.T) {
 		for par := 1; par <= maxPar; par++ {
 			par := par // safer to overlay the loop variable when used in closures
 			Convey(fmt.Sprintf("When tuples are emitted with parallelism %d", par), func() {
+				go func() {
+					// we should be able to emit two tuples before stopping,
+					// but time is not enough to process both of them. the call
+					// to Stop() should wait for processing to complete, though.
+					time.Sleep(time.Duration(0.5 * float64(shortSleep)))
+					t.Stop(ctx)
+				}()
 				t.Run(ctx)
 
 				// check that tuples arrived
 				So(si.Tuples, ShouldNotBeNil)
-				So(len(si.Tuples), ShouldEqual, 8)
+				So(len(si.Tuples), ShouldEqual, 2)
 
 				// check that length of trace matches expectation
 				So(len(si.Tuples[0].Trace), ShouldEqual, 6) // OUT-IN-OUT-IN-OUT-IN
@@ -183,17 +153,6 @@ func TestCapacityPipeLinearTopology(t *testing.T) {
 						// box processes (longSleep)
 						waitTime := si.Tuples[par].Trace[1].Timestamp.Sub(si.Tuples[par].Trace[0].Timestamp)
 						So(waitTime, ShouldAlmostEqual, longSleep, timeTolerance)
-						// after that, every par'th item should have to wait
-						// as long as the longest processing box needs (longSleep),
-						// all others be processed immediately
-						for i := par + 1; i < len(si.Tuples); i++ {
-							waitTime := si.Tuples[i].Trace[1].Timestamp.Sub(si.Tuples[i].Trace[0].Timestamp)
-							if (i-par)%par == 0 {
-								So(waitTime, ShouldAlmostEqual, longSleep, timeTolerance)
-							} else {
-								So(waitTime, ShouldAlmostEqual, 0, timeTolerance)
-							}
-						}
 					}
 
 					// FIRST BOX'S PIPE
@@ -221,7 +180,7 @@ func TestCapacityPipeLinearTopology(t *testing.T) {
 	})
 }
 
-func TestCapacityPipeForkTopology(t *testing.T) {
+func TestShutdownForkTopology(t *testing.T) {
 	config := Configuration{TupleTraceEnabled: 1}
 	ctx := newTestContext(config)
 	Convey("Given a simple source/box/sink topology with 2 boxes and 2 sinks", t, func() {
@@ -251,13 +210,20 @@ func TestCapacityPipeForkTopology(t *testing.T) {
 		for par := 1; par <= maxPar; par++ {
 			par := par // safer to overlay the loop variable when used in closures
 			Convey(fmt.Sprintf("When tuples are emitted with parallelism %d", par), func() {
+				go func() {
+					// we should be able to emit two tuples before stopping,
+					// but time is not enough to process both of them. the call
+					// to Stop() should wait for processing to complete, though.
+					time.Sleep(time.Duration(0.5 * float64(shortSleep)))
+					t.Stop(ctx)
+				}()
 				t.Run(ctx)
 
 				// check that tuples arrived
 				So(si1.Tuples, ShouldNotBeNil)
-				So(len(si1.Tuples), ShouldEqual, 8)
+				So(len(si1.Tuples), ShouldEqual, 2)
 				So(si2.Tuples, ShouldNotBeNil)
-				So(len(si2.Tuples), ShouldEqual, 8)
+				So(len(si2.Tuples), ShouldEqual, 2)
 
 				// check that length of trace matches expectation
 				So(len(si1.Tuples[0].Trace), ShouldEqual, 4) // OUT-IN-OUT-IN
@@ -280,21 +246,12 @@ func TestCapacityPipeForkTopology(t *testing.T) {
 						// box processes (shortSleep)
 						waitTime := si1.Tuples[par].Trace[1].Timestamp.Sub(si1.Tuples[par].Trace[0].Timestamp)
 						So(waitTime, ShouldAlmostEqual, shortSleep, timeTolerance)
-						// after the first `par + 1` items, every item should
-						// be processed immediately. (the source is waiting for
-						// the slower box to finish before reading the next item,
-						// at which point the faster box already has free capacity
-						// again)
-						for i := par + 1; i < len(so.Tuples); i++ {
-							waitTime := si1.Tuples[i].Trace[1].Timestamp.Sub(si1.Tuples[i].Trace[0].Timestamp)
-							So(waitTime, ShouldAlmostEqual, 0, timeTolerance)
-						}
 
 						// box2
 						// after the first `par` items, every par'th item should
 						// have to wait as long as the longest processing box
 						// needs (longSleep), all others be processed immediately
-						for i := par; i < len(so.Tuples); i++ {
+						for i := par; i < len(si2.Tuples); i++ {
 							waitTime := si2.Tuples[i].Trace[1].Timestamp.Sub(si2.Tuples[i].Trace[0].Timestamp)
 							if (i-par)%par == 0 {
 								So(waitTime, ShouldAlmostEqual, longSleep, timeTolerance)
@@ -329,7 +286,7 @@ func TestCapacityPipeForkTopology(t *testing.T) {
 	})
 }
 
-func TestCapacityPipeJoinTopology(t *testing.T) {
+func TestShutdownJoinTopology(t *testing.T) {
 	config := Configuration{TupleTraceEnabled: 1}
 	ctx := newTestContext(config)
 	Convey("Given a simple source/box/sink topology with 2 sources", t, func() {
@@ -362,16 +319,23 @@ func TestCapacityPipeJoinTopology(t *testing.T) {
 		for par := 1; par <= maxPar; par++ {
 			par := par // safer to overlay the loop variable when used in closures
 			Convey(fmt.Sprintf("When tuples are emitted with parallelism %d", par), func() {
+				go func() {
+					// we should be able to emit two tuples each before stopping,
+					// but time is not enough to process both of them. the call
+					// to Stop() should wait for processing to complete, though.
+					time.Sleep(time.Duration(0.4 * float64(shortSleep)))
+					t.Stop(ctx)
+				}()
 				t.Run(ctx)
 
 				// check that tuples arrived
 				So(si.Tuples, ShouldNotBeNil)
-				So(len(si.Tuples), ShouldEqual, 8)
+				So(len(si.Tuples), ShouldEqual, 4)
 
 				// check that length of trace matches expectation
 				So(len(si.Tuples[0].Trace), ShouldEqual, 4) // OUT-IN-OUT-IN
 
-				Convey("Then waiting time at intermediate pipes should matches expectations", func() {
+				Convey("Then waiting time at intermediate pipes matches expectations", func() {
 					// SOURCE 1'S PIPE
 					{
 						// the first `par` items should be emitted without delay
@@ -383,7 +347,7 @@ func TestCapacityPipeJoinTopology(t *testing.T) {
 						// after that, every par'th item should have to wait
 						// as long as the longest processing box needs (shortSleep),
 						// all others be processed immediately
-						for i := par; i < len(so1.Tuples); i++ {
+						for i := par; i < 2; i++ {
 							waitTime := so1.Tuples[i].Trace[1].Timestamp.Sub(so1.Tuples[i].Trace[0].Timestamp)
 							if (i-par)%par == 0 {
 								So(waitTime, ShouldAlmostEqual, shortSleep, timeTolerance)
@@ -404,7 +368,7 @@ func TestCapacityPipeJoinTopology(t *testing.T) {
 						// after that, every par'th item should have to wait
 						// as long as the longest processing box needs (shortSleep),
 						// all others be processed immediately
-						for i := par; i < len(so2.Tuples); i++ {
+						for i := par; i < 2; i++ {
 							waitTime := so2.Tuples[i].Trace[1].Timestamp.Sub(so2.Tuples[i].Trace[0].Timestamp)
 							if (i-par)%par == 0 {
 								So(waitTime, ShouldAlmostEqual, shortSleep, timeTolerance)
@@ -427,16 +391,4 @@ func TestCapacityPipeJoinTopology(t *testing.T) {
 			})
 		}
 	})
-}
-
-func slowForwardBox(ctx *Context, t *tuple.Tuple, w Writer) error {
-	time.Sleep(shortSleep)
-	w.Write(ctx, t)
-	return nil
-}
-
-func verySlowForwardBox(ctx *Context, t *tuple.Tuple, w Writer) error {
-	time.Sleep(longSleep)
-	w.Write(ctx, t)
-	return nil
 }

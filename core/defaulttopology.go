@@ -3,64 +3,10 @@ package core
 import (
 	"fmt"
 	"pfi/sensorbee/sensorbee/core/tuple"
+	"strings"
 	"sync"
 	"time"
 )
-
-type defaultStaticTopology struct {
-	// tb.boxes may contain multiple instances of the same Box object.
-	// Use a set-like map to avoid calling Init() twice on the same object.
-	boxpointers map[*Box]bool
-
-	sources map[string]Source
-	pipes   map[string]*capacityPipe
-}
-
-func (t *defaultStaticTopology) Run(ctx *Context) {
-	// Pass the context to all boxes so that they can do initialization
-	// tasks before processing starts.
-	for box, _ := range t.boxpointers {
-		(*box).Init(ctx)
-	}
-
-	// Launch a listener goroutine for each receiver of a pipe.
-	for _, pipe := range t.pipes {
-		for _, recv := range pipe.Receivers {
-			recv := recv
-			// Pass the Context to all receivers, which they will
-			// use for the Box.Process() call. This means that the
-			// "lifespan" of this context object is
-			//  Receiver -> Box -> Pipe
-			// which is handy, for example, because the INPUT and
-			// OUTPUT tracing for the Box in the middle will be controlled
-			// by the same context object.
-			recv.Init(ctx)
-			go recv.ProcessItems()
-		}
-	}
-
-	var wg sync.WaitGroup
-	for name, source := range t.sources {
-		wg.Add(1)
-		go func(name string, source Source) {
-			defer wg.Done()
-			// Pass the Context to all sources, which they will use
-			// for the Write() call of the associated pipe. This
-			// means that the "lifespan" of this context object is
-			//  Source -> Pipe
-			// but the next Box will use the context object passed
-			// to the Receiver that is associated to the source's Pipe.
-			source.GenerateStream(ctx, t.pipes[name])
-		}(name, source)
-	}
-	wg.Wait()
-	// as a workaround, sleep a bit so that background goroutines can
-	// finish their work (or else all tests will break)
-	// TODO replace this by proper shutdown method
-	time.Sleep(50 * time.Millisecond)
-}
-
-/**************************************************/
 
 type defaultStaticTopologyBuilder struct {
 	sources     map[string]Source
@@ -168,197 +114,103 @@ func (tb *defaultStaticTopologyBuilder) AddSink(name string, sink Sink) SinkDecl
 	return &defaultSinkDeclarer{tb, name, sink, nil}
 }
 
-func (tb *defaultStaticTopologyBuilder) makeCapacityPipes() map[string]*capacityPipe {
-	pipes := make(map[string]*capacityPipe, len(tb.sources)+len(tb.boxes))
-	for name, _ := range tb.sources {
-		pipe := NewCapacityPipe()
-		pipe.FromName = name
-		pipes[name] = pipe
-	}
-	for name, _ := range tb.boxes {
-		pipe := NewCapacityPipe()
-		pipe.FromName = name
-		pipes[name] = pipe
-	}
-	return pipes
-}
-
 func (tb *defaultStaticTopologyBuilder) Build() (StaticTopology, error) {
 	if tb.builtFlag {
-		err := fmt.Errorf(topologyBuilderAlreadyCalledBuildMsg)
-		return nil, err
+		return nil, fmt.Errorf(topologyBuilderAlreadyCalledBuildMsg)
 	}
-	// every source and every box gets an "output pipe"
-	pipes := tb.makeCapacityPipes()
-	// add the correct receivers to each pipe
-	for _, edge := range tb.Edges {
-		fromName := edge.From
-		toName := edge.To
-		pipe := pipes[fromName]
-		// add the target of the edge (is either a sink or a box) to the
-		// pipe's receiver list
-		sink, isSink := tb.sinks[toName]
-		if isSink {
-			recv := receiverSink{
-				Name:   toName,
-				Sink:   sink,
-				buffer: make(chan *tuple.Tuple)}
-			pipe.Receivers = append(pipe.Receivers, &recv)
-		}
-		box, isBox := tb.boxes[toName]
-		if isBox {
-			recv := receiverBox{
-				Name:      toName,
-				Box:       box,
-				Receiver:  pipes[toName],
-				inputName: edge.InputName,
-				buffer:    make(chan *tuple.Tuple)}
-			pipe.Receivers = append(pipe.Receivers, &recv)
-		}
+	if len(tb.sources) == 0 {
+		return nil, fmt.Errorf("there must be at least one source")
 	}
+	if has, path := tb.hasCycle(); has {
+		return nil, fmt.Errorf("the topology has a cycle: %v", strings.Join(path, "->"))
+	}
+
+	stateMutex := &sync.Mutex{}
+	st := &defaultStaticTopology{
+		srcs:  tb.sources,
+		boxes: tb.boxes,
+		sinks: tb.sinks,
+
+		srcDsts: map[string]WriteCloser{},
+		conns:   map[string]*staticConnector{},
+
+		state:      TSInitialized,
+		stateMutex: stateMutex,
+		stateCond:  sync.NewCond(stateMutex),
+	}
+
+	// Create st.conns and its next writer
+	dsts := map[string]*staticDestinations{}
+	for name, _ := range tb.sources {
+		dsts[name] = newStaticDestinations()
+	}
+	for name, box := range tb.boxes {
+		dst := newStaticDestinations()
+		st.conns[name] = newStaticConnector(newBoxWriterAdapter(box, name, dst))
+		dsts[name] = dst
+	}
+	for name, sink := range tb.sinks {
+		st.conns[name] = newStaticConnector(newTraceWriter(sink, tuple.INPUT, name))
+	}
+
+	for _, e := range tb.Edges {
+		ch := make(chan *tuple.Tuple) // TODO: add capacity
+		dsts[e.From].AddDestination(e.To, newStaticSingleChan(e.InputName, ch))
+		st.conns[e.To].AddInput(e.From, ch)
+	}
+
+	for name, _ := range tb.sources {
+		st.srcDsts[name] = dsts[name]
+	}
+
 	tb.builtFlag = true
-	return &defaultStaticTopology{tb.boxpointers, tb.sources, pipes}, nil
+	return st, nil
 }
 
-/**************************************************/
-
-// A pipeReceiver represents an entity that can receive input from a pipe,
-// i.e., a Box or a Sink.
-//
-// Init is called on each pipeReceiver in a Topology when
-// StaticTopology.Run() is executed. It can be used to store the Context
-// on receiver field in order to pass the Context down the processing
-// pipeline.
-//
-// AddToChannel will add the passed tuple to the internal channel
-// (i.e., it will block if there is still a process running) and
-// schedule it for execution.
-//
-// InputName returns the name that the actual receiver Box or Sink
-// expects to be associated with incoming tuples.
-//
-// ProcessItems() is a process to be launched as a goroutine that
-// attaches to the internal channel and then passes each item in that
-// channel to the actual receiver Box or Sink. Calling this multiple
-// times will parallelize execution of items in the channel.
-type pipeReceiver interface {
-	Init(ctx *Context)
-	AddToChannel(t *tuple.Tuple)
-	InputName() string
-	ProcessItems()
-}
-
-// holds a box and the writer that will receive this box's output
-type receiverBox struct {
-	Name      string
-	Box       Box
-	Receiver  Writer
-	ctx       *Context
-	inputName string
-	buffer    chan *tuple.Tuple
-}
-
-func (rb *receiverBox) Init(ctx *Context) {
-	rb.ctx = ctx
-}
-
-func (rb *receiverBox) ProcessItems() {
-	// If an item is put in the queue (and there is no other processing
-	// taking place), that item will be processed immediately.
-	// If we are still in the middle of processing, then this item will
-	// be processed later.
-	// Note that if we increase the capacity of the channel here, then
-	// this pipe will have a buffering functionality, but it will not
-	// increase the parallelism of downstream operations.
-	for t := range rb.buffer {
-		// add tracing information and hand over to box
-		tracing(t, rb.ctx, tuple.INPUT, rb.Name)
-		rb.Box.Process(rb.ctx, t, rb.Receiver)
+// hasCycle returns true when the topology has a cycle.
+// It also returns the path on a cycle.
+func (tb *defaultStaticTopologyBuilder) hasCycle() (bool, []string) {
+	// assumes there's at least one source.
+	adj := map[string][]string{}
+	for _, e := range tb.Edges {
+		adj[e.From] = append(adj[e.From], e.To)
 	}
-}
 
-func (rb *receiverBox) AddToChannel(t *tuple.Tuple) {
-	rb.buffer <- t
-}
-
-func (rb *receiverBox) InputName() string {
-	return rb.inputName
-}
-
-// holds a sink and the sink's name
-type receiverSink struct {
-	Name   string
-	Sink   Sink
-	ctx    *Context
-	buffer chan *tuple.Tuple
-}
-
-func (rs *receiverSink) Init(ctx *Context) {
-	rs.ctx = ctx
-}
-
-func (rs *receiverSink) ProcessItems() {
-	// If an item is put in the queue (and there is no other processing
-	// taking place), that item will be processed immediately.
-	// If we are still in the middle of processing, then this item will
-	// be processed later.
-	// Note that if we increase the capacity of the channel here, then
-	// this pipe will have a buffering functionality, but it will not
-	// increase the parallelism of downstream operations.
-	for t := range rs.buffer {
-		// add tracing information and hand over to sink
-		tracing(t, rs.ctx, tuple.INPUT, rs.Name)
-		rs.Sink.Write(rs.ctx, t)
-	}
-}
-
-func (rs *receiverSink) AddToChannel(t *tuple.Tuple) {
-	rs.buffer <- t
-}
-
-func (rs *receiverSink) InputName() string {
-	return "output"
-}
-
-/**************************************************/
-
-func NewCapacityPipe() *capacityPipe {
-	p := capacityPipe{}
-	return &p
-}
-
-// receives input from a box and forwards it to registered listeners
-type capacityPipe struct {
-	FromName  string
-	Receivers []pipeReceiver
-}
-
-func (p *capacityPipe) processItem(t *tuple.Tuple) {
-	// forward tuple to connected boxes
-	var s *tuple.Tuple
-
-	// copy for all receivers but if this pipe has only
-	// one receiver, there is no need to copy
-	notNeedsCopy := len(p.Receivers) <= 1
-	for _, recv := range p.Receivers {
-		if notNeedsCopy {
-			s = t
-		} else {
-			s = t.Copy()
+	visited := map[string]int{} // 0: not yet, 1: visiting, 2: visited
+	for s := range tb.sources {
+		path := tb.detectCycle(s, adj, visited)
+		if len(path) != 0 {
+			for i := 0; i < len(path)/2; i++ {
+				p := len(path) - i - 1
+				path[i], path[p] = path[p], path[i]
+			}
+			return true, path
 		}
-		// set the name that the box is expecting
-		s.InputName = recv.InputName()
-		// If the call below blocks, it means that the receiving
-		// box/sink is still busy processing the previous item(s).
-		recv.AddToChannel(s)
 	}
+
+	// TODO: visited can be used to detect unused boxes or sinks
+	return false, nil
 }
 
-func (p *capacityPipe) Write(ctx *Context, t *tuple.Tuple) error {
-	// add tracing information
-	tracing(t, ctx, tuple.OUTPUT, p.FromName)
-	// distribute this item to receivers
-	p.processItem(t)
+// detectCycle returns non-empty path in the reverse order when it detected a cycle in the graph.
+func (tb *defaultStaticTopologyBuilder) detectCycle(node string, adj map[string][]string, visited map[string]int) []string {
+	switch visited[node] {
+	case 0:
+	case 1:
+		return []string{node}
+	default:
+		return nil
+	}
+	visited[node] = 1
+	for _, n := range adj[node] {
+		if path := tb.detectCycle(n, adj, visited); path != nil {
+			if len(path) > 1 && path[0] == path[len(path)-1] {
+				return path
+			}
+			return append(path, node)
+		}
+	}
+	visited[node] = 2
 	return nil
 }
 
@@ -485,8 +337,11 @@ func (sd *defaultSinkDeclarer) Input(refname string) SinkDeclarer {
 		sd.err = err
 		return sd
 	}
+
+	// Setting InputName "output" prevents names of boxes from accidentally being leaked.
+	edge := dataflowEdge{refname, sd.name, "output"}
+
 	// check if this edge already exists
-	edge := dataflowEdge{refname, sd.name, ""}
 	edgeAlreadyExists := false
 	for _, e := range sd.tb.Edges {
 		edgeAlreadyExists = edge == e
@@ -498,6 +353,7 @@ func (sd *defaultSinkDeclarer) Input(refname string) SinkDeclarer {
 		sd.err = err
 		return sd
 	}
+
 	// if not, store it
 	sd.tb.Edges = append(sd.tb.Edges, edge)
 	return sd

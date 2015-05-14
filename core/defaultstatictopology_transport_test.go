@@ -32,7 +32,7 @@ func TestDefaultTopologyTupleTransport(t *testing.T) {
 		BatchID:       7,
 	}
 	config := Configuration{TupleTraceEnabled: 1}
-	ctx := Context{Config: config}
+	ctx := newTestContext(config)
 
 	Convey("Given a simple source/sink topology", t, func() {
 		/*
@@ -50,7 +50,7 @@ func TestDefaultTopologyTupleTransport(t *testing.T) {
 		t, _ := tb.Build()
 
 		Convey("When a tuple is emitted by the source", func() {
-			t.Run(&ctx)
+			t.Run(ctx)
 			Convey("Then the sink receives the same object", func() {
 				So(si.Tuples, ShouldNotBeNil)
 				So(len(si.Tuples), ShouldEqual, 2)
@@ -85,7 +85,7 @@ func TestDefaultTopologyTupleTransport(t *testing.T) {
 		t, _ := tb.Build()
 
 		Convey("When a tuple is emitted by the source", func() {
-			t.Run(&ctx)
+			t.Run(ctx)
 			Convey("Then the sink 1 receives a copy", func() {
 				So(si1.Tuples, ShouldNotBeNil)
 				So(len(si1.Tuples), ShouldEqual, 2)
@@ -156,7 +156,7 @@ func TestDefaultTopologyTupleTransport(t *testing.T) {
 		t, _ := tb.Build()
 
 		Convey("When a tuple is emitted by the source", func() {
-			t.Run(&ctx)
+			t.Run(ctx)
 			Convey("Then the sink receives the same object", func() {
 				So(si.Tuples, ShouldNotBeNil)
 				So(len(si.Tuples), ShouldEqual, 2)
@@ -240,7 +240,7 @@ func TestDefaultTopologyTupleTransport(t *testing.T) {
 
 			t, _ := tb.Build()
 
-			t.Run(&ctx)
+			t.Run(ctx)
 			Convey("Then the sink receives two objects", func() {
 				So(si.Tuples, ShouldNotBeNil)
 				So(len(si.Tuples), ShouldEqual, 2)
@@ -300,7 +300,7 @@ func TestDefaultTopologyTupleTransport(t *testing.T) {
 
 			t, _ := tb.Build()
 
-			t.Run(&ctx)
+			t.Run(ctx)
 			Convey("Then the sink receives no objects", func() {
 				So(si.Tuples, ShouldBeNil)
 
@@ -335,7 +335,7 @@ func TestDefaultTopologyTupleTransport(t *testing.T) {
 		t, _ := tb.Build()
 
 		Convey("When a tuple is emitted by the source", func() {
-			t.Run(&ctx)
+			t.Run(ctx)
 			Convey("Then the sink 1 receives a copy", func() {
 				So(si1.Tuples, ShouldNotBeNil)
 				So(len(si1.Tuples), ShouldEqual, 2)
@@ -412,7 +412,7 @@ func TestDefaultTopologyTupleTransport(t *testing.T) {
 		t, _ := tb.Build()
 
 		Convey("When a tuple is emitted by the source", func() {
-			t.Run(&ctx)
+			t.Run(ctx)
 			Convey("Then the box 1 sees this tuple", func() {
 				So(b1.Tuples, ShouldNotBeNil)
 				So(len(b1.Tuples), ShouldEqual, 2)
