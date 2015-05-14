@@ -218,6 +218,7 @@ func ToFloat(v Value) (float64, error) {
 //
 //  * Null: "null"
 //  * Bool, Int, Float, String: Go's "%v" representation
+//  * Blob: string just copied from []byte
 //  * Timestamp: ISO 8601 representation, see time.RFC3339
 //  * other: Go's "%#v" representation
 func ToString(v Value) (string, error) {
@@ -227,6 +228,12 @@ func ToString(v Value) (string, error) {
 		return "null", nil
 	case TypeBool, TypeInt, TypeFloat, TypeString:
 		return fmt.Sprintf("%v", v), nil
+	case TypeBlob:
+		val, e := v.AsBlob()
+		if e != nil {
+			return defaultValue, e
+		}
+		return string(val), nil
 	case TypeTimestamp:
 		val, e := v.AsTimestamp()
 		if e != nil {
@@ -235,6 +242,30 @@ func ToString(v Value) (string, error) {
 		return val.Format(time.RFC3339Nano), nil
 	default:
 		return fmt.Sprintf("%#v", v), nil
+	}
+}
+
+// ToBlob converts a given Value to []byte, if possible.
+// The conversion rules are as follows:
+//
+//  * Null: nil
+//  * String: []byte just copied from string
+//  * Blob: actual value
+//  * other: (error)
+func ToBlob(v Value) ([]byte, error) {
+	switch v.Type() {
+	case TypeNull:
+		return nil, nil
+	case TypeString:
+		val, e := v.AsString()
+		if e != nil {
+			return nil, e
+		}
+		return []byte(val), nil
+	case TypeBlob:
+		return v.AsBlob()
+	default:
+		return nil, fmt.Errorf("cannot convert %T to Blob", v)
 	}
 }
 
