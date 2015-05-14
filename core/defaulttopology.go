@@ -207,8 +207,7 @@ func (tb *defaultStaticTopologyBuilder) detectCycle(node string, adj map[string]
 			if len(path) > 1 && path[0] == path[len(path)-1] {
 				return path
 			}
-			path = append(path, node)
-			return path
+			return append(path, node)
 		}
 	}
 	visited[node] = 2
