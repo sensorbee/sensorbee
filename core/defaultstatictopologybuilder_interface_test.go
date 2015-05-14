@@ -259,6 +259,7 @@ func TestDefaultTopologyBuilderInterface(t *testing.T) {
 func TestMultipleBuild(t *testing.T) {
 	Convey("Given basic topology builder called build() once", t, func() {
 		tb := NewDefaultStaticTopologyBuilder()
+		tb.AddSource("src", &DoesNothingSource{})
 		tp, _ := tb.Build()
 		So(tp, ShouldNotBeNil)
 		Convey("When add source", func() {
@@ -283,6 +284,29 @@ func TestMultipleBuild(t *testing.T) {
 			_, err := tb.Build()
 			Convey("Then it should occur non-buildable error", func() {
 				So(err, ShouldNotBeNil)
+			})
+		})
+	})
+}
+
+func TestCycleChecker(t *testing.T) {
+	Convey("Given a basic topology builder", t, func() {
+		tb := NewDefaultStaticTopologyBuilder()
+		Convey("When adding a cycle of boxes", func() {
+			/*              /*--> b2 -*--> b3 -*--> si
+			 *   so -*--> b1 <--*----------/
+			 */
+			tb.AddSource("src", &DoesNothingSource{})
+			b1 := tb.AddBox("box1", &DoesNothingBox{}).Input("src")
+			tb.AddBox("box2", &DoesNothingBox{}).Input("box1")
+			tb.AddBox("box3", &DoesNothingBox{}).Input("box2")
+			b1.Input("box3")
+			tb.AddSink("si", &DoesNothingSink{}).Input("box3")
+			Convey("Then building the topology should fail", func() {
+				_, err := tb.Build()
+				So(err, ShouldNotBeNil)
+				So(err.Error(), ShouldContainSubstring, "cycle")
+				So(err.Error(), ShouldContainSubstring, "box1->box2->box3->box1")
 			})
 		})
 	})
