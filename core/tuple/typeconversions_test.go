@@ -40,6 +40,7 @@ func TestToBool(t *testing.T) {
 		},
 		"Blob": []convTestInput{
 			convTestInput{"empty", Blob(""), false},
+			convTestInput{"nil", Blob(nil), false},
 			convTestInput{"non-empty", Blob("hoge"), true},
 		},
 		"Timestamp": []convTestInput{
@@ -217,8 +218,8 @@ func TestToString(t *testing.T) {
 			convTestInput{"non-empty", String("hoge"), "hoge"},
 		},
 		"Blob": []convTestInput{
-			convTestInput{"empty", Blob(""), "tuple.Blob{}"},
-			convTestInput{"non-empty", Blob("hoge"), "tuple.Blob{0x68, 0x6f, 0x67, 0x65}"},
+			convTestInput{"empty", Blob(""), ""},
+			convTestInput{"non-empty", Blob("hoge"), "hoge"},
 		},
 		"Timestamp": []convTestInput{
 			convTestInput{"zero", Timestamp(time.Time{}), "0001-01-01T00:00:00Z"},
@@ -242,6 +243,56 @@ func TestToString(t *testing.T) {
 		return val, err
 	}
 	runConversionTestCases(t, toFun, "ToString", testCases)
+}
+
+func TestToBlob(t *testing.T) {
+	testCases := map[string][]convTestInput{
+		"Null": {
+			{"Null", Null{}, []byte(nil)},
+		},
+		"Bool": {
+			{"true", Bool(true), nil},
+			{"false", Bool(false), nil},
+		},
+		"Int": {
+			{"positive", Int(2), nil},
+			{"negative", Int(-2), nil},
+			{"zero", Int(0), nil},
+		},
+		"Float": {
+			{"positive", Float(3.14), nil},
+			{"negative", Float(-3.14), nil},
+			{"zero", Float(0.0), nil},
+		},
+		"String": {
+			{"empty", String(""), []byte{}},
+			{"non-empty", String("hoge"), []byte("hoge")},
+			{"numeric", String("123.456"), []byte("123.456")},
+		},
+		"Blob": {
+			{"nil", Blob(nil), []byte(nil)},
+			{"empty", Blob{}, []byte{}},
+			{"non-empty", Blob("hoge"), []byte("hoge")},
+		},
+		"Timestamp": {
+			{"zero", Timestamp(time.Time{}), nil},
+			{"now", Timestamp(time.Now()), nil},
+		},
+		"Array": {
+			{"empty", Array{}, nil},
+			{"non-empty", Array{Int(2), String("foo")}, nil},
+		},
+		"Map": {
+			{"empty", Map{}, nil},
+			{"non-empty", Map{"a": Int(2), "b": String("foo")}, nil},
+		},
+	}
+
+	toFun := func(v Value) (interface{}, error) {
+		val, err := ToBlob(v)
+		return val, err
+	}
+	runConversionTestCases(t, toFun, "ToBlob", testCases)
 }
 
 func TestToTime(t *testing.T) {
