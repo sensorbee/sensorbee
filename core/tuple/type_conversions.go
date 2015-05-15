@@ -32,52 +32,27 @@ func ToBool(v Value) (bool, error) {
 	case TypeNull:
 		return false, nil
 	case TypeBool:
-		val, e := v.AsBool()
-		if e != nil {
-			return defaultValue, e
-		}
-		return val, nil
+		return v.AsBool()
 	case TypeInt:
-		val, e := v.AsInt()
-		if e != nil {
-			return defaultValue, e
-		}
+		val, _ := v.AsInt()
 		return val != 0, nil
 	case TypeFloat:
-		val, e := v.AsFloat()
-		if e != nil {
-			return defaultValue, e
-		}
+		val, _ := v.AsFloat()
 		return val != 0.0 && !math.IsNaN(val), nil
 	case TypeString:
-		val, e := v.AsString()
-		if e != nil {
-			return defaultValue, e
-		}
+		val, _ := v.AsString()
 		return len(val) > 0, nil
 	case TypeBlob:
-		val, e := v.AsBlob()
-		if e != nil {
-			return defaultValue, e
-		}
+		val, _ := v.AsBlob()
 		return len(val) > 0, nil
 	case TypeTimestamp:
-		val, e := v.AsTimestamp()
-		if e != nil {
-			return defaultValue, e
-		}
+		val, _ := v.AsTimestamp()
 		return !val.IsZero(), nil
 	case TypeArray:
-		val, e := v.AsArray()
-		if e != nil {
-			return defaultValue, e
-		}
+		val, _ := v.AsArray()
 		return len(val) > 0, nil
 	case TypeMap:
-		val, e := v.AsMap()
-		if e != nil {
-			return defaultValue, e
-		}
+		val, _ := v.AsMap()
 		return len(val) > 0, nil
 	default:
 		return defaultValue,
@@ -104,41 +79,25 @@ func ToInt(v Value) (int64, error) {
 	defaultValue := int64(0)
 	switch v.Type() {
 	case TypeBool:
-		val, e := v.AsBool()
-		if e != nil {
-			return defaultValue, e
-		}
+		val, _ := v.AsBool()
 		if val {
 			return 1, nil
 		}
 		return 0, nil
 	case TypeInt:
-		val, e := v.AsInt()
-		if e != nil {
-			return defaultValue, e
-		}
-		return val, nil
+		return v.AsInt()
 	case TypeFloat:
-		val, e := v.AsFloat()
-		if e != nil {
-			return defaultValue, e
-		}
+		val, _ := v.AsFloat()
 		if val >= MinConvFloat64 && val <= MaxConvFloat64 {
 			return int64(val), nil
 		}
 		return defaultValue,
 			fmt.Errorf("%v is out of bounds for int64 conversion", val)
 	case TypeString:
-		val, e := v.AsString()
-		if e != nil {
-			return defaultValue, e
-		}
+		val, _ := v.AsString()
 		return strconv.ParseInt(val, 0, 64)
 	case TypeTimestamp:
-		val, e := v.AsTimestamp()
-		if e != nil {
-			return defaultValue, e
-		}
+		val, _ := v.AsTimestamp()
 		// What we would like to return is `val.UnixNano()/time.Microsecond`,
 		// but `val.UnixNano()` is not a valid call for some times, so we use
 		// a different computation method.
@@ -171,37 +130,21 @@ func ToFloat(v Value) (float64, error) {
 	defaultValue := float64(0)
 	switch v.Type() {
 	case TypeBool:
-		val, e := v.AsBool()
-		if e != nil {
-			return defaultValue, e
-		}
+		val, _ := v.AsBool()
 		if val {
 			return 1.0, nil
 		}
 		return 0.0, nil
 	case TypeInt:
-		val, e := v.AsInt()
-		if e != nil {
-			return defaultValue, e
-		}
+		val, _ := v.AsInt()
 		return float64(val), nil
 	case TypeFloat:
-		val, e := v.AsFloat()
-		if e != nil {
-			return defaultValue, e
-		}
-		return val, nil
+		return v.AsFloat()
 	case TypeString:
-		val, e := v.AsString()
-		if e != nil {
-			return defaultValue, e
-		}
+		val, _ := v.AsString()
 		return strconv.ParseFloat(val, 64)
 	case TypeTimestamp:
-		val, e := v.AsTimestamp()
-		if e != nil {
-			return defaultValue, e
-		}
+		val, _ := v.AsTimestamp()
 		// We want to compute `val.UnixNano()/1e9`, but sometimes `UnixNano()`
 		// is not defined, so we switch to `val.Unix() + val.Nanosecond()/1e9`.
 		// Note that due to numerical issues, this sometimes yields different
@@ -222,23 +165,16 @@ func ToFloat(v Value) (float64, error) {
 //  * Timestamp: ISO 8601 representation, see time.RFC3339
 //  * other: Go's "%#v" representation
 func ToString(v Value) (string, error) {
-	defaultValue := ""
 	switch v.Type() {
 	case TypeNull:
 		return "null", nil
 	case TypeBool, TypeInt, TypeFloat, TypeString:
 		return fmt.Sprintf("%v", v), nil
 	case TypeBlob:
-		val, e := v.AsBlob()
-		if e != nil {
-			return defaultValue, e
-		}
+		val, _ := v.AsBlob()
 		return string(val), nil
 	case TypeTimestamp:
-		val, e := v.AsTimestamp()
-		if e != nil {
-			return defaultValue, e
-		}
+		val, _ := v.AsTimestamp()
 		return val.Format(time.RFC3339Nano), nil
 	default:
 		return fmt.Sprintf("%#v", v), nil
@@ -257,10 +193,7 @@ func ToBlob(v Value) ([]byte, error) {
 	case TypeNull:
 		return nil, nil
 	case TypeString:
-		val, e := v.AsString()
-		if e != nil {
-			return nil, e
-		}
+		val, _ := v.AsString()
 		return []byte(val), nil
 	case TypeBlob:
 		return v.AsBlob()
@@ -286,10 +219,7 @@ func ToTime(v Value) (time.Time, error) {
 	case TypeNull:
 		return defaultValue, nil
 	case TypeInt:
-		val, e := v.AsInt()
-		if e != nil {
-			return defaultValue, e
-		}
+		val, _ := v.AsInt()
 		// val is a number of microseconds, e.g. 12345678
 		// To get only the second part (12), the straightforward way would
 		// be `val * time.Microsecond / time.Second`, but this may overflow
@@ -302,10 +232,7 @@ func ToTime(v Value) (time.Time, error) {
 		fracNanoSeconds := fracMicroSeconds * time.Microsecond
 		return time.Unix(int64(secondPart), int64(fracNanoSeconds)), nil
 	case TypeFloat:
-		val, e := v.AsFloat()
-		if e != nil {
-			return defaultValue, e
-		}
+		val, _ := v.AsFloat()
 		if val >= MinConvFloat64 && val <= MaxConvFloat64 {
 			// say val is 3.7 or -4.6
 			integralPart := int64(val)                 // 3 or -4
@@ -316,17 +243,10 @@ func ToTime(v Value) (time.Time, error) {
 		return defaultValue,
 			fmt.Errorf("%v is out of bounds for int64 conversion", val)
 	case TypeString:
-		val, e := v.AsString()
-		if e != nil {
-			return defaultValue, e
-		}
+		val, _ := v.AsString()
 		return time.Parse(time.RFC3339, val)
 	case TypeTimestamp:
-		val, e := v.AsTimestamp()
-		if e != nil {
-			return defaultValue, e
-		}
-		return val, nil
+		return v.AsTimestamp()
 	default:
 		return defaultValue,
 			fmt.Errorf("cannot convert %T to Time", v)
