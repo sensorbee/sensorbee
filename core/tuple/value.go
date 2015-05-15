@@ -20,6 +20,10 @@ import (
 //  i, err := val.AsInt()
 //  if err != nil { ... }
 type Value interface {
+	// Type returns the actual type of a Value. (Note that this is
+	// faster than a type switch.) If a Value has `Type() == Type{X}`,
+	// then it can be assumed that the `As{X}()` conversion will
+	// not fail.
 	Type() TypeID
 	AsBool() (bool, error)
 	AsInt() (int64, error)

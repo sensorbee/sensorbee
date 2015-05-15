@@ -7,10 +7,11 @@ import (
 	"time"
 )
 
-// Constants defining the largest/smallest float64 numbers that can
-// be converted.
 const (
+	// Largest float64 that can be converted to int64
 	MaxConvFloat64 = float64(math.MaxInt64)
+
+	// Smallest float64 that can be converted to int64
 	MinConvFloat64 = float64(math.MinInt64)
 )
 

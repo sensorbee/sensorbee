@@ -6,33 +6,33 @@ import (
 
 // Tuple is a fundamental data structure in SensorBee. All data
 // that is processed is stored in tuples.
-//
-// Data is the actual data that is processed.
-//
-// Timestamp is the time when this tuple was originally generated,
-// e.g., the timestamp of a camera image or a sensor-emitted value.
-// It is an integral part of the data and should not be changed.
-// It should be saved along with the Data when persisted to a data
-// store so that timestamp-based reprocessing can be done with the
-// same results at a later point in time.
-//
-// ProcTimestamp is the time when this tuple entered the topology
-// for processing. It should be set by the Source that emitted this
-// Tuple.
-//
-// BatchID is reserved for future use.
-//
-// Trace is used during debugging to trace to way of a Tuple through
-// a topology. See the documentation for TraceEvent.
 type Tuple struct {
+	// Data is the actual data that is processed.
 	Data Map
 
+	// InputName can be used to identify the sender of a tuple when a
+	// Box processes data from multiple inputs. It will be set before
+	// Box.Process is called. Also see BoxDeclarer.NamedInput.
 	InputName string
 
-	Timestamp     time.Time
-	ProcTimestamp time.Time
-	BatchID       int64
+	// Timestamp is the time when this tuple was originally generated,
+	// e.g., the timestamp of a camera image or a sensor-emitted value.
+	// It is an integral part of the data and should not be changed.
+	// It should be saved along with the Data when persisted to a data
+	// store so that timestamp-based reprocessing can be done with the
+	// same results at a later point in time.
+	Timestamp time.Time
 
+	// ProcTimestamp is the time when this tuple entered the topology
+	// for processing. It should be set by the Source that emitted this
+	// Tuple.
+	ProcTimestamp time.Time
+
+	// BatchID is reserved for future use.
+	BatchID int64
+
+	// Trace is used during debugging to trace to way of a Tuple through
+	// a topology. See the documentation for TraceEvent.
 	Trace []TraceEvent
 }
 
@@ -65,29 +65,33 @@ func (t *Tuple) Copy() *Tuple {
 type EventType int
 
 const (
+	// INPUT represents an event where a tuple entered some
+	// processing unit (e.g., a Box)
 	INPUT EventType = iota
+	// OUTPUT represents an event where a tuple left some
+	// processing unit (e.g., a Box)
 	OUTPUT
+	// OTHER represents any other event
 	OTHER
 )
 
 // A TraceEvent represents an event in the processing lifecycle of a
 // Tuple, in particular transitions from one processing unit to the
 // next.
-//
-// Timestamp is the time of the event.
-//
-// Type represents the type of the event. For transitions, the viewpoint
-// of the Tuple should be assumed. For example, when a Tuple is emitted
-// by a Source, this is an OUTPUT transition; when it enters a Box for
-// processing, this is an INPUT transition. The OTHER Type can be used
-// to add other tracing information.
-//
-// Msg is any message, but for transitions it makes sense to use the
-// name of the Source/Box/Sink that was left/entered.
 type TraceEvent struct {
+	// Timestamp is the time of the event.
 	Timestamp time.Time
-	Type      EventType
-	Msg       string
+
+	// Type represents the type of the event. For transitions, the viewpoint
+	// of the Tuple should be assumed. For example, when a Tuple is emitted
+	// by a Source, this is an OUTPUT transition; when it enters a Box for
+	// processing, this is an INPUT transition. The OTHER Type can be used
+	// to add other tracing information.
+	Type EventType
+
+	// Msg is any message, but for transitions it makes sense to use the
+	// name of the Source/Box/Sink that was left/entered.
+	Msg string
 }
 
 func (t EventType) String() string {
