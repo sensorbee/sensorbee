@@ -320,7 +320,7 @@ func ToTime(v Value) (time.Time, error) {
 		if e != nil {
 			return defaultValue, e
 		}
-		return time.Parse(time.RFC3339, val)
+		return time.Parse(time.RFC3339Nano, val)
 	case TypeTimestamp:
 		val, e := v.AsTimestamp()
 		if e != nil {
