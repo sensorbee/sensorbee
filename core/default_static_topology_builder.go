@@ -30,6 +30,11 @@ type dataflowEdge struct {
 	InputName string
 }
 
+// Creates a default implementation of a StaticTopologyBuilder.
+// Note that this implementation is not thread-safe, i.e., it is
+// not safe to have, say, multiple calls to AddBox in parallel.
+// Also, this implementation will return an error when calling
+// Build more than once.
 func NewDefaultStaticTopologyBuilder() StaticTopologyBuilder {
 	tb := defaultStaticTopologyBuilder{}
 	tb.sources = make(map[string]Source)
