@@ -44,7 +44,7 @@ func TestCapacityPipeLinearTopology(t *testing.T) {
 	config := Configuration{TupleTraceEnabled: 1}
 	ctx := newTestContext(config)
 
-	Convey("Given a simple source/slow box/very slow box/sink topology", t, func() {
+	SkipConvey("Given a simple source/slow box/very slow box/sink topology", t, func() {
 		/*
 		 *   so -*--> b1 -*--> b2 -*--> si
 		 */
@@ -137,7 +137,7 @@ func TestCapacityPipeLinearTopology(t *testing.T) {
 		}
 	})
 
-	Convey("Given a simple source/very slow box/slow box/sink topology", t, func() {
+	SkipConvey("Given a simple source/very slow box/slow box/sink topology", t, func() {
 		/*
 		 *   so -*--> b1 -*--> b2 -*--> si
 		 */
@@ -226,7 +226,7 @@ func TestCapacityPipeLinearTopology(t *testing.T) {
 func TestCapacityPipeForkTopology(t *testing.T) {
 	config := Configuration{TupleTraceEnabled: 1}
 	ctx := newTestContext(config)
-	Convey("Given a simple source/box/sink topology with 2 boxes and 2 sinks", t, func() {
+	SkipConvey("Given a simple source/box/sink topology with 2 boxes and 2 sinks", t, func() {
 		/*
 		 *        /--> b1 -*--> si1
 		 *   so -*
@@ -335,7 +335,7 @@ func TestCapacityPipeForkTopology(t *testing.T) {
 func TestCapacityPipeJoinTopology(t *testing.T) {
 	config := Configuration{TupleTraceEnabled: 1}
 	ctx := newTestContext(config)
-	Convey("Given a simple source/box/sink topology with 2 sources", t, func() {
+	SkipConvey("Given a simple source/box/sink topology with 2 sources", t, func() {
 		/*
 		 *   so1 -*-\
 		 *           --> b -*--> si
