@@ -297,10 +297,6 @@ func TestToBlob(t *testing.T) {
 
 func TestToTime(t *testing.T) {
 	now := time.Now()
-	jst, err := time.LoadLocation("JST")
-	if err != nil {
-		t.Fatal("Cannot load JST location:", err)
-	}
 
 	testCases := map[string][]convTestInput{
 		"Null": {
@@ -326,7 +322,7 @@ func TestToTime(t *testing.T) {
 		"String": {
 			{"empty", String(""), nil},
 			{"non-empty", String("hoge"), nil},
-			{"valid time string", String("1970-01-01T09:00:02+09:00"), time.Unix(2, 0).In(jst)},
+			{"valid time string", String("1970-01-01T09:00:02+09:00"), time.Unix(2, 0)},
 			{"valid time string with ns", String(now.Format(time.RFC3339Nano)), now},
 		},
 		"Blob": {
@@ -384,6 +380,8 @@ func runConversionTestCases(t *testing.T,
 								default:
 									So(val, ShouldResemble, exp)
 								}
+							case time.Time:
+								So(val, ShouldHappenOnOrBetween, exp, exp)
 							default:
 								So(val, ShouldResemble, exp)
 							}
