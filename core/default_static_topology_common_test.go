@@ -130,7 +130,10 @@ func (s *TupleIncrementalEmitterSource) GenerateStream(ctx *Context, w Writer) e
 		for s.state == 0 && s.cnt == 0 {
 			s.c.Wait()
 		}
-		if s.state != 0 {
+
+		// To make writing tests easy, GenerateStream doesn't stop until
+		// cnt get 0 or all tuples in s.Tuples are emitted.
+		if s.cnt == 0 && s.state != 0 {
 			s.state = 2
 			s.c.Broadcast()
 			s.m.Unlock()
@@ -147,6 +150,7 @@ func (s *TupleIncrementalEmitterSource) GenerateStream(ctx *Context, w Writer) e
 	s.m.Lock()
 	defer s.m.Unlock()
 	s.state = 2
+	s.cnt = 0
 	s.c.Broadcast()
 	return nil
 }
@@ -154,15 +158,28 @@ func (s *TupleIncrementalEmitterSource) GenerateStream(ctx *Context, w Writer) e
 // EmitTuples emits n tuples and waits until all tuples are emitted.
 // It doesn't wait until tuples are fully processed by the entire topology.
 func (s *TupleIncrementalEmitterSource) EmitTuples(n int) {
+	s.EmitTuplesNB(n)
+	s.WaitForEmission()
+}
+
+// EmitTupelsNB emits n tuples asynchronously and doesn't wait until
+// all tuples are emitted.
+func (s *TupleIncrementalEmitterSource) EmitTuplesNB(n int) {
 	s.m.Lock()
 	defer s.m.Unlock()
 	s.cnt += n
 	s.c.Broadcast()
+}
 
+// WaitForEmission waits until all tuples specified by EmitTuples(NB) are emitted.
+func (s *TupleIncrementalEmitterSource) WaitForEmission() {
+	s.m.Lock()
+	defer s.m.Unlock()
 	for s.cnt > 0 {
 		s.c.Wait()
 	}
 }
+
 func (s *TupleIncrementalEmitterSource) Stop(ctx *Context) error {
 	s.m.Lock()
 	defer s.m.Unlock()
@@ -177,8 +194,53 @@ func (s *TupleIncrementalEmitterSource) Stop(ctx *Context) error {
 	}
 	return nil
 }
+
 func (s *TupleIncrementalEmitterSource) Schema() *Schema {
 	return nil
+}
+
+// BlockingForwardBox blocks tuples in it and emit them at the timing required by users.
+// BlockingForwardBox.c won't be initialized until Init method is called.
+// It's safe to call EmitTuples after the topology's state becomes TSRunning.
+type BlockingForwardBox struct {
+	m   sync.Mutex
+	c   *sync.Cond
+	cnt int
+}
+
+func (b *BlockingForwardBox) Init(ctx *Context) error {
+	b.c = sync.NewCond(&b.m)
+	return nil
+}
+
+func (b *BlockingForwardBox) Process(ctx *Context, t *tuple.Tuple, w Writer) error {
+	b.m.Lock()
+	defer b.m.Unlock()
+	for b.cnt == 0 {
+		b.c.Wait()
+	}
+	b.cnt--
+	b.c.Broadcast()
+	w.Write(ctx, t)
+	return nil
+}
+
+// EmitTuples emits n tuples. If EmitTuples(3) is called when the box isn't
+// blocking any tuple, Process method won't block for three times.
+// EmitTuples doesn't wait until all n tuples are emitted.
+func (b *BlockingForwardBox) EmitTuples(n int) {
+	b.m.Lock()
+	defer b.m.Unlock()
+	b.cnt += n
+	b.c.Broadcast()
+}
+
+func (b *BlockingForwardBox) InputConstraints() (*BoxInputConstraints, error) {
+	return nil, nil
+}
+
+func (b *BlockingForwardBox) OutputSchema(s []*Schema) (*Schema, error) {
+	return nil, nil
 }
 
 type TupleCollectorSink struct {
