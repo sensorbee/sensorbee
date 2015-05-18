@@ -159,8 +159,10 @@ func TestScanMap(t *testing.T) {
 				So(err1, ShouldBeNil)
 				So(err2, ShouldBeNil)
 				Convey("and it should be match the original value", func() {
-					s1, _ := x1.AsString()
-					s2, _ := x2.AsString()
+					s1, err3 := x1.AsString()
+					s2, err4 := x2.AsString()
+					So(err3, ShouldBeNil)
+					So(err4, ShouldBeNil)
 					So(s1, ShouldEqual, "homhom")
 					So(s2, ShouldEqual, "homhom")
 				})
