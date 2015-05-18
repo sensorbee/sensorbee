@@ -1,6 +1,7 @@
 package tuple
 
 import (
+	"encoding/json"
 	"fmt"
 	. "github.com/smartystreets/goconvey/convey"
 	"github.com/ugorji/go/codec"
@@ -570,6 +571,117 @@ func TestValue(t *testing.T) {
 					So(err, ShouldNotBeNil)
 				})
 			})
+		})
+	})
+}
+
+func TestValueString(t *testing.T) {
+	now := time.Now()
+
+	testCases := map[string]([]convTestInput){
+		"Null": {
+			{"Null", Null{}, "null"},
+		},
+		"Bool": {
+			{"true", Bool(true), "true"},
+			{"false", Bool(false), "false"},
+		},
+		"Int": {
+			{"positive", Int(2), "2"},
+			{"negative", Int(-2), "-2"},
+			{"zero", Int(0), "0"},
+		},
+		"Float": {
+			{"positive", Float(3.14), "3.14"},
+			{"negative", Float(-3.14), "-3.14"},
+			{"zero", Float(0.0), "0"},
+			// "NaN and Infinity regardless of sign are represented
+			// as the String null." (ECMA-262)
+			{"NaN", Float(math.NaN()), "null"},
+		},
+		"String": {
+			{"empty", String(""), `""`},
+			{"non-empty", String("hoge"), `"hoge"`},
+			{"containing non-ASCII chars", String("日本語"), `"日本語"`},
+		},
+		"Blob": {
+			{"empty", Blob(""), `""`}, // base64 of []
+			{"nil", Blob(nil), "null"},
+			{"non-empty", Blob("hoge"), `"aG9nZQ=="`}, // base64 of ['h','o','g','e']
+		},
+		"Timestamp": {
+			{"zero", Timestamp(time.Time{}), `"0001-01-01T00:00:00Z"`},
+			{"now", Timestamp(now), fmt.Sprintf(`"%s"`, now.Format(time.RFC3339Nano))},
+		},
+		"Array": []convTestInput{
+			{"empty", Array{}, `[]`},
+			{"non-empty", Array{Int(2), String("foo")}, `[2,"foo"]`},
+		},
+		"Map": []convTestInput{
+			{"empty", Map{}, `{}`},
+			{"non-empty", Map{"a": Int(2), "b": String("foo")}, `{"a":2,"b":"foo"}`},
+		},
+	}
+
+	for valType, cases := range testCases {
+		cases := cases
+		Convey(fmt.Sprintf("Given a %s value", valType), t, func() {
+			for _, testCase := range cases {
+				tc := testCase
+				Convey(fmt.Sprintf("When it is %s", tc.ValueDesc), func() {
+					inVal := tc.Value
+					exp := tc.Expected
+					Convey(fmt.Sprintf("Then String returns %v", exp), func() {
+						So(inVal.String(), ShouldResemble, exp)
+					})
+					Convey("And String returns the same as Marshal", func() {
+						j, err := json.Marshal(inVal)
+						So(err, ShouldBeNil)
+						So([]byte(inVal.String()), ShouldResemble, j)
+					})
+				})
+			}
+		})
+	}
+
+	Convey("Given a nested value structure", t, func() {
+		m := Map{
+			"bool":    Bool(true),
+			"int32":   Int(1),
+			"int64":   Int(2),
+			"float32": Float(float32(0.1)),
+			"float64": Float(0.2),
+			"string":  String("homhom"),
+			"time":    Timestamp(now),
+			"array": Array([]Value{Bool(true), Int(10), String("inarray"),
+				Map{
+					"mapinarray": String("arraymap"),
+				}}),
+			"map": Map{
+				"map_a": String("a"),
+				"map_b": Int(2),
+			},
+			"null": Null{},
+		}
+		Convey("String outputs a JSON representation", func() {
+			s := m.String()
+			// the order of the items in the Map may change, so we have to
+			// use the following checks instead of just a single string comparison
+			So(s, ShouldStartWith, `{"`)
+			So(s, ShouldEndWith, `}`)
+			So(s, ShouldContainSubstring, `"bool":true`)
+			So(s, ShouldContainSubstring, `"int32":1`)
+			So(s, ShouldContainSubstring, `"int64":2`)
+			// the float32 below will actually be output as 0.10000000149011612
+			So(s, ShouldContainSubstring, `"float32":0.1`)
+			So(s, ShouldContainSubstring, `"float64":0.2`)
+			So(s, ShouldContainSubstring, `"string":"homhom"`)
+			So(s, ShouldContainSubstring, `"time":"`+now.Format(time.RFC3339Nano)+`"`)
+			So(s, ShouldContainSubstring, `"array":[true,10,"inarray",{"mapinarray":"arraymap"}]`)
+			So(s, ShouldContainSubstring, `"map":{"`)
+			So(s, ShouldContainSubstring, `"map_a":"a"`)
+			So(s, ShouldContainSubstring, `"map_b":2`)
+			So(s, ShouldContainSubstring, `"null":null`)
 		})
 	})
 }

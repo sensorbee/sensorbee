@@ -34,6 +34,7 @@ type Value interface {
 	AsArray() (Array, error)
 	AsMap() (Map, error)
 	clone() Value
+	String() string
 }
 
 func castError(from TypeID, to TypeID) error {

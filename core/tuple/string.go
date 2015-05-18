@@ -1,6 +1,8 @@
 package tuple
 
 import (
+	"encoding/json"
+	"fmt"
 	"time"
 )
 
@@ -44,4 +46,14 @@ func (s String) AsMap() (Map, error) {
 
 func (s String) clone() Value {
 	return String(s)
+}
+
+func (s String) String() string {
+	// the String return value is defined via the
+	// default JSON serialization
+	bytes, err := json.Marshal(s)
+	if err != nil {
+		return fmt.Sprintf("(unserializable string: %v)", err)
+	}
+	return string(bytes)
 }
