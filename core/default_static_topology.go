@@ -103,18 +103,18 @@ func (t *defaultStaticTopology) run(ctx *Context) error {
 			defer wg.Done()
 			defer func() {
 				if err := recover(); err != nil {
-					ctx.Logger.Log(ERROR, "%v paniced: %v", name, err)
+					ctx.Logger.Log(Error, "%v paniced: %v", name, err)
 				}
 
 				// Because dst could be closed by defaultStaticTopology.Stop when
 				// Source.Stop failed in that method, closing dst must be done
 				// via closeDestination method.
 				if err := t.closeDestination(ctx, name); err != nil {
-					ctx.Logger.Log(ERROR, "%v cannot close the destination: %v", name, err)
+					ctx.Logger.Log(Error, "%v cannot close the destination: %v", name, err)
 				}
 			}()
-			if err := src.GenerateStream(ctx, newTraceWriter(dst, tuple.OUTPUT, name)); err != nil {
-				ctx.Logger.Log(ERROR, "%v cannot generate tuples: %v", name, err)
+			if err := src.GenerateStream(ctx, newTraceWriter(dst, tuple.Output, name)); err != nil {
+				ctx.Logger.Log(Error, "%v cannot generate tuples: %v", name, err)
 			}
 		}
 		fs = append(fs, f)
@@ -225,10 +225,10 @@ func (t *defaultStaticTopology) Stop(ctx *Context) error {
 	var stopFailures []string
 	for name, src := range t.srcs {
 		if err := src.Stop(ctx); err != nil {
-			ctx.Logger.Log(ERROR, "Cannot stop source %v: ", name, err)
+			ctx.Logger.Log(Error, "Cannot stop source %v: ", name, err)
 			stopFailures = append(stopFailures, name)
 			if err := t.closeDestination(ctx, name); err != nil {
-				ctx.Logger.Log(ERROR, "Cannot close the source %v's destination: %v", name, err)
+				ctx.Logger.Log(Error, "Cannot close the source %v's destination: %v", name, err)
 			}
 		}
 	}
@@ -289,14 +289,14 @@ func (sc *staticConnector) Run(name string, ctx *Context) {
 					// Once a Box panics, it'll always panic after that. So,
 					// the log should only be written once.
 					panicLogging.Do(func() {
-						ctx.Logger.Log(ERROR, "%v paniced: %v", name, err)
+						ctx.Logger.Log(Error, "%v paniced: %v", name, err)
 					})
 				}
 			}()
 
 			for t := range in {
 				if err := sc.dst.Write(ctx, t); err != nil {
-					ctx.Logger.Log(ERROR, "%v cannot write a tuple: %v", name, err)
+					ctx.Logger.Log(Error, "%v cannot write a tuple: %v", name, err)
 					// All regular errors are considered resumable.
 				}
 			}
@@ -305,7 +305,7 @@ func (sc *staticConnector) Run(name string, ctx *Context) {
 	wg.Wait()
 
 	if err := sc.dst.Close(ctx); err != nil {
-		ctx.Logger.Log(ERROR, "%v cannot close its output channel: %v", name, err)
+		ctx.Logger.Log(Error, "%v cannot close its output channel: %v", name, err)
 	}
 }
 
@@ -383,12 +383,12 @@ func newBoxWriterAdapter(b Box, name string, dst WriteCloser) *boxWriterAdapter 
 		box:  b,
 		name: name,
 		// An output traces is written just after the box Process writes a tuple.
-		dst: newTraceWriter(dst, tuple.OUTPUT, name),
+		dst: newTraceWriter(dst, tuple.Output, name),
 	}
 }
 
 func (wa *boxWriterAdapter) Write(ctx *Context, t *tuple.Tuple) error {
-	tracing(t, ctx, tuple.INPUT, wa.name)
+	tracing(t, ctx, tuple.Input, wa.name)
 	return wa.box.Process(ctx, t, wa.dst)
 }
 
