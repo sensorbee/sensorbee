@@ -218,7 +218,7 @@ func ToFloat(v Value) (float64, error) {
 // rules are as follows:
 //
 //  * Null: "null"
-//  * Bool, Int, Float, String: Go's "%v" representation
+//  * String: the actual string
 //  * Blob: string just copied from []byte
 //  * Timestamp: ISO 8601 representation, see time.RFC3339
 //  * other: Go's "%#v" representation
@@ -227,8 +227,11 @@ func ToString(v Value) (string, error) {
 	switch v.Type() {
 	case TypeNull:
 		return "null", nil
-	case TypeBool, TypeInt, TypeFloat, TypeString:
-		return fmt.Sprintf("%v", v), nil
+	case TypeString:
+		// if we used "%#v", we will get a quoted string; if
+		// we used "%v", we will get the result of String()
+		// (which is JSON, i.e., also quoted)
+		return v.AsString()
 	case TypeBlob:
 		val, e := v.AsBlob()
 		if e != nil {
