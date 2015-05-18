@@ -155,7 +155,7 @@ func (tb *defaultStaticTopologyBuilder) Build() (StaticTopology, error) {
 		dsts[name] = dst
 	}
 	for name, sink := range tb.sinks {
-		st.conns[name] = newStaticConnector(newTraceWriter(sink, tuple.INPUT, name))
+		st.conns[name] = newStaticConnector(newTraceWriter(sink, tuple.Input, name))
 	}
 
 	for _, e := range tb.Edges {

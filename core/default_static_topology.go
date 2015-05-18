@@ -113,7 +113,7 @@ func (t *defaultStaticTopology) run(ctx *Context) error {
 					ctx.Logger.Log(Error, "%v cannot close the destination: %v", name, err)
 				}
 			}()
-			if err := src.GenerateStream(ctx, newTraceWriter(dst, tuple.OUTPUT, name)); err != nil {
+			if err := src.GenerateStream(ctx, newTraceWriter(dst, tuple.Output, name)); err != nil {
 				ctx.Logger.Log(Error, "%v cannot generate tuples: %v", name, err)
 			}
 		}
@@ -383,12 +383,12 @@ func newBoxWriterAdapter(b Box, name string, dst WriteCloser) *boxWriterAdapter 
 		box:  b,
 		name: name,
 		// An output traces is written just after the box Process writes a tuple.
-		dst: newTraceWriter(dst, tuple.OUTPUT, name),
+		dst: newTraceWriter(dst, tuple.Output, name),
 	}
 }
 
 func (wa *boxWriterAdapter) Write(ctx *Context, t *tuple.Tuple) error {
-	tracing(t, ctx, tuple.INPUT, wa.name)
+	tracing(t, ctx, tuple.Input, wa.name)
 	return wa.box.Process(ctx, t, wa.dst)
 }
 
