@@ -31,7 +31,8 @@ func TestShutdownLinearTopology(t *testing.T) {
 		si := &TupleCollectorSink{}
 		tb.AddSink("sink", si).Input("box2")
 
-		t, _ := tb.Build()
+		t, err := tb.Build()
+		So(err, ShouldBeNil)
 
 		for par := 1; par <= maxPar; par++ {
 			par := par // safer to overlay the loop variable when used in closures
@@ -119,7 +120,8 @@ func TestShutdownLinearTopology(t *testing.T) {
 		si := &TupleCollectorSink{}
 		tb.AddSink("sink", si).Input("box2")
 
-		t, _ := tb.Build()
+		t, err := tb.Build()
+		So(err, ShouldBeNil)
 
 		for par := 1; par <= maxPar; par++ {
 			par := par // safer to overlay the loop variable when used in closures
@@ -205,7 +207,8 @@ func TestShutdownForkTopology(t *testing.T) {
 		si2 := &TupleCollectorSink{}
 		tb.AddSink("si2", si2).Input("box2")
 
-		t, _ := tb.Build()
+		t, err := tb.Build()
+		So(err, ShouldBeNil)
 
 		for par := 1; par <= maxPar; par++ {
 			par := par // safer to overlay the loop variable when used in closures
@@ -314,7 +317,8 @@ func TestShutdownJoinTopology(t *testing.T) {
 		si := &TupleCollectorSink{}
 		tb.AddSink("si", si).Input("box")
 
-		t, _ := tb.Build()
+		t, err := tb.Build()
+		So(err, ShouldBeNil)
 
 		for par := 1; par <= maxPar; par++ {
 			par := par // safer to overlay the loop variable when used in closures

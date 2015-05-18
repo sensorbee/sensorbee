@@ -31,7 +31,8 @@ func TestDefaultTopologyTupleTracingConfiguration(t *testing.T) {
 		si := NewTupleCollectorSink()
 		tb.AddSink("si", si).Input("box")
 
-		tp, _ := tb.Build()
+		tp, err := tb.Build()
+		So(err, ShouldBeNil)
 		Convey("When switch tracing configuration in running topology", func() {
 			go tp.Run(ctx)
 			so1.EmitTuples(1)
@@ -110,7 +111,8 @@ func TestDefaultTopologyTupleTracing(t *testing.T) {
 		si2 := &TupleCollectorSink{}
 		tb.AddSink("si2", si2).Input("box4")
 
-		to, _ := tb.Build()
+		to, err := tb.Build()
+		So(err, ShouldBeNil)
 		Convey("When a tuple is emitted by the source", func() {
 			to.Run(ctx)
 			Convey("Then tracer has 2 kind of route from source1", func() {
