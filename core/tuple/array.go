@@ -1,6 +1,8 @@
 package tuple
 
 import (
+	"encoding/json"
+	"fmt"
 	"time"
 )
 
@@ -48,4 +50,14 @@ func (a Array) clone() Value {
 		out[idx] = val.clone()
 	}
 	return Array(out)
+}
+
+func (a Array) String() string {
+	// the String return value is defined via the
+	// default JSON serialization
+	bytes, err := json.Marshal(a)
+	if err != nil {
+		return fmt.Sprintf("(unserializable array: %v)", err)
+	}
+	return string(bytes)
 }
