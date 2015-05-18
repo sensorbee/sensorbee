@@ -47,7 +47,8 @@ func TestDefaultTopologyTupleTransport(t *testing.T) {
 		si := &TupleCollectorSink{}
 		tb.AddSink("sink", si).Input("source")
 
-		t, _ := tb.Build()
+		t, err := tb.Build()
+		So(err, ShouldBeNil)
 
 		Convey("When a tuple is emitted by the source", func() {
 			t.Run(ctx)
@@ -82,7 +83,8 @@ func TestDefaultTopologyTupleTransport(t *testing.T) {
 		si2 := &TupleCollectorSink{}
 		tb.AddSink("si2", si2).Input("source")
 
-		t, _ := tb.Build()
+		t, err := tb.Build()
+		So(err, ShouldBeNil)
 
 		Convey("When a tuple is emitted by the source", func() {
 			t.Run(ctx)
@@ -153,7 +155,8 @@ func TestDefaultTopologyTupleTransport(t *testing.T) {
 		si := &TupleCollectorSink{}
 		tb.AddSink("sink", si).Input("box")
 
-		t, _ := tb.Build()
+		t, err := tb.Build()
+		So(err, ShouldBeNil)
 
 		Convey("When a tuple is emitted by the source", func() {
 			t.Run(ctx)
@@ -238,7 +241,8 @@ func TestDefaultTopologyTupleTransport(t *testing.T) {
 			si := &TupleCollectorSink{}
 			tb.AddSink("sink", si).Input("box")
 
-			t, _ := tb.Build()
+			t, err := tb.Build()
+			So(err, ShouldBeNil)
 
 			t.Run(ctx)
 			Convey("Then the sink receives two objects", func() {
@@ -298,7 +302,8 @@ func TestDefaultTopologyTupleTransport(t *testing.T) {
 			si := &TupleCollectorSink{}
 			tb.AddSink("sink", si).Input("box")
 
-			t, _ := tb.Build()
+			t, err := tb.Build()
+			So(err, ShouldBeNil)
 
 			t.Run(ctx)
 			Convey("Then the sink receives no objects", func() {
@@ -332,7 +337,8 @@ func TestDefaultTopologyTupleTransport(t *testing.T) {
 		si2 := &TupleCollectorSink{}
 		tb.AddSink("si2", si2).Input("box")
 
-		t, _ := tb.Build()
+		t, err := tb.Build()
+		So(err, ShouldBeNil)
 
 		Convey("When a tuple is emitted by the source", func() {
 			t.Run(ctx)
@@ -409,7 +415,8 @@ func TestDefaultTopologyTupleTransport(t *testing.T) {
 		si2 := &TupleCollectorSink{}
 		tb.AddSink("si2", si2).Input("box2")
 
-		t, _ := tb.Build()
+		t, err := tb.Build()
+		So(err, ShouldBeNil)
 
 		Convey("When a tuple is emitted by the source", func() {
 			t.Run(ctx)

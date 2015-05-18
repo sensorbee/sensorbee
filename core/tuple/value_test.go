@@ -37,7 +37,8 @@ func TestUnmarshalMsgpack(t *testing.T) {
 		var testData []byte
 		codec.NewEncoderBytes(&testData, msgpackHandle).Encode(testMap)
 		Convey("When convert to Map object", func() {
-			m, _ := UnmarshalMsgpack(testData)
+			m, err := UnmarshalMsgpack(testData)
+			So(err, ShouldBeNil)
 			Convey("Then decode data should be match with Map data", func() {
 				var expected = Map{
 					"bool":    Bool(true),
@@ -165,7 +166,8 @@ func TestMarshalMsgpack(t *testing.T) {
 			// TODO add Blob
 		}
 		Convey("When convert to []byte", func() {
-			b, _ := MarshalMsgpack(testMap)
+			b, err := MarshalMsgpack(testMap)
+			So(err, ShouldBeNil)
 			Convey("Then encode data should be match with expected bytes", func() {
 				var expected = map[string]interface{}{
 					"bool":   true,
