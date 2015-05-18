@@ -186,7 +186,8 @@ func TestScanMap(t *testing.T) {
 						var v Value
 						err := scanMap(testData, input, &v)
 						So(err, ShouldBeNil)
-						actual, _ := v.AsString()
+						actual, err := v.AsString()
+						So(err, ShouldBeNil)
 						So(actual, ShouldEqual, expected)
 					}
 				})
@@ -229,7 +230,8 @@ func TestScanMap(t *testing.T) {
 						var v Value
 						err := scanMap(testData, input, &v)
 						So(err, ShouldBeNil)
-						actual, _ := v.AsString()
+						actual, err := v.AsString()
+						So(err, ShouldBeNil)
 						So(actual, ShouldEqual, expected)
 					}
 				})
