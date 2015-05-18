@@ -18,12 +18,12 @@ func TestPrintLogger(t *testing.T) {
 			el := "error log %v"
 
 			Convey("Logger should write messages to Writer", func() {
-				logger.Log(DEBUG, dl, "aaa")
+				logger.Log(Debug, dl, "aaa")
 				line1, err := buf.ReadString('\n')
 				So(err, ShouldBeNil)
 				So(line1, ShouldEndWith, "[DEBUG  ] debug log aaa\n")
 
-				logger.Log(ERROR, el, "bbb")
+				logger.Log(Error, el, "bbb")
 				line2, err := buf.ReadString('\n')
 				So(err, ShouldBeNil)
 				So(line2, ShouldEndWith, "[ERROR  ] error log bbb\n")

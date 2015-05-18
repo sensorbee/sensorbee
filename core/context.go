@@ -37,25 +37,25 @@ type LogLevel int
 
 // Constants that can be used as log levels
 const (
-	DEBUG LogLevel = iota
-	INFO
-	WARNING
-	ERROR
-	FATAL
+	Debug LogLevel = iota
+	Info
+	Warning
+	Error
+	Fatal
 )
 
 // String returns a string representation of a LogLevel.
 func (l LogLevel) String() string {
 	switch l {
-	case DEBUG:
+	case Debug:
 		return "DEBUG"
-	case INFO:
+	case Info:
 		return "INFO"
-	case WARNING:
+	case Warning:
 		return "WARNING"
-	case ERROR:
+	case Error:
 		return "ERROR"
-	case FATAL:
+	case Fatal:
 		return "FATAL"
 	default:
 		return "unknown"
