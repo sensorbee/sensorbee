@@ -65,14 +65,14 @@ func (t *Tuple) Copy() *Tuple {
 type EventType int
 
 const (
-	// INPUT represents an event where a tuple entered some
+	// Input represents an event where a tuple entered some
 	// processing unit (e.g., a Box)
-	INPUT EventType = iota
-	// OUTPUT represents an event where a tuple left some
+	Input EventType = iota
+	// Output represents an event where a tuple left some
 	// processing unit (e.g., a Box)
-	OUTPUT
-	// OTHER represents any other event
-	OTHER
+	Output
+	// Other represents any other event
+	Other
 )
 
 // A TraceEvent represents an event in the processing lifecycle of a
@@ -96,11 +96,11 @@ type TraceEvent struct {
 
 func (t EventType) String() string {
 	switch t {
-	case INPUT:
+	case Input:
 		return "INPUT"
-	case OUTPUT:
+	case Output:
 		return "OUTPUT"
-	case OTHER:
+	case Other:
 		return "OTHER"
 	default:
 		return "unknown"
