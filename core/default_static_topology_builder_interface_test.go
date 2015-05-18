@@ -260,7 +260,8 @@ func TestMultipleBuild(t *testing.T) {
 	Convey("Given basic topology builder called build() once", t, func() {
 		tb := NewDefaultStaticTopologyBuilder()
 		tb.AddSource("src", &DoesNothingSource{})
-		tp, _ := tb.Build()
+		tp, err := tb.Build()
+		So(err, ShouldBeNil)
 		So(tp, ShouldNotBeNil)
 		Convey("When add source", func() {
 			sd := tb.AddSource("src", &DoesNothingSource{})
