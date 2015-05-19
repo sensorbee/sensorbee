@@ -1,6 +1,7 @@
 package tuple
 
 import (
+	"fmt"
 	"time"
 )
 
@@ -44,4 +45,8 @@ func (b Bool) AsMap() (Map, error) {
 
 func (b Bool) clone() Value {
 	return Bool(b)
+}
+
+func (b Bool) String() string {
+	return fmt.Sprintf("%#v", b)
 }

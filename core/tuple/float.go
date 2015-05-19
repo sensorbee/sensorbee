@@ -1,6 +1,8 @@
 package tuple
 
 import (
+	"fmt"
+	"math"
 	"time"
 )
 
@@ -44,4 +46,24 @@ func (f Float) AsMap() (Map, error) {
 
 func (f Float) clone() Value {
 	return Float(f)
+}
+
+func (f Float) MarshalJSON() ([]byte, error) {
+	// the JSON serialization is defined via the String()
+	// return value as defined below
+	return []byte(f.String()), nil
+}
+
+func (f Float) String() string {
+	fl := float64(f)
+	// "NaN and Infinity regardless of sign are represented
+	// as the String null." (ECMA-262)
+	// (The default JSON serializer will return an error instead,
+	// cf. <https://github.com/golang/go/issues/3480>)
+	if math.IsNaN(fl) {
+		return "null"
+	} else if math.IsInf(fl, 0) {
+		return "null"
+	}
+	return fmt.Sprintf("%#v", f)
 }

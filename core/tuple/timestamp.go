@@ -45,3 +45,14 @@ func (t Timestamp) AsMap() (Map, error) {
 func (t Timestamp) clone() Value {
 	return Timestamp(t)
 }
+
+func (t Timestamp) MarshalJSON() ([]byte, error) {
+	// the JSON serialization is defined via the String()
+	// return value as defined below
+	return []byte(t.String()), nil
+}
+
+func (t Timestamp) String() string {
+	s, _ := ToString(t)
+	return `"` + s + `"`
+}
