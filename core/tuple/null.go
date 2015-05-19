@@ -45,3 +45,13 @@ func (n Null) AsMap() (Map, error) {
 func (n Null) clone() Value {
 	return Null{}
 }
+
+func (n Null) MarshalJSON() ([]byte, error) {
+	// the JSON serialization is defined via the String()
+	// return value as defined below
+	return []byte(n.String()), nil
+}
+
+func (n Null) String() string {
+	return "null"
+}
