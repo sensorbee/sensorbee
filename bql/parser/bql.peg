@@ -1,0 +1,129 @@
+# compile this with
+# $ peg bql.peg (creates bql.peg.go)
+# using peg from https://github.com/pointlander/peg
+
+package parser
+
+type Bql Peg {
+    ParseStack
+}
+
+# below come the rules, in curly braces the action
+# that should be taken after parsing is complete,
+# where `p` points to the `Bql` struct above and
+# `buffer[begin:end]` holds the string part matching
+# this rule.
+
+Statement <- SelectStmt !.
+
+SelectStmt <- "SELECT" sp
+              Projections sp
+              From sp
+              Filter sp
+              Grouping sp
+              Having sp
+              {
+        p.AssembleSelect()
+    }
+
+# Projections/Columns (mandatory)
+
+Projections <- < Projection sp (',' sp Projection)* > {
+        p.AssembleProjections(begin, end)
+    }
+
+Projection <- Expression
+
+# FROM clause (optional)
+
+From <- < ("FROM" sp Relations)? > {
+        // This is *always* executed, even if there is no
+        // FROM clause present in the statement.
+        p.AssembleFrom(begin, end)
+    }
+
+Relations <- Relation sp (',' sp Relation)*
+
+Relation <- < [a-z]+ > {
+        p.PushComponent(begin, end, NewRelation(buffer[begin:end]))
+    }
+
+# WHERE clause (optional)
+
+Filter <- < ("WHERE" sp Expression)? > {
+        // This is *always* executed, even if there is no
+        // WHERE clause present in the statement.
+        p.AssembleFilter(begin, end)
+    }
+
+# GROUP BY clause (optional)
+
+Grouping <- < ("GROUP" sp "BY" sp GroupList)? > {
+        // This is *always* executed, even if there is no
+        // GROUP BY clause present in the statement.
+        p.AssembleGrouping(begin, end)
+    }
+
+GroupList <- Expression sp (',' sp Expression)*
+
+# HAVING clause
+
+Having <- < ("HAVING" sp Expression)? > {
+        // This is *always* executed, even if there is no
+        // HAVING clause present in the statement.
+        p.AssembleHaving(begin, end)
+    }
+
+# The rules below are for implementing nested expressions such
+# as `a + 3 = b OR a = b AND b > 0`.
+# Note: If we implement this the straightforward
+# `Expr <- Expr / (Expr "+" Expr) / ...` way, we will run into
+# infinite recursion.
+# Also note: If we use
+# `plusMinusExp <- (multExp "+" multExp) / (multExp "-" multExp)`
+# instead of
+# `plusExp <- (minusExp "+" minusExp)
+# `minusExp <- (multExp "-" multExp)
+# (in spirit) then for some reason this will not catch the "-"
+# operations properly.
+
+Expression <- < andExpr sp ("OR" sp andExpr)? > {
+        p.AssembleBinaryOperation(begin, end, "OR")
+    }
+
+andExpr <-    < eqExpr sp ("AND" sp eqExpr)? > {
+        p.AssembleBinaryOperation(begin, end, "AND")
+    }
+
+eqExpr <-     < addExpr sp ("=" sp addExpr)? > {
+        p.AssembleBinaryOperation(begin, end, "=")
+    }
+
+addExpr <-    < subExpr sp ("+" sp subExpr)? > {
+        p.AssembleBinaryOperation(begin, end, "+")
+    }
+
+subExpr <-    < multExpr sp ("-" sp multExpr)? > {
+        p.AssembleBinaryOperation(begin, end, "-")
+    }
+
+multExpr <-   < divExpr sp ("*" sp divExpr)? > {
+        p.AssembleBinaryOperation(begin, end, "*")
+    }
+
+divExpr <-    < baseExpression sp ("/" sp baseExpression)? > {
+        p.AssembleBinaryOperation(begin, end, "/")
+    }
+
+baseExpression <- ('(' sp Expression sp ')') /
+    ColumnName / NumericLiteral
+
+ColumnName <- < [a-z]+ > {
+        p.PushComponent(begin, end, NewColumnName(buffer[begin:end]))
+    }
+
+NumericLiteral <- < [0-9]+ > {
+        p.PushComponent(begin, end, NewRaw(buffer[begin:end]))
+    }
+
+sp <- ( ' ' / '\t' )*
