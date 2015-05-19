@@ -619,6 +619,7 @@ func TestValueString(t *testing.T) {
 		},
 		"Map": []convTestInput{
 			{"empty", Map{}, `{}`},
+			// NB. this may fail randomly as map order is not guaranteed in Go
 			{"non-empty", Map{"a": Int(2), "b": String("foo")}, `{"a":2,"b":"foo"}`},
 		},
 	}
@@ -682,6 +683,11 @@ func TestValueString(t *testing.T) {
 			So(s, ShouldContainSubstring, `"map_a":"a"`)
 			So(s, ShouldContainSubstring, `"map_b":2`)
 			So(s, ShouldContainSubstring, `"null":null`)
+		})
+		Convey("Unmarshal does not result in an error", func() {
+			v := map[string]interface{}{}
+			err := json.Unmarshal([]byte(m.String()), &v)
+			So(err, ShouldBeNil)
 		})
 	})
 }
