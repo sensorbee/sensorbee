@@ -2,8 +2,34 @@ package core
 
 import (
 	. "github.com/smartystreets/goconvey/convey"
+	"pfi/sensorbee/sensorbee/core/tuple"
 	"testing"
 )
+
+func freshTuples() []*tuple.Tuple {
+	tup1 := &tuple.Tuple{
+		Data: tuple.Map{
+			"seq": tuple.Int(1),
+		},
+		InputName: "input",
+	}
+	tup2 := tup1.Copy()
+	tup2.Data["seq"] = tuple.Int(2)
+	tup3 := tup1.Copy()
+	tup3.Data["seq"] = tuple.Int(3)
+	tup4 := tup1.Copy()
+	tup4.Data["seq"] = tuple.Int(4)
+	tup5 := tup1.Copy()
+	tup5.Data["seq"] = tuple.Int(5)
+	tup6 := tup1.Copy()
+	tup6.Data["seq"] = tuple.Int(6)
+	tup7 := tup1.Copy()
+	tup7.Data["seq"] = tuple.Int(7)
+	tup8 := tup1.Copy()
+	tup8.Data["seq"] = tuple.Int(8)
+	return []*tuple.Tuple{tup1, tup2, tup3, tup4,
+		tup5, tup6, tup7, tup8}
+}
 
 // On one topology, there're some patterns to be tested.
 //
