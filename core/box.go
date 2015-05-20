@@ -74,6 +74,17 @@ type Box interface {
 	// there are no guarantees about the shape of the returned data
 	// given.
 	OutputSchema([]*Schema) (*Schema, error)
+
+	// Terminate finalizes a Box. The Box can no longer be used after
+	// this method is called. This method doesn't have to be idempotent,
+	// that is the behavior is undefined when this method is called
+	// more than once.
+	//
+	// As long as the Box is used by components in core package, no method
+	// will be called after the invocation of Terminate method. In addition,
+	// the Box may assume that Terminate is not called concurrently with
+	// any other methods.
+	Terminate(ctx *Context) error
 }
 
 // BoxFunc can be used to add all methods required to fulfill the Box
@@ -108,4 +119,8 @@ func (b *boxFunc) InputConstraints() (*BoxInputConstraints, error) {
 
 func (b *boxFunc) OutputSchema(s []*Schema) (*Schema, error) {
 	return nil, nil
+}
+
+func (b *boxFunc) Terminate(ctx *Context) error {
+	return nil
 }
