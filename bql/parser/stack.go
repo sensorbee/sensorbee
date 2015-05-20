@@ -65,6 +65,14 @@ func (ps *ParseStack) Peek() (value *ParsedComponent) {
 // AssembleSelect takes the topmost elements from the stack, assuming
 // they are components of a SELECT statement, and replaces them by
 // a single SelectStmt element.
+//
+//  Having
+//  Grouping
+//  Filter
+//  From
+//  Projections
+//   =>
+//  SelectStmt{Projections, From, Filter, Grouping, Having}
 func (ps *ParseStack) AssembleSelect() {
 	// pop the components from the stack in reverse order
 	_having, _grouping, _filter, _from, _projections := ps.pop5()
@@ -88,6 +96,12 @@ func (ps *ParseStack) AssembleSelect() {
 // AssembleProjections takes the elements from the stack that
 // correspond to the input[begin:end] string and wraps a
 // Projections struct around them.
+//
+//  Any
+//  Any
+//  Any
+//   =>
+//  Projections{[Any, Any, Any]}
 func (ps *ParseStack) AssembleProjections(begin int, end int) {
 	elems := ps.collectElements(begin, end)
 	// push the grouped list back
@@ -101,6 +115,12 @@ func (ps *ParseStack) AssembleProjections(begin int, end int) {
 // they are all Relation elements and wraps a From struct
 // around them. If there are no such elements, adds an
 // empty From struct to the stack.
+//
+//  Relation
+//  Relation
+//  Relation
+//   =>
+//  From{[Relation, Relation, Relation]}
 func (ps *ParseStack) AssembleFrom(begin int, end int) {
 	if begin == end {
 		// push an empty from clause
@@ -124,6 +144,10 @@ func (ps *ParseStack) AssembleFrom(begin int, end int) {
 // (if there is a WHERE clause) and wraps a Filter struct
 // around it. If there is no WHERE clause, an empty Filter
 // struct is used.
+//
+//  Any
+//   =>
+//  Filter{Any}
 func (ps *ParseStack) AssembleFilter(begin int, end int) {
 	if begin == end {
 		// push an empty from clause
@@ -145,6 +169,12 @@ func (ps *ParseStack) AssembleFilter(begin int, end int) {
 // correspond to the input[begin:end] string and wraps a
 // Grouping struct around them. If there are no such elements,
 // adds an empty Grouping struct to the stack.
+//
+//  Any
+//  Any
+//  Any
+//   =>
+//  Grouping{[Any, Any, Any]}
 func (ps *ParseStack) AssembleGrouping(begin int, end int) {
 	elems := ps.collectElements(begin, end)
 	// push the grouped list back
@@ -157,6 +187,10 @@ func (ps *ParseStack) AssembleGrouping(begin int, end int) {
 // (if there is a HAVING clause) and wraps a Having struct
 // around it. If there is no HAVING clause, an empty Having
 // struct is used.
+//
+//  Any
+//   =>
+//  Having{Any}
 func (ps *ParseStack) AssembleHaving(begin int, end int) {
 	if begin == end {
 		// push an empty from clause
@@ -178,6 +212,11 @@ func (ps *ParseStack) AssembleHaving(begin int, end int) {
 // correspond to the input[begin:end] string and adds the given
 // binary operator in between. If there is just one element, push
 // it back unmodified.
+//
+//  Any
+//  Any
+//   =>
+//  BinaryOp{op, Any, Any}
 func (ps *ParseStack) AssembleBinaryOperation(begin int, end int, op string) {
 	elems := ps.collectElements(begin, end)
 	if len(elems) == 1 {
