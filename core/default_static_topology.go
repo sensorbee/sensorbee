@@ -393,7 +393,12 @@ func (wa *boxWriterAdapter) Write(ctx *Context, t *tuple.Tuple) error {
 }
 
 func (wa *boxWriterAdapter) Close(ctx *Context) error {
-	return wa.dst.w.Close(ctx)
+	errb := wa.box.Terminate(ctx)
+	errw := wa.dst.w.Close(ctx)
+	if errb != nil {
+		return errb // An error from the Box is considered more important.
+	}
+	return errw
 }
 
 type traceWriter struct {
