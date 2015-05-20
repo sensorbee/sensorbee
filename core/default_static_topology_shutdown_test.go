@@ -1,10 +1,8 @@
 package core
 
 import (
-	"fmt"
 	. "github.com/smartystreets/goconvey/convey"
 	"testing"
-	"time"
 )
 
 // On one topology, there're some patterns to be tested.
@@ -399,110 +397,199 @@ func TestShutdownForkDefaultStaticTopology(t *testing.T) {
 	})
 }
 
-func TestShutdownJoinTopology(t *testing.T) {
+func TestShutdownJoinDefaultStaticTopology(t *testing.T) {
 	config := Configuration{TupleTraceEnabled: 1}
 	ctx := newTestContext(config)
-	SkipConvey("Given a simple source/box/sink topology with 2 sources", t, func() {
+
+	Convey("Given a simple join topology", t, func() {
 		/*
 		 *   so1 -*-\
 		 *           --> b -*--> si
 		 *   so2 -*-/
 		 */
 		tb := NewDefaultStaticTopologyBuilder()
+		so1 := NewTupleIncrementalEmitterSource(freshTuples()[0:4])
+		So(tb.AddSource("source1", so1).Err(), ShouldBeNil)
+		so2 := NewTupleIncrementalEmitterSource(freshTuples()[4:8])
+		So(tb.AddSource("source2", so2).Err(), ShouldBeNil)
 
-		so1 := &TupleEmitterSource{
-			Tuples: freshTuples()[0:4],
-		}
-		tb.AddSource("source1", so1)
+		b1 := &BlockingForwardBox{cnt: 8}
+		So(tb.AddBox("box1", b1).Input("source1").Input("source2").Err(), ShouldBeNil)
 
-		so2 := &TupleEmitterSource{
-			Tuples: freshTuples()[4:8],
-		}
-		tb.AddSource("source2", so2)
+		si := NewTupleCollectorSink()
+		So(tb.AddSink("sink", si).Input("box1").Err(), ShouldBeNil)
 
-		b1 := BoxFunc(slowForwardBox)
-		tb.AddBox("box", b1).
-			Input("source1").
-			Input("source2")
-		si := &TupleCollectorSink{}
-		tb.AddSink("si", si).Input("box")
-
-		t, err := tb.Build()
+		ti, err := tb.Build()
 		So(err, ShouldBeNil)
 
-		for par := 1; par <= maxPar; par++ {
-			par := par // safer to overlay the loop variable when used in closures
-			Convey(fmt.Sprintf("When tuples are emitted with parallelism %d", par), func() {
+		t := ti.(*defaultStaticTopology)
+
+		Convey("When generating no tuples and call stop", func() { // 1.
+			go func() {
+				t.Stop(ctx)
+			}()
+			So(t.Run(ctx), ShouldBeNil)
+
+			Convey("Then the topology should be stopped", func() {
+				So(t.State(ctx), ShouldEqual, TSStopped)
+			})
+
+			Convey("Then the sink shouldn't receive anything", func() {
+				So(si.Tuples, ShouldBeEmpty)
+			})
+		})
+
+		Convey("When generating some tuples and call stop before the sink receives a tuple", func() { // 2.a.
+			b1.cnt = 0 // Block tuples. The box isn't running yet, so cnt can safely be changed.
+			go func() {
+				so1.EmitTuplesNB(3)
+				so2.EmitTuplesNB(1)
 				go func() {
-					// we should be able to emit two tuples each before stopping,
-					// but time is not enough to process both of them. the call
-					// to Stop() should wait for processing to complete, though.
-					time.Sleep(time.Duration(0.4 * float64(shortSleep)))
 					t.Stop(ctx)
 				}()
-				t.Run(ctx)
 
-				// check that tuples arrived
-				So(si.Tuples, ShouldNotBeNil)
-				So(len(si.Tuples), ShouldEqual, 4)
+				// resume b1 after the topology starts stopping all.
+				t.Wait(ctx, TSStopping)
+				b1.EmitTuples(8)
+			}()
+			So(t.Run(ctx), ShouldBeNil)
 
-				// check that length of trace matches expectation
-				So(len(si.Tuples[0].Trace), ShouldEqual, 4) // OUT-IN-OUT-IN
-
-				Convey("Then waiting time at intermediate pipes matches expectations", func() {
-					// SOURCE 1'S PIPE
-					{
-						// the first `par` items should be emitted without delay
-						// (because `par` items can be processed in parallel)
-						for i := 0; i < par; i++ {
-							waitTime := so1.Tuples[i].Trace[1].Timestamp.Sub(so1.Tuples[i].Trace[0].Timestamp)
-							So(waitTime, ShouldAlmostEqual, 0, timeTolerance)
-						}
-						// after that, every par'th item should have to wait
-						// as long as the longest processing box needs (shortSleep),
-						// all others be processed immediately
-						for i := par; i < 2; i++ {
-							waitTime := so1.Tuples[i].Trace[1].Timestamp.Sub(so1.Tuples[i].Trace[0].Timestamp)
-							if (i-par)%par == 0 {
-								So(waitTime, ShouldAlmostEqual, shortSleep, timeTolerance)
-							} else {
-								So(waitTime, ShouldAlmostEqual, 0, timeTolerance)
-							}
-						}
-					}
-
-					// SOURCE 2'S PIPE
-					{
-						// the first `par` items should be emitted without delay
-						// (because `par` items can be processed in parallel)
-						for i := 0; i < par; i++ {
-							waitTime := so2.Tuples[i].Trace[1].Timestamp.Sub(so2.Tuples[i].Trace[0].Timestamp)
-							So(waitTime, ShouldAlmostEqual, 0, timeTolerance)
-						}
-						// after that, every par'th item should have to wait
-						// as long as the longest processing box needs (shortSleep),
-						// all others be processed immediately
-						for i := par; i < 2; i++ {
-							waitTime := so2.Tuples[i].Trace[1].Timestamp.Sub(so2.Tuples[i].Trace[0].Timestamp)
-							if (i-par)%par == 0 {
-								So(waitTime, ShouldAlmostEqual, shortSleep, timeTolerance)
-							} else {
-								So(waitTime, ShouldAlmostEqual, 0, timeTolerance)
-							}
-						}
-					}
-
-					// BOX'S PIPE
-					{
-						// the sink is much faster than the box, so waiting time should
-						// 0 for all items
-						for i := 0; i < len(si.Tuples); i++ {
-							waitTime := si.Tuples[i].Trace[3].Timestamp.Sub(si.Tuples[i].Trace[2].Timestamp)
-							So(waitTime, ShouldAlmostEqual, 0, timeTolerance)
-						}
-					}
-				})
+			Convey("Then the topology should be stopped", func() {
+				So(t.State(ctx), ShouldEqual, TSStopped)
 			})
-		}
+
+			Convey("Then the sink should receive all of generated tuples", func() {
+				So(len(si.Tuples), ShouldEqual, 4)
+			})
+		})
+
+		Convey("When generating some tuples from one source and call stop before the sink receives a tuple", func() { // 2.a'.
+			b1.cnt = 0 // Block tuples. The box isn't running yet, so cnt can safely be changed.
+			go func() {
+				so1.EmitTuplesNB(3)
+				go func() {
+					t.Stop(ctx)
+				}()
+
+				// resume b1 after the topology starts stopping all.
+				t.Wait(ctx, TSStopping)
+				b1.EmitTuples(8)
+			}()
+			So(t.Run(ctx), ShouldBeNil)
+
+			Convey("Then the topology should be stopped", func() {
+				So(t.State(ctx), ShouldEqual, TSStopped)
+			})
+
+			Convey("Then the sink should receive all of generated tuples", func() {
+				So(len(si.Tuples), ShouldEqual, 3)
+			})
+		})
+
+		Convey("When generating some tuples and call stop after the sink received some of them", func() { // 2.b.
+			go func() {
+				so1.EmitTuplesNB(1)
+				so2.EmitTuplesNB(2)
+				t.Wait(ctx, TSRunning)
+				b1.EmitTuples(1)
+				si.Wait(1)
+				go func() {
+					t.Stop(ctx)
+				}()
+
+				t.Wait(ctx, TSStopping)
+				b1.EmitTuples(2)
+			}()
+			So(t.Run(ctx), ShouldBeNil)
+
+			Convey("Then the topology should be stopped", func() {
+				So(t.State(ctx), ShouldEqual, TSStopped)
+			})
+
+			Convey("Then the sink should receive all of those tuples", func() {
+				So(len(si.Tuples), ShouldEqual, 3)
+			})
+		})
+
+		Convey("When generating some tuples and call stop after the sink received all", func() { // 2.c.
+			go func() {
+				so1.EmitTuples(2)
+				so2.EmitTuples(1)
+				si.Wait(3)
+				t.Stop(ctx)
+			}()
+			So(t.Run(ctx), ShouldBeNil)
+
+			Convey("Then the topology should be stopped", func() {
+				So(t.State(ctx), ShouldEqual, TSStopped)
+			})
+
+			Convey("Then the sink should only receive those tuples", func() {
+				So(len(si.Tuples), ShouldEqual, 3)
+			})
+		})
+
+		Convey("When generating all tuples and call stop before the sink receives a tuple", func() { // 3.a.
+			b1.cnt = 0
+			go func() {
+				so1.EmitTuples(100) // Blocking call. Assuming the pipe's capacity is greater than or equal to 8.
+				so2.EmitTuples(100)
+				go func() {
+					t.Stop(ctx)
+				}()
+				t.Wait(ctx, TSStopping)
+				b1.EmitTuples(8)
+			}()
+			So(t.Run(ctx), ShouldBeNil)
+
+			Convey("Then the topology should be stopped", func() {
+				So(t.State(ctx), ShouldEqual, TSStopped)
+			})
+
+			Convey("Then the sink should receive all tuples", func() {
+				So(len(si.Tuples), ShouldEqual, 8)
+			})
+		})
+
+		Convey("When generating all tuples and call stop after the sink received some of them", func() { // 3.b.
+			b1.cnt = 2
+			go func() {
+				so1.EmitTuples(100)
+				so2.EmitTuples(100)
+				si.Wait(2)
+				go func() {
+					t.Stop(ctx)
+				}()
+				t.Wait(ctx, TSStopping)
+				b1.EmitTuples(6)
+			}()
+			So(t.Run(ctx), ShouldBeNil)
+
+			Convey("Then the topology should be stopped", func() {
+				So(t.State(ctx), ShouldEqual, TSStopped)
+			})
+
+			Convey("Then the sink should receive all of those tuples", func() {
+				So(len(si.Tuples), ShouldEqual, 8)
+			})
+		})
+
+		Convey("When generating all tuples and call stop after the sink received all", func() { // 3.c.
+			go func() {
+				so1.EmitTuples(100)
+				so2.EmitTuples(100)
+				si.Wait(8)
+				t.Stop(ctx)
+			}()
+			So(t.Run(ctx), ShouldBeNil)
+
+			Convey("Then the topology should be stopped", func() {
+				So(t.State(ctx), ShouldEqual, TSStopped)
+			})
+
+			Convey("Then the sink should receive all tuples", func() {
+				So(len(si.Tuples), ShouldEqual, 8)
+			})
+		})
 	})
 }
