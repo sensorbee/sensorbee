@@ -79,6 +79,11 @@ type Box interface {
 	// this method is called. This method doesn't have to be idempotent,
 	// that is the behavior is undefined when this method is called
 	// more than once.
+	//
+	// As long as the Box is used by components in core package, no method
+	// will be called after the invocation of Terminate method. In addition,
+	// the Box may assume that Terminate is not called concurrently with
+	// any other methods.
 	Terminate(ctx *Context) error
 }
 
