@@ -47,6 +47,9 @@ func (b *DoesNothingBox) InputConstraints() (*BoxInputConstraints, error) {
 func (b *DoesNothingBox) OutputSchema(s []*Schema) (*Schema, error) {
 	return nil, nil
 }
+func (b *DoesNothingBox) Terminate(ctx *Context) error {
+	return nil
+}
 
 /**************************************************/
 
