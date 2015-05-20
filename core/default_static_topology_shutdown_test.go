@@ -95,7 +95,7 @@ func TestShutdownLinearDefaultStaticTopology(t *testing.T) {
 
 		t := ti.(*defaultStaticTopology)
 
-		testHelper := func() {
+		checkPostCond := func() {
 			Convey("Then the topology should be stopped", func() {
 				So(t.State(ctx), ShouldEqual, TSStopped)
 			})
@@ -111,7 +111,7 @@ func TestShutdownLinearDefaultStaticTopology(t *testing.T) {
 				t.Stop(ctx)
 			}()
 			So(t.Run(ctx), ShouldBeNil)
-			testHelper()
+			checkPostCond()
 
 			Convey("Then the sink shouldn't receive anything", func() {
 				So(si.Tuples, ShouldBeEmpty)
@@ -131,7 +131,7 @@ func TestShutdownLinearDefaultStaticTopology(t *testing.T) {
 				b1.EmitTuples(8)
 			}()
 			So(t.Run(ctx), ShouldBeNil)
-			testHelper()
+			checkPostCond()
 
 			Convey("Then the sink should receive all of generated tuples", func() {
 				So(len(si.Tuples), ShouldEqual, 4)
@@ -152,7 +152,7 @@ func TestShutdownLinearDefaultStaticTopology(t *testing.T) {
 				b1.EmitTuples(2)
 			}()
 			So(t.Run(ctx), ShouldBeNil)
-			testHelper()
+			checkPostCond()
 
 			Convey("Then the sink should receive all of those tuples", func() {
 				So(len(si.Tuples), ShouldEqual, 3)
@@ -166,7 +166,7 @@ func TestShutdownLinearDefaultStaticTopology(t *testing.T) {
 				t.Stop(ctx)
 			}()
 			So(t.Run(ctx), ShouldBeNil)
-			testHelper()
+			checkPostCond()
 
 			Convey("Then the sink should only receive those tuples", func() {
 				So(len(si.Tuples), ShouldEqual, 4)
@@ -184,7 +184,7 @@ func TestShutdownLinearDefaultStaticTopology(t *testing.T) {
 				b1.EmitTuples(8)
 			}()
 			So(t.Run(ctx), ShouldBeNil)
-			testHelper()
+			checkPostCond()
 
 			Convey("Then the sink should receive all tuples", func() {
 				So(len(si.Tuples), ShouldEqual, 8)
@@ -203,7 +203,7 @@ func TestShutdownLinearDefaultStaticTopology(t *testing.T) {
 				b1.EmitTuples(6)
 			}()
 			So(t.Run(ctx), ShouldBeNil)
-			testHelper()
+			checkPostCond()
 
 			Convey("Then the sink should receive all of those tuples", func() {
 				So(len(si.Tuples), ShouldEqual, 8)
@@ -217,7 +217,7 @@ func TestShutdownLinearDefaultStaticTopology(t *testing.T) {
 				t.Stop(ctx)
 			}()
 			So(t.Run(ctx), ShouldBeNil)
-			testHelper()
+			checkPostCond()
 
 			Convey("Then the sink should receive all tuples", func() {
 				So(len(si.Tuples), ShouldEqual, 8)
@@ -257,7 +257,7 @@ func TestShutdownForkDefaultStaticTopology(t *testing.T) {
 
 		t := ti.(*defaultStaticTopology)
 
-		testHelper := func() {
+		checkPostCond := func() {
 			Convey("Then the topology should be stopped", func() {
 				So(t.State(ctx), ShouldEqual, TSStopped)
 			})
@@ -273,7 +273,7 @@ func TestShutdownForkDefaultStaticTopology(t *testing.T) {
 				t.Stop(ctx)
 			}()
 			So(t.Run(ctx), ShouldBeNil)
-			testHelper()
+			checkPostCond()
 
 			Convey("Then the sink shouldn't receive anything", func() {
 				So(si1.Tuples, ShouldBeEmpty)
@@ -294,7 +294,7 @@ func TestShutdownForkDefaultStaticTopology(t *testing.T) {
 				b1.EmitTuples(8)
 			}()
 			So(t.Run(ctx), ShouldBeNil)
-			testHelper()
+			checkPostCond()
 
 			Convey("Then the sink should receive all of generated tuples", func() {
 				So(len(si1.Tuples), ShouldEqual, 4)
@@ -316,7 +316,7 @@ func TestShutdownForkDefaultStaticTopology(t *testing.T) {
 				b1.EmitTuples(2)
 			}()
 			So(t.Run(ctx), ShouldBeNil)
-			testHelper()
+			checkPostCond()
 
 			Convey("Then the sink should receive all of those tuples", func() {
 				So(len(si1.Tuples), ShouldEqual, 3)
@@ -332,7 +332,7 @@ func TestShutdownForkDefaultStaticTopology(t *testing.T) {
 				t.Stop(ctx)
 			}()
 			So(t.Run(ctx), ShouldBeNil)
-			testHelper()
+			checkPostCond()
 
 			Convey("Then the sink should only receive those tuples", func() {
 				So(len(si1.Tuples), ShouldEqual, 4)
@@ -351,7 +351,7 @@ func TestShutdownForkDefaultStaticTopology(t *testing.T) {
 				b1.EmitTuples(8)
 			}()
 			So(t.Run(ctx), ShouldBeNil)
-			testHelper()
+			checkPostCond()
 
 			Convey("Then the sink should receive all tuples", func() {
 				So(len(si1.Tuples), ShouldEqual, 8)
@@ -372,7 +372,7 @@ func TestShutdownForkDefaultStaticTopology(t *testing.T) {
 				b1.EmitTuples(6)
 			}()
 			So(t.Run(ctx), ShouldBeNil)
-			testHelper()
+			checkPostCond()
 
 			Convey("Then the sink should receive all of those tuples", func() {
 				So(len(si1.Tuples), ShouldEqual, 8)
@@ -395,7 +395,7 @@ func TestShutdownForkDefaultStaticTopology(t *testing.T) {
 				b2.EmitTuples(5)
 			}()
 			So(t.Run(ctx), ShouldBeNil)
-			testHelper()
+			checkPostCond()
 
 			Convey("Then the sink should receive all of those tuples", func() {
 				So(len(si1.Tuples), ShouldEqual, 8)
@@ -411,7 +411,7 @@ func TestShutdownForkDefaultStaticTopology(t *testing.T) {
 				t.Stop(ctx)
 			}()
 			So(t.Run(ctx), ShouldBeNil)
-			testHelper()
+			checkPostCond()
 
 			Convey("Then the sink should receive all tuples", func() {
 				So(len(si1.Tuples), ShouldEqual, 8)
@@ -449,7 +449,7 @@ func TestShutdownJoinDefaultStaticTopology(t *testing.T) {
 
 		t := ti.(*defaultStaticTopology)
 
-		testHelper := func() {
+		checkPostCond := func() {
 			Convey("Then the topology should be stopped", func() {
 				So(t.State(ctx), ShouldEqual, TSStopped)
 			})
@@ -464,7 +464,7 @@ func TestShutdownJoinDefaultStaticTopology(t *testing.T) {
 				t.Stop(ctx)
 			}()
 			So(t.Run(ctx), ShouldBeNil)
-			testHelper()
+			checkPostCond()
 
 			Convey("Then the sink shouldn't receive anything", func() {
 				So(si.Tuples, ShouldBeEmpty)
@@ -485,7 +485,7 @@ func TestShutdownJoinDefaultStaticTopology(t *testing.T) {
 				b1.EmitTuples(8)
 			}()
 			So(t.Run(ctx), ShouldBeNil)
-			testHelper()
+			checkPostCond()
 
 			Convey("Then the sink should receive all of generated tuples", func() {
 				So(len(si.Tuples), ShouldEqual, 4)
@@ -505,7 +505,7 @@ func TestShutdownJoinDefaultStaticTopology(t *testing.T) {
 				b1.EmitTuples(8)
 			}()
 			So(t.Run(ctx), ShouldBeNil)
-			testHelper()
+			checkPostCond()
 
 			Convey("Then the sink should receive all of generated tuples", func() {
 				So(len(si.Tuples), ShouldEqual, 3)
@@ -527,7 +527,7 @@ func TestShutdownJoinDefaultStaticTopology(t *testing.T) {
 				b1.EmitTuples(2)
 			}()
 			So(t.Run(ctx), ShouldBeNil)
-			testHelper()
+			checkPostCond()
 
 			Convey("Then the sink should receive all of those tuples", func() {
 				So(len(si.Tuples), ShouldEqual, 3)
@@ -542,7 +542,7 @@ func TestShutdownJoinDefaultStaticTopology(t *testing.T) {
 				t.Stop(ctx)
 			}()
 			So(t.Run(ctx), ShouldBeNil)
-			testHelper()
+			checkPostCond()
 
 			Convey("Then the sink should only receive those tuples", func() {
 				So(len(si.Tuples), ShouldEqual, 3)
@@ -561,7 +561,7 @@ func TestShutdownJoinDefaultStaticTopology(t *testing.T) {
 				b1.EmitTuples(8)
 			}()
 			So(t.Run(ctx), ShouldBeNil)
-			testHelper()
+			checkPostCond()
 
 			Convey("Then the sink should receive all tuples", func() {
 				So(len(si.Tuples), ShouldEqual, 8)
@@ -581,7 +581,7 @@ func TestShutdownJoinDefaultStaticTopology(t *testing.T) {
 				b1.EmitTuples(6)
 			}()
 			So(t.Run(ctx), ShouldBeNil)
-			testHelper()
+			checkPostCond()
 
 			Convey("Then the sink should receive all of those tuples", func() {
 				So(len(si.Tuples), ShouldEqual, 8)
@@ -596,7 +596,7 @@ func TestShutdownJoinDefaultStaticTopology(t *testing.T) {
 				t.Stop(ctx)
 			}()
 			So(t.Run(ctx), ShouldBeNil)
-			testHelper()
+			checkPostCond()
 
 			Convey("Then the sink should receive all tuples", func() {
 				So(len(si.Tuples), ShouldEqual, 8)
