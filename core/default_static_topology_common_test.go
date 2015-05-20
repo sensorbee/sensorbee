@@ -47,6 +47,30 @@ func (b *DoesNothingBox) InputConstraints() (*BoxInputConstraints, error) {
 func (b *DoesNothingBox) OutputSchema(s []*Schema) (*Schema, error) {
 	return nil, nil
 }
+func (b *DoesNothingBox) Terminate(ctx *Context) error {
+	return nil
+}
+
+// ProxyBox just passes all method calls to the target Box.
+type ProxyBox struct {
+	b Box
+}
+
+func (b *ProxyBox) Init(ctx *Context) error {
+	return b.b.Init(ctx)
+}
+func (b *ProxyBox) Process(ctx *Context, t *tuple.Tuple, s Writer) error {
+	return b.b.Process(ctx, t, s)
+}
+func (b *ProxyBox) InputConstraints() (*BoxInputConstraints, error) {
+	return b.b.InputConstraints()
+}
+func (b *ProxyBox) OutputSchema(s []*Schema) (*Schema, error) {
+	return b.b.OutputSchema(s)
+}
+func (b *ProxyBox) Terminate(ctx *Context) error {
+	return b.b.Terminate(ctx)
+}
 
 /**************************************************/
 
@@ -241,6 +265,10 @@ func (b *BlockingForwardBox) InputConstraints() (*BoxInputConstraints, error) {
 
 func (b *BlockingForwardBox) OutputSchema(s []*Schema) (*Schema, error) {
 	return nil, nil
+}
+
+func (b *BlockingForwardBox) Terminate(ctx *Context) error {
+	return nil
 }
 
 type TupleCollectorSink struct {

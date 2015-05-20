@@ -87,6 +87,9 @@ func (db *DummyBox) InputConstraints() (*BoxInputConstraints, error) {
 func (db *DummyBox) OutputSchema(s []*Schema) (*Schema, error) {
 	return nil, nil
 }
+func (db *DummyBox) Terminate(ctx *Context) error {
+	return nil
+}
 
 type DummySink struct{}
 
