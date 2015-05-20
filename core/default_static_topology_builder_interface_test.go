@@ -5,9 +5,9 @@ import (
 	"testing"
 )
 
-// TestDefaultTopologyBuilderInterface tests that checks for names
+// TestDefaultStaticTopologyBuilderInterface tests that checks for names
 // and dependencies are done correctly when building a topology.
-func TestDefaultTopologyBuilderInterface(t *testing.T) {
+func TestDefaultStaticTopologyBuilderInterface(t *testing.T) {
 	Convey("When creating a default topology builder", t, func() {
 		var tb StaticTopologyBuilder = NewDefaultStaticTopologyBuilder()
 		So(tb, ShouldNotBeNil)
@@ -254,9 +254,9 @@ func TestDefaultTopologyBuilderInterface(t *testing.T) {
 	})
 }
 
-// TestMultipleBuild tests that default static topology builder
+// TestDefaultStaticTopologyBuilderMultipleBuild tests that default static topology builder
 // can build only once.
-func TestMultipleBuild(t *testing.T) {
+func TestDefaultStaticTopologyBuilderMultipleBuild(t *testing.T) {
 	Convey("Given basic topology builder called build() once", t, func() {
 		tb := NewDefaultStaticTopologyBuilder()
 		tb.AddSource("src", &DoesNothingSource{})
@@ -290,7 +290,7 @@ func TestMultipleBuild(t *testing.T) {
 	})
 }
 
-func TestCycleChecker(t *testing.T) {
+func TestDefaultStaticTopologyBuilderCycleChecker(t *testing.T) {
 	Convey("Given a basic topology builder", t, func() {
 		tb := NewDefaultStaticTopologyBuilder()
 		Convey("When adding a cycle of boxes", func() {

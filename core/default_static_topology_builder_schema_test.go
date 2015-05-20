@@ -5,9 +5,9 @@ import (
 	"testing"
 )
 
-// TestDefaultTopologyBuilderSchemaChecks tests that checks for matching
+// TestDefaultStaticTopologyBuilderSchemaChecks tests that checks for matching
 // input and output schema are done correctly when building a topology.
-func TestDefaultTopologyBuilderSchemaChecks(t *testing.T) {
+func TestDefaultStaticTopologyBuilderSchemaChecks(t *testing.T) {
 	Convey("Given a default topology builder", t, func() {
 		tb := NewDefaultStaticTopologyBuilder()
 		s := &DoesNothingSource{}

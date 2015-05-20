@@ -10,9 +10,9 @@ import (
 	"time"
 )
 
-// TestDefaultTopologyTupleTransport tests that tuples are correctly
+// TestDefaultStaticTopologyTupleTransport tests that tuples are correctly
 // copied/transported in various topologies.
-func TestDefaultTopologyTupleTransport(t *testing.T) {
+func TestDefaultStaticTopologyTupleTransport(t *testing.T) {
 	tup1 := tuple.Tuple{
 		Data: tuple.Map{
 			"int": tuple.Int(1),
