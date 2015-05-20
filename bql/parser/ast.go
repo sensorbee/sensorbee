@@ -15,8 +15,32 @@ type SelectStmt struct {
 	Having
 }
 
+type CreateStreamStmt struct {
+	Relation
+	EmitProjections
+	WindowedFrom
+	Filter
+	Grouping
+	Having
+}
+
+type EmitProjections struct {
+	Emitter
+	Projections
+}
+
 type Projections struct {
 	projections []interface{}
+}
+
+type WindowedFrom struct {
+	From
+	Range
+}
+
+type Range struct {
+	Raw
+	RangeUnit
 }
 
 type From struct {
@@ -69,4 +93,20 @@ type Raw struct {
 
 func NewRaw(s string) Raw {
 	return Raw{s}
+}
+
+type Emitter struct {
+	emitterType string
+}
+
+func NewEmitter(s string) Emitter {
+	return Emitter{s}
+}
+
+type RangeUnit struct {
+	unit string
+}
+
+func NewRangeUnit(s string) RangeUnit {
+	return RangeUnit{s}
 }

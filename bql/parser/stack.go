@@ -91,7 +91,60 @@ func (ps *ParseStack) AssembleSelect() {
 	ps.Push(&se)
 }
 
+// AssembleCreateStream takes the topmost elements from the stack,
+// assuming they are components of a CREATE STREAM statement, and
+// replaces them by a single CreateStreamStmt element.
+//
+//  Having
+//  Grouping
+//  Filter
+//  WindowedFrom
+//  EmitProjections
+//  Relation
+//   =>
+//  CreateStreamStmt{Relation, EmitProjections, WindowedFrom, Filter,
+//    Grouping, Having}
+func (ps *ParseStack) AssembleCreateStream() {
+	// pop the components from the stack in reverse order
+	_having, _grouping, _filter, _from, _projections, _rel := ps.pop6()
+
+	// extract and convert the contained structure
+	// (if this fails, this is a fundamental parser bug => panic ok)
+	having := _having.comp.(Having)
+	grouping := _grouping.comp.(Grouping)
+	filter := _filter.comp.(Filter)
+	from := _from.comp.(WindowedFrom)
+	projections := _projections.comp.(EmitProjections)
+	rel := _rel.comp.(Relation)
+
+	// assemble the SelectStmt and push it back
+	s := CreateStreamStmt{rel, projections, from, filter, grouping, having}
+	se := ParsedComponent{_rel.begin, _having.end, s}
+	ps.Push(&se)
+}
+
 /* Projections/Columns */
+
+// AssembleEmitProjections takes the topmost elements from the
+// stack, assuming they are part of a SELECT clause in a CREATE STREAM
+// statement and replaces them by a single EmitProjections element.
+//
+//  Projections
+//  Emitter
+//   =>
+//  EmitProjections{Emitter, Projections}
+func (ps *ParseStack) AssembleEmitProjections() {
+	// pop the components from the stack in reverse order
+	_projections, _emitter := ps.pop2()
+
+	// extract and convert the contained structure
+	projections := _projections.comp.(Projections)
+	emitter := _emitter.comp.(Emitter)
+
+	// assemble the EmitProjections and push it back
+	ep := EmitProjections{emitter, projections}
+	ps.PushComponent(_emitter.begin, _projections.end, ep)
+}
 
 // AssembleProjections takes the elements from the stack that
 // correspond to the input[begin:end] string and wraps a
@@ -109,6 +162,64 @@ func (ps *ParseStack) AssembleProjections(begin int, end int) {
 }
 
 /* FROM clause */
+
+// AssembleWindowedFrom assumes that the string input[begin:end]
+// holds a number of Relation elements followed by a Range, pops all
+// of them and turns them into a WindowedFrom.
+//
+//  Range
+//  Relation
+//  Relation
+//  Relation
+//   =>
+//  WindowedFrom{From, Range}
+func (ps *ParseStack) AssembleWindowedFrom(begin int, end int) {
+	if begin == end {
+		// push an empty FROM clause
+		ps.PushComponent(begin, end, WindowedFrom{})
+	} else {
+		elems := ps.collectElements(begin, end)
+		numElems := len(elems)
+		if numElems == 0 {
+			ps.PushComponent(begin, end, WindowedFrom{})
+		} else {
+			// convert the last item to a Range (if this does
+			// not work, it is a fundamental parser bug)
+			rangeClause := elems[numElems-1].(Range)
+			// convert the rest to Relations
+			rels := make([]Relation, numElems-1, numElems-1)
+			for i, elem := range elems[:numElems-1] {
+				// (if this conversion fails, this is a fundamental parser bug)
+				e := elem.(Relation)
+				rels[i] = e
+			}
+			// push the grouped list wrapped in a From and the Range
+			// struct back to the stack
+			ps.PushComponent(begin, end, WindowedFrom{From{rels}, rangeClause})
+		}
+	}
+}
+
+// AssembleRange takes the topmost elements from the stack, assuming
+// they are components of a RANGE clause, and replaces them by
+// a single Range element.
+//
+//  RangeUnit
+//  Raw
+//   =>
+//  Range{Raw, RangeUnit}
+func (ps *ParseStack) AssembleRange() {
+	// pop the components from the stack in reverse order
+	_unit, _num := ps.pop2()
+
+	// extract and convert the contained structure
+	// (if this fails, this is a fundamental parser bug => panic ok)
+	unit := _unit.comp.(RangeUnit)
+	num := _num.comp.(Raw)
+
+	// assemble the Range and push it back
+	ps.PushComponent(_num.begin, _unit.end, Range{num, unit})
+}
 
 // AssembleFrom takes the elements from the stack that
 // correspond to the input[begin:end] string, makes sure
