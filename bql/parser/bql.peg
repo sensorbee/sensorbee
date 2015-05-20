@@ -14,7 +14,7 @@ type Bql Peg {
 # `buffer[begin:end]` holds the string part matching
 # this rule.
 
-Statement <- SelectStmt !.
+Statement <- (SelectStmt / CreateStreamStmt) !.
 
 SelectStmt <- "SELECT" sp
               Projections sp
@@ -26,7 +26,23 @@ SelectStmt <- "SELECT" sp
         p.AssembleSelect()
     }
 
+CreateStreamStmt <- "CREATE" sp "STREAM" sp
+                    Relation sp
+                    "AS" sp "SELECT" sp
+                    EmitProjections sp
+                    WindowedFrom sp
+                    Filter sp
+                    Grouping sp
+                    Having sp
+                    {
+        p.AssembleCreateStream()
+    }
+
 # Projections/Columns (mandatory)
+
+EmitProjections <- Emitter sp '(' Projections ')' {
+        p.AssembleEmitProjections()
+    }
 
 Projections <- < Projection sp (',' sp Projection)* > {
         p.AssembleProjections(begin, end)
@@ -35,6 +51,17 @@ Projections <- < Projection sp (',' sp Projection)* > {
 Projection <- Expression
 
 # FROM clause (optional)
+
+WindowedFrom <- < ("FROM" sp Relations sp
+                   '[' sp "RANGE" sp Range sp ']')? > {
+        // This is *always* executed, even if there is no
+        // FROM clause present in the statement.
+        p.AssembleWindowedFrom(begin, end)
+    }
+
+Range <- NumericLiteral sp RangeUnit {
+        p.AssembleRange()
+    }
 
 From <- < ("FROM" sp Relations)? > {
         // This is *always* executed, even if there is no
@@ -124,6 +151,14 @@ ColumnName <- < [a-z]+ > {
 
 NumericLiteral <- < [0-9]+ > {
         p.PushComponent(begin, end, NewRaw(buffer[begin:end]))
+    }
+
+Emitter <- < "ISTREAM" / "DSTREAM" / "RSTREAM" > {
+        p.PushComponent(begin, end, NewEmitter(buffer[begin:end]))
+    }
+
+RangeUnit <- < "TUPLES" / "SECONDS" > {
+        p.PushComponent(begin, end, NewRangeUnit(buffer[begin:end]))
     }
 
 sp <- ( ' ' / '\t' )*
