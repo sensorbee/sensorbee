@@ -31,6 +31,23 @@ func freshTuples() []*tuple.Tuple {
 		tup5, tup6, tup7, tup8}
 }
 
+type terminateChecker struct {
+	ProxyBox
+
+	terminateCnt int
+}
+
+func NewTerminateChecker(b Box) *terminateChecker {
+	return &terminateChecker{
+		ProxyBox: ProxyBox{b: b},
+	}
+}
+
+func (t *terminateChecker) Terminate(ctx *Context) error {
+	t.terminateCnt++
+	return t.ProxyBox.Terminate(ctx)
+}
+
 // On one topology, there're some patterns to be tested.
 //
 // 1. Call Stop when no tuple was generated from Source.
@@ -63,10 +80,12 @@ func TestShutdownLinearDefaultStaticTopology(t *testing.T) {
 		So(tb.AddSource("source", so).Err(), ShouldBeNil)
 
 		b1 := &BlockingForwardBox{cnt: 8}
-		So(tb.AddBox("box1", b1).Input("source").Err(), ShouldBeNil)
+		tc1 := NewTerminateChecker(b1)
+		So(tb.AddBox("box1", tc1).Input("source").Err(), ShouldBeNil)
 
 		b2 := BoxFunc(forwardBox)
-		So(tb.AddBox("box2", b2).Input("box1").Err(), ShouldBeNil)
+		tc2 := NewTerminateChecker(b2)
+		So(tb.AddBox("box2", tc2).Input("box1").Err(), ShouldBeNil)
 
 		si := NewTupleCollectorSink()
 		So(tb.AddSink("sink", si).Input("box2").Err(), ShouldBeNil)
@@ -76,15 +95,23 @@ func TestShutdownLinearDefaultStaticTopology(t *testing.T) {
 
 		t := ti.(*defaultStaticTopology)
 
+		testHelper := func() {
+			Convey("Then the topology should be stopped", func() {
+				So(t.State(ctx), ShouldEqual, TSStopped)
+			})
+
+			Convey("Then Box.Terminate should be called exactly once", func() {
+				So(tc1.terminateCnt, ShouldEqual, 1)
+				So(tc2.terminateCnt, ShouldEqual, 1)
+			})
+		}
+
 		Convey("When generating no tuples and call stop", func() { // 1.
 			go func() {
 				t.Stop(ctx)
 			}()
 			So(t.Run(ctx), ShouldBeNil)
-
-			Convey("Then the topology should be stopped", func() {
-				So(t.State(ctx), ShouldEqual, TSStopped)
-			})
+			testHelper()
 
 			Convey("Then the sink shouldn't receive anything", func() {
 				So(si.Tuples, ShouldBeEmpty)
@@ -104,10 +131,7 @@ func TestShutdownLinearDefaultStaticTopology(t *testing.T) {
 				b1.EmitTuples(8)
 			}()
 			So(t.Run(ctx), ShouldBeNil)
-
-			Convey("Then the topology should be stopped", func() {
-				So(t.State(ctx), ShouldEqual, TSStopped)
-			})
+			testHelper()
 
 			Convey("Then the sink should receive all of generated tuples", func() {
 				So(len(si.Tuples), ShouldEqual, 4)
@@ -128,10 +152,7 @@ func TestShutdownLinearDefaultStaticTopology(t *testing.T) {
 				b1.EmitTuples(2)
 			}()
 			So(t.Run(ctx), ShouldBeNil)
-
-			Convey("Then the topology should be stopped", func() {
-				So(t.State(ctx), ShouldEqual, TSStopped)
-			})
+			testHelper()
 
 			Convey("Then the sink should receive all of those tuples", func() {
 				So(len(si.Tuples), ShouldEqual, 3)
@@ -145,10 +166,7 @@ func TestShutdownLinearDefaultStaticTopology(t *testing.T) {
 				t.Stop(ctx)
 			}()
 			So(t.Run(ctx), ShouldBeNil)
-
-			Convey("Then the topology should be stopped", func() {
-				So(t.State(ctx), ShouldEqual, TSStopped)
-			})
+			testHelper()
 
 			Convey("Then the sink should only receive those tuples", func() {
 				So(len(si.Tuples), ShouldEqual, 4)
@@ -166,10 +184,7 @@ func TestShutdownLinearDefaultStaticTopology(t *testing.T) {
 				b1.EmitTuples(8)
 			}()
 			So(t.Run(ctx), ShouldBeNil)
-
-			Convey("Then the topology should be stopped", func() {
-				So(t.State(ctx), ShouldEqual, TSStopped)
-			})
+			testHelper()
 
 			Convey("Then the sink should receive all tuples", func() {
 				So(len(si.Tuples), ShouldEqual, 8)
@@ -188,10 +203,7 @@ func TestShutdownLinearDefaultStaticTopology(t *testing.T) {
 				b1.EmitTuples(6)
 			}()
 			So(t.Run(ctx), ShouldBeNil)
-
-			Convey("Then the topology should be stopped", func() {
-				So(t.State(ctx), ShouldEqual, TSStopped)
-			})
+			testHelper()
 
 			Convey("Then the sink should receive all of those tuples", func() {
 				So(len(si.Tuples), ShouldEqual, 8)
@@ -205,10 +217,7 @@ func TestShutdownLinearDefaultStaticTopology(t *testing.T) {
 				t.Stop(ctx)
 			}()
 			So(t.Run(ctx), ShouldBeNil)
-
-			Convey("Then the topology should be stopped", func() {
-				So(t.State(ctx), ShouldEqual, TSStopped)
-			})
+			testHelper()
 
 			Convey("Then the sink should receive all tuples", func() {
 				So(len(si.Tuples), ShouldEqual, 8)
@@ -232,9 +241,11 @@ func TestShutdownForkDefaultStaticTopology(t *testing.T) {
 		So(tb.AddSource("source", so).Err(), ShouldBeNil)
 
 		b1 := &BlockingForwardBox{cnt: 8}
-		So(tb.AddBox("box1", b1).Input("source").Err(), ShouldBeNil)
+		tc1 := NewTerminateChecker(b1)
+		So(tb.AddBox("box1", tc1).Input("source").Err(), ShouldBeNil)
 		b2 := &BlockingForwardBox{cnt: 8}
-		So(tb.AddBox("box2", b2).Input("source").Err(), ShouldBeNil)
+		tc2 := NewTerminateChecker(b2)
+		So(tb.AddBox("box2", tc2).Input("source").Err(), ShouldBeNil)
 
 		si1 := NewTupleCollectorSink()
 		So(tb.AddSink("si1", si1).Input("box1").Err(), ShouldBeNil)
@@ -246,15 +257,23 @@ func TestShutdownForkDefaultStaticTopology(t *testing.T) {
 
 		t := ti.(*defaultStaticTopology)
 
+		testHelper := func() {
+			Convey("Then the topology should be stopped", func() {
+				So(t.State(ctx), ShouldEqual, TSStopped)
+			})
+
+			Convey("Then Box.Terminate should be called exactly once", func() {
+				So(tc1.terminateCnt, ShouldEqual, 1)
+				So(tc2.terminateCnt, ShouldEqual, 1)
+			})
+		}
+
 		Convey("When generating no tuples and call stop", func() { // 1.
 			go func() {
 				t.Stop(ctx)
 			}()
 			So(t.Run(ctx), ShouldBeNil)
-
-			Convey("Then the topology should be stopped", func() {
-				So(t.State(ctx), ShouldEqual, TSStopped)
-			})
+			testHelper()
 
 			Convey("Then the sink shouldn't receive anything", func() {
 				So(si1.Tuples, ShouldBeEmpty)
@@ -275,10 +294,7 @@ func TestShutdownForkDefaultStaticTopology(t *testing.T) {
 				b1.EmitTuples(8)
 			}()
 			So(t.Run(ctx), ShouldBeNil)
-
-			Convey("Then the topology should be stopped", func() {
-				So(t.State(ctx), ShouldEqual, TSStopped)
-			})
+			testHelper()
 
 			Convey("Then the sink should receive all of generated tuples", func() {
 				So(len(si1.Tuples), ShouldEqual, 4)
@@ -300,10 +316,7 @@ func TestShutdownForkDefaultStaticTopology(t *testing.T) {
 				b1.EmitTuples(2)
 			}()
 			So(t.Run(ctx), ShouldBeNil)
-
-			Convey("Then the topology should be stopped", func() {
-				So(t.State(ctx), ShouldEqual, TSStopped)
-			})
+			testHelper()
 
 			Convey("Then the sink should receive all of those tuples", func() {
 				So(len(si1.Tuples), ShouldEqual, 3)
@@ -319,10 +332,7 @@ func TestShutdownForkDefaultStaticTopology(t *testing.T) {
 				t.Stop(ctx)
 			}()
 			So(t.Run(ctx), ShouldBeNil)
-
-			Convey("Then the topology should be stopped", func() {
-				So(t.State(ctx), ShouldEqual, TSStopped)
-			})
+			testHelper()
 
 			Convey("Then the sink should only receive those tuples", func() {
 				So(len(si1.Tuples), ShouldEqual, 4)
@@ -341,10 +351,7 @@ func TestShutdownForkDefaultStaticTopology(t *testing.T) {
 				b1.EmitTuples(8)
 			}()
 			So(t.Run(ctx), ShouldBeNil)
-
-			Convey("Then the topology should be stopped", func() {
-				So(t.State(ctx), ShouldEqual, TSStopped)
-			})
+			testHelper()
 
 			Convey("Then the sink should receive all tuples", func() {
 				So(len(si1.Tuples), ShouldEqual, 8)
@@ -365,10 +372,7 @@ func TestShutdownForkDefaultStaticTopology(t *testing.T) {
 				b1.EmitTuples(6)
 			}()
 			So(t.Run(ctx), ShouldBeNil)
-
-			Convey("Then the topology should be stopped", func() {
-				So(t.State(ctx), ShouldEqual, TSStopped)
-			})
+			testHelper()
 
 			Convey("Then the sink should receive all of those tuples", func() {
 				So(len(si1.Tuples), ShouldEqual, 8)
@@ -391,10 +395,7 @@ func TestShutdownForkDefaultStaticTopology(t *testing.T) {
 				b2.EmitTuples(5)
 			}()
 			So(t.Run(ctx), ShouldBeNil)
-
-			Convey("Then the topology should be stopped", func() {
-				So(t.State(ctx), ShouldEqual, TSStopped)
-			})
+			testHelper()
 
 			Convey("Then the sink should receive all of those tuples", func() {
 				So(len(si1.Tuples), ShouldEqual, 8)
@@ -410,10 +411,7 @@ func TestShutdownForkDefaultStaticTopology(t *testing.T) {
 				t.Stop(ctx)
 			}()
 			So(t.Run(ctx), ShouldBeNil)
-
-			Convey("Then the topology should be stopped", func() {
-				So(t.State(ctx), ShouldEqual, TSStopped)
-			})
+			testHelper()
 
 			Convey("Then the sink should receive all tuples", func() {
 				So(len(si1.Tuples), ShouldEqual, 8)
@@ -440,7 +438,8 @@ func TestShutdownJoinDefaultStaticTopology(t *testing.T) {
 		So(tb.AddSource("source2", so2).Err(), ShouldBeNil)
 
 		b1 := &BlockingForwardBox{cnt: 8}
-		So(tb.AddBox("box1", b1).Input("source1").Input("source2").Err(), ShouldBeNil)
+		tc1 := NewTerminateChecker(b1)
+		So(tb.AddBox("box1", tc1).Input("source1").Input("source2").Err(), ShouldBeNil)
 
 		si := NewTupleCollectorSink()
 		So(tb.AddSink("sink", si).Input("box1").Err(), ShouldBeNil)
@@ -450,15 +449,22 @@ func TestShutdownJoinDefaultStaticTopology(t *testing.T) {
 
 		t := ti.(*defaultStaticTopology)
 
+		testHelper := func() {
+			Convey("Then the topology should be stopped", func() {
+				So(t.State(ctx), ShouldEqual, TSStopped)
+			})
+
+			Convey("Then Box.Terminate should be called exactly once", func() {
+				So(tc1.terminateCnt, ShouldEqual, 1)
+			})
+		}
+
 		Convey("When generating no tuples and call stop", func() { // 1.
 			go func() {
 				t.Stop(ctx)
 			}()
 			So(t.Run(ctx), ShouldBeNil)
-
-			Convey("Then the topology should be stopped", func() {
-				So(t.State(ctx), ShouldEqual, TSStopped)
-			})
+			testHelper()
 
 			Convey("Then the sink shouldn't receive anything", func() {
 				So(si.Tuples, ShouldBeEmpty)
@@ -479,10 +485,7 @@ func TestShutdownJoinDefaultStaticTopology(t *testing.T) {
 				b1.EmitTuples(8)
 			}()
 			So(t.Run(ctx), ShouldBeNil)
-
-			Convey("Then the topology should be stopped", func() {
-				So(t.State(ctx), ShouldEqual, TSStopped)
-			})
+			testHelper()
 
 			Convey("Then the sink should receive all of generated tuples", func() {
 				So(len(si.Tuples), ShouldEqual, 4)
@@ -502,10 +505,7 @@ func TestShutdownJoinDefaultStaticTopology(t *testing.T) {
 				b1.EmitTuples(8)
 			}()
 			So(t.Run(ctx), ShouldBeNil)
-
-			Convey("Then the topology should be stopped", func() {
-				So(t.State(ctx), ShouldEqual, TSStopped)
-			})
+			testHelper()
 
 			Convey("Then the sink should receive all of generated tuples", func() {
 				So(len(si.Tuples), ShouldEqual, 3)
@@ -527,10 +527,7 @@ func TestShutdownJoinDefaultStaticTopology(t *testing.T) {
 				b1.EmitTuples(2)
 			}()
 			So(t.Run(ctx), ShouldBeNil)
-
-			Convey("Then the topology should be stopped", func() {
-				So(t.State(ctx), ShouldEqual, TSStopped)
-			})
+			testHelper()
 
 			Convey("Then the sink should receive all of those tuples", func() {
 				So(len(si.Tuples), ShouldEqual, 3)
@@ -545,10 +542,7 @@ func TestShutdownJoinDefaultStaticTopology(t *testing.T) {
 				t.Stop(ctx)
 			}()
 			So(t.Run(ctx), ShouldBeNil)
-
-			Convey("Then the topology should be stopped", func() {
-				So(t.State(ctx), ShouldEqual, TSStopped)
-			})
+			testHelper()
 
 			Convey("Then the sink should only receive those tuples", func() {
 				So(len(si.Tuples), ShouldEqual, 3)
@@ -567,10 +561,7 @@ func TestShutdownJoinDefaultStaticTopology(t *testing.T) {
 				b1.EmitTuples(8)
 			}()
 			So(t.Run(ctx), ShouldBeNil)
-
-			Convey("Then the topology should be stopped", func() {
-				So(t.State(ctx), ShouldEqual, TSStopped)
-			})
+			testHelper()
 
 			Convey("Then the sink should receive all tuples", func() {
 				So(len(si.Tuples), ShouldEqual, 8)
@@ -590,10 +581,7 @@ func TestShutdownJoinDefaultStaticTopology(t *testing.T) {
 				b1.EmitTuples(6)
 			}()
 			So(t.Run(ctx), ShouldBeNil)
-
-			Convey("Then the topology should be stopped", func() {
-				So(t.State(ctx), ShouldEqual, TSStopped)
-			})
+			testHelper()
 
 			Convey("Then the sink should receive all of those tuples", func() {
 				So(len(si.Tuples), ShouldEqual, 8)
@@ -608,10 +596,7 @@ func TestShutdownJoinDefaultStaticTopology(t *testing.T) {
 				t.Stop(ctx)
 			}()
 			So(t.Run(ctx), ShouldBeNil)
-
-			Convey("Then the topology should be stopped", func() {
-				So(t.State(ctx), ShouldEqual, TSStopped)
-			})
+			testHelper()
 
 			Convey("Then the sink should receive all tuples", func() {
 				So(len(si.Tuples), ShouldEqual, 8)
