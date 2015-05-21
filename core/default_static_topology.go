@@ -73,7 +73,7 @@ func (t *defaultStaticTopology) Run(ctx *Context) error {
 				func() {
 					defer func() {
 						if e := recover(); e != nil {
-							ctx.Logger.Log(Error, "Termination of box %v failed by panic: %v", n, err)
+							ctx.Logger.Log(Error, "Termination of box %v failed by panic: %v", n, e)
 						}
 					}()
 					if err := t.boxes[n].Terminate(ctx); err != nil {
@@ -240,13 +240,24 @@ func (t *defaultStaticTopology) Stop(ctx *Context) error {
 
 	var stopFailures []string
 	for name, src := range t.srcs {
-		if err := src.Stop(ctx); err != nil {
-			ctx.Logger.Log(Error, "Cannot stop source %v: ", name, err)
+		errHandler := func() {
 			stopFailures = append(stopFailures, name)
 			if err := t.closeDestination(ctx, name); err != nil {
 				ctx.Logger.Log(Error, "Cannot close the source %v's destination: %v", name, err)
 			}
 		}
+		func() {
+			defer func() {
+				if e := recover(); e != nil {
+					ctx.Logger.Log(Error, "Cannot stop source %v due to panic: %v", name, err)
+					errHandler()
+				}
+			}()
+			if err := src.Stop(ctx); err != nil {
+				ctx.Logger.Log(Error, "Cannot stop source %v: %v", name, err)
+				errHandler()
+			}
+		}()
 	}
 
 	// TODO: There might be some WriteClosers which still haven't been closed
@@ -256,12 +267,15 @@ func (t *defaultStaticTopology) Stop(ctx *Context) error {
 	// Once all sources are stopped, the stream will eventually stop.
 	t.stateMutex.Lock()
 	defer t.stateMutex.Unlock()
-	_, err = t.wait(TSStopped)
-
 	if err == nil && len(stopFailures) > 0 {
+		// If some sources couldn't be stopped, t.wait(TSStopped) would block forever.
+		// So, the state must be set TSStopped here although Run is still running,
+		t.state = TSStopped
+		t.stateCond.Broadcast()
 		return fmt.Errorf("%v sources couldn't be stopped but the topology has stopped: failed sources = %v",
 			len(stopFailures), strings.Join(stopFailures, ", "))
 	}
+	_, err = t.wait(TSStopped)
 	return err
 }
 
