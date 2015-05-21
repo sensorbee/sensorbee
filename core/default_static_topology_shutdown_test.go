@@ -3,6 +3,7 @@ package core
 import (
 	. "github.com/smartystreets/goconvey/convey"
 	"pfi/sensorbee/sensorbee/core/tuple"
+	"sync"
 	"testing"
 )
 
@@ -34,18 +35,33 @@ func freshTuples() []*tuple.Tuple {
 type terminateChecker struct {
 	ProxyBox
 
+	m            sync.Mutex
+	c            *sync.Cond
 	terminateCnt int
 }
 
 func NewTerminateChecker(b Box) *terminateChecker {
-	return &terminateChecker{
+	t := &terminateChecker{
 		ProxyBox: ProxyBox{b: b},
 	}
+	t.c = sync.NewCond(&t.m)
+	return t
 }
 
 func (t *terminateChecker) Terminate(ctx *Context) error {
+	t.m.Lock()
 	t.terminateCnt++
+	t.c.Broadcast()
+	t.m.Unlock()
 	return t.ProxyBox.Terminate(ctx)
+}
+
+func (t *terminateChecker) WaitForTermination() {
+	t.m.Lock()
+	defer t.m.Unlock()
+	for t.terminateCnt == 0 {
+		t.c.Wait()
+	}
 }
 
 // On one topology, there're some patterns to be tested.
