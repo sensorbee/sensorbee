@@ -99,8 +99,18 @@ type TupleEmitterSource struct {
 	state int
 }
 
-func (s *TupleEmitterSource) GenerateStream(ctx *Context, w Writer) error {
+func NewTupleEmitterSource(ts []*tuple.Tuple) *TupleEmitterSource {
+	s := &TupleEmitterSource{
+		Tuples: ts,
+	}
 	s.c = sync.NewCond(&s.m)
+	return s
+}
+
+func (s *TupleEmitterSource) GenerateStream(ctx *Context, w Writer) error {
+	if s.c == nil {
+		s.c = sync.NewCond(&s.m)
+	}
 	for _, t := range s.Tuples {
 		s.m.Lock()
 		if s.state > 0 {
@@ -113,6 +123,10 @@ func (s *TupleEmitterSource) GenerateStream(ctx *Context, w Writer) error {
 
 		w.Write(ctx, t)
 	}
+	s.m.Lock()
+	defer s.m.Unlock()
+	s.state = 2
+	s.c.Broadcast()
 	return nil
 }
 func (s *TupleEmitterSource) Stop(ctx *Context) error {
@@ -122,6 +136,7 @@ func (s *TupleEmitterSource) Stop(ctx *Context) error {
 		return nil
 	}
 	s.state = 1
+	s.c.Broadcast()
 	for s.state < 2 {
 		s.c.Wait()
 	}

@@ -52,6 +52,7 @@ func (t *defaultStaticTopology) Run(ctx *Context) error {
 			return fmt.Errorf("the static topology has already started")
 		}
 		t.state = TSStarting
+		t.stateCond.Broadcast()
 		return nil
 	}
 	if err := checkState(); err != nil {
@@ -64,10 +65,25 @@ func (t *defaultStaticTopology) Run(ctx *Context) error {
 	defer t.setState(TSStopped)
 
 	// Initialize boxes in advance.
-	for _, box := range t.boxes {
+	var inited []string
+	for n, box := range t.boxes {
 		if err := box.Init(ctx); err != nil {
+			// Terminate all Boxes initialized so far.
+			for _, n := range inited {
+				func() {
+					defer func() {
+						if e := recover(); e != nil {
+							ctx.Logger.Log(Error, "Termination of box %v failed by panic: %v", n, err)
+						}
+					}()
+					if err := t.boxes[n].Terminate(ctx); err != nil {
+						ctx.Logger.Log(Error, "Termination of box %v failed: %v", n, err)
+					}
+				}()
+			}
 			return err
 		}
+		inited = append(inited, n)
 	}
 	return t.run(ctx)
 }
