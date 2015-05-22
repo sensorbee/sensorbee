@@ -70,10 +70,11 @@ type Box interface {
 	// determine the shape of data that will be created by this Box.
 	// Since this output may vary depending on the data that is
 	// received, a list of the schemas of the input streams is
-	// passed as a parameter. Return a nil pointer to signal that
-	// there are no guarantees about the shape of the returned data
-	// given.
-	OutputSchema([]*Schema) (*Schema, error)
+	// passed as a parameter. Each schema in the argument is tied
+	// to the name of the input defined in BoxInputConstraints.
+	// Return a nil pointer to signal that there are no guarantees
+	// about the shape of the returned data given.
+	OutputSchema(map[string]*Schema) (*Schema, error)
 
 	// Terminate finalizes a Box. The Box can no longer be used after
 	// this method is called. This method doesn't have to be idempotent,
@@ -117,7 +118,7 @@ func (b *boxFunc) InputConstraints() (*BoxInputConstraints, error) {
 	return nil, nil
 }
 
-func (b *boxFunc) OutputSchema(s []*Schema) (*Schema, error) {
+func (b *boxFunc) OutputSchema(s map[string]*Schema) (*Schema, error) {
 	return nil, nil
 }
 

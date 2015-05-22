@@ -523,7 +523,7 @@ func (b *CollectorBox) InputConstraints() (*BoxInputConstraints, error) {
 	}
 	return nil, nil
 }
-func (b *CollectorBox) OutputSchema(s []*Schema) (*Schema, error) {
+func (b *CollectorBox) OutputSchema(s map[string]*Schema) (*Schema, error) {
 	return nil, nil
 }
 func (b *CollectorBox) Terminate(ctx *Context) error {
@@ -614,7 +614,7 @@ func (b *SimpleJoinBox) InputConstraints() (*BoxInputConstraints, error) {
 	return &BoxInputConstraints{b.inputSchema}, nil
 }
 
-func (b *SimpleJoinBox) OutputSchema(s []*Schema) (*Schema, error) {
+func (b *SimpleJoinBox) OutputSchema(s map[string]*Schema) (*Schema, error) {
 	return nil, nil
 }
 
