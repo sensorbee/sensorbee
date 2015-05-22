@@ -66,7 +66,7 @@ func (t *defaultStaticTopology) Run(ctx *Context) error {
 
 	// Initialize boxes in advance.
 	var inited []string
-	for n, box := range t.boxes {
+	for name, box := range t.boxes {
 		if err := box.Init(ctx); err != nil {
 			// Terminate all Boxes initialized so far.
 			for _, n := range inited {
@@ -83,7 +83,7 @@ func (t *defaultStaticTopology) Run(ctx *Context) error {
 			}
 			return err
 		}
-		inited = append(inited, n)
+		inited = append(inited, name)
 	}
 	return t.run(ctx)
 }
