@@ -39,9 +39,7 @@ type BoxInputConstraints struct {
 type Box interface {
 	// Init is called on each Box in a Topology when StaticTopology.Run()
 	// is executed. It can be used to keep a reference to the Context
-	// object or initialize other forms of state. It is called only
-	// once, even if the same object is used in multiple places of
-	// the topology.
+	// object or initialize other forms of state.
 	Init(ctx *Context) error
 
 	// Process is called on a Box for each item in the input stream.
@@ -79,7 +77,7 @@ type Box interface {
 	// Terminate finalizes a Box. The Box can no longer be used after
 	// this method is called. This method doesn't have to be idempotent,
 	// that is the behavior is undefined when this method is called
-	// more than once.
+	// more than once. Terminate isn't called if Init fails on the Box.
 	//
 	// As long as the Box is used by components in core package, no method
 	// will be called after the invocation of Terminate method. In addition,
