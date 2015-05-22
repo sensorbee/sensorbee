@@ -6,8 +6,8 @@ import (
 )
 
 func TestAssembleFilter(t *testing.T) {
-	Convey("Given a ParseStack", t, func() {
-		ps := ParseStack{}
+	Convey("Given a parseStack", t, func() {
+		ps := parseStack{}
 
 		Convey("When the stack contains one item in the given range", func() {
 			ps.PushComponent(0, 6, Raw{"PRE"})
@@ -78,7 +78,7 @@ func TestAssembleFilter(t *testing.T) {
 				So(err, ShouldEqual, nil)
 				p.Execute()
 
-				ps := p.ParseStack
+				ps := p.parseStack
 				So(ps.Len(), ShouldEqual, 1)
 				top := ps.Peek().comp
 				So(top, ShouldHaveSameTypeAs, SelectStmt{})
@@ -96,7 +96,7 @@ func TestAssembleFilter(t *testing.T) {
 				So(err, ShouldEqual, nil)
 				p.Execute()
 
-				ps := p.ParseStack
+				ps := p.parseStack
 				So(ps.Len(), ShouldEqual, 1)
 				top := ps.Peek().comp
 				So(top, ShouldHaveSameTypeAs, SelectStmt{})

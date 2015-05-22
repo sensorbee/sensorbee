@@ -5,9 +5,9 @@ import (
 	"testing"
 )
 
-func TestParseStack(t *testing.T) {
-	Convey("Given a ParseStack", t, func() {
-		ps := ParseStack{}
+func TestparseStack(t *testing.T) {
+	Convey("Given a parseStack", t, func() {
+		ps := parseStack{}
 		Convey("When the stack is empty", func() {
 			Convey("And we push a component", func() {
 				ps.PushComponent(1, 2, Raw{"a"})

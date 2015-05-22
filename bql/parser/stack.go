@@ -4,9 +4,9 @@ import (
 	"fmt"
 )
 
-// ParseStack is a standard stack implementation, but also holds
+// parseStack is a standard stack implementation, but also holds
 // methods for transforming the top k elements into a new element.
-type ParseStack struct {
+type parseStack struct {
 	top  *stackElement
 	size int
 }
@@ -32,19 +32,19 @@ type ParsedComponent struct {
 }
 
 // Len return the stack's size.
-func (ps *ParseStack) Len() int {
+func (ps *parseStack) Len() int {
 	return ps.size
 }
 
 // Push pushes a new element onto the stack.
-func (ps *ParseStack) Push(value *ParsedComponent) {
+func (ps *parseStack) Push(value *ParsedComponent) {
 	ps.top = &stackElement{value, ps.top}
 	ps.size++
 }
 
 // Pop removes the top element from the stack and returns its value.
 // If the stack is empty, returns nil.
-func (ps *ParseStack) Pop() (value *ParsedComponent) {
+func (ps *parseStack) Pop() (value *ParsedComponent) {
 	if ps.size > 0 {
 		value, ps.top = ps.top.value, ps.top.next
 		ps.size--
@@ -55,7 +55,7 @@ func (ps *ParseStack) Pop() (value *ParsedComponent) {
 
 // Peek returns the top element from the stack but doesn't remove it.
 // If the stack is empty, returns nil.
-func (ps *ParseStack) Peek() (value *ParsedComponent) {
+func (ps *parseStack) Peek() (value *ParsedComponent) {
 	if ps.size > 0 {
 		return ps.top.value
 	}
@@ -73,7 +73,7 @@ func (ps *ParseStack) Peek() (value *ParsedComponent) {
 //  Projections
 //   =>
 //  SelectStmt{Projections, From, Filter, Grouping, Having}
-func (ps *ParseStack) AssembleSelect() {
+func (ps *parseStack) AssembleSelect() {
 	// pop the components from the stack in reverse order
 	_having, _grouping, _filter, _from, _projections := ps.pop5()
 
@@ -104,7 +104,7 @@ func (ps *ParseStack) AssembleSelect() {
 //   =>
 //  CreateStreamStmt{Relation, EmitProjections, WindowedFrom, Filter,
 //    Grouping, Having}
-func (ps *ParseStack) AssembleCreateStream() {
+func (ps *parseStack) AssembleCreateStream() {
 	// pop the components from the stack in reverse order
 	_having, _grouping, _filter, _from, _projections, _rel := ps.pop6()
 
@@ -133,7 +133,7 @@ func (ps *ParseStack) AssembleCreateStream() {
 //  Emitter
 //   =>
 //  EmitProjections{Emitter, Projections}
-func (ps *ParseStack) AssembleEmitProjections() {
+func (ps *parseStack) AssembleEmitProjections() {
 	// pop the components from the stack in reverse order
 	_projections, _emitter := ps.pop2()
 
@@ -155,7 +155,7 @@ func (ps *ParseStack) AssembleEmitProjections() {
 //  Any
 //   =>
 //  Projections{[Any, Any, Any]}
-func (ps *ParseStack) AssembleProjections(begin int, end int) {
+func (ps *parseStack) AssembleProjections(begin int, end int) {
 	elems := ps.collectElements(begin, end)
 	// push the grouped list back
 	ps.PushComponent(begin, end, Projections{elems})
@@ -173,7 +173,7 @@ func (ps *ParseStack) AssembleProjections(begin int, end int) {
 //  Relation
 //   =>
 //  WindowedFrom{From, Range}
-func (ps *ParseStack) AssembleWindowedFrom(begin int, end int) {
+func (ps *parseStack) AssembleWindowedFrom(begin int, end int) {
 	if begin == end {
 		// push an empty FROM clause
 		ps.PushComponent(begin, end, WindowedFrom{})
@@ -208,7 +208,7 @@ func (ps *ParseStack) AssembleWindowedFrom(begin int, end int) {
 //  Raw
 //   =>
 //  Range{Raw, RangeUnit}
-func (ps *ParseStack) AssembleRange() {
+func (ps *parseStack) AssembleRange() {
 	// pop the components from the stack in reverse order
 	_unit, _num := ps.pop2()
 
@@ -232,7 +232,7 @@ func (ps *ParseStack) AssembleRange() {
 //  Relation
 //   =>
 //  From{[Relation, Relation, Relation]}
-func (ps *ParseStack) AssembleFrom(begin int, end int) {
+func (ps *parseStack) AssembleFrom(begin int, end int) {
 	if begin == end {
 		// push an empty from clause
 		ps.PushComponent(begin, end, From{})
@@ -259,7 +259,7 @@ func (ps *ParseStack) AssembleFrom(begin int, end int) {
 //  Any
 //   =>
 //  Filter{Any}
-func (ps *ParseStack) AssembleFilter(begin int, end int) {
+func (ps *parseStack) AssembleFilter(begin int, end int) {
 	if begin == end {
 		// push an empty from clause
 		ps.PushComponent(begin, end, Filter{})
@@ -286,7 +286,7 @@ func (ps *ParseStack) AssembleFilter(begin int, end int) {
 //  Any
 //   =>
 //  Grouping{[Any, Any, Any]}
-func (ps *ParseStack) AssembleGrouping(begin int, end int) {
+func (ps *parseStack) AssembleGrouping(begin int, end int) {
 	elems := ps.collectElements(begin, end)
 	// push the grouped list back
 	ps.PushComponent(begin, end, Grouping{elems})
@@ -302,7 +302,7 @@ func (ps *ParseStack) AssembleGrouping(begin int, end int) {
 //  Any
 //   =>
 //  Having{Any}
-func (ps *ParseStack) AssembleHaving(begin int, end int) {
+func (ps *parseStack) AssembleHaving(begin int, end int) {
 	if begin == end {
 		// push an empty from clause
 		ps.PushComponent(begin, end, Having{})
@@ -328,7 +328,7 @@ func (ps *ParseStack) AssembleHaving(begin int, end int) {
 //  Any
 //   =>
 //  BinaryOp{op, Any, Any}
-func (ps *ParseStack) AssembleBinaryOperation(begin int, end int, op string) {
+func (ps *parseStack) AssembleBinaryOperation(begin int, end int, op string) {
 	elems := ps.collectElements(begin, end)
 	if len(elems) == 1 {
 		// there is no "binary" operation, push back the single element
@@ -345,7 +345,7 @@ func (ps *ParseStack) AssembleBinaryOperation(begin int, end int, op string) {
 // wrapped in a ParsedComponent struct. It's the caller's responsibility
 // to make sure that the parameter is one of the AST classes, or there
 // will almost surely be a panic at a later point in the parsing process.
-func (ps *ParseStack) PushComponent(begin int, end int, comp interface{}) {
+func (ps *parseStack) PushComponent(begin int, end int, comp interface{}) {
 	if begin > end {
 		panic("begin must be less or equal to end")
 	}
@@ -361,7 +361,7 @@ func (ps *ParseStack) PushComponent(begin int, end int, comp interface{}) {
 // collectElements pops all elements with begin/end contained in
 // the parameter range from the stack, reverses their order and
 // returns them.
-func (ps *ParseStack) collectElements(begin int, end int) []interface{} {
+func (ps *parseStack) collectElements(begin int, end int) []interface{} {
 	elems := []interface{}{}
 	// look at elements on the stack as long as there are some and
 	// they are contained in our interval
@@ -380,14 +380,14 @@ func (ps *ParseStack) collectElements(begin int, end int) []interface{} {
 	return elems
 }
 
-func (ps *ParseStack) pop2() (*ParsedComponent, *ParsedComponent) {
+func (ps *parseStack) pop2() (*ParsedComponent, *ParsedComponent) {
 	if ps.Len() < 2 {
 		panic("not enough elements on stack to pop 2 of them")
 	}
 	return ps.Pop(), ps.Pop()
 }
 
-func (ps *ParseStack) pop3() (*ParsedComponent, *ParsedComponent,
+func (ps *parseStack) pop3() (*ParsedComponent, *ParsedComponent,
 	*ParsedComponent) {
 	if ps.Len() < 3 {
 		panic("not enough elements on stack to pop 3 of them")
@@ -395,7 +395,7 @@ func (ps *ParseStack) pop3() (*ParsedComponent, *ParsedComponent,
 	return ps.Pop(), ps.Pop(), ps.Pop()
 }
 
-func (ps *ParseStack) pop4() (*ParsedComponent, *ParsedComponent,
+func (ps *parseStack) pop4() (*ParsedComponent, *ParsedComponent,
 	*ParsedComponent, *ParsedComponent) {
 	if ps.Len() < 4 {
 		panic("not enough elements on stack to pop 4 of them")
@@ -403,7 +403,7 @@ func (ps *ParseStack) pop4() (*ParsedComponent, *ParsedComponent,
 	return ps.Pop(), ps.Pop(), ps.Pop(), ps.Pop()
 }
 
-func (ps *ParseStack) pop5() (*ParsedComponent, *ParsedComponent,
+func (ps *parseStack) pop5() (*ParsedComponent, *ParsedComponent,
 	*ParsedComponent, *ParsedComponent, *ParsedComponent) {
 	if ps.Len() < 5 {
 		panic("not enough elements on stack to pop 5 of them")
@@ -411,7 +411,7 @@ func (ps *ParseStack) pop5() (*ParsedComponent, *ParsedComponent,
 	return ps.Pop(), ps.Pop(), ps.Pop(), ps.Pop(), ps.Pop()
 }
 
-func (ps *ParseStack) pop6() (*ParsedComponent, *ParsedComponent,
+func (ps *parseStack) pop6() (*ParsedComponent, *ParsedComponent,
 	*ParsedComponent, *ParsedComponent, *ParsedComponent, *ParsedComponent) {
 	if ps.Len() < 6 {
 		panic("not enough elements on stack to pop 6 of them")
@@ -419,7 +419,7 @@ func (ps *ParseStack) pop6() (*ParsedComponent, *ParsedComponent,
 	return ps.Pop(), ps.Pop(), ps.Pop(), ps.Pop(), ps.Pop(), ps.Pop()
 }
 
-func (ps *ParseStack) pop7() (*ParsedComponent, *ParsedComponent,
+func (ps *parseStack) pop7() (*ParsedComponent, *ParsedComponent,
 	*ParsedComponent, *ParsedComponent, *ParsedComponent, *ParsedComponent,
 	*ParsedComponent) {
 	if ps.Len() < 7 {
@@ -428,7 +428,7 @@ func (ps *ParseStack) pop7() (*ParsedComponent, *ParsedComponent,
 	return ps.Pop(), ps.Pop(), ps.Pop(), ps.Pop(), ps.Pop(), ps.Pop(), ps.Pop()
 }
 
-func (ps *ParseStack) pop8() (*ParsedComponent, *ParsedComponent,
+func (ps *parseStack) pop8() (*ParsedComponent, *ParsedComponent,
 	*ParsedComponent, *ParsedComponent, *ParsedComponent, *ParsedComponent,
 	*ParsedComponent, *ParsedComponent) {
 	if ps.Len() < 8 {

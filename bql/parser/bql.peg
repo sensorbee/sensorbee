@@ -5,7 +5,7 @@
 package parser
 
 type Bql Peg {
-    ParseStack
+    parseStack
 }
 
 # below come the rules, in curly braces the action

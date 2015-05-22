@@ -6,8 +6,8 @@ import (
 )
 
 func TestAssembleCreateStream(t *testing.T) {
-	Convey("Given a ParseStack", t, func() {
-		ps := ParseStack{}
+	Convey("Given a parseStack", t, func() {
+		ps := parseStack{}
 		Convey("When the stack contains the correct CREATE STREAM items", func() {
 			ps.PushComponent(2, 4, Relation{"x"})
 			ps.PushComponent(4, 6, Istream)
@@ -109,7 +109,7 @@ func TestAssembleCreateStream(t *testing.T) {
 				So(err, ShouldEqual, nil)
 				p.Execute()
 
-				ps := p.ParseStack
+				ps := p.parseStack
 				So(ps.Len(), ShouldEqual, 1)
 				top := ps.Peek().comp
 				So(top, ShouldHaveSameTypeAs, CreateStreamStmt{})
