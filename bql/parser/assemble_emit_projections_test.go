@@ -11,7 +11,7 @@ func TestAssembleEmitProjections(t *testing.T) {
 
 		Convey("When the stack contains two correct items", func() {
 			ps.PushComponent(0, 4, Raw{"PRE"})
-			ps.PushComponent(4, 6, Emitter{"ISTREAM"})
+			ps.PushComponent(4, 6, Istream)
 			ps.PushComponent(6, 8, Projections{[]interface{}{ColumnName{"a"},
 				ColumnName{"b"}}})
 			ps.AssembleEmitProjections()
@@ -28,7 +28,7 @@ func TestAssembleEmitProjections(t *testing.T) {
 
 					Convey("And it contains the previously pushed data", func() {
 						comp := top.comp.(EmitProjections)
-						So(comp.emitterType, ShouldEqual, "ISTREAM")
+						So(comp.emitterType, ShouldEqual, Istream)
 						So(len(comp.projections), ShouldEqual, 2)
 						So(comp.projections[0], ShouldResemble, ColumnName{"a"})
 						So(comp.projections[1], ShouldResemble, ColumnName{"b"})
@@ -69,7 +69,7 @@ func TestAssembleEmitProjections(t *testing.T) {
 				top := ps.Peek().comp
 				So(top, ShouldHaveSameTypeAs, CreateStreamStmt{})
 				s := top.(CreateStreamStmt)
-				So(s.emitterType, ShouldEqual, "ISTREAM")
+				So(s.emitterType, ShouldEqual, Istream)
 				So(len(s.projections), ShouldEqual, 2)
 				So(s.projections[0], ShouldResemble, ColumnName{"a"})
 				So(s.projections[1], ShouldResemble, ColumnName{"b"})

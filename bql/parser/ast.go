@@ -25,7 +25,7 @@ type CreateStreamStmt struct {
 }
 
 type EmitProjections struct {
-	Emitter
+	emitterType Emitter
 	Projections
 }
 
@@ -95,13 +95,13 @@ func NewRaw(s string) Raw {
 	return Raw{s}
 }
 
-type Emitter struct {
-	emitterType string
-}
+type Emitter int
 
-func NewEmitter(s string) Emitter {
-	return Emitter{s}
-}
+const (
+	Istream Emitter = iota
+	Dstream
+	Rstream
+)
 
 type RangeUnit int
 
