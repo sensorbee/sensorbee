@@ -18,17 +18,17 @@ func TestAssembleRange(t *testing.T) {
 			Convey("Then AssembleRange replaces them with a new item", func() {
 				So(ps.Len(), ShouldEqual, 2)
 
-				Convey("And that item is a Range", func() {
+				Convey("And that item is a RangeAST", func() {
 					top := ps.Peek()
 					So(top, ShouldNotBeNil)
 					So(top.begin, ShouldEqual, 6)
 					So(top.end, ShouldEqual, 8)
-					So(top.comp, ShouldHaveSameTypeAs, Range{})
+					So(top.comp, ShouldHaveSameTypeAs, RangeAST{})
 
 					Convey("And it contains the previous data", func() {
-						comp := top.comp.(Range)
-						So(comp.expr, ShouldEqual, "2")
-						So(comp.unit, ShouldEqual, Seconds)
+						comp := top.comp.(RangeAST)
+						So(comp.Expr, ShouldEqual, "2")
+						So(comp.Unit, ShouldEqual, Seconds)
 					})
 				})
 			})

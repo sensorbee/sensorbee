@@ -66,24 +66,24 @@ func (ps *parseStack) Peek() (value *ParsedComponent) {
 // they are components of a SELECT statement, and replaces them by
 // a single SelectStmt element.
 //
-//  Having
-//  Grouping
-//  Filter
-//  From
-//  Projections
+//  HavingAST
+//  GroupingAST
+//  FilterAST
+//  FromAST
+//  ProjectionsAST
 //   =>
-//  SelectStmt{Projections, From, Filter, Grouping, Having}
+//  SelectStmt{ProjectionsAST, FromAST, FilterAST, GroupingAST, HavingAST}
 func (ps *parseStack) AssembleSelect() {
 	// pop the components from the stack in reverse order
 	_having, _grouping, _filter, _from, _projections := ps.pop5()
 
 	// extract and convert the contained structure
 	// (if this fails, this is a fundamental parser bug => panic ok)
-	having := _having.comp.(Having)
-	grouping := _grouping.comp.(Grouping)
-	filter := _filter.comp.(Filter)
-	from := _from.comp.(From)
-	projections := _projections.comp.(Projections)
+	having := _having.comp.(HavingAST)
+	grouping := _grouping.comp.(GroupingAST)
+	filter := _filter.comp.(FilterAST)
+	from := _from.comp.(FromAST)
+	projections := _projections.comp.(ProjectionsAST)
 
 	// assemble the SelectStmt and push it back
 	s := SelectStmt{projections, from, filter, grouping, having}
@@ -95,26 +95,26 @@ func (ps *parseStack) AssembleSelect() {
 // assuming they are components of a CREATE STREAM statement, and
 // replaces them by a single CreateStreamStmt element.
 //
-//  Having
-//  Grouping
-//  Filter
-//  WindowedFrom
-//  EmitProjections
+//  HavingAST
+//  GroupingAST
+//  FilterAST
+//  WindowedFromAST
+//  EmitProjectionsAST
 //  Relation
 //   =>
-//  CreateStreamStmt{Relation, EmitProjections, WindowedFrom, Filter,
-//    Grouping, Having}
+//  CreateStreamStmt{Relation, EmitProjectionsAST, WindowedFromAST, FilterAST,
+//    GroupingAST, HavingAST}
 func (ps *parseStack) AssembleCreateStream() {
 	// pop the components from the stack in reverse order
 	_having, _grouping, _filter, _from, _projections, _rel := ps.pop6()
 
 	// extract and convert the contained structure
 	// (if this fails, this is a fundamental parser bug => panic ok)
-	having := _having.comp.(Having)
-	grouping := _grouping.comp.(Grouping)
-	filter := _filter.comp.(Filter)
-	from := _from.comp.(WindowedFrom)
-	projections := _projections.comp.(EmitProjections)
+	having := _having.comp.(HavingAST)
+	grouping := _grouping.comp.(GroupingAST)
+	filter := _filter.comp.(FilterAST)
+	from := _from.comp.(WindowedFromAST)
+	projections := _projections.comp.(EmitProjectionsAST)
 	rel := _rel.comp.(Relation)
 
 	// assemble the SelectStmt and push it back
@@ -127,87 +127,87 @@ func (ps *parseStack) AssembleCreateStream() {
 
 // AssembleEmitProjections takes the topmost elements from the
 // stack, assuming they are part of a SELECT clause in a CREATE STREAM
-// statement and replaces them by a single EmitProjections element.
+// statement and replaces them by a single EmitProjectionsAST element.
 //
-//  Projections
+//  ProjectionsAST
 //  Emitter
 //   =>
-//  EmitProjections{Emitter, Projections}
+//  EmitProjectionsAST{Emitter, ProjectionsAST}
 func (ps *parseStack) AssembleEmitProjections() {
 	// pop the components from the stack in reverse order
 	_projections, _emitter := ps.pop2()
 
 	// extract and convert the contained structure
-	projections := _projections.comp.(Projections)
+	projections := _projections.comp.(ProjectionsAST)
 	emitter := _emitter.comp.(Emitter)
 
-	// assemble the EmitProjections and push it back
-	ep := EmitProjections{emitter, projections}
+	// assemble the EmitProjectionsAST and push it back
+	ep := EmitProjectionsAST{emitter, projections}
 	ps.PushComponent(_emitter.begin, _projections.end, ep)
 }
 
 // AssembleProjections takes the elements from the stack that
 // correspond to the input[begin:end] string and wraps a
-// Projections struct around them.
+// ProjectionsAST struct around them.
 //
 //  Any
 //  Any
 //  Any
 //   =>
-//  Projections{[Any, Any, Any]}
+//  ProjectionsAST{[Any, Any, Any]}
 func (ps *parseStack) AssembleProjections(begin int, end int) {
 	elems := ps.collectElements(begin, end)
 	// push the grouped list back
-	ps.PushComponent(begin, end, Projections{elems})
+	ps.PushComponent(begin, end, ProjectionsAST{elems})
 }
 
 /* FROM clause */
 
 // AssembleWindowedFrom assumes that the string input[begin:end]
-// holds a number of Relation elements followed by a Range, pops all
-// of them and turns them into a WindowedFrom.
+// holds a number of Relation elements followed by a RangeAST, pops all
+// of them and turns them into a WindowedFromAST.
 //
-//  Range
+//  RangeAST
 //  Relation
 //  Relation
 //  Relation
 //   =>
-//  WindowedFrom{From, Range}
+//  WindowedFromAST{FromAST, RangeAST}
 func (ps *parseStack) AssembleWindowedFrom(begin int, end int) {
 	if begin == end {
 		// push an empty FROM clause
-		ps.PushComponent(begin, end, WindowedFrom{})
+		ps.PushComponent(begin, end, WindowedFromAST{})
 	} else {
 		elems := ps.collectElements(begin, end)
 		numElems := len(elems)
 		if numElems == 0 {
-			ps.PushComponent(begin, end, WindowedFrom{})
+			ps.PushComponent(begin, end, WindowedFromAST{})
 		} else {
-			// convert the last item to a Range (if this does
+			// convert the last item to a RangeAST (if this does
 			// not work, it is a fundamental parser bug)
-			rangeClause := elems[numElems-1].(Range)
-			// convert the rest to Relations
+			rangeClause := elems[numElems-1].(RangeAST)
+			// convert the rest to Relation structs
 			rels := make([]Relation, numElems-1, numElems-1)
 			for i, elem := range elems[:numElems-1] {
 				// (if this conversion fails, this is a fundamental parser bug)
 				e := elem.(Relation)
 				rels[i] = e
 			}
-			// push the grouped list wrapped in a From and the Range
+			// push the grouped list wrapped in a FromAST and the RangeAST
 			// struct back to the stack
-			ps.PushComponent(begin, end, WindowedFrom{From{rels}, rangeClause})
+			ps.PushComponent(begin, end, WindowedFromAST{FromAST{rels}, rangeClause})
 		}
 	}
 }
 
 // AssembleRange takes the topmost elements from the stack, assuming
 // they are components of a RANGE clause, and replaces them by
-// a single Range element.
+// a single RangeAST element.
 //
 //  RangeUnit
 //  Raw
 //   =>
-//  Range{Raw, RangeUnit}
+//  RangeAST{Raw, RangeUnit}
 func (ps *parseStack) AssembleRange() {
 	// pop the components from the stack in reverse order
 	_unit, _num := ps.pop2()
@@ -217,25 +217,25 @@ func (ps *parseStack) AssembleRange() {
 	unit := _unit.comp.(RangeUnit)
 	num := _num.comp.(Raw)
 
-	// assemble the Range and push it back
-	ps.PushComponent(_num.begin, _unit.end, Range{num, unit})
+	// assemble the RangeAST and push it back
+	ps.PushComponent(_num.begin, _unit.end, RangeAST{num, unit})
 }
 
 // AssembleFrom takes the elements from the stack that
 // correspond to the input[begin:end] string, makes sure
-// they are all Relation elements and wraps a From struct
+// they are all Relation elements and wraps a FromAST struct
 // around them. If there are no such elements, adds an
-// empty From struct to the stack.
+// empty FromAST struct to the stack.
 //
 //  Relation
 //  Relation
 //  Relation
 //   =>
-//  From{[Relation, Relation, Relation]}
+//  FromAST{[Relation, Relation, Relation]}
 func (ps *parseStack) AssembleFrom(begin int, end int) {
 	if begin == end {
 		// push an empty from clause
-		ps.PushComponent(begin, end, From{})
+		ps.PushComponent(begin, end, FromAST{})
 	} else {
 		elems := ps.collectElements(begin, end)
 		rels := make([]Relation, len(elems), len(elems))
@@ -245,24 +245,24 @@ func (ps *parseStack) AssembleFrom(begin int, end int) {
 			rels[i] = e
 		}
 		// push the grouped list back
-		ps.PushComponent(begin, end, From{rels})
+		ps.PushComponent(begin, end, FromAST{rels})
 	}
 }
 
 /* WHERE clause */
 
 // AssembleFilter takes the expression on top of the stack
-// (if there is a WHERE clause) and wraps a Filter struct
-// around it. If there is no WHERE clause, an empty Filter
+// (if there is a WHERE clause) and wraps a FilterAST struct
+// around it. If there is no WHERE clause, an empty FilterAST
 // struct is used.
 //
 //  Any
 //   =>
-//  Filter{Any}
+//  FilterAST{Any}
 func (ps *parseStack) AssembleFilter(begin int, end int) {
 	if begin == end {
 		// push an empty from clause
-		ps.PushComponent(begin, end, Filter{})
+		ps.PushComponent(begin, end, FilterAST{})
 	} else {
 		// if the stack is empty at this point, this is
 		// a serious parser bug
@@ -270,7 +270,7 @@ func (ps *parseStack) AssembleFilter(begin int, end int) {
 		if begin > f.begin || end < f.end {
 			panic("the item on top of the stack is not within given range")
 		}
-		ps.PushComponent(begin, end, Filter{f.comp})
+		ps.PushComponent(begin, end, FilterAST{f.comp})
 	}
 }
 
@@ -278,34 +278,34 @@ func (ps *parseStack) AssembleFilter(begin int, end int) {
 
 // AssembleGrouping takes the elements from the stack that
 // correspond to the input[begin:end] string and wraps a
-// Grouping struct around them. If there are no such elements,
-// adds an empty Grouping struct to the stack.
+// GroupingAST struct around them. If there are no such elements,
+// adds an empty GroupingAST struct to the stack.
 //
 //  Any
 //  Any
 //  Any
 //   =>
-//  Grouping{[Any, Any, Any]}
+//  GroupingAST{[Any, Any, Any]}
 func (ps *parseStack) AssembleGrouping(begin int, end int) {
 	elems := ps.collectElements(begin, end)
 	// push the grouped list back
-	ps.PushComponent(begin, end, Grouping{elems})
+	ps.PushComponent(begin, end, GroupingAST{elems})
 }
 
 /* HAVING clause */
 
 // AssembleHaving takes the expression on top of the stack
-// (if there is a HAVING clause) and wraps a Having struct
-// around it. If there is no HAVING clause, an empty Having
+// (if there is a HAVING clause) and wraps a HavingAST struct
+// around it. If there is no HAVING clause, an empty HavingAST
 // struct is used.
 //
 //  Any
 //   =>
-//  Having{Any}
+//  HavingAST{Any}
 func (ps *parseStack) AssembleHaving(begin int, end int) {
 	if begin == end {
 		// push an empty from clause
-		ps.PushComponent(begin, end, Having{})
+		ps.PushComponent(begin, end, HavingAST{})
 	} else {
 		// if the stack is empty at this point, this is
 		// a serious parser bug
@@ -313,7 +313,7 @@ func (ps *parseStack) AssembleHaving(begin int, end int) {
 		if begin > h.begin || end < h.end {
 			panic("the item on top of the stack is not within given range")
 		}
-		ps.PushComponent(begin, end, Having{h.comp})
+		ps.PushComponent(begin, end, HavingAST{h.comp})
 	}
 }
 
@@ -327,7 +327,7 @@ func (ps *parseStack) AssembleHaving(begin int, end int) {
 //  Any
 //  Any
 //   =>
-//  BinaryOp{op, Any, Any}
+//  BinaryOpAST{op, Any, Any}
 func (ps *parseStack) AssembleBinaryOperation(begin int, end int, op string) {
 	elems := ps.collectElements(begin, end)
 	if len(elems) == 1 {
@@ -335,7 +335,7 @@ func (ps *parseStack) AssembleBinaryOperation(begin int, end int, op string) {
 		ps.PushComponent(begin, end, elems[0])
 	} else if len(elems) == 2 {
 		// connect left and right with the given operator
-		ps.PushComponent(begin, end, BinaryOp{op, elems[0], elems[1]})
+		ps.PushComponent(begin, end, BinaryOpAST{op, elems[0], elems[1]})
 	} else {
 		panic(fmt.Sprintf("cannot turn %+v into a binary operation", elems))
 	}

@@ -12,26 +12,26 @@ func TestAssembleEmitProjections(t *testing.T) {
 		Convey("When the stack contains two correct items", func() {
 			ps.PushComponent(0, 4, Raw{"PRE"})
 			ps.PushComponent(4, 6, Istream)
-			ps.PushComponent(6, 8, Projections{[]interface{}{ColumnName{"a"},
+			ps.PushComponent(6, 8, ProjectionsAST{[]interface{}{ColumnName{"a"},
 				ColumnName{"b"}}})
 			ps.AssembleEmitProjections()
 
 			Convey("Then AssembleEmitProjections replaces them with a new item", func() {
 				So(ps.Len(), ShouldEqual, 2)
 
-				Convey("And that item is a EmitProjections", func() {
+				Convey("And that item is a EmitProjectionsAST", func() {
 					top := ps.Peek()
 					So(top, ShouldNotBeNil)
 					So(top.begin, ShouldEqual, 4)
 					So(top.end, ShouldEqual, 8)
-					So(top.comp, ShouldHaveSameTypeAs, EmitProjections{})
+					So(top.comp, ShouldHaveSameTypeAs, EmitProjectionsAST{})
 
 					Convey("And it contains the previously pushed data", func() {
-						comp := top.comp.(EmitProjections)
-						So(comp.emitterType, ShouldEqual, Istream)
-						So(len(comp.projections), ShouldEqual, 2)
-						So(comp.projections[0], ShouldResemble, ColumnName{"a"})
-						So(comp.projections[1], ShouldResemble, ColumnName{"b"})
+						comp := top.comp.(EmitProjectionsAST)
+						So(comp.EmitterType, ShouldEqual, Istream)
+						So(len(comp.Projections), ShouldEqual, 2)
+						So(comp.Projections[0], ShouldResemble, ColumnName{"a"})
+						So(comp.Projections[1], ShouldResemble, ColumnName{"b"})
 					})
 				})
 			})
@@ -69,10 +69,10 @@ func TestAssembleEmitProjections(t *testing.T) {
 				top := ps.Peek().comp
 				So(top, ShouldHaveSameTypeAs, CreateStreamStmt{})
 				s := top.(CreateStreamStmt)
-				So(s.emitterType, ShouldEqual, Istream)
-				So(len(s.projections), ShouldEqual, 2)
-				So(s.projections[0], ShouldResemble, ColumnName{"a"})
-				So(s.projections[1], ShouldResemble, ColumnName{"b"})
+				So(s.EmitterType, ShouldEqual, Istream)
+				So(len(s.Projections), ShouldEqual, 2)
+				So(s.Projections[0], ShouldResemble, ColumnName{"a"})
+				So(s.Projections[1], ShouldResemble, ColumnName{"b"})
 			})
 		})
 	})
