@@ -44,7 +44,7 @@ func (b *DoesNothingBox) Process(ctx *Context, t *tuple.Tuple, s Writer) error {
 func (b *DoesNothingBox) InputConstraints() (*BoxInputConstraints, error) {
 	return nil, nil
 }
-func (b *DoesNothingBox) OutputSchema(s []*Schema) (*Schema, error) {
+func (b *DoesNothingBox) OutputSchema(s map[string]*Schema) (*Schema, error) {
 	return nil, nil
 }
 func (b *DoesNothingBox) Terminate(ctx *Context) error {
@@ -65,7 +65,7 @@ func (b *ProxyBox) Process(ctx *Context, t *tuple.Tuple, s Writer) error {
 func (b *ProxyBox) InputConstraints() (*BoxInputConstraints, error) {
 	return b.b.InputConstraints()
 }
-func (b *ProxyBox) OutputSchema(s []*Schema) (*Schema, error) {
+func (b *ProxyBox) OutputSchema(s map[string]*Schema) (*Schema, error) {
 	return b.b.OutputSchema(s)
 }
 func (b *ProxyBox) Terminate(ctx *Context) error {
@@ -263,7 +263,7 @@ func (b *BlockingForwardBox) InputConstraints() (*BoxInputConstraints, error) {
 	return nil, nil
 }
 
-func (b *BlockingForwardBox) OutputSchema(s []*Schema) (*Schema, error) {
+func (b *BlockingForwardBox) OutputSchema(s map[string]*Schema) (*Schema, error) {
 	return nil, nil
 }
 
