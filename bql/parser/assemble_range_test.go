@@ -6,8 +6,8 @@ import (
 )
 
 func TestAssembleRange(t *testing.T) {
-	Convey("Given a ParseStack", t, func() {
-		ps := ParseStack{}
+	Convey("Given a parseStack", t, func() {
+		ps := parseStack{}
 
 		Convey("When the stack contains two correct items", func() {
 			ps.PushComponent(0, 6, Raw{"PRE"})

@@ -6,8 +6,8 @@ import (
 )
 
 func TestAssembleBinaryOperation(t *testing.T) {
-	Convey("Given a ParseStack", t, func() {
-		ps := ParseStack{}
+	Convey("Given a parseStack", t, func() {
+		ps := parseStack{}
 
 		Convey("When there is one item in the given range", func() {
 			ps.PushComponent(0, 2, Raw{"PRE"})

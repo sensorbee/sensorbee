@@ -6,8 +6,8 @@ import (
 )
 
 func TestAssembleSelect(t *testing.T) {
-	Convey("Given a ParseStack", t, func() {
-		ps := ParseStack{}
+	Convey("Given a parseStack", t, func() {
+		ps := parseStack{}
 		Convey("When the stack contains the correct SELECT items", func() {
 			ps.PushComponent(6, 7, ColumnName{"a"})
 			ps.PushComponent(7, 8, ColumnName{"b"})
@@ -92,7 +92,7 @@ func TestAssembleSelect(t *testing.T) {
 				So(err, ShouldEqual, nil)
 				p.Execute()
 
-				ps := p.ParseStack
+				ps := p.parseStack
 				So(ps.Len(), ShouldEqual, 1)
 				top := ps.Peek().comp
 				So(top, ShouldHaveSameTypeAs, SelectStmt{})
