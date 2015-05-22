@@ -18,18 +18,18 @@ func TestAssembleProjections(t *testing.T) {
 			Convey("Then AssembleProjections transforms them into one item", func() {
 				So(ps.Len(), ShouldEqual, 2)
 
-				Convey("And that item is a Projections", func() {
+				Convey("And that item is a ProjectionsAST", func() {
 					top := ps.Peek()
 					So(top, ShouldNotBeNil)
 					So(top.begin, ShouldEqual, 6)
 					So(top.end, ShouldEqual, 8)
-					So(top.comp, ShouldHaveSameTypeAs, Projections{})
+					So(top.comp, ShouldHaveSameTypeAs, ProjectionsAST{})
 
 					Convey("And it contains the previously pushed data", func() {
-						comp := top.comp.(Projections)
-						So(len(comp.projections), ShouldEqual, 2)
-						So(comp.projections[0], ShouldResemble, ColumnName{"a"})
-						So(comp.projections[1], ShouldResemble, ColumnName{"b"})
+						comp := top.comp.(ProjectionsAST)
+						So(len(comp.Projections), ShouldEqual, 2)
+						So(comp.Projections[0], ShouldResemble, ColumnName{"a"})
+						So(comp.Projections[1], ShouldResemble, ColumnName{"b"})
 					})
 				})
 			})
@@ -42,16 +42,16 @@ func TestAssembleProjections(t *testing.T) {
 			Convey("Then AssembleProjections pushes one item onto the stack", func() {
 				So(ps.Len(), ShouldEqual, 2)
 
-				Convey("And that item is a Projections", func() {
+				Convey("And that item is a ProjectionsAST", func() {
 					top := ps.Peek()
 					So(top, ShouldNotBeNil)
 					So(top.begin, ShouldEqual, 6)
 					So(top.end, ShouldEqual, 8)
-					So(top.comp, ShouldHaveSameTypeAs, Projections{})
+					So(top.comp, ShouldHaveSameTypeAs, ProjectionsAST{})
 
 					Convey("And it contains an empty list", func() {
-						comp := top.comp.(Projections)
-						So(len(comp.projections), ShouldEqual, 0)
+						comp := top.comp.(ProjectionsAST)
+						So(len(comp.Projections), ShouldEqual, 0)
 					})
 				})
 			})
@@ -64,16 +64,16 @@ func TestAssembleProjections(t *testing.T) {
 			Convey("Then AssembleProjections pushes one item onto the stack", func() {
 				So(ps.Len(), ShouldEqual, 2)
 
-				Convey("And that item is a Projections", func() {
+				Convey("And that item is a ProjectionsAST", func() {
 					top := ps.Peek()
 					So(top, ShouldNotBeNil)
 					So(top.begin, ShouldEqual, 6)
 					So(top.end, ShouldEqual, 6)
-					So(top.comp, ShouldHaveSameTypeAs, Projections{})
+					So(top.comp, ShouldHaveSameTypeAs, ProjectionsAST{})
 
 					Convey("And it contains an empty list", func() {
-						comp := top.comp.(Projections)
-						So(len(comp.projections), ShouldEqual, 0)
+						comp := top.comp.(ProjectionsAST)
+						So(len(comp.Projections), ShouldEqual, 0)
 					})
 				})
 			})
@@ -97,9 +97,9 @@ func TestAssembleProjections(t *testing.T) {
 				top := ps.Peek().comp
 				So(top, ShouldHaveSameTypeAs, SelectStmt{})
 				s := top.(SelectStmt)
-				So(len(s.projections), ShouldEqual, 2)
-				So(s.projections[0], ShouldResemble, ColumnName{"a"})
-				So(s.projections[1], ShouldResemble, ColumnName{"b"})
+				So(len(s.Projections), ShouldEqual, 2)
+				So(s.Projections[0], ShouldResemble, ColumnName{"a"})
+				So(s.Projections[1], ShouldResemble, ColumnName{"b"})
 			})
 		})
 	})

@@ -5,74 +5,74 @@ package parser
 // the PEG file, the left side should correspond to a struct
 // in this file with the same name.
 
-// Combined Structures
+// Combined Structures (all with *AST)
 
 type SelectStmt struct {
-	Projections
-	From
-	Filter
-	Grouping
-	Having
+	ProjectionsAST
+	FromAST
+	FilterAST
+	GroupingAST
+	HavingAST
 }
 
 type CreateStreamStmt struct {
 	Relation
-	EmitProjections
-	WindowedFrom
-	Filter
-	Grouping
-	Having
+	EmitProjectionsAST
+	WindowedFromAST
+	FilterAST
+	GroupingAST
+	HavingAST
 }
 
-type EmitProjections struct {
-	emitterType Emitter
-	Projections
+type EmitProjectionsAST struct {
+	EmitterType Emitter
+	ProjectionsAST
 }
 
-type Projections struct {
-	projections []interface{}
+type ProjectionsAST struct {
+	Projections []interface{}
 }
 
-type WindowedFrom struct {
-	From
-	Range
+type WindowedFromAST struct {
+	FromAST
+	RangeAST
 }
 
-type Range struct {
+type RangeAST struct {
 	Raw
-	unit RangeUnit
+	Unit RangeUnit
 }
 
-type From struct {
-	relations []Relation
+type FromAST struct {
+	Relations []Relation
 }
 
-type Filter struct {
-	filter interface{}
+type FilterAST struct {
+	Filter interface{}
 }
 
-type Grouping struct {
-	groupList []interface{}
+type GroupingAST struct {
+	GroupList []interface{}
 }
 
-type Having struct {
-	having interface{}
+type HavingAST struct {
+	Having interface{}
 }
 
-type BinaryOp struct {
-	op    string
-	left  interface{}
-	right interface{}
+type BinaryOpAST struct {
+	Op    string
+	Left  interface{}
+	Right interface{}
 }
 
-// Elementary Structures
+// Elementary Structures (all without *AST for now)
 
 // Note that we need the constructors for the elementary structures
 // because we cannot use curly brackets for Expr{...} style
 // initialization in the .peg file.
 
 type Relation struct {
-	name string
+	Name string
 }
 
 func NewRelation(s string) Relation {
@@ -80,7 +80,7 @@ func NewRelation(s string) Relation {
 }
 
 type ColumnName struct {
-	name string
+	Name string
 }
 
 func NewColumnName(s string) ColumnName {
@@ -88,7 +88,7 @@ func NewColumnName(s string) ColumnName {
 }
 
 type Raw struct {
-	expr string
+	Expr string
 }
 
 func NewRaw(s string) Raw {

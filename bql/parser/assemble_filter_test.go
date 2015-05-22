@@ -17,16 +17,16 @@ func TestAssembleFilter(t *testing.T) {
 			Convey("Then AssembleFilter replaces this with a new item", func() {
 				So(ps.Len(), ShouldEqual, 2)
 
-				Convey("And that item is a Filter", func() {
+				Convey("And that item is a FilterAST", func() {
 					top := ps.Peek()
 					So(top, ShouldNotBeNil)
 					So(top.begin, ShouldEqual, 6)
 					So(top.end, ShouldEqual, 7)
-					So(top.comp, ShouldHaveSameTypeAs, Filter{})
+					So(top.comp, ShouldHaveSameTypeAs, FilterAST{})
 
 					Convey("And it contains the previous data", func() {
-						comp := top.comp.(Filter)
-						So(comp.filter, ShouldResemble, ColumnName{"a"})
+						comp := top.comp.(FilterAST)
+						So(comp.Filter, ShouldResemble, ColumnName{"a"})
 					})
 				})
 			})
@@ -39,16 +39,16 @@ func TestAssembleFilter(t *testing.T) {
 			Convey("Then AssembleFilter pushes one item onto the stack", func() {
 				So(ps.Len(), ShouldEqual, 2)
 
-				Convey("And that item is a Filter", func() {
+				Convey("And that item is a FilterAST", func() {
 					top := ps.Peek()
 					So(top, ShouldNotBeNil)
 					So(top.begin, ShouldEqual, 6)
 					So(top.end, ShouldEqual, 6)
-					So(top.comp, ShouldHaveSameTypeAs, Filter{})
+					So(top.comp, ShouldHaveSameTypeAs, FilterAST{})
 
 					Convey("And it contains a nil pointer", func() {
-						comp := top.comp.(Filter)
-						So(comp.filter, ShouldBeNil)
+						comp := top.comp.(FilterAST)
+						So(comp.Filter, ShouldBeNil)
 					})
 				})
 			})
@@ -83,7 +83,7 @@ func TestAssembleFilter(t *testing.T) {
 				top := ps.Peek().comp
 				So(top, ShouldHaveSameTypeAs, SelectStmt{})
 				s := top.(SelectStmt)
-				So(s.filter, ShouldBeNil)
+				So(s.Filter, ShouldBeNil)
 			})
 		})
 
@@ -101,8 +101,8 @@ func TestAssembleFilter(t *testing.T) {
 				top := ps.Peek().comp
 				So(top, ShouldHaveSameTypeAs, SelectStmt{})
 				s := top.(SelectStmt)
-				So(s.filter, ShouldNotBeNil)
-				So(s.filter, ShouldResemble, ColumnName{"c"})
+				So(s.Filter, ShouldNotBeNil)
+				So(s.Filter, ShouldResemble, ColumnName{"c"})
 			})
 		})
 	})

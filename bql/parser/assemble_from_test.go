@@ -18,18 +18,18 @@ func TestAssembleFrom(t *testing.T) {
 			Convey("Then AssembleFrom transforms them into one item", func() {
 				So(ps.Len(), ShouldEqual, 2)
 
-				Convey("And that item is a From", func() {
+				Convey("And that item is a FromAST", func() {
 					top := ps.Peek()
 					So(top, ShouldNotBeNil)
 					So(top.begin, ShouldEqual, 6)
 					So(top.end, ShouldEqual, 8)
-					So(top.comp, ShouldHaveSameTypeAs, From{})
+					So(top.comp, ShouldHaveSameTypeAs, FromAST{})
 
 					Convey("And it contains the previously pushed data", func() {
-						comp := top.comp.(From)
-						So(len(comp.relations), ShouldEqual, 2)
-						So(comp.relations[0].name, ShouldEqual, "a")
-						So(comp.relations[1].name, ShouldEqual, "b")
+						comp := top.comp.(FromAST)
+						So(len(comp.Relations), ShouldEqual, 2)
+						So(comp.Relations[0].Name, ShouldEqual, "a")
+						So(comp.Relations[1].Name, ShouldEqual, "b")
 					})
 				})
 			})
@@ -42,16 +42,16 @@ func TestAssembleFrom(t *testing.T) {
 			Convey("Then AssembleFrom pushes one item onto the stack", func() {
 				So(ps.Len(), ShouldEqual, 2)
 
-				Convey("And that item is a From", func() {
+				Convey("And that item is a FromAST", func() {
 					top := ps.Peek()
 					So(top, ShouldNotBeNil)
 					So(top.begin, ShouldEqual, 6)
 					So(top.end, ShouldEqual, 8)
-					So(top.comp, ShouldHaveSameTypeAs, From{})
+					So(top.comp, ShouldHaveSameTypeAs, FromAST{})
 
 					Convey("And it contains an empty list", func() {
-						comp := top.comp.(From)
-						So(len(comp.relations), ShouldEqual, 0)
+						comp := top.comp.(FromAST)
+						So(len(comp.Relations), ShouldEqual, 0)
 					})
 				})
 			})
@@ -64,16 +64,16 @@ func TestAssembleFrom(t *testing.T) {
 			Convey("Then AssembleFrom pushes one item onto the stack", func() {
 				So(ps.Len(), ShouldEqual, 2)
 
-				Convey("And that item is a From", func() {
+				Convey("And that item is a FromAST", func() {
 					top := ps.Peek()
 					So(top, ShouldNotBeNil)
 					So(top.begin, ShouldEqual, 6)
 					So(top.end, ShouldEqual, 6)
-					So(top.comp, ShouldHaveSameTypeAs, From{})
+					So(top.comp, ShouldHaveSameTypeAs, FromAST{})
 
 					Convey("And it contains an empty list", func() {
-						comp := top.comp.(From)
-						So(len(comp.relations), ShouldEqual, 0)
+						comp := top.comp.(FromAST)
+						So(len(comp.Relations), ShouldEqual, 0)
 					})
 				})
 			})
@@ -108,7 +108,7 @@ func TestAssembleFrom(t *testing.T) {
 				top := ps.Peek().comp
 				So(top, ShouldHaveSameTypeAs, SelectStmt{})
 				s := top.(SelectStmt)
-				So(len(s.relations), ShouldEqual, 0)
+				So(len(s.Relations), ShouldEqual, 0)
 			})
 		})
 
@@ -126,9 +126,9 @@ func TestAssembleFrom(t *testing.T) {
 				top := ps.Peek().comp
 				So(top, ShouldHaveSameTypeAs, SelectStmt{})
 				s := top.(SelectStmt)
-				So(len(s.relations), ShouldEqual, 2)
-				So(s.relations[0].name, ShouldEqual, "c")
-				So(s.relations[1].name, ShouldEqual, "d")
+				So(len(s.Relations), ShouldEqual, 2)
+				So(s.Relations[0].Name, ShouldEqual, "c")
+				So(s.Relations[1].Name, ShouldEqual, "d")
 			})
 		})
 	})

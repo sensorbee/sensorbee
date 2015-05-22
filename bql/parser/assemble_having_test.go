@@ -17,16 +17,16 @@ func TestAssembleHaving(t *testing.T) {
 			Convey("Then AssembleHaving replaces this with a new item", func() {
 				So(ps.Len(), ShouldEqual, 2)
 
-				Convey("And that item is a Having", func() {
+				Convey("And that item is a HavingAST", func() {
 					top := ps.Peek()
 					So(top, ShouldNotBeNil)
 					So(top.begin, ShouldEqual, 6)
 					So(top.end, ShouldEqual, 7)
-					So(top.comp, ShouldHaveSameTypeAs, Having{})
+					So(top.comp, ShouldHaveSameTypeAs, HavingAST{})
 
 					Convey("And it contains the previous data", func() {
-						comp := top.comp.(Having)
-						So(comp.having, ShouldResemble, ColumnName{"a"})
+						comp := top.comp.(HavingAST)
+						So(comp.Having, ShouldResemble, ColumnName{"a"})
 					})
 				})
 			})
@@ -39,16 +39,16 @@ func TestAssembleHaving(t *testing.T) {
 			Convey("Then AssembleHaving pushes one item onto the stack", func() {
 				So(ps.Len(), ShouldEqual, 2)
 
-				Convey("And that item is a Having", func() {
+				Convey("And that item is a HavingAST", func() {
 					top := ps.Peek()
 					So(top, ShouldNotBeNil)
 					So(top.begin, ShouldEqual, 6)
 					So(top.end, ShouldEqual, 6)
-					So(top.comp, ShouldHaveSameTypeAs, Having{})
+					So(top.comp, ShouldHaveSameTypeAs, HavingAST{})
 
 					Convey("And it contains a nil pointer", func() {
-						comp := top.comp.(Having)
-						So(comp.having, ShouldBeNil)
+						comp := top.comp.(HavingAST)
+						So(comp.Having, ShouldBeNil)
 					})
 				})
 			})
@@ -83,7 +83,7 @@ func TestAssembleHaving(t *testing.T) {
 				top := ps.Peek().comp
 				So(top, ShouldHaveSameTypeAs, SelectStmt{})
 				s := top.(SelectStmt)
-				So(s.having, ShouldBeNil)
+				So(s.Having, ShouldBeNil)
 			})
 		})
 
@@ -101,8 +101,8 @@ func TestAssembleHaving(t *testing.T) {
 				top := ps.Peek().comp
 				So(top, ShouldHaveSameTypeAs, SelectStmt{})
 				s := top.(SelectStmt)
-				So(s.having, ShouldNotBeNil)
-				So(s.having, ShouldResemble, ColumnName{"c"})
+				So(s.Having, ShouldNotBeNil)
+				So(s.Having, ShouldResemble, ColumnName{"c"})
 			})
 		})
 	})
