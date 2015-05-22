@@ -4,8 +4,17 @@ import (
 	"fmt"
 )
 
-func (b *Bql) ParseStmt(s string) (interface{}, error) {
+type bqlParser struct {
+	b bqlPeg
+}
+
+func NewBQLParser() *bqlParser {
+	return &bqlParser{}
+}
+
+func (p *bqlParser) ParseStmt(s string) (interface{}, error) {
 	// parse the statement
+	b := p.b
 	b.Buffer = s
 	b.Init()
 	if err := b.Parse(); err != nil {

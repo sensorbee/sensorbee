@@ -67,7 +67,7 @@ func TestAssembleFilter(t *testing.T) {
 	})
 
 	Convey("Given a parser", t, func() {
-		p := &Bql{}
+		p := &bqlPeg{}
 
 		Convey("When selecting without a WHERE", func() {
 			p.Buffer = "SELECT a, b"

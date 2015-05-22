@@ -92,7 +92,7 @@ func TestAssembleFrom(t *testing.T) {
 	})
 
 	Convey("Given a parser", t, func() {
-		p := &Bql{}
+		p := &bqlPeg{}
 
 		Convey("When selecting without a FROM", func() {
 			p.Buffer = "SELECT a, b"
