@@ -153,8 +153,18 @@ NumericLiteral <- < [0-9]+ > {
         p.PushComponent(begin, end, NewRaw(buffer[begin:end]))
     }
 
-Emitter <- < "ISTREAM" / "DSTREAM" / "RSTREAM" > {
-        p.PushComponent(begin, end, NewEmitter(buffer[begin:end]))
+Emitter <- ISTREAM / DSTREAM / RSTREAM
+
+ISTREAM <- < "ISTREAM" > {
+        p.PushComponent(begin, end, Istream)
+    }
+
+DSTREAM <- < "DSTREAM" > {
+        p.PushComponent(begin, end, Dstream)
+    }
+
+RSTREAM <- < "RSTREAM" > {
+        p.PushComponent(begin, end, Rstream)
     }
 
 RangeUnit <- TUPLES / SECONDS

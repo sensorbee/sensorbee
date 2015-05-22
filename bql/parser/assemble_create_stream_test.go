@@ -10,7 +10,7 @@ func TestAssembleCreateStream(t *testing.T) {
 		ps := ParseStack{}
 		Convey("When the stack contains the correct CREATE STREAM items", func() {
 			ps.PushComponent(2, 4, Relation{"x"})
-			ps.PushComponent(4, 6, Emitter{"ISTREAM"})
+			ps.PushComponent(4, 6, Istream)
 			ps.PushComponent(6, 7, ColumnName{"a"})
 			ps.PushComponent(7, 8, ColumnName{"b"})
 			ps.AssembleProjections(6, 8)
@@ -43,7 +43,7 @@ func TestAssembleCreateStream(t *testing.T) {
 					Convey("And it contains the previously pushed data", func() {
 						comp := top.comp.(CreateStreamStmt)
 						So(comp.name, ShouldEqual, "x")
-						So(comp.emitterType, ShouldEqual, "ISTREAM")
+						So(comp.emitterType, ShouldEqual, Istream)
 						So(len(comp.projections), ShouldEqual, 2)
 						So(comp.projections[0], ShouldResemble, ColumnName{"a"})
 						So(comp.projections[1], ShouldResemble, ColumnName{"b"})
@@ -72,7 +72,7 @@ func TestAssembleCreateStream(t *testing.T) {
 
 		Convey("When the stack contains a wrong item", func() {
 			ps.PushComponent(2, 4, Relation{"x"})
-			ps.PushComponent(4, 6, Emitter{"ISTREAM"})
+			ps.PushComponent(4, 6, Istream)
 			ps.PushComponent(6, 7, ColumnName{"a"})
 			ps.PushComponent(7, 8, ColumnName{"b"})
 			ps.AssembleProjections(6, 8)
@@ -116,7 +116,7 @@ func TestAssembleCreateStream(t *testing.T) {
 				comp := top.(CreateStreamStmt)
 
 				So(comp.name, ShouldEqual, "x")
-				So(comp.emitterType, ShouldEqual, "ISTREAM")
+				So(comp.emitterType, ShouldEqual, Istream)
 				So(len(comp.projections), ShouldEqual, 2)
 				So(comp.projections[0], ShouldResemble, ColumnName{"a"})
 				So(comp.projections[1], ShouldResemble, ColumnName{"b"})
