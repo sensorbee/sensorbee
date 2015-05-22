@@ -84,7 +84,7 @@ func (db *DummyBox) Process(ctx *Context, t *tuple.Tuple, s Writer) error {
 func (db *DummyBox) InputConstraints() (*BoxInputConstraints, error) {
 	return nil, nil
 }
-func (db *DummyBox) OutputSchema(s []*Schema) (*Schema, error) {
+func (db *DummyBox) OutputSchema(s map[string]*Schema) (*Schema, error) {
 	return nil, nil
 }
 func (db *DummyBox) Terminate(ctx *Context) error {
