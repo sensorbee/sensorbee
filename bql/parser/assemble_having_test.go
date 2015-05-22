@@ -67,7 +67,7 @@ func TestAssembleHaving(t *testing.T) {
 	})
 
 	Convey("Given a parser", t, func() {
-		p := &Bql{}
+		p := &bqlPeg{}
 
 		Convey("When selecting without a HAVING", func() {
 			p.Buffer = "SELECT a, b"

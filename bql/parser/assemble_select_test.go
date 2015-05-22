@@ -81,7 +81,7 @@ func TestAssembleSelect(t *testing.T) {
 	})
 
 	Convey("Given a parser", t, func() {
-		p := &Bql{}
+		p := &bqlPeg{}
 
 		Convey("When doing a full SELECT", func() {
 			p.Buffer = "SELECT a, b FROM c, d WHERE e GROUP BY f, g HAVING h"

@@ -98,7 +98,7 @@ func TestAssembleCreateStream(t *testing.T) {
 	})
 
 	Convey("Given a parser", t, func() {
-		p := &Bql{}
+		p := &bqlPeg{}
 
 		Convey("When doing a full SELECT", func() {
 			p.Buffer = "CREATE STREAM x AS SELECT ISTREAM(a, b) FROM c, d [RANGE 2 SECONDS] WHERE e GROUP BY f, g HAVING h"

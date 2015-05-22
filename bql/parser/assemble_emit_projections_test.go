@@ -53,7 +53,7 @@ func TestAssembleEmitProjections(t *testing.T) {
 	})
 
 	Convey("Given a parser", t, func() {
-		p := &Bql{}
+		p := &bqlPeg{}
 
 		Convey("When selecting multiple columns", func() {
 			p.Buffer = "CREATE STREAM x AS SELECT ISTREAM(a, b)"
