@@ -40,7 +40,7 @@ type WindowedFrom struct {
 
 type Range struct {
 	Raw
-	RangeUnit
+	unit RangeUnit
 }
 
 type From struct {
@@ -103,10 +103,9 @@ func NewEmitter(s string) Emitter {
 	return Emitter{s}
 }
 
-type RangeUnit struct {
-	unit string
-}
+type RangeUnit int
 
-func NewRangeUnit(s string) RangeUnit {
-	return RangeUnit{s}
-}
+const (
+	Tuples RangeUnit = iota
+	Seconds
+)

@@ -13,7 +13,7 @@ func TestAssembleWindowedFrom(t *testing.T) {
 			ps.PushComponent(0, 6, Raw{"PRE"})
 			ps.PushComponent(6, 7, Relation{"a"})
 			ps.PushComponent(7, 8, Relation{"b"})
-			ps.PushComponent(8, 10, Range{Raw{"2"}, RangeUnit{"SECONDS"}})
+			ps.PushComponent(8, 10, Range{Raw{"2"}, Seconds})
 			ps.AssembleWindowedFrom(6, 10)
 
 			Convey("Then AssembleWindowedFrom transforms them into one item", func() {
@@ -32,7 +32,7 @@ func TestAssembleWindowedFrom(t *testing.T) {
 						So(comp.relations[0].name, ShouldEqual, "a")
 						So(comp.relations[1].name, ShouldEqual, "b")
 						So(comp.expr, ShouldEqual, "2")
-						So(comp.unit, ShouldEqual, "SECONDS")
+						So(comp.unit, ShouldEqual, Seconds)
 					})
 				})
 			})
@@ -84,7 +84,7 @@ func TestAssembleWindowedFrom(t *testing.T) {
 
 		Convey("When the stack contains non-Relations in the given range", func() {
 			ps.PushComponent(0, 6, Raw{"PRE"})
-			ps.PushComponent(6, 8, Range{Raw{"2"}, RangeUnit{"SECONDS"}})
+			ps.PushComponent(6, 8, Range{Raw{"2"}, Seconds})
 			f := func() {
 				ps.AssembleWindowedFrom(0, 8)
 			}
@@ -147,7 +147,7 @@ func TestAssembleWindowedFrom(t *testing.T) {
 				So(comp.relations[0].name, ShouldEqual, "c")
 				So(comp.relations[1].name, ShouldEqual, "d")
 				So(comp.expr, ShouldEqual, "2")
-				So(comp.unit, ShouldEqual, "SECONDS")
+				So(comp.unit, ShouldEqual, Seconds)
 			})
 		})
 	})

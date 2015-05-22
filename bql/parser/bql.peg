@@ -157,8 +157,14 @@ Emitter <- < "ISTREAM" / "DSTREAM" / "RSTREAM" > {
         p.PushComponent(begin, end, NewEmitter(buffer[begin:end]))
     }
 
-RangeUnit <- < "TUPLES" / "SECONDS" > {
-        p.PushComponent(begin, end, NewRangeUnit(buffer[begin:end]))
+RangeUnit <- TUPLES / SECONDS
+
+TUPLES <- < "TUPLES" > {
+        p.PushComponent(begin, end, Tuples)
+    }
+
+SECONDS <- < "SECONDS" > {
+        p.PushComponent(begin, end, Seconds)
     }
 
 sp <- ( ' ' / '\t' )*
