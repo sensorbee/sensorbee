@@ -20,10 +20,10 @@ type defaultStaticTopology struct {
 	srcDsts      map[string]WriteCloser
 	srcDstsMutex sync.Mutex
 
-	// conns have connectors of boxes and sinks. defaultStaticTopology will run
-	// a separate goroutine for each input of a connector so that connectors can concurrently
-	// send/receive tuples to/from other connectors.
-	conns map[string]*staticConnector
+	// nodes is a box or sink in the topology. defaultStaticTopology will run
+	// a separate goroutine for each input of a node so that nodes can
+	// concurrently send/receive tun to/from other nodes.
+	nodes map[string]*staticNode
 
 	state      TopologyState
 	stateMutex *sync.Mutex
@@ -98,14 +98,14 @@ func (t *defaultStaticTopology) setState(s TopologyState) {
 // run spawns goroutines for sources, boxes, and sinks.
 // The caller of it must set TSStop after it returns.
 func (t *defaultStaticTopology) run(ctx *Context) error {
-	// Run goroutines for each connector(boxes and sinks).
+	// Run goroutines for each node(boxes and sinks).
 	var wg sync.WaitGroup
-	for name, conn := range t.conns {
+	for name, node := range t.nodes {
 		wg.Add(1)
-		go func(name string, conn *staticConnector) {
+		go func(name string, node *staticNode) {
 			defer wg.Done()
-			conn.Run(name, ctx)
-		}(name, conn)
+			node.run(name, ctx)
+		}(name, node)
 	}
 
 	// Create closures for goroutines here because srcDsts will not
@@ -261,8 +261,8 @@ func (t *defaultStaticTopology) Stop(ctx *Context) error {
 	}
 
 	// TODO: There might be some WriteClosers which still haven't been closed
-	// and some connectors attached to them are still running. There might
-	// have to be some way to force shutdown connectors.
+	// and some nodes attached to them are still running. There might
+	// have to be some way to force shutdown nodes.
 
 	// Once all sources are stopped, the stream will eventually stop.
 	t.stateMutex.Lock()
@@ -279,34 +279,69 @@ func (t *defaultStaticTopology) Stop(ctx *Context) error {
 	return err
 }
 
-// staticConnector connects sources, boxes, and sinks. It allows boxes and sinks
-// to receive tuples from multiple sources and boxes. It also support fanning out
-// same tuples to multiple destinations.
-type staticConnector struct {
+type staticPipeReceiver struct {
+	in <-chan *tuple.Tuple
+}
+
+type staticPipeSender struct {
+	inputName string
+	out       chan<- *tuple.Tuple // TODO: this should be []*tuple.Tuple for efficiency
+}
+
+func (s *staticPipeSender) Write(ctx *Context, t *tuple.Tuple) error {
+	t.InputName = s.inputName
+	s.out <- t
+	return nil
+}
+
+func (s *staticPipeSender) Close(ctx *Context) error {
+	close(s.out)
+	return nil
+}
+
+func newStaticPipe(inputName string, capacity int) (*staticPipeReceiver, *staticPipeSender) {
+	p := make(chan *tuple.Tuple, capacity)
+
+	r := &staticPipeReceiver{
+		in: p,
+	}
+	s := &staticPipeSender{
+		inputName: inputName,
+		out:       p,
+	}
+	return r, s
+}
+
+// staticNode has a box or sink and it receives tuples from the previous node in
+// the topology and writes tuples to the next destination node. It allows boxes
+// and sinks to receive tuples from multiple sources and boxes. It also support
+// fanning out same tuples to multiple destinations.
+type staticNode struct {
 	// dst is a writer which sends tuples to the real destination.
 	// dst can be a box, a sink.
 	dst WriteCloser
 
 	// inputs is the input channels
-	inputs map[string]<-chan *tuple.Tuple // TODO: this should be []*tuple.Tuple for efficiency
+	inputs map[string]*staticPipeReceiver
 }
 
-func newStaticConnector(dst WriteCloser) *staticConnector {
-	return &staticConnector{
+func newStaticNode(dst WriteCloser) *staticNode {
+	return &staticNode{
 		dst:    dst,
-		inputs: map[string]<-chan *tuple.Tuple{},
+		inputs: map[string]*staticPipeReceiver{},
 	}
 }
 
-func (sc *staticConnector) AddInput(name string, c <-chan *tuple.Tuple) {
-	sc.inputs[name] = c
+func (sc *staticNode) addInput(name string, in *staticPipeReceiver) {
+	sc.inputs[name] = in
 }
 
-func (sc *staticConnector) Run(name string, ctx *Context) {
+func (sc *staticNode) run(name string, ctx *Context) {
 	var (
 		wg           sync.WaitGroup
 		panicLogging sync.Once
 	)
+
 	for _, in := range sc.inputs {
 		in := in
 
@@ -324,7 +359,7 @@ func (sc *staticConnector) Run(name string, ctx *Context) {
 				}
 			}()
 
-			for t := range in {
+			for t := range in.in {
 				if err := sc.dst.Write(ctx, t); err != nil {
 					ctx.Logger.Log(Error, "%v cannot write a tuple: %v", name, err)
 					// All regular errors are considered resumable.
@@ -339,29 +374,6 @@ func (sc *staticConnector) Run(name string, ctx *Context) {
 	}
 }
 
-type staticSingleChan struct {
-	inputName string
-	out       chan<- *tuple.Tuple
-}
-
-func newStaticSingleChan(name string, ch chan<- *tuple.Tuple) *staticSingleChan {
-	return &staticSingleChan{
-		inputName: name,
-		out:       ch,
-	}
-}
-
-func (sc *staticSingleChan) Write(ctx *Context, t *tuple.Tuple) error {
-	t.InputName = sc.inputName
-	sc.out <- t // TODO: writer side load shedding
-	return nil
-}
-
-func (sc *staticSingleChan) Close(ctx *Context) error {
-	close(sc.out)
-	return nil
-}
-
 type staticDestinations struct {
 	names []string
 	dsts  []WriteCloser
@@ -371,7 +383,7 @@ func newStaticDestinations() *staticDestinations {
 	return &staticDestinations{}
 }
 
-func (mc *staticDestinations) AddDestination(name string, w WriteCloser) {
+func (mc *staticDestinations) addDestination(name string, w WriteCloser) {
 	mc.names = append(mc.names, name)
 	mc.dsts = append(mc.dsts, w)
 }

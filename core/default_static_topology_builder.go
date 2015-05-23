@@ -137,31 +137,31 @@ func (tb *defaultStaticTopologyBuilder) Build() (StaticTopology, error) {
 		sinks: tb.sinks,
 
 		srcDsts: map[string]WriteCloser{},
-		conns:   map[string]*staticConnector{},
+		nodes:   map[string]*staticNode{},
 
 		state:      TSInitialized,
 		stateMutex: stateMutex,
 		stateCond:  sync.NewCond(stateMutex),
 	}
 
-	// Create st.conns and its next writer
+	// Create st.nodes and its next writer
 	dsts := map[string]*staticDestinations{}
 	for name, _ := range tb.sources {
 		dsts[name] = newStaticDestinations()
 	}
 	for name, box := range tb.boxes {
 		dst := newStaticDestinations()
-		st.conns[name] = newStaticConnector(newBoxWriterAdapter(box, name, dst))
+		st.nodes[name] = newStaticNode(newBoxWriterAdapter(box, name, dst))
 		dsts[name] = dst
 	}
 	for name, sink := range tb.sinks {
-		st.conns[name] = newStaticConnector(newTraceWriter(sink, tuple.Input, name))
+		st.nodes[name] = newStaticNode(newTraceWriter(sink, tuple.Input, name))
 	}
 
 	for _, e := range tb.Edges {
-		ch := make(chan *tuple.Tuple, 1024) // TODO: make capacity customizable
-		dsts[e.From].AddDestination(e.To, newStaticSingleChan(e.InputName, ch))
-		st.conns[e.To].AddInput(e.From, ch)
+		r, s := newStaticPipe(e.InputName, 1024) // TODO: make capacity customizable
+		st.nodes[e.To].addInput(e.From, r)
+		dsts[e.From].addDestination(e.To, s)
 	}
 
 	for name, _ := range tb.sources {
