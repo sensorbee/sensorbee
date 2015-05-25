@@ -123,6 +123,31 @@ func (ps *parseStack) AssembleCreateStream() {
 	ps.Push(&se)
 }
 
+// AssembleCreateSource takes the topmost elements from the stack,
+// assuming they are components of a CREATE SOURCE statement, and
+// replaces them by a single CreateSourceStmt element.
+//
+//  SourceSpecsAST
+//  SourceType
+//  SourceName
+//   =>
+//  CreateSourceStmt{Relation, SourceType, SourceSpecsAST}
+func (ps *parseStack) AssembleCreateSource() {
+	// pop the components from the stack in reverse order
+	_specs, _sourceType, _name := ps.pop3()
+
+	// extract and convert the contained structure
+	// (if this fails, this is a fundamental parser bug => panic ok)
+	specs := _specs.comp.(SourceSpecsAST)
+	sourceType := _sourceType.comp.(SourceType)
+	name := _name.comp.(SourceName)
+
+	// assemble the CreateSourceStmt and push it back
+	s := CreateSourceStmt{name, sourceType, specs}
+	se := ParsedComponent{_name.begin, _specs.end, s}
+	ps.Push(&se)
+}
+
 /* Projections/Columns */
 
 // AssembleEmitProjections takes the topmost elements from the
@@ -315,6 +340,52 @@ func (ps *parseStack) AssembleHaving(begin int, end int) {
 		}
 		ps.PushComponent(begin, end, HavingAST{h.comp})
 	}
+}
+
+// AssembleSourceSpecs takes the elements from the stack that
+// correspond to the input[begin:end] string, makes sure
+// they are all SourceParamAST elements and wraps a SourceSpecsAST
+// struct around them. If there are no such elements, adds an
+// empty SourceSpecAST struct to the stack.
+//
+//  SourceParamAST
+//  SourceParamAST
+//  SourceParamAST
+//   =>
+//  SourceSpecsAST{[SourceSpecAST, SourceSpecAST, SourceSpecAST]}
+func (ps *parseStack) AssembleSourceSpecs(begin int, end int) {
+	if begin == end {
+		// push an empty from clause
+		ps.PushComponent(begin, end, SourceSpecsAST{})
+	} else {
+		elems := ps.collectElements(begin, end)
+		params := make([]SourceParamAST, len(elems), len(elems))
+		for i, elem := range elems {
+			// (if this conversion fails, this is a fundamental parser bug)
+			e := elem.(SourceParamAST)
+			params[i] = e
+		}
+		// push the grouped list back
+		ps.PushComponent(begin, end, SourceSpecsAST{params})
+	}
+}
+
+// AssembleSourceParam takes the topmost elements from the
+// stack, assuming they are part of a WITH clause in a CREATE SOURCE
+// statement and replaces them by a single SourceParamAST element.
+//
+//  SourceParamVal
+//  SourceParamKey
+//   =>
+//  SourceParamAST{SourceParamKey, SourceParamVal}
+func (ps *parseStack) AssembleSourceParam() {
+	_value, _key := ps.pop2()
+
+	value := _value.comp.(SourceParamVal)
+	key := _key.comp.(SourceParamKey)
+
+	ss := SourceParamAST{key, value}
+	ps.PushComponent(_key.begin, _value.end, ss)
 }
 
 /* Expressions */
