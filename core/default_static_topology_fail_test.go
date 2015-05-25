@@ -413,7 +413,7 @@ func TestDefaultStaticTopologyStop(t *testing.T) {
 				// In this test, GenerateStream doesn't return until writing something
 				// to sfc.
 				setup()
-				s.stopFail = true
+
 				runCh := make(chan struct{}, 1)
 				go func() {
 					t.Run(ctx)
