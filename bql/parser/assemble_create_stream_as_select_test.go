@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestAssembleCreateStream(t *testing.T) {
+func TestAssembleCreateStreamAsSelect(t *testing.T) {
 	Convey("Given a parseStack", t, func() {
 		ps := parseStack{}
 		Convey("When the stack contains the correct CREATE STREAM items", func() {
@@ -28,20 +28,20 @@ func TestAssembleCreateStream(t *testing.T) {
 			ps.AssembleGrouping(21, 23)
 			ps.PushComponent(23, 24, ColumnName{"h"})
 			ps.AssembleHaving(23, 24)
-			ps.AssembleCreateStream()
+			ps.AssembleCreateStreamAsSelect()
 
-			Convey("Then AssembleCreateStream transforms them into one item", func() {
+			Convey("Then AssembleCreateStreamAsSelect transforms them into one item", func() {
 				So(ps.Len(), ShouldEqual, 1)
 
-				Convey("And that item is a CreateStreamStmt", func() {
+				Convey("And that item is a CreateStreamAsSelectStmt", func() {
 					top := ps.Peek()
 					So(top, ShouldNotBeNil)
 					So(top.begin, ShouldEqual, 2)
 					So(top.end, ShouldEqual, 24)
-					So(top.comp, ShouldHaveSameTypeAs, CreateStreamStmt{})
+					So(top.comp, ShouldHaveSameTypeAs, CreateStreamAsSelectStmt{})
 
 					Convey("And it contains the previously pushed data", func() {
-						comp := top.comp.(CreateStreamStmt)
+						comp := top.comp.(CreateStreamAsSelectStmt)
 						So(comp.Name, ShouldEqual, "x")
 						So(comp.EmitterType, ShouldEqual, Istream)
 						So(len(comp.Projections), ShouldEqual, 2)
@@ -65,8 +65,8 @@ func TestAssembleCreateStream(t *testing.T) {
 		Convey("When the stack does not contain enough items", func() {
 			ps.PushComponent(6, 7, ColumnName{"a"})
 			ps.AssembleProjections(6, 7)
-			Convey("Then AssembleCreateStream panics", func() {
-				So(ps.AssembleCreateStream, ShouldPanic)
+			Convey("Then AssembleCreateStreamAsSelect panics", func() {
+				So(ps.AssembleCreateStreamAsSelect, ShouldPanic)
 			})
 		})
 
@@ -91,8 +91,8 @@ func TestAssembleCreateStream(t *testing.T) {
 			ps.PushComponent(23, 24, ColumnName{"h"})
 			ps.AssembleFilter(23, 24) // must be HAVING in correct stmt
 
-			Convey("Then AssembleCreateStream panics", func() {
-				So(ps.AssembleCreateStream, ShouldPanic)
+			Convey("Then AssembleCreateStreamAsSelect panics", func() {
+				So(ps.AssembleCreateStreamAsSelect, ShouldPanic)
 			})
 		})
 	})
@@ -112,8 +112,8 @@ func TestAssembleCreateStream(t *testing.T) {
 				ps := p.parseStack
 				So(ps.Len(), ShouldEqual, 1)
 				top := ps.Peek().comp
-				So(top, ShouldHaveSameTypeAs, CreateStreamStmt{})
-				comp := top.(CreateStreamStmt)
+				So(top, ShouldHaveSameTypeAs, CreateStreamAsSelectStmt{})
+				comp := top.(CreateStreamAsSelectStmt)
 
 				So(comp.Name, ShouldEqual, "x")
 				So(comp.EmitterType, ShouldEqual, Istream)

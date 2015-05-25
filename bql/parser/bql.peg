@@ -14,7 +14,7 @@ type bqlPeg Peg {
 # `buffer[begin:end]` holds the string part matching
 # this rule.
 
-Statement <- (SelectStmt / CreateStreamStmt / CreateSourceStmt) !.
+Statement <- (SelectStmt / CreateStreamAsSelectStmt / CreateSourceStmt) !.
 
 SelectStmt <- "SELECT" sp
               Projections sp
@@ -26,7 +26,7 @@ SelectStmt <- "SELECT" sp
         p.AssembleSelect()
     }
 
-CreateStreamStmt <- "CREATE" sp "STREAM" sp
+CreateStreamAsSelectStmt <- "CREATE" sp "STREAM" sp
                     Relation sp
                     "AS" sp "SELECT" sp
                     EmitProjections sp
@@ -35,7 +35,7 @@ CreateStreamStmt <- "CREATE" sp "STREAM" sp
                     Grouping sp
                     Having sp
                     {
-        p.AssembleCreateStream()
+        p.AssembleCreateStreamAsSelect()
     }
 
 CreateSourceStmt <- "CREATE" sp "SOURCE" sp

@@ -67,8 +67,8 @@ func TestAssembleEmitProjections(t *testing.T) {
 				ps := p.parseStack
 				So(ps.Len(), ShouldEqual, 1)
 				top := ps.Peek().comp
-				So(top, ShouldHaveSameTypeAs, CreateStreamStmt{})
-				s := top.(CreateStreamStmt)
+				So(top, ShouldHaveSameTypeAs, CreateStreamAsSelectStmt{})
+				s := top.(CreateStreamAsSelectStmt)
 				So(s.EmitterType, ShouldEqual, Istream)
 				So(len(s.Projections), ShouldEqual, 2)
 				So(s.Projections[0], ShouldResemble, ColumnName{"a"})
