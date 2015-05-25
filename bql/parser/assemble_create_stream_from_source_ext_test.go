@@ -10,10 +10,10 @@ func TestAssembleCreateStreamFromSourceExt(t *testing.T) {
 		ps := parseStack{}
 		Convey("When the stack contains the correct CREATE SOURCE items", func() {
 			ps.PushComponent(2, 4, Relation{"a"})
-			ps.PushComponent(4, 6, SourceType("b"))
-			ps.PushComponent(6, 8, SourceParamAST{"c", "d"})
-			ps.PushComponent(8, 10, SourceParamAST{"e", "f"})
-			ps.AssembleSourceSpecs(6, 10)
+			ps.PushComponent(4, 6, SourceSinkType("b"))
+			ps.PushComponent(6, 8, SourceSinkParamAST{"c", "d"})
+			ps.PushComponent(8, 10, SourceSinkParamAST{"e", "f"})
+			ps.AssembleSourceSinkSpecs(6, 10)
 			ps.AssembleCreateStreamFromSourceExt()
 
 			Convey("Then AssembleCreateStreamFromSourceExt transforms them into one item", func() {
@@ -50,10 +50,10 @@ func TestAssembleCreateStreamFromSourceExt(t *testing.T) {
 
 		Convey("When the stack contains a wrong item", func() {
 			ps.PushComponent(2, 4, Raw{"a"}) // must be Relation
-			ps.PushComponent(4, 6, SourceType("b"))
-			ps.PushComponent(6, 8, SourceParamAST{"c", "d"})
-			ps.PushComponent(8, 10, SourceParamAST{"e", "f"})
-			ps.AssembleSourceSpecs(6, 10)
+			ps.PushComponent(4, 6, SourceSinkType("b"))
+			ps.PushComponent(6, 8, SourceSinkParamAST{"c", "d"})
+			ps.PushComponent(8, 10, SourceSinkParamAST{"e", "f"})
+			ps.AssembleSourceSinkSpecs(6, 10)
 
 			Convey("Then AssembleCreateStreamFromSourceExt panics", func() {
 				So(ps.AssembleCreateStreamFromSourceExt, ShouldPanic)

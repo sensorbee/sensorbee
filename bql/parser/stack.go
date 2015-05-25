@@ -127,20 +127,20 @@ func (ps *parseStack) AssembleCreateStreamAsSelect() {
 // assuming they are components of a CREATE SOURCE statement, and
 // replaces them by a single CreateSourceStmt element.
 //
-//  SourceSpecsAST
-//  SourceType
-//  SourceName
+//  SourceSinkSpecsAST
+//  SourceSinkType
+//  SourceSinkName
 //   =>
-//  CreateSourceStmt{Relation, SourceType, SourceSpecsAST}
+//  CreateSourceStmt{SourceSinkName, SourceSinkType, SourceSinkSpecsAST}
 func (ps *parseStack) AssembleCreateSource() {
 	// pop the components from the stack in reverse order
 	_specs, _sourceType, _name := ps.pop3()
 
 	// extract and convert the contained structure
 	// (if this fails, this is a fundamental parser bug => panic ok)
-	specs := _specs.comp.(SourceSpecsAST)
-	sourceType := _sourceType.comp.(SourceType)
-	name := _name.comp.(SourceName)
+	specs := _specs.comp.(SourceSinkSpecsAST)
+	sourceType := _sourceType.comp.(SourceSinkType)
+	name := _name.comp.(SourceSinkName)
 
 	// assemble the CreateSourceStmt and push it back
 	s := CreateSourceStmt{name, sourceType, specs}
@@ -152,14 +152,14 @@ func (ps *parseStack) AssembleCreateSource() {
 // assuming they are components of a CREATE STREAM statement, and
 // replaces them by a single CreateStreamFromSourceStmt element.
 //
-//  SourceName
+//  SourceSinkName
 //  Relation
 //   =>
-//  CreateStreamFromSourceStmt{Relation, SourceName}
+//  CreateStreamFromSourceStmt{Relation, SourceSinkName}
 func (ps *parseStack) AssembleCreateStreamFromSource() {
 	_src, _rel := ps.pop2()
 
-	src := _src.comp.(SourceName)
+	src := _src.comp.(SourceSinkName)
 	rel := _rel.comp.(Relation)
 
 	s := CreateStreamFromSourceStmt{rel, src}
@@ -171,16 +171,16 @@ func (ps *parseStack) AssembleCreateStreamFromSource() {
 // assuming they are components of a CREATE STREAM statement, and
 // replaces them by a single CreateStreamFromSourceExtStmt element.
 //
-//  SourceSpecsAST
-//  SourceType
+//  SourceSinkSpecsAST
+//  SourceSinkType
 //  Relation
 //   =>
-//  CreateStreamFromSourceExtStmt{Relation, SourceType, SourceSpecsAST}
+//  CreateStreamFromSourceExtStmt{Relation, SourceSinkType, SourceSinkSpecsAST}
 func (ps *parseStack) AssembleCreateStreamFromSourceExt() {
 	_specs, _sourceType, _rel := ps.pop3()
 
-	specs := _specs.comp.(SourceSpecsAST)
-	sourceType := _sourceType.comp.(SourceType)
+	specs := _specs.comp.(SourceSinkSpecsAST)
+	sourceType := _sourceType.comp.(SourceSinkType)
 	rel := _rel.comp.(Relation)
 
 	s := CreateStreamFromSourceExtStmt{rel, sourceType, specs}
@@ -382,49 +382,49 @@ func (ps *parseStack) AssembleHaving(begin int, end int) {
 	}
 }
 
-// AssembleSourceSpecs takes the elements from the stack that
+// AssembleSourceSinkSpecs takes the elements from the stack that
 // correspond to the input[begin:end] string, makes sure
-// they are all SourceParamAST elements and wraps a SourceSpecsAST
+// they are all SourceSinkParamAST elements and wraps a SourceSinkSpecsAST
 // struct around them. If there are no such elements, adds an
 // empty SourceSpecAST struct to the stack.
 //
-//  SourceParamAST
-//  SourceParamAST
-//  SourceParamAST
+//  SourceSinkParamAST
+//  SourceSinkParamAST
+//  SourceSinkParamAST
 //   =>
-//  SourceSpecsAST{[SourceSpecAST, SourceSpecAST, SourceSpecAST]}
-func (ps *parseStack) AssembleSourceSpecs(begin int, end int) {
+//  SourceSinkSpecsAST{[SourceSpecAST, SourceSpecAST, SourceSpecAST]}
+func (ps *parseStack) AssembleSourceSinkSpecs(begin int, end int) {
 	if begin == end {
 		// push an empty from clause
-		ps.PushComponent(begin, end, SourceSpecsAST{})
+		ps.PushComponent(begin, end, SourceSinkSpecsAST{})
 	} else {
 		elems := ps.collectElements(begin, end)
-		params := make([]SourceParamAST, len(elems), len(elems))
+		params := make([]SourceSinkParamAST, len(elems), len(elems))
 		for i, elem := range elems {
 			// (if this conversion fails, this is a fundamental parser bug)
-			e := elem.(SourceParamAST)
+			e := elem.(SourceSinkParamAST)
 			params[i] = e
 		}
 		// push the grouped list back
-		ps.PushComponent(begin, end, SourceSpecsAST{params})
+		ps.PushComponent(begin, end, SourceSinkSpecsAST{params})
 	}
 }
 
-// AssembleSourceParam takes the topmost elements from the
+// AssembleSourceSinkParam takes the topmost elements from the
 // stack, assuming they are part of a WITH clause in a CREATE SOURCE
-// statement and replaces them by a single SourceParamAST element.
+// statement and replaces them by a single SourceSinkParamAST element.
 //
-//  SourceParamVal
-//  SourceParamKey
+//  SourceSinkParamVal
+//  SourceSinkParamKey
 //   =>
-//  SourceParamAST{SourceParamKey, SourceParamVal}
-func (ps *parseStack) AssembleSourceParam() {
+//  SourceSinkParamAST{SourceSinkParamKey, SourceSinkParamVal}
+func (ps *parseStack) AssembleSourceSinkParam() {
 	_value, _key := ps.pop2()
 
-	value := _value.comp.(SourceParamVal)
-	key := _key.comp.(SourceParamKey)
+	value := _value.comp.(SourceSinkParamVal)
+	key := _key.comp.(SourceSinkParamKey)
 
-	ss := SourceParamAST{key, value}
+	ss := SourceSinkParamAST{key, value}
 	ps.PushComponent(_key.begin, _value.end, ss)
 }
 

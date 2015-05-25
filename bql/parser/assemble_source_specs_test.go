@@ -5,28 +5,28 @@ import (
 	"testing"
 )
 
-func TestAssembleSourceSpecs(t *testing.T) {
+func TestAssembleSourceSinkSpecs(t *testing.T) {
 	Convey("Given a parseStack", t, func() {
 		ps := parseStack{}
 
-		Convey("When the stack contains only SourceParams in the given range", func() {
+		Convey("When the stack contains only SourceSinkParams in the given range", func() {
 			ps.PushComponent(0, 6, Raw{"PRE"})
-			ps.PushComponent(6, 7, SourceParamAST{"key", "val"})
-			ps.PushComponent(7, 8, SourceParamAST{"a", "b"})
-			ps.AssembleSourceSpecs(6, 8)
+			ps.PushComponent(6, 7, SourceSinkParamAST{"key", "val"})
+			ps.PushComponent(7, 8, SourceSinkParamAST{"a", "b"})
+			ps.AssembleSourceSinkSpecs(6, 8)
 
-			Convey("Then AssembleSourceSpecs transforms them into one item", func() {
+			Convey("Then AssembleSourceSinkSpecs transforms them into one item", func() {
 				So(ps.Len(), ShouldEqual, 2)
 
-				Convey("And that item is a SourceSpecsAST", func() {
+				Convey("And that item is a SourceSinkSpecsAST", func() {
 					top := ps.Peek()
 					So(top, ShouldNotBeNil)
 					So(top.begin, ShouldEqual, 6)
 					So(top.end, ShouldEqual, 8)
-					So(top.comp, ShouldHaveSameTypeAs, SourceSpecsAST{})
+					So(top.comp, ShouldHaveSameTypeAs, SourceSinkSpecsAST{})
 
 					Convey("And it contains the previously pushed data", func() {
-						comp := top.comp.(SourceSpecsAST)
+						comp := top.comp.(SourceSinkSpecsAST)
 						So(len(comp.Params), ShouldEqual, 2)
 						So(comp.Params[0].Key, ShouldEqual, "key")
 						So(comp.Params[0].Value, ShouldEqual, "val")
@@ -39,20 +39,20 @@ func TestAssembleSourceSpecs(t *testing.T) {
 
 		Convey("When the stack contains no elements in the given range", func() {
 			ps.PushComponent(0, 6, Raw{"PRE"})
-			ps.AssembleSourceSpecs(6, 8)
+			ps.AssembleSourceSinkSpecs(6, 8)
 
-			Convey("Then AssembleSourceSpecs pushes one item onto the stack", func() {
+			Convey("Then AssembleSourceSinkSpecs pushes one item onto the stack", func() {
 				So(ps.Len(), ShouldEqual, 2)
 
-				Convey("And that item is a SourceSpecsAST", func() {
+				Convey("And that item is a SourceSinkSpecsAST", func() {
 					top := ps.Peek()
 					So(top, ShouldNotBeNil)
 					So(top.begin, ShouldEqual, 6)
 					So(top.end, ShouldEqual, 8)
-					So(top.comp, ShouldHaveSameTypeAs, SourceSpecsAST{})
+					So(top.comp, ShouldHaveSameTypeAs, SourceSinkSpecsAST{})
 
 					Convey("And it contains an empty list", func() {
-						comp := top.comp.(SourceSpecsAST)
+						comp := top.comp.(SourceSinkSpecsAST)
 						So(len(comp.Params), ShouldEqual, 0)
 					})
 				})
@@ -61,33 +61,33 @@ func TestAssembleSourceSpecs(t *testing.T) {
 
 		Convey("When the given range is empty", func() {
 			ps.PushComponent(0, 6, Raw{"PRE"})
-			ps.AssembleSourceSpecs(6, 6)
+			ps.AssembleSourceSinkSpecs(6, 6)
 
-			Convey("Then AssembleSourceSpecs pushes one item onto the stack", func() {
+			Convey("Then AssembleSourceSinkSpecs pushes one item onto the stack", func() {
 				So(ps.Len(), ShouldEqual, 2)
 
-				Convey("And that item is a SourceSpecsAST", func() {
+				Convey("And that item is a SourceSinkSpecsAST", func() {
 					top := ps.Peek()
 					So(top, ShouldNotBeNil)
 					So(top.begin, ShouldEqual, 6)
 					So(top.end, ShouldEqual, 6)
-					So(top.comp, ShouldHaveSameTypeAs, SourceSpecsAST{})
+					So(top.comp, ShouldHaveSameTypeAs, SourceSinkSpecsAST{})
 
 					Convey("And it contains an empty list", func() {
-						comp := top.comp.(SourceSpecsAST)
+						comp := top.comp.(SourceSinkSpecsAST)
 						So(len(comp.Params), ShouldEqual, 0)
 					})
 				})
 			})
 		})
 
-		Convey("When the stack contains non-SourceParams in the given range", func() {
+		Convey("When the stack contains non-SourceSinkParams in the given range", func() {
 			ps.PushComponent(0, 6, Raw{"PRE"})
 			f := func() {
-				ps.AssembleSourceSpecs(0, 8)
+				ps.AssembleSourceSinkSpecs(0, 8)
 			}
 
-			Convey("Then AssembleSourceSpecs panics", func() {
+			Convey("Then AssembleSourceSinkSpecs panics", func() {
 				So(f, ShouldPanic)
 			})
 		})
@@ -131,9 +131,9 @@ func TestAssembleSourceSpecs(t *testing.T) {
 				So(s.Params, ShouldNotBeNil)
 				So(len(s.Params), ShouldEqual, 2)
 				So(s.Params[0], ShouldResemble,
-					SourceParamAST{"port", "8080"})
+					SourceSinkParamAST{"port", "8080"})
 				So(s.Params[1], ShouldResemble,
-					SourceParamAST{"proto", "http"})
+					SourceSinkParamAST{"proto", "http"})
 			})
 		})
 	})
