@@ -11,7 +11,7 @@ import (
 
 type bqlBox struct {
 	// stmt is the BQL statement executed by this box
-	stmt *parser.CreateStreamStmt
+	stmt *parser.CreateStreamAsSelectStmt
 	// windowSize is the size of the window as given
 	// in the RANGE clause -- TODO store an int in the stmt
 	windowSize int64
@@ -26,7 +26,7 @@ type bqlBox struct {
 	prevResults []tuple.Map
 }
 
-func NewBqlBox(stmt *parser.CreateStreamStmt) *bqlBox {
+func NewBqlBox(stmt *parser.CreateStreamAsSelectStmt) *bqlBox {
 	return &bqlBox{stmt: stmt}
 }
 

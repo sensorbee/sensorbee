@@ -15,7 +15,7 @@ type SelectStmt struct {
 	HavingAST
 }
 
-type CreateStreamStmt struct {
+type CreateStreamAsSelectStmt struct {
 	Relation
 	EmitProjectionsAST
 	WindowedFromAST

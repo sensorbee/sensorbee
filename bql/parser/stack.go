@@ -91,9 +91,9 @@ func (ps *parseStack) AssembleSelect() {
 	ps.Push(&se)
 }
 
-// AssembleCreateStream takes the topmost elements from the stack,
+// AssembleCreateStreamAsSelect takes the topmost elements from the stack,
 // assuming they are components of a CREATE STREAM statement, and
-// replaces them by a single CreateStreamStmt element.
+// replaces them by a single CreateStreamAsSelectStmt element.
 //
 //  HavingAST
 //  GroupingAST
@@ -102,9 +102,9 @@ func (ps *parseStack) AssembleSelect() {
 //  EmitProjectionsAST
 //  Relation
 //   =>
-//  CreateStreamStmt{Relation, EmitProjectionsAST, WindowedFromAST, FilterAST,
+//  CreateStreamAsSelectStmt{Relation, EmitProjectionsAST, WindowedFromAST, FilterAST,
 //    GroupingAST, HavingAST}
-func (ps *parseStack) AssembleCreateStream() {
+func (ps *parseStack) AssembleCreateStreamAsSelect() {
 	// pop the components from the stack in reverse order
 	_having, _grouping, _filter, _from, _projections, _rel := ps.pop6()
 
@@ -118,7 +118,7 @@ func (ps *parseStack) AssembleCreateStream() {
 	rel := _rel.comp.(Relation)
 
 	// assemble the SelectStmt and push it back
-	s := CreateStreamStmt{rel, projections, from, filter, grouping, having}
+	s := CreateStreamAsSelectStmt{rel, projections, from, filter, grouping, having}
 	se := ParsedComponent{_rel.begin, _having.end, s}
 	ps.Push(&se)
 }

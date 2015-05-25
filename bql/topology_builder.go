@@ -23,7 +23,7 @@ func (tb *TopologyBuilder) BQL(s string) error {
 	}
 	// check the type of statement
 	switch stmt := _stmt.(type) {
-	case parser.CreateStreamStmt:
+	case parser.CreateStreamAsSelectStmt:
 		// the string "x" in "CREATE STREAM x AS" will be the box name
 		outName := stmt.Name
 		box := NewBqlBox(&stmt)
