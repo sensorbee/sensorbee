@@ -289,6 +289,179 @@ func TestDefaultStaticTopologyRunAndInit(t *testing.T) {
 	})
 }
 
-// TODO: Add a test case for Stop
-// TODO: Add a test case for Source failures
-// TODO: Add a test case for Box failures
+type stubFailingSource struct {
+	genFail   bool
+	stopFail  bool
+	stopPanic bool
+
+	genBlocker  chan struct{}
+	stopBlocker chan struct{}
+	stopFailCh  <-chan struct{}
+}
+
+func NewStubFailingSource() (*stubFailingSource, chan<- struct{}) {
+	sfc := make(chan struct{})
+	s := &stubFailingSource{
+		genBlocker:  make(chan struct{}, 1),
+		stopBlocker: make(chan struct{}, 1),
+		stopFailCh:  sfc,
+	}
+	return s, sfc
+}
+
+func (s *stubFailingSource) GenerateStream(ctx *Context, w Writer) error {
+	if s.genFail {
+		return fmt.Errorf("failure")
+	}
+	<-s.genBlocker
+	s.stopBlocker <- struct{}{}
+	return nil
+}
+
+func (s *stubFailingSource) Stop(ctx *Context) error {
+	if s.stopFail || s.stopPanic {
+		go func() {
+			// If stopFailCh is set, Stop delays resuming GenerateStream until
+			// it receives something from the channel. This is used to emulate
+			// a situation that Source.Stop fails and Source.GenerateStream
+			// doesn't actually stop.
+			<-s.stopFailCh
+			s.genBlocker <- struct{}{}
+		}()
+
+		if s.stopPanic {
+			panic(fmt.Errorf("failure"))
+		}
+		return fmt.Errorf("failture")
+	}
+	s.genBlocker <- struct{}{}
+	<-s.stopBlocker
+	return nil
+}
+
+func (s *stubFailingSource) Schema() *Schema {
+	return nil
+}
+
+func TestDefaultStaticTopologyStop(t *testing.T) {
+	config := Configuration{TupleTraceEnabled: 1}
+	ctx := newTestContext(config)
+
+	Convey("Given a default static topology", t, func() {
+		tb := NewDefaultStaticTopologyBuilder()
+		s, sfc := NewStubFailingSource()
+		b := NewStubInitTerminateBox(&DoesNothingBox{}, &stubInitTerminateBoxSharedConfig{})
+		// Sink isn't necessary
+
+		So(tb.AddSource("source", s).Err(), ShouldBeNil)
+		So(tb.AddBox("box", b).Input("source").Err(), ShouldBeNil)
+		ti, err := tb.Build()
+		So(err, ShouldBeNil)
+
+		t := ti.(*defaultStaticTopology)
+
+		Convey("When calling Stop without running the topology", func() {
+			So(t.Stop(ctx), ShouldBeNil)
+
+			Convey("Then topology cannot be run again", func() {
+				So(t.Run(ctx), ShouldNotBeNil)
+			})
+
+			Convey("Then Box.Terminate shouldn't be called", func() {
+				So(b.terminateCnt, ShouldEqual, 0)
+			})
+
+			Convey("Then another Stop call shouldn't fail", func() {
+				So(t.Stop(ctx), ShouldBeNil)
+			})
+		})
+
+		Convey("When calling Stop while the topology is starting", func() {
+			b.init.block = true
+			go func() {
+				t.Run(ctx)
+			}()
+			t.Wait(ctx, TSStarting)
+
+			ch := make(chan error, 1)
+			go func() {
+				ch <- t.Stop(ctx)
+			}()
+
+			Convey("Then Stop should block until the topology starts", func() {
+				Reset(func() {
+					b.ResumeInit()
+				})
+
+				var err error
+				select {
+				case <-ch:
+					err = fmt.Errorf("the box has already stopped")
+				default:
+				}
+				So(err, ShouldBeNil)
+			})
+
+			Convey("Then it should successfully stop after the topology starts", func() {
+				b.ResumeInit()
+				So(<-ch, ShouldBeNil)
+			})
+		})
+
+		sourceStopFailHelper := func(title string, setup func()) {
+			Convey(title, func() {
+				// In this test, GenerateStream doesn't return until writing something
+				// to sfc.
+				setup()
+
+				runCh := make(chan struct{}, 1)
+				go func() {
+					t.Run(ctx)
+					runCh <- struct{}{}
+				}()
+				Reset(func() {
+					sfc <- struct{}{}
+				})
+				_, err := t.Wait(ctx, TSRunning)
+				So(err, ShouldBeNil)
+				err = t.Stop(ctx)
+
+				Convey("Then Stop should fail", func() {
+					So(err, ShouldNotBeNil)
+				})
+
+				Convey("Then the topology should be stopped dispite the failure of Stop", func() {
+					So(t.State(ctx), ShouldEqual, TSStopped)
+				})
+
+				Convey("Then the Box should be terminated", func() {
+					b.WaitForTermination()
+					So(b.terminateCnt, ShouldEqual, 1)
+
+					Convey("And Run shouldn't have returned yet", func() {
+						var err error
+						select {
+						case <-runCh:
+							err = fmt.Errorf("Run has already returned")
+						default:
+						}
+						So(err, ShouldBeNil)
+					})
+				})
+			})
+		}
+		sourceStopFailHelper("When Source.Stop fails while stopping the topology", func() {
+			s.stopFail = true
+		})
+		sourceStopFailHelper("When Source.Stop panics while stopping the topology", func() {
+			s.stopPanic = true
+		})
+
+		// TODO: add test for calling Stop on TSStopping
+	})
+}
+
+// TODO: Add a test case for Source failures after defining error types
+//       Add Run test that GenerateStream fails and the stream stops automatically using stubFailureSource
+
+// TODO: Add a test case for Box failures after defining error types

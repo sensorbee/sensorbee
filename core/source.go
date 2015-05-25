@@ -14,6 +14,10 @@ type Source interface {
 	// Stop will tell the Source to stop emitting tuples. After this
 	// function returns, no more calls to Write shall be made on the
 	// Writer passed in to GenerateStream.
+	//
+	// Stop could be called after GenerateStream returns. However,
+	// it's guaranteed that Stop won't be called more than once by
+	// components in SensorBee's core package.
 	Stop(ctx *Context) error
 
 	// Schema will return the schema of the data that can be expected
