@@ -25,20 +25,20 @@ type CreateStreamAsSelectStmt struct {
 }
 
 type CreateSourceStmt struct {
-	Name SourceName
-	Type SourceType
-	SourceSpecsAST
+	Name SourceSinkName
+	Type SourceSinkType
+	SourceSinkSpecsAST
 }
 
 type CreateStreamFromSourceStmt struct {
 	Relation
-	Source SourceName
+	Source SourceSinkName
 }
 
 type CreateStreamFromSourceExtStmt struct {
 	Relation
-	Type SourceType
-	SourceSpecsAST
+	Type SourceSinkType
+	SourceSinkSpecsAST
 }
 
 type EmitProjectionsAST struct {
@@ -76,13 +76,13 @@ type HavingAST struct {
 	Having interface{}
 }
 
-type SourceSpecsAST struct {
-	Params []SourceParamAST
+type SourceSinkSpecsAST struct {
+	Params []SourceSinkParamAST
 }
 
-type SourceParamAST struct {
-	Key   SourceParamKey
-	Value SourceParamVal
+type SourceSinkParamAST struct {
+	Key   SourceSinkParamKey
+	Value SourceSinkParamVal
 }
 
 type BinaryOpAST struct {
@@ -121,13 +121,13 @@ func NewRaw(s string) Raw {
 	return Raw{s}
 }
 
-type SourceName string
+type SourceSinkName string
 
-type SourceType string
+type SourceSinkType string
 
-type SourceParamKey string
+type SourceSinkParamKey string
 
-type SourceParamVal string
+type SourceSinkParamVal string
 
 type Emitter int
 

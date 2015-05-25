@@ -9,11 +9,11 @@ func TestAssembleCreateSource(t *testing.T) {
 	Convey("Given a parseStack", t, func() {
 		ps := parseStack{}
 		Convey("When the stack contains the correct CREATE SOURCE items", func() {
-			ps.PushComponent(2, 4, SourceName("a"))
-			ps.PushComponent(4, 6, SourceType("b"))
-			ps.PushComponent(6, 8, SourceParamAST{"c", "d"})
-			ps.PushComponent(8, 10, SourceParamAST{"e", "f"})
-			ps.AssembleSourceSpecs(6, 10)
+			ps.PushComponent(2, 4, SourceSinkName("a"))
+			ps.PushComponent(4, 6, SourceSinkType("b"))
+			ps.PushComponent(6, 8, SourceSinkParamAST{"c", "d"})
+			ps.PushComponent(8, 10, SourceSinkParamAST{"e", "f"})
+			ps.AssembleSourceSinkSpecs(6, 10)
 			ps.AssembleCreateSource()
 
 			Convey("Then AssembleCreateSource transforms them into one item", func() {
@@ -49,11 +49,11 @@ func TestAssembleCreateSource(t *testing.T) {
 		})
 
 		Convey("When the stack contains a wrong item", func() {
-			ps.PushComponent(2, 4, Raw{"a"}) // must be SourceName
-			ps.PushComponent(4, 6, SourceType("b"))
-			ps.PushComponent(6, 8, SourceParamAST{"c", "d"})
-			ps.PushComponent(8, 10, SourceParamAST{"e", "f"})
-			ps.AssembleSourceSpecs(6, 10)
+			ps.PushComponent(2, 4, Raw{"a"}) // must be SourceSinkName
+			ps.PushComponent(4, 6, SourceSinkType("b"))
+			ps.PushComponent(6, 8, SourceSinkParamAST{"c", "d"})
+			ps.PushComponent(8, 10, SourceSinkParamAST{"e", "f"})
+			ps.AssembleSourceSinkSpecs(6, 10)
 
 			Convey("Then AssembleCreateSource panics", func() {
 				So(ps.AssembleCreateSource, ShouldPanic)
