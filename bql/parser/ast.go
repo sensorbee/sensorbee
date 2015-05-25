@@ -30,6 +30,11 @@ type CreateSourceStmt struct {
 	SourceSpecsAST
 }
 
+type CreateStreamFromSourceStmt struct {
+	Relation
+	Source SourceName
+}
+
 type EmitProjectionsAST struct {
 	EmitterType Emitter
 	ProjectionsAST

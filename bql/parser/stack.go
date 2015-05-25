@@ -148,6 +148,25 @@ func (ps *parseStack) AssembleCreateSource() {
 	ps.Push(&se)
 }
 
+// AssembleCreateStreamFromSource takes the topmost elements from the stack,
+// assuming they are components of a CREATE STREAM statement, and
+// replaces them by a single CreateStreamFromSourceStmt element.
+//
+//  SourceName
+//  Relation
+//   =>
+//  CreateStreamFromSourceStmt{Relation, SourceName}
+func (ps *parseStack) AssembleCreateStreamFromSource() {
+	_src, _rel := ps.pop2()
+
+	src := _src.comp.(SourceName)
+	rel := _rel.comp.(Relation)
+
+	s := CreateStreamFromSourceStmt{rel, src}
+	se := ParsedComponent{_rel.begin, _src.end, s}
+	ps.Push(&se)
+}
+
 /* Projections/Columns */
 
 // AssembleEmitProjections takes the topmost elements from the
