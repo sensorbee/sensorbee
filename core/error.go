@@ -44,7 +44,7 @@ func (b *bulkErrors) Error() string {
 // Otherwise, the error is considered non-fatal and it returns false.
 //
 // Each component in core package behaves differently when it receives a
-// fatal error. All functions or methods have a documantation about how they
+// fatal error. All functions or methods have a documentation about how they
 // behave on this error, so please read them for details.
 func IsFatalError(err error) bool {
 	type fatal interface {
@@ -90,7 +90,7 @@ func FatalError(err error) error {
 // Otherwise, the error is considered permanent and it returns false.
 //
 // Each component in core package behaves differently when it receives a
-// temporary error. All functions or methods have a documantation about how they
+// temporary error. All functions or methods have a documentation about how they
 // behave on this error, so please read them for details.
 func IsTemporaryError(err error) bool {
 	type temporary interface {
