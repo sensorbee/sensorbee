@@ -30,6 +30,12 @@ type CreateSourceStmt struct {
 	SourceSinkSpecsAST
 }
 
+type CreateSinkStmt struct {
+	Name SourceSinkName
+	Type SourceSinkType
+	SourceSinkSpecsAST
+}
+
 type CreateStreamFromSourceStmt struct {
 	Relation
 	Source SourceSinkName
