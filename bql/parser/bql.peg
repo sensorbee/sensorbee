@@ -15,7 +15,8 @@ type bqlPeg Peg {
 # this rule.
 
 Statement <- (SelectStmt / CreateStreamAsSelectStmt / CreateSourceStmt /
-             CreateStreamFromSourceStmt / CreateStreamFromSourceExtStmt) !.
+             CreateStreamFromSourceStmt / CreateStreamFromSourceExtStmt /
+             CreateSinkStmt) !.
 
 SelectStmt <- "SELECT" sp
               Projections sp
@@ -44,6 +45,13 @@ CreateSourceStmt <- "CREATE" sp "SOURCE" sp
                     "TYPE" sp SourceSinkType sp
                     SourceSinkSpecs {
         p.AssembleCreateSource()
+    }
+
+CreateSinkStmt <- "CREATE" sp "SINK" sp
+                    SourceSinkName sp
+                    "TYPE" sp SourceSinkType sp
+                    SourceSinkSpecs {
+        p.AssembleCreateSink()
     }
 
 CreateStreamFromSourceStmt <- "CREATE" sp "STREAM" sp
