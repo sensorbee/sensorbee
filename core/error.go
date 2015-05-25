@@ -33,6 +33,26 @@ func (b *bulkErrors) Error() string {
 	return `"` + strings.Join(res, `", "`) + `"`
 }
 
+// Fatal returns true when at least one of errors is a fatal error.
+func (b *bulkErrors) Fatal() bool {
+	for _, e := range b.errs {
+		if IsFatalError(e) {
+			return true
+		}
+	}
+	return false
+}
+
+// Temporary returns true if all the errors bulkErrors has are temporary errors.
+func (b *bulkErrors) Temporary() bool {
+	for _, e := range b.errs {
+		if !IsTemporaryError(e) {
+			return false
+		}
+	}
+	return true
+}
+
 // IsFatalError returns true when the given error is fatal. If the error
 // implements the following interface, IsFatalError returns the return value of
 // Fatal method:

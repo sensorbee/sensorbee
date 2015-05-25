@@ -344,6 +344,36 @@ func (sc *staticNode) run(name string, ctx *Context) {
 		panicLogging sync.Once
 	)
 
+	setFatal := func(v interface{}) {
+		err, ok := v.(error)
+		if ok {
+			if !IsFatalError(err) {
+				err = FatalError(err)
+			}
+		} else {
+			err = FatalError(fmt.Errorf("unknown error through panic: %v", v))
+		}
+
+		// TODO: report the fatal error to the topology or Context so that
+		// the client of the topology can decide wheather it should
+		// stop the entire topology or not.
+	}
+
+	drainer := func(in *staticPipeReceiver) {
+		// This loop just consumes tuples to prevent the caller from being
+		// stuck in the chan. This loop stops when the sender closes the
+		// channel. Wish if the channel could be closed from the reader side
+		// without causing panic on the writer side.
+		//
+		// According to chan's semantics (single-writer/multiple-readers),
+		// staticPipeSender and Receiver should have another channel which
+		// the Receiver can notify the Sender that it cannot receive tuples
+		// anymore. However, defaultStaticTopology doesn't have to be that
+		// complex.
+		for _ = range in.in {
+		}
+	}
+
 	for _, in := range sc.inputs {
 		in := in
 
@@ -351,20 +381,48 @@ func (sc *staticNode) run(name string, ctx *Context) {
 		// TODO: These goroutines should be assembled to one goroutine with reflect.Select.
 		go func() {
 			defer wg.Done()
-			defer func() {
+			defer func() { // panic handler
 				if err := recover(); err != nil {
 					// Once a Box panics, it'll always panic after that. So,
 					// the log should only be written once.
 					panicLogging.Do(func() {
 						ctx.Logger.Log(Error, "%v paniced: %v", name, err)
+						go setFatal(err)
+						go drainer(in)
 					})
 				}
 			}()
 
+		consumerLoop:
 			for t := range in.in {
+				// When a fatal error occurred in another goroutine, loops in
+				// other goroutines don't stop immediately. They stop only when
+				// the Box returns the fatal error again, or it panics.
+				//
+				// It's possible for these loops to have a shared atomic flag
+				// to detect whether a fatal error is already returned or not.
+				// However, it adds extra costs to tuple processing. Moreover,
+				// stopping the topology here simply doesn't make sense because
+				// a static topology can no longer work correctly if a fatal
+				// error occurred. The topology will eventually be stopped by
+				// its Stop method and it stops all data flows gracefully. Thus,
+				// staticNode doesn't explicitly close both input and output and
+				// waits until the topology tries to stop all.
 				if err := sc.dst.Write(ctx, t); err != nil {
 					ctx.Logger.Log(Error, "%v cannot write a tuple: %v", name, err)
-					// All regular errors are considered resumable.
+
+					switch {
+					case IsFatalError(err):
+						go setFatal(err)
+						go drainer(in)
+						break consumerLoop
+
+					case IsTemporaryError(err):
+						// TODO: retry
+
+					default:
+						// Skip the current tuple
+					}
 				}
 			}
 		}()
@@ -385,6 +443,8 @@ func newStaticDestinations() *staticDestinations {
 	return &staticDestinations{}
 }
 
+// addDestination add a WriteCloser as a destination.
+// This method isn't thread-safe after the topology start flowing tuples.
 func (mc *staticDestinations) addDestination(name string, w WriteCloser) {
 	mc.names = append(mc.names, name)
 	mc.dsts = append(mc.dsts, w)
@@ -399,6 +459,9 @@ func (mc *staticDestinations) Write(ctx *Context, t *tuple.Tuple) error {
 			s = t.Copy()
 		}
 		if err := d.Write(ctx, s); err != nil {
+			// Because all boxes and sinks are wrapped with staticNode,
+			// staticDestinations doesn't have to handle retry here.
+
 			// TODO: this error message could be a little redundant.
 			e.append(fmt.Errorf("a tuple cannot be written to %v: %v", mc.names[i], err))
 		}
