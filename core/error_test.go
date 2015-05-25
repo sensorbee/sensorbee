@@ -11,7 +11,7 @@ type fakeFatalError struct {
 }
 
 func (f *fakeFatalError) Error() string {
-	return "failure"
+	return "fake error message"
 }
 
 func (f *fakeFatalError) Fatal() bool {
@@ -39,17 +39,21 @@ func TestFatalError(t *testing.T) {
 
 			Convey("Then it can also be a non-fatal error by configuration", func() {
 				So(IsFatalError(&fakeFatalError{false}), ShouldBeFalse)
+			})
 
-				Convey("And it can be wrapped as another fatal error", func() {
-					err := FatalError(&fakeFatalError{false})
-					So(err, ShouldNotBeNil)
-					So(IsFatalError(err), ShouldBeTrue)
+			Convey("Then a non-fatal error can be wrapped as another fatal error", func() {
+				err := FatalError(&fakeFatalError{false})
+				So(err, ShouldNotBeNil)
+				So(IsFatalError(err), ShouldBeTrue)
+
+				Convey("And the original error message shouldn't be changed", func() {
+					So(err.Error(), ShouldEqual, "fake error message")
 				})
 			})
 		})
 
 		Convey("When the error doesn't implements Fatal method", func() {
-			err := errors.New("failure")
+			err := errors.New("test failure")
 
 			Convey("Then it shouldn't be a fatal error", func() {
 				So(IsFatalError(err), ShouldBeFalse)
@@ -62,6 +66,10 @@ func TestFatalError(t *testing.T) {
 				Convey("And the error should be fatal", func() {
 					So(IsFatalError(e), ShouldBeTrue)
 				})
+
+				Convey("And the original error message shouldn't be changed", func() {
+					So(e.Error(), ShouldEqual, "test failure")
+				})
 			})
 		})
 	})
@@ -72,7 +80,7 @@ type fakeTemporaryError struct {
 }
 
 func (f *fakeTemporaryError) Error() string {
-	return "failure"
+	return "fake error message"
 }
 
 func (f *fakeTemporaryError) Temporary() bool {
@@ -107,10 +115,20 @@ func TestTemporaryError(t *testing.T) {
 					So(IsTemporaryError(err), ShouldBeTrue)
 				})
 			})
+
+			Convey("Then a non-temporary error can be wrapped as another temporary error", func() {
+				err := TemporaryError(&fakeTemporaryError{false})
+				So(err, ShouldNotBeNil)
+				So(IsTemporaryError(err), ShouldBeTrue)
+
+				Convey("And the original error message shouldn't be changed", func() {
+					So(err.Error(), ShouldEqual, "fake error message")
+				})
+			})
 		})
 
 		Convey("When the error doesn't implements Temporary method", func() {
-			err := errors.New("failure")
+			err := errors.New("test failure")
 
 			Convey("Then it shouldn't be a temporary error", func() {
 				So(IsTemporaryError(err), ShouldBeFalse)
@@ -122,6 +140,10 @@ func TestTemporaryError(t *testing.T) {
 
 				Convey("And the error should be temporary", func() {
 					So(IsTemporaryError(e), ShouldBeTrue)
+				})
+
+				Convey("And the original error message shouldn't be changed", func() {
+					So(e.Error(), ShouldEqual, "test failure")
 				})
 			})
 		})
