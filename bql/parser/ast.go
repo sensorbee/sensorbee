@@ -47,6 +47,11 @@ type CreateStreamFromSourceExtStmt struct {
 	SourceSinkSpecsAST
 }
 
+type InsertIntoSelectStmt struct {
+	Sink SourceSinkName
+	SelectStmt
+}
+
 type EmitProjectionsAST struct {
 	EmitterType Emitter
 	ProjectionsAST
