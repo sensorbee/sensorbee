@@ -15,7 +15,7 @@ type bqlPeg Peg {
 # this rule.
 
 Statement <- (SelectStmt / CreateStreamAsSelectStmt / CreateSourceStmt /
-             CreateStreamFromSourceStmt) !.
+             CreateStreamFromSourceStmt / CreateStreamFromSourceExtStmt) !.
 
 SelectStmt <- "SELECT" sp
               Projections sp
@@ -51,6 +51,13 @@ CreateStreamFromSourceStmt <- "CREATE" sp "STREAM" sp
                     "FROM" sp "SOURCE" sp
                     SourceName {
         p.AssembleCreateStreamFromSource()
+    }
+
+CreateStreamFromSourceExtStmt <- "CREATE" sp "STREAM" sp
+                    Relation sp
+                    "FROM" sp SourceType sp "SOURCE" sp
+                    SourceSpecs {
+        p.AssembleCreateStreamFromSourceExt()
     }
 
 # Projections/Columns (mandatory)
