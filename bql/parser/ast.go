@@ -24,6 +24,12 @@ type CreateStreamStmt struct {
 	HavingAST
 }
 
+type CreateSourceStmt struct {
+	Name SourceName
+	Type SourceType
+	SourceSpecsAST
+}
+
 type EmitProjectionsAST struct {
 	EmitterType Emitter
 	ProjectionsAST
@@ -57,6 +63,15 @@ type GroupingAST struct {
 
 type HavingAST struct {
 	Having interface{}
+}
+
+type SourceSpecsAST struct {
+	Params []SourceParamAST
+}
+
+type SourceParamAST struct {
+	Key   SourceParamKey
+	Value SourceParamVal
 }
 
 type BinaryOpAST struct {
@@ -94,6 +109,14 @@ type Raw struct {
 func NewRaw(s string) Raw {
 	return Raw{s}
 }
+
+type SourceName string
+
+type SourceType string
+
+type SourceParamKey string
+
+type SourceParamVal string
 
 type Emitter int
 

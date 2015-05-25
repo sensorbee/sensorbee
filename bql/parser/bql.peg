@@ -14,7 +14,7 @@ type bqlPeg Peg {
 # `buffer[begin:end]` holds the string part matching
 # this rule.
 
-Statement <- (SelectStmt / CreateStreamStmt) !.
+Statement <- (SelectStmt / CreateStreamStmt / CreateSourceStmt) !.
 
 SelectStmt <- "SELECT" sp
               Projections sp
@@ -36,6 +36,13 @@ CreateStreamStmt <- "CREATE" sp "STREAM" sp
                     Having sp
                     {
         p.AssembleCreateStream()
+    }
+
+CreateSourceStmt <- "CREATE" sp "SOURCE" sp
+                    SourceName sp
+                    "TYPE" sp SourceType sp
+                    SourceSpecs {
+        p.AssembleCreateSource()
     }
 
 # Projections/Columns (mandatory)
@@ -99,6 +106,32 @@ Having <- < ("HAVING" sp Expression)? > {
         // This is *always* executed, even if there is no
         // HAVING clause present in the statement.
         p.AssembleHaving(begin, end)
+    }
+
+# CREATE SOURCE parameters
+
+SourceName <- < [a-z]+ > {
+        p.PushComponent(begin, end, SourceName(buffer[begin:end]))
+    }
+
+SourceType <- < [a-z]+ > {
+        p.PushComponent(begin, end, SourceType(buffer[begin:end]))
+    }
+
+SourceSpecs <- < ("WITH" sp SourceParam sp (',' sp SourceParam)*)? > {
+        p.AssembleSourceSpecs(begin, end)
+    }
+
+SourceParam <- SourceParamKey '=' SourceParamVal {
+        p.AssembleSourceParam()
+    }
+
+SourceParamKey <- < [a-z0-9]+ > {
+        p.PushComponent(begin, end, SourceParamKey(buffer[begin:end]))
+    }
+
+SourceParamVal <- < [a-z0-9]+ > {
+        p.PushComponent(begin, end, SourceParamVal(buffer[begin:end]))
     }
 
 # The rules below are for implementing nested expressions such
