@@ -209,6 +209,25 @@ func (ps *parseStack) AssembleCreateStreamFromSourceExt() {
 	ps.Push(&se)
 }
 
+// AssembleInsertIntoSelect takes the topmost elements from the stack,
+// assuming they are components of a INSERT ... SELECT statement, and
+// replaces them by a single InsertIntoSelectStmt element.
+//
+//  SelectStmt
+//  SourceSinkName
+//   =>
+//  InsertIntoSelectStmt{SourceSinkName, SelectStmt}
+func (ps *parseStack) AssembleInsertIntoSelect() {
+	_selectStmt, _sink := ps.pop2()
+
+	selectStmt := _selectStmt.comp.(SelectStmt)
+	sink := _sink.comp.(SourceSinkName)
+
+	s := InsertIntoSelectStmt{sink, selectStmt}
+	se := ParsedComponent{_sink.begin, _selectStmt.end, s}
+	ps.Push(&se)
+}
+
 /* Projections/Columns */
 
 // AssembleEmitProjections takes the topmost elements from the

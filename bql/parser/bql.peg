@@ -16,7 +16,7 @@ type bqlPeg Peg {
 
 Statement <- (SelectStmt / CreateStreamAsSelectStmt / CreateSourceStmt /
              CreateStreamFromSourceStmt / CreateStreamFromSourceExtStmt /
-             CreateSinkStmt) !.
+             CreateSinkStmt / InsertIntoSelectStmt) !.
 
 SelectStmt <- "SELECT" sp
               Projections sp
@@ -66,6 +66,12 @@ CreateStreamFromSourceExtStmt <- "CREATE" sp "STREAM" sp
                     "FROM" sp SourceSinkType sp "SOURCE" sp
                     SourceSinkSpecs {
         p.AssembleCreateStreamFromSourceExt()
+    }
+
+InsertIntoSelectStmt <- "INSERT" sp "INTO" sp
+                    SourceSinkName sp
+                    SelectStmt {
+        p.AssembleInsertIntoSelect()
     }
 
 # Projections/Columns (mandatory)
