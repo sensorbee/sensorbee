@@ -465,5 +465,118 @@ func TestDefaultStaticTopologyStop(t *testing.T) {
 
 // TODO: Add a test case for Source failures after defining error types
 //       Add Run test that GenerateStream fails and the stream stops automatically using stubFailureSource
+//       Add a test checking fatal errors returned from GenerateStream (notify listeners!)
 
-// TODO: Add a test case for Box failures after defining error types
+func TestDefaultStaticTopologyFatalFailure(t *testing.T) {
+	config := Configuration{TupleTraceEnabled: 1}
+	ctx := newTestContext(config)
+
+	Convey("Given a topology with fatal boxes", t, func() {
+		tb := NewDefaultStaticTopologyBuilder()
+		so := &TupleEmitterSource{Tuples: freshTuples()}
+		So(tb.AddSource("source", so).Err(), ShouldBeNil)
+
+		b1 := &stubForwardBox{}
+		tc1 := NewTerminateChecker(b1)
+		So(tb.AddBox("box1", tc1).Input("source").Err(), ShouldBeNil)
+
+		b2 := &stubForwardBox{}
+		tc2 := NewTerminateChecker(b2)
+		So(tb.AddBox("box2", tc2).Input("source").Err(), ShouldBeNil)
+
+		si := NewTupleCollectorSink()
+		So(tb.AddSink("sink", si).Input("box1").Input("box2").Err(), ShouldBeNil)
+
+		ti, err := tb.Build()
+		So(err, ShouldBeNil)
+
+		t := ti.(*defaultStaticTopology)
+
+		var fatalError error
+		fatalCnt := map[string]int{}
+		t.AddFatalListener(func(ctx *Context, name string, err error) {
+			fatalError = err
+			fatalCnt[name]++
+		})
+
+		postCondCheck := func(cnt map[string]int) {
+			Convey("Then the topology should be stopped", func() {
+				So(t.State(ctx), ShouldEqual, TSStopped)
+			})
+
+			Convey("Then the listener should have received an error", func() {
+				So(fatalError, ShouldNotBeNil)
+			})
+
+			Convey("Then the listener should be called exactly once per a fatal component", func() {
+				for n, c := range cnt {
+					So(fatalCnt[n], ShouldEqual, c)
+				}
+			})
+		}
+
+		failProcGen := func(n int, shouldPanic bool) func() error {
+			cnt := 0
+			return func() error {
+				if cnt == n {
+					if shouldPanic {
+						// This doesn't use error intentionally.
+						panic("box panic")
+					}
+					return FatalError(fmt.Errorf("box fatal failure"))
+				}
+				cnt++
+				return nil
+			}
+		}
+
+		Convey("When a box returns a fatal error after processing some tuples", func() {
+			b1.proc = failProcGen(2, false)
+
+			So(t.Run(ctx), ShouldBeNil)
+			postCondCheck(map[string]int{
+				"box1": 1,
+				"box2": 0,
+				"sink": 0,
+			})
+
+			Convey("Then the sink should receive 10 tuples", func() {
+				So(len(si.Tuples), ShouldEqual, 10)
+			})
+		})
+
+		Convey("When two boxes returns a fatal error after processing some tuples", func() {
+			b1.proc = failProcGen(2, false)
+			b2.proc = failProcGen(3, false)
+
+			So(t.Run(ctx), ShouldBeNil)
+			postCondCheck(map[string]int{
+				"box1": 1,
+				"box2": 1,
+				"sink": 0,
+			})
+
+			Convey("Then the sink should receive 5 tuples", func() {
+				So(len(si.Tuples), ShouldEqual, 5)
+			})
+		})
+
+		Convey("When a box panics after processing some tuples", func() {
+			b1.proc = failProcGen(4, true)
+
+			So(t.Run(ctx), ShouldBeNil)
+			postCondCheck(map[string]int{
+				"box1": 1,
+				"box2": 0,
+				"sink": 0,
+			})
+
+			Convey("Then the sink should receive 12 tuples", func() {
+				So(len(si.Tuples), ShouldEqual, 12)
+			})
+		})
+
+		// Because Box and Sink are processed by the same code, tests using Sink
+		// are omitted for now to save time. It should be added later.
+	})
+}
