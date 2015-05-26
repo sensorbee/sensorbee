@@ -26,6 +26,9 @@ type defaultStaticTopology struct {
 	state      TopologyState
 	stateMutex *sync.Mutex
 	stateCond  *sync.Cond
+
+	fatalListenerMutex sync.Mutex
+	fatalListener      []func(ctx *Context, name string, err error)
 }
 
 func (t *defaultStaticTopology) Run(ctx *Context) error {
@@ -282,6 +285,21 @@ func (t *defaultStaticTopology) Stop(ctx *Context) error {
 	return err
 }
 
+func (t *defaultStaticTopology) AddFatalListener(l func(ctx *Context, name string, err error)) {
+	t.fatalListenerMutex.Lock()
+	defer t.fatalListenerMutex.Unlock()
+	t.fatalListener = append(t.fatalListener, l)
+}
+
+func (t *defaultStaticTopology) notifyFatalListeners(ctx *Context, name string, err error) {
+	t.fatalListenerMutex.Lock()
+	defer t.fatalListenerMutex.Unlock()
+
+	for _, l := range t.fatalListener {
+		l(ctx, name, err)
+	}
+}
+
 type staticPipeReceiver struct {
 	in <-chan *tuple.Tuple
 }
@@ -353,10 +371,7 @@ func (sc *staticNode) run(name string, ctx *Context) {
 		} else {
 			err = FatalError(fmt.Errorf("unknown error through panic: %v", v))
 		}
-
-		// TODO: report the fatal error to the topology or Context so that
-		// the client of the topology can decide wheather it should
-		// stop the entire topology or not.
+		topology.notifyFatalListeners(ctx, name, err)
 	}
 
 	drainer := func(in *staticPipeReceiver) {
