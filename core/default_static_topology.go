@@ -110,7 +110,7 @@ func (t *defaultStaticTopology) run(ctx *Context) error {
 		wg.Add(1)
 		go func(name string, node *staticNode) {
 			defer wg.Done()
-			node.run(name, ctx)
+			node.run(ctx, t, name)
 		}(name, node)
 	}
 
@@ -285,6 +285,12 @@ func (t *defaultStaticTopology) Stop(ctx *Context) error {
 	return err
 }
 
+// AddFatalListener adds a lister function to the topology. The listener is
+// called when a source, a box, or a sink returned a fatal error. Listeners
+// are never called concurrently, that is they don't have to acquire locks even
+// if two fatal errors occurred at the same time.
+//
+// Currently, a fatal error occurred in Source.GenerateStream are not reported.
 func (t *defaultStaticTopology) AddFatalListener(l func(ctx *Context, name string, err error)) {
 	t.fatalListenerMutex.Lock()
 	defer t.fatalListenerMutex.Unlock()
@@ -356,10 +362,10 @@ func (sc *staticNode) addInput(name string, in *staticPipeReceiver) {
 	sc.inputs[name] = in
 }
 
-func (sc *staticNode) run(name string, ctx *Context) {
+func (sc *staticNode) run(ctx *Context, topology *defaultStaticTopology, name string) {
 	var (
-		wg           sync.WaitGroup
-		panicLogging sync.Once
+		wg                sync.WaitGroup
+		fatalErrorHandler sync.Once
 	)
 
 	setFatal := func(v interface{}) {
@@ -400,7 +406,7 @@ func (sc *staticNode) run(name string, ctx *Context) {
 				if err := recover(); err != nil {
 					// Once a Box panics, it'll always panic after that. So,
 					// the log should only be written once.
-					panicLogging.Do(func() {
+					fatalErrorHandler.Do(func() {
 						ctx.Logger.Log(Error, "%v paniced: %v", name, err)
 						go setFatal(err)
 						go drainer(in)
@@ -424,18 +430,20 @@ func (sc *staticNode) run(name string, ctx *Context) {
 				// staticNode doesn't explicitly close both input and output and
 				// waits until the topology tries to stop all.
 				if err := sc.dst.Write(ctx, t); err != nil {
-					ctx.Logger.Log(Error, "%v cannot write a tuple: %v", name, err)
-
 					switch {
 					case IsFatalError(err):
-						go setFatal(err)
-						go drainer(in)
+						fatalErrorHandler.Do(func() {
+							ctx.Logger.Log(Error, "%v had a fatal error: %v", name, err)
+							go setFatal(err)
+							go drainer(in)
+						})
 						break consumerLoop
 
 					case IsTemporaryError(err):
 						// TODO: retry
 
 					default:
+						ctx.Logger.Log(Warning, "%v cannot write a tuple: %v", name, err)
 						// Skip the current tuple
 					}
 				}
@@ -515,6 +523,7 @@ func (wa *boxWriterAdapter) Write(ctx *Context, t *tuple.Tuple) error {
 }
 
 func (wa *boxWriterAdapter) Close(ctx *Context) error {
+	// TODO: handle panics
 	var errb error
 	if sbox, ok := wa.box.(StatefulBox); ok {
 		errb = sbox.Terminate(ctx)
