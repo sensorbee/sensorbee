@@ -120,6 +120,13 @@ func NewRelation(s string) Relation {
 	return Relation{s}
 }
 
+type Wildcard struct {
+}
+
+func NewWildcard() Wildcard {
+	return Wildcard{}
+}
+
 type ColumnName struct {
 	Name string
 }
