@@ -35,19 +35,7 @@ func (s *DoesNothingSource) Schema() *Schema {
 type DoesNothingBox struct {
 }
 
-func (b *DoesNothingBox) Init(ctx *Context) error {
-	return nil
-}
 func (b *DoesNothingBox) Process(ctx *Context, t *tuple.Tuple, s Writer) error {
-	return nil
-}
-func (b *DoesNothingBox) InputConstraints() (*BoxInputConstraints, error) {
-	return nil, nil
-}
-func (b *DoesNothingBox) OutputSchema(s map[string]*Schema) (*Schema, error) {
-	return nil, nil
-}
-func (b *DoesNothingBox) Terminate(ctx *Context) error {
 	return nil
 }
 
@@ -56,20 +44,41 @@ type ProxyBox struct {
 	b Box
 }
 
+var (
+	_ StatefulBox  = &ProxyBox{}
+	_ SchemafulBox = &ProxyBox{}
+)
+
 func (b *ProxyBox) Init(ctx *Context) error {
-	return b.b.Init(ctx)
+	if s, ok := b.b.(StatefulBox); ok {
+		return s.Init(ctx)
+	}
+	return nil
 }
+
 func (b *ProxyBox) Process(ctx *Context, t *tuple.Tuple, s Writer) error {
 	return b.b.Process(ctx, t, s)
 }
-func (b *ProxyBox) InputConstraints() (*BoxInputConstraints, error) {
-	return b.b.InputConstraints()
-}
-func (b *ProxyBox) OutputSchema(s map[string]*Schema) (*Schema, error) {
-	return b.b.OutputSchema(s)
-}
+
 func (b *ProxyBox) Terminate(ctx *Context) error {
-	return b.b.Terminate(ctx)
+	if s, ok := b.b.(StatefulBox); ok {
+		return s.Terminate(ctx)
+	}
+	return nil
+}
+
+func (b *ProxyBox) InputSchema() SchemaSet {
+	if s, ok := b.b.(SchemafulBox); ok {
+		return s.InputSchema()
+	}
+	return nil
+}
+
+func (b *ProxyBox) OutputSchema(ss SchemaSet) (*Schema, error) {
+	if s, ok := b.b.(SchemafulBox); ok {
+		return s.OutputSchema(ss)
+	}
+	return nil, nil
 }
 
 /**************************************************/
@@ -247,6 +256,8 @@ type BlockingForwardBox struct {
 	cnt int
 }
 
+var _ StatefulBox = &BlockingForwardBox{}
+
 func (b *BlockingForwardBox) Init(ctx *Context) error {
 	b.c = sync.NewCond(&b.m)
 	return nil
@@ -272,14 +283,6 @@ func (b *BlockingForwardBox) EmitTuples(n int) {
 	defer b.m.Unlock()
 	b.cnt += n
 	b.c.Broadcast()
-}
-
-func (b *BlockingForwardBox) InputConstraints() (*BoxInputConstraints, error) {
-	return nil, nil
-}
-
-func (b *BlockingForwardBox) OutputSchema(s map[string]*Schema) (*Schema, error) {
-	return nil, nil
 }
 
 func (b *BlockingForwardBox) Terminate(ctx *Context) error {
