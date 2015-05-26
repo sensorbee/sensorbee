@@ -212,7 +212,7 @@ ColumnName <- < [a-z]+ > {
     }
 
 NumericLiteral <- < [0-9]+ > {
-        p.PushComponent(begin, end, NewRaw(buffer[begin:end]))
+        p.PushComponent(begin, end, NewNumericLiteral(buffer[begin:end]))
     }
 
 Emitter <- ISTREAM / DSTREAM / RSTREAM

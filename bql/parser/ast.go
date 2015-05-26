@@ -1,5 +1,9 @@
 package parser
 
+import (
+	"strconv"
+)
+
 // This file holds a set of structs that make up the Abstract
 // Syntax Tree of a BQL statement. Usually, for every rule in
 // the PEG file, the left side should correspond to a struct
@@ -67,7 +71,7 @@ type WindowedFromAST struct {
 }
 
 type RangeAST struct {
-	Raw
+	NumericLiteral
 	Unit RangeUnit
 }
 
@@ -130,6 +134,18 @@ type Raw struct {
 
 func NewRaw(s string) Raw {
 	return Raw{s}
+}
+
+type NumericLiteral struct {
+	Value int64
+}
+
+func NewNumericLiteral(s string) NumericLiteral {
+	val, err := strconv.ParseInt(s, 10, 64)
+	if err != nil {
+		panic(err)
+	}
+	return NumericLiteral{val}
 }
 
 type SourceSinkName string
