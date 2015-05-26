@@ -12,7 +12,13 @@ func NewBQLParser() *bqlParser {
 	return &bqlParser{}
 }
 
-func (p *bqlParser) ParseStmt(s string) (interface{}, error) {
+func (p *bqlParser) ParseStmt(s string) (res interface{}, err error) {
+	// catch any parser errors
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("Error in BQL parser: %v", r)
+		}
+	}()
 	// parse the statement
 	b := p.b
 	b.Buffer = s
