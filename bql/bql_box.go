@@ -193,11 +193,3 @@ func (b *bqlBox) Terminate(ctx *core.Context) error {
 	// TODO cleanup
 	return nil
 }
-
-func (b *bqlBox) InputConstraints() (*core.BoxInputConstraints, error) {
-	return nil, nil
-}
-
-func (b *bqlBox) OutputSchema(s map[string]*core.Schema) (*core.Schema, error) {
-	return nil, nil
-}
