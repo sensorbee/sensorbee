@@ -301,7 +301,7 @@ func (bd *defaultBoxDeclarer) checkInput(inputName string) error {
 	// This is ok if
 	// - Box is schemaless
 	// - InputSchema() is nil
-	// - InputSchema() has the name
+	// - InputSchema() has a schema for that name
 	// - there is a "*" schema declared in InputSchema()
 	// Otherwise this is an error.
 	sbox, ok := bd.box.(SchemafulBox)
