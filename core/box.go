@@ -23,9 +23,9 @@ type Box interface {
 	Process(ctx *Context, t *tuple.Tuple, w Writer) error
 }
 
-// StatefulBox is a Box having its internal state and needs to be initialized
+// StatefulBox is a Box having an internal state that needs to be initialized
 // before it's used by a topology. Because a Box can be implemented in C or
-// C++, Terminate method is also provided to deallocate resources it used
+// C++, a Terminate method is also provided to deallocate resources it used
 // during processing.
 type StatefulBox interface {
 	Box
@@ -47,7 +47,8 @@ type StatefulBox interface {
 	Terminate(ctx *Context) error
 }
 
-// SchemaSet is a set of schemas required or computed by a SchemafulBox.
+// SchemaSet is a set of schemas required by a SchemafulBox for its input
+// data or computation of its output schema.
 // A schema can be nil, which means the input or output is schemaless and
 // accept any type of tuples.
 type SchemaSet map[string]*Schema
@@ -110,7 +111,7 @@ type SchemafulBox interface {
 	// OutputSchema is called on a Box when it is necessary to
 	// determine the shape of data that will be created by this Box.
 	// Since this output may vary depending on the data that is
-	// received, a list of the schemas of the input streams is
+	// received, a SchemaSet with the schemas of the input streams is
 	// passed as a parameter. Each schema in the argument is tied
 	// to the name of the input defined in the schema returned from
 	// InputSchema method. Return a nil pointer to signal that there
