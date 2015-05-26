@@ -207,7 +207,7 @@ divExpr <-    < baseExpression sp ("/" sp baseExpression)? > {
 # note that the order of literals is important in baseExpression
 baseExpression <- ('(' sp Expression sp ')') /
     BooleanLiteral / ColumnName / Wildcard /
-    FloatLiteral / NumericLiteral
+    FloatLiteral / NumericLiteral / StringLiteral
 
 # NB. The `begin` and `end` indexes that we get from the peg
 # library are indexes of the `rune array` corresponding to
@@ -242,6 +242,11 @@ FALSE <- < "false" > {
 
 Wildcard <- < '*' > {
         p.PushComponent(begin, end, NewWildcard())
+    }
+
+StringLiteral <- < ['] ("''" / !"'" .)* ['] > {
+        substr := string([]rune(buffer)[begin:end])
+        p.PushComponent(begin, end, NewStringLiteral(substr))
     }
 
 Emitter <- ISTREAM / DSTREAM / RSTREAM

@@ -2,6 +2,7 @@ package parser
 
 import (
 	"strconv"
+	"strings"
 )
 
 // This file holds a set of structs that make up the Abstract
@@ -173,6 +174,17 @@ type BoolLiteral struct {
 
 func NewBoolLiteral(b bool) BoolLiteral {
 	return BoolLiteral{b}
+}
+
+type StringLiteral struct {
+	Value string
+}
+
+func NewStringLiteral(s string) StringLiteral {
+	runes := []rune(s)
+	stripped := string(runes[1 : len(runes)-1])
+	unescaped := strings.Replace(stripped, "''", "'", -1)
+	return StringLiteral{unescaped}
 }
 
 type SourceSinkName string
