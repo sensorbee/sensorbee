@@ -310,9 +310,9 @@ func (ps *parseStack) AssembleWindowedFrom(begin int, end int) {
 // a single RangeAST element.
 //
 //  RangeUnit
-//  Raw
+//  NumericLiteral
 //   =>
-//  RangeAST{Raw, RangeUnit}
+//  RangeAST{NumericLiteral, RangeUnit}
 func (ps *parseStack) AssembleRange() {
 	// pop the components from the stack in reverse order
 	_unit, _num := ps.pop2()
@@ -320,7 +320,7 @@ func (ps *parseStack) AssembleRange() {
 	// extract and convert the contained structure
 	// (if this fails, this is a fundamental parser bug => panic ok)
 	unit := _unit.comp.(RangeUnit)
-	num := _num.comp.(Raw)
+	num := _num.comp.(NumericLiteral)
 
 	// assemble the RangeAST and push it back
 	ps.PushComponent(_num.begin, _unit.end, RangeAST{num, unit})
