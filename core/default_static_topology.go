@@ -20,9 +20,7 @@ type defaultStaticTopology struct {
 	srcDsts      map[string]WriteCloser
 	srcDstsMutex sync.Mutex
 
-	// nodes is a box or sink in the topology. defaultStaticTopology will run
-	// a separate goroutine for each input of a node so that nodes can
-	// concurrently send/receive tun to/from other nodes.
+	// nodes holds a staticNode for each box or sink in the topology.
 	nodes map[string]*staticNode
 
 	state      TopologyState
@@ -313,9 +311,8 @@ func newStaticPipe(inputName string, capacity int) (*staticPipeReceiver, *static
 }
 
 // staticNode has a box or sink and it receives tuples from the previous node in
-// the topology and writes tuples to the next destination node. It allows boxes
-// and sinks to receive tuples from multiple sources and boxes. It also support
-// fanning out same tuples to multiple destinations.
+// the topology and writes tuples to the next destination nodes. It allows boxes
+// and sinks to receive tuples from multiple sources and boxes.
 type staticNode struct {
 	// dst is a writer which sends tuples to the real destination.
 	// dst can be a box, a sink.
