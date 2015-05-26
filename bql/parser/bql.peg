@@ -208,7 +208,7 @@ divExpr <-    < baseExpression sp ("/" sp baseExpression)? > {
 baseExpression <- ('(' sp Expression sp ')') /
     ColumnName / FloatLiteral / NumericLiteral
 
-ColumnName <- < [a-z]+ > {
+ColumnName <- < [[a-z]] ([[a-z]] / [0-9] / '_')* > {
         p.PushComponent(begin, end, NewColumnName(buffer[begin:end]))
     }
 
