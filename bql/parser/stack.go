@@ -492,6 +492,41 @@ func (ps *parseStack) AssembleBinaryOperation(begin int, end int, op string) {
 	}
 }
 
+// AssembleFuncApp takes the topmost elements from the stack, assuming
+// they are components of a function application clause, and replaces
+// them by a single FuncAppAST element.
+//
+//  ExpressionsAST
+//  FuncName
+//   =>
+//  FuncAppAST{FuncName, ExpressionsAST}
+func (ps *parseStack) AssembleFuncApp() {
+	_exprs, _funcName := ps.pop2()
+
+	// extract and convert the contained structure
+	// (if this fails, this is a fundamental parser bug => panic ok)
+	exprs := _exprs.comp.(ExpressionsAST)
+	funcName := _funcName.comp.(FuncName)
+
+	// assemble the FuncAppAST and push it back
+	ps.PushComponent(_funcName.begin, _exprs.end, FuncAppAST{funcName, exprs})
+}
+
+// AssembleExpressions takes the elements from the stack that
+// correspond to the input[begin:end] string and wraps a
+// ProjectionsAST struct around them.
+//
+//  Any
+//  Any
+//  Any
+//   =>
+//  ExpressionsAST{[Any, Any, Any]}
+func (ps *parseStack) AssembleExpressions(begin int, end int) {
+	elems := ps.collectElements(begin, end)
+	// push the grouped list back
+	ps.PushComponent(begin, end, ExpressionsAST{elems})
+}
+
 // PushComponent pushes the given component to the top of the stack
 // wrapped in a ParsedComponent struct. It's the caller's responsibility
 // to make sure that the parameter is one of the AST classes, or there
