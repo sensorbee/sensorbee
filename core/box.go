@@ -55,6 +55,36 @@ type Box interface {
 	// Also note that the same Context pointer that was passed to
 	// Process should be handed over to Writer.Write so that the
 	// same settings will be used by that Writer.
+	//
+	// Process can tell the caller about each error in more detail by
+	// returning behavioral error types. The caller of Process must
+	// follow three rules:
+	//
+	//	1. The caller must not call Process again if the error is fatal
+	//	   (i.e. IsFatalError(err) == true). Because there can be multiple
+	//	   goroutines on a single Box, this rule only applies to the goroutine
+	//	   which received a fatal error.
+	//	2. The caller may retry the same tuple or discard it if the error is
+	//	   temporary but not fatal (i.e. IsFatalError(err) == false && IsTemporaryError(err) == true).
+	//	   The caller may call Process again with the same tuple, or may even
+	//	   discard the tuple and skip it. The number of retry which the caller
+	//	   should attempt is not defined.
+	//	3. The caller must discard the tuple and must not retry if the error
+	//	   isn't temporary nor fatal (i.e. IsFatalError(err) == false && IsTemporaryError(err) == false).
+	//	   The caller can call Process again with a different tuple, that is
+	//	   it can just skip the tuple which Process returned the error.
+	//
+	// Once Process returns a fatal error, it must always return fatal errors
+	// after that. Process might be called even after it returned a fatal error.
+	// Terminate method will be called even if Process returns a fatal error.
+	//
+	// When Process returns a temporary error, the call shouldn't have any
+	// side effect on the state of the Box,  that is consecutive retry calls
+	// should only be reflected once regardless of the number of attempt the
+	// caller makes. For example, let's assume a Box B is counting the word
+	// in tuples. Then, a caller invoked B.Process with a tuple t. If B.Process
+	// with t returned a temporary error, the count B has shouldn't be changed
+	// until the retry succeeds.
 	Process(ctx *Context, t *tuple.Tuple, s Writer) error
 
 	// InputConstraints is called on a Box to learn about the
