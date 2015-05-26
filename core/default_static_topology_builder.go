@@ -271,35 +271,12 @@ func (bd *defaultBoxDeclarer) NamedInput(refname string, inputName string) BoxDe
 		bd.err = err
 		return bd
 	}
-	// The `Input()` caller said that we should attach the name
-	// `inputName` to incoming data (or not if inputName is "*").
-	// This is ok if
-	// - InputConstraints() or InputConstraints().schema is nil
-	// - there is a schema (or nil) declared in the InputConstraints()
-	//   with that name
-	// - there is a "*" schema declared in the InputConstraints()
-	// Otherwise this is an error.
-	ok := false
-	inputConstraints, err := bd.box.InputConstraints()
-	if err != nil {
+
+	if err := bd.checkInput(inputName); err != nil {
 		bd.err = err
 		return bd
 	}
-	if inputConstraints == nil || inputConstraints.Schema == nil {
-		ok = true
-	} else if _, declared := inputConstraints.Schema[inputName]; declared {
-		// TODO check if given schema matches the referenced source or box
-		ok = true
-	} else if _, declared := inputConstraints.Schema["*"]; declared {
-		// TODO check if given schema matches the referenced source or box
-		ok = true
-	}
-	if !ok {
-		err := fmt.Errorf("you cannot use %s as an input name with input constraints %v",
-			inputName, inputConstraints)
-		bd.err = err
-		return bd
-	}
+
 	// check if this edge already exists
 	edge := dataflowEdge{refname, bd.name, inputName}
 	edgeAlreadyExists := false
@@ -316,6 +293,34 @@ func (bd *defaultBoxDeclarer) NamedInput(refname string, inputName string) BoxDe
 	// if not, store it
 	bd.tb.Edges = append(bd.tb.Edges, edge)
 	return bd
+}
+
+func (bd *defaultBoxDeclarer) checkInput(inputName string) error {
+	// The `Input()` caller said that we should attach the name
+	// `inputName` to incoming data (or not if inputName is "*").
+	// This is ok if
+	// - Box is schemaless
+	// - InputSchema() is nil
+	// - InputSchema() has a schema for that name
+	// - there is a "*" schema declared in InputSchema()
+	// Otherwise this is an error.
+	sbox, ok := bd.box.(SchemafulBox)
+	if !ok {
+		return nil // This box is schemaless.
+	}
+
+	inSchema := sbox.InputSchema()
+	if inSchema == nil {
+		return nil // schemaless
+	} else if inSchema.Has(inputName) {
+		// TODO: check if given schema matches the referenced source or box
+		return nil
+	} else if inSchema.Has("*") {
+		// TODO: check if given schema matches the referenced source or box
+		return nil
+	}
+	return fmt.Errorf("an input name %s isn't defined in the box '%v': %v",
+		inputName, bd.name, strings.Join(inSchema.Names(), ", "))
 }
 
 func (bd *defaultBoxDeclarer) Err() error {

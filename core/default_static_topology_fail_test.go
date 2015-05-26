@@ -31,6 +31,8 @@ type stubInitTerminateBox struct {
 	shared *stubInitTerminateBoxSharedConfig
 }
 
+var _ StatefulBox = &stubInitTerminateBox{}
+
 func NewStubInitTerminateBox(b Box, s *stubInitTerminateBoxSharedConfig) *stubInitTerminateBox {
 	return &stubInitTerminateBox{
 		terminateChecker: NewTerminateChecker(b),
