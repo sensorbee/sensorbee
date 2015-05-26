@@ -206,7 +206,7 @@ divExpr <-    < baseExpression sp ("/" sp baseExpression)? > {
 
 # note that the order of literals is important in baseExpression
 baseExpression <- ('(' sp Expression sp ')') /
-    BooleanLiteral / ColumnName / Wildcard /
+    BooleanLiteral / FuncApp / ColumnName / Wildcard /
     FloatLiteral / NumericLiteral / StringLiteral
 
 # NB. The `begin` and `end` indexes that we get from the peg
@@ -215,7 +215,7 @@ baseExpression <- ('(' sp Expression sp ')') /
 # `buffer[begin:end]` does only match the actual match for
 # ASCII strings and in general we have to use `string([]rune[begin:end])`.
 
-ColumnName <- < [[a-z]] ([[a-z]] / [0-9] / '_')* > {
+ColumnName <- < ident > {
         substr := string([]rune(buffer)[begin:end])
         p.PushComponent(begin, end, NewColumnName(substr))
     }
@@ -228,6 +228,19 @@ NumericLiteral <- < '-'? [0-9]+ > {
 FloatLiteral <- < '-'? [0-9]+ '.' [0-9]+ > {
         substr := string([]rune(buffer)[begin:end])
         p.PushComponent(begin, end, NewFloatLiteral(substr))
+    }
+
+FuncApp <- Function sp '(' sp FuncParams sp ')' {
+        p.AssembleFuncApp()
+    }
+
+Function <- < ident > {
+        substr := string([]rune(buffer)[begin:end])
+        p.PushComponent(begin, end, FuncName(substr))
+    }
+
+FuncParams <- < Expression sp (',' sp Expression)* > {
+        p.AssembleExpressions(begin, end)
     }
 
 BooleanLiteral <- TRUE / FALSE
@@ -272,5 +285,7 @@ TUPLES <- < "TUPLES" > {
 SECONDS <- < "SECONDS" > {
         p.PushComponent(begin, end, Seconds)
     }
+
+ident <- [[a-z]] ([[a-z]] / [0-9] / '_')*
 
 sp <- ( ' ' / '\t' / '\n' )*

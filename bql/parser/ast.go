@@ -107,6 +107,15 @@ type BinaryOpAST struct {
 	Right interface{}
 }
 
+type FuncAppAST struct {
+	Function FuncName
+	ExpressionsAST
+}
+
+type ExpressionsAST struct {
+	Expressions []interface{}
+}
+
 // Elementary Structures (all without *AST for now)
 
 // Note that we need the constructors for the elementary structures
@@ -186,6 +195,8 @@ func NewStringLiteral(s string) StringLiteral {
 	unescaped := strings.Replace(stripped, "''", "'", -1)
 	return StringLiteral{unescaped}
 }
+
+type FuncName string
 
 type SourceSinkName string
 
