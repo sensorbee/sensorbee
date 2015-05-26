@@ -148,6 +148,18 @@ func NewNumericLiteral(s string) NumericLiteral {
 	return NumericLiteral{val}
 }
 
+type FloatLiteral struct {
+	Value float64
+}
+
+func NewFloatLiteral(s string) FloatLiteral {
+	val, err := strconv.ParseFloat(s, 64)
+	if err != nil {
+		panic(err)
+	}
+	return FloatLiteral{val}
+}
+
 type SourceSinkName string
 
 type SourceSinkType string
