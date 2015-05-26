@@ -204,15 +204,20 @@ divExpr <-    < baseExpression sp ("/" sp baseExpression)? > {
         p.AssembleBinaryOperation(begin, end, "/")
     }
 
+# note that the order of literals is important in baseExpression
 baseExpression <- ('(' sp Expression sp ')') /
-    ColumnName / NumericLiteral
+    ColumnName / FloatLiteral / NumericLiteral
 
 ColumnName <- < [a-z]+ > {
         p.PushComponent(begin, end, NewColumnName(buffer[begin:end]))
     }
 
-NumericLiteral <- < [0-9]+ > {
+NumericLiteral <- < '-'? [0-9]+ > {
         p.PushComponent(begin, end, NewNumericLiteral(buffer[begin:end]))
+    }
+
+FloatLiteral <- < '-'? [0-9]+ '.' [0-9]+ > {
+        p.PushComponent(begin, end, NewFloatLiteral(buffer[begin:end]))
     }
 
 Emitter <- ISTREAM / DSTREAM / RSTREAM
