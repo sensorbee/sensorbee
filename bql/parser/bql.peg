@@ -209,16 +209,25 @@ baseExpression <- ('(' sp Expression sp ')') /
     BooleanLiteral / ColumnName / Wildcard /
     FloatLiteral / NumericLiteral
 
+# NB. The `begin` and `end` indexes that we get from the peg
+# library are indexes of the `rune array` corresponding to
+# the input, but the `buffer` is a string! Therefore
+# `buffer[begin:end]` does only match the actual match for
+# ASCII strings and in general we have to use `string([]rune[begin:end])`.
+
 ColumnName <- < [[a-z]] ([[a-z]] / [0-9] / '_')* > {
-        p.PushComponent(begin, end, NewColumnName(buffer[begin:end]))
+        substr := string([]rune(buffer)[begin:end])
+        p.PushComponent(begin, end, NewColumnName(substr))
     }
 
 NumericLiteral <- < '-'? [0-9]+ > {
-        p.PushComponent(begin, end, NewNumericLiteral(buffer[begin:end]))
+        substr := string([]rune(buffer)[begin:end])
+        p.PushComponent(begin, end, NewNumericLiteral(substr))
     }
 
 FloatLiteral <- < '-'? [0-9]+ '.' [0-9]+ > {
-        p.PushComponent(begin, end, NewFloatLiteral(buffer[begin:end]))
+        substr := string([]rune(buffer)[begin:end])
+        p.PushComponent(begin, end, NewFloatLiteral(substr))
     }
 
 BooleanLiteral <- TRUE / FALSE
