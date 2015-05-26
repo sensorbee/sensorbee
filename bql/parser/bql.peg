@@ -206,7 +206,8 @@ divExpr <-    < baseExpression sp ("/" sp baseExpression)? > {
 
 # note that the order of literals is important in baseExpression
 baseExpression <- ('(' sp Expression sp ')') /
-    FloatLiteral / NumericLiteral / BooleanLiteral / ColumnName
+    BooleanLiteral / ColumnName / Wildcard /
+    FloatLiteral / NumericLiteral
 
 ColumnName <- < [[a-z]] ([[a-z]] / [0-9] / '_')* > {
         p.PushComponent(begin, end, NewColumnName(buffer[begin:end]))
@@ -228,6 +229,10 @@ TRUE <- < "true" > {
 
 FALSE <- < "false" > {
         p.PushComponent(begin, end, NewBoolLiteral(false))
+    }
+
+Wildcard <- < '*' > {
+        p.PushComponent(begin, end, NewWildcard())
     }
 
 Emitter <- ISTREAM / DSTREAM / RSTREAM
