@@ -75,16 +75,21 @@ func (ds *DummySource) Schema() *Schema {
 
 type DummyBox struct{}
 
+var (
+	_ StatefulBox  = &DummyBox{}
+	_ SchemafulBox = &DummyBox{}
+)
+
 func (db *DummyBox) Init(ctx *Context) error {
 	return nil
 }
 func (db *DummyBox) Process(ctx *Context, t *tuple.Tuple, s Writer) error {
 	return nil
 }
-func (db *DummyBox) InputConstraints() (*BoxInputConstraints, error) {
-	return nil, nil
+func (db *DummyBox) InputSchema() SchemaSet {
+	return nil
 }
-func (db *DummyBox) OutputSchema(s map[string]*Schema) (*Schema, error) {
+func (db *DummyBox) OutputSchema(s SchemaSet) (*Schema, error) {
 	return nil, nil
 }
 func (db *DummyBox) Terminate(ctx *Context) error {
