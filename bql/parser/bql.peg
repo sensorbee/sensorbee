@@ -239,4 +239,4 @@ SECONDS <- < "SECONDS" > {
         p.PushComponent(begin, end, Seconds)
     }
 
-sp <- ( ' ' / '\t' )*
+sp <- ( ' ' / '\t' / '\n' )*
