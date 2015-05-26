@@ -160,6 +160,14 @@ func NewFloatLiteral(s string) FloatLiteral {
 	return FloatLiteral{val}
 }
 
+type BoolLiteral struct {
+	Value bool
+}
+
+func NewBoolLiteral(b bool) BoolLiteral {
+	return BoolLiteral{b}
+}
+
 type SourceSinkName string
 
 type SourceSinkType string
