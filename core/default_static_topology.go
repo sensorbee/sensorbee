@@ -65,7 +65,12 @@ func (t *defaultStaticTopology) Run(ctx *Context) error {
 	// Initialize boxes in advance.
 	var inited []string
 	for name, box := range t.boxes {
-		if err := box.Init(ctx); err != nil {
+		sbox, ok := box.(StatefulBox)
+		if !ok {
+			continue
+		}
+
+		if err := sbox.Init(ctx); err != nil {
 			// Terminate all Boxes initialized so far.
 			for _, n := range inited {
 				func() {
@@ -74,7 +79,7 @@ func (t *defaultStaticTopology) Run(ctx *Context) error {
 							ctx.Logger.Log(Error, "Termination of box %v failed by panic: %v", n, e)
 						}
 					}()
-					if err := t.boxes[n].Terminate(ctx); err != nil {
+					if err := t.boxes[n].(StatefulBox).Terminate(ctx); err != nil {
 						ctx.Logger.Log(Error, "Termination of box %v failed: %v", n, err)
 					}
 				}()
@@ -432,7 +437,10 @@ func (wa *boxWriterAdapter) Write(ctx *Context, t *tuple.Tuple) error {
 }
 
 func (wa *boxWriterAdapter) Close(ctx *Context) error {
-	errb := wa.box.Terminate(ctx)
+	var errb error
+	if sbox, ok := wa.box.(StatefulBox); ok {
+		errb = sbox.Terminate(ctx)
+	}
 	errw := wa.dst.w.Close(ctx)
 	if errb != nil {
 		return errb // An error from the Box is considered more important.

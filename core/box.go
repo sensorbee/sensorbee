@@ -4,44 +4,9 @@ import (
 	"pfi/sensorbee/sensorbee/core/tuple"
 )
 
-// BoxInputConstraints describe requirements that a Box has towards
-// its input data. At the moment, this is only the schema that
-// tuples need to fulfill.
-type BoxInputConstraints struct {
-	// Schema is a map that declares the required input schema for
-	// each logical input stream, identified by a Box-internal input
-	// name. Most boxes will treat all input tuples the same way
-	// (e.g., filter by a certain value, aggregate a certain key etc.);
-	// such boxes do not require the concept of multiple logical streams
-	// and should return
-	//   {"*": mySchema}
-	// where mySchema is either nil (to signal that any input is fine)
-	// or a pointer to a valid Schema object (to signal that all input
-	// tuples must match that schema). However, boxes that need to
-	// treat tuples from one source different than tuples from another
-	// source (e.g., when joining on `user.id == events.uid` etc.),
-	// can declare that they require multiple streams with (maybe)
-	// different schemas:
-	//  {"left": schemaA, "right": schemaB}
-	// If schemaA or schemaB is nil, then any input is fine on that
-	// logical stream, otherwise it needs to match the given schema.
-	// It is also possible to mix the forms using
-	//  {"special": schemaA, "*": schemaB}
-	// in which streams with arbitrary names can be added, but the tuples
-	// in streams called "special" will have to match schemaA (if given),
-	// all others schemaB (if given).
-	// Also see BoxDeclarer.Input and BoxDeclarer.NamedInput.
-	Schema map[string]*Schema
-}
-
 // A Box is an elementary building block of a SensorBee topology.
 // It is the equivalent of a StreamTask in Samza or a Bolt in Storm.
 type Box interface {
-	// Init is called on each Box in a Topology when StaticTopology.Run()
-	// is executed. It can be used to keep a reference to the Context
-	// object or initialize other forms of state.
-	Init(ctx *Context) error
-
 	// Process is called on a Box for each item in the input stream.
 	// The processed result must be written to the given Writer
 	// object.
@@ -85,24 +50,20 @@ type Box interface {
 	// in tuples. Then, a caller invoked B.Process with a tuple t. If B.Process
 	// with t returned a temporary error, the count B has shouldn't be changed
 	// until the retry succeeds.
-	Process(ctx *Context, t *tuple.Tuple, s Writer) error
+	Process(ctx *Context, t *tuple.Tuple, w Writer) error
+}
 
-	// InputConstraints is called on a Box to learn about the
-	// requirements of this Box with respect to its input data. If
-	// this function returns nil, it means that any data can serve
-	// as input for this Box. Also see the documentation for the
-	// BoxInputConstraints struct.
-	InputConstraints() (*BoxInputConstraints, error)
+// StatefulBox is a Box having an internal state that needs to be initialized
+// before it's used by a topology. Because a Box can be implemented in C or
+// C++, a Terminate method is also provided to deallocate resources it used
+// during processing.
+type StatefulBox interface {
+	Box
 
-	// OutputSchema is called on a Box when it is necessary to
-	// determine the shape of data that will be created by this Box.
-	// Since this output may vary depending on the data that is
-	// received, a list of the schemas of the input streams is
-	// passed as a parameter. Each schema in the argument is tied
-	// to the name of the input defined in BoxInputConstraints.
-	// Return a nil pointer to signal that there are no guarantees
-	// about the shape of the returned data given.
-	OutputSchema(map[string]*Schema) (*Schema, error)
+	// Init is called on each Box in a Topology when StaticTopology.Run()
+	// is executed. It can be used to keep a reference to the Context
+	// object or initialize other forms of state.
+	Init(ctx *Context) error
 
 	// Terminate finalizes a Box. The Box can no longer be used after
 	// this method is called. This method doesn't have to be idempotent,
@@ -116,6 +77,80 @@ type Box interface {
 	Terminate(ctx *Context) error
 }
 
+// SchemaSet is a set of schemas required by a SchemafulBox for its input
+// data or computation of its output schema.
+// A schema can be nil, which means the input or output is schemaless and
+// accept any type of tuples.
+type SchemaSet map[string]*Schema
+
+// Names returns names of all the schema the set has. It returns names
+// of nil-schemas.
+func (s SchemaSet) Names() []string {
+	var ns []string
+	for n := range s {
+		ns = append(ns, n)
+	}
+	return ns
+}
+
+// Has returns true when the set has the schema with the name. It returns
+// true even when the set has a nil-schema with the name.
+func (s SchemaSet) Has(name string) bool {
+	_, ok := s[name]
+	return ok
+}
+
+// SchemafulBox is a Box having input/output schema information so that type
+// conversion error can be detected before it's executed.
+type SchemafulBox interface {
+	Box
+
+	// InputSchema returns the specification of tuples which the Box receives.
+	//
+	// Schema is a map that declares the required input schema for
+	// each logical input stream, identified by a Box-internal input
+	// name. Most boxes will treat all input tuples the same way
+	// (e.g., filter by a certain value, aggregate a certain key etc.);
+	// such boxes do not require the concept of multiple logical streams
+	// and should return
+	//
+	//	{"*": mySchema}
+	//
+	// where mySchema is either nil (to signal that any input is fine)
+	// or a pointer to a valid Schema object (to signal that all input
+	// tuples must match that schema). However, boxes that need to
+	// treat tuples from one source different than tuples from another
+	// source (e.g., when joining on `user.id == events.uid` etc.),
+	// can declare that they require multiple streams with (maybe)
+	// different schemas:
+	//
+	//	{"left": schemaA, "right": schemaB}
+	//
+	// If schemaA or schemaB is nil, then any input is fine on that
+	// logical stream, otherwise it needs to match the given schema.
+	// It is also possible to mix the forms using
+	//
+	//	{"special": schemaA, "*": schemaB}
+	//
+	// in which streams with arbitrary names can be added, but the tuples
+	// in streams called "special" will have to match schemaA (if given),
+	// all others schemaB (if given).
+	// Also see BoxDeclarer.Input and BoxDeclarer.NamedInput.
+	InputSchema() SchemaSet
+
+	// OutputSchema is called on a Box when it is necessary to
+	// determine the shape of data that will be created by this Box.
+	// Since this output may vary depending on the data that is
+	// received, a SchemaSet with the schemas of the input streams is
+	// passed as a parameter. Each schema in the argument is tied
+	// to the name of the input defined in the schema returned from
+	// InputSchema method. Return a nil pointer to signal that there
+	// are no guarantees  about the shape of the returned data given.
+	OutputSchema(SchemaSet) (*Schema, error)
+}
+
+// TODO: Support input constraints such as an acceptable frequency of tuples.
+
 // BoxFunc can be used to add all methods required to fulfill the Box
 // interface to a normal function with the signature
 //   func(ctx *Context, t *tuple.Tuple, s Writer) error
@@ -127,29 +162,12 @@ type Box interface {
 //         return nil
 //     }
 //     var box Box = BoxFunc(forward)
-func BoxFunc(f func(ctx *Context, t *tuple.Tuple, s Writer) error) Box {
-	bf := boxFunc(f)
-	return &bf
+func BoxFunc(b func(ctx *Context, t *tuple.Tuple, w Writer) error) Box {
+	return boxFunc(b)
 }
 
-type boxFunc func(ctx *Context, t *tuple.Tuple, s Writer) error
+type boxFunc func(ctx *Context, t *tuple.Tuple, w Writer) error
 
-func (b *boxFunc) Process(ctx *Context, t *tuple.Tuple, s Writer) error {
-	return (*b)(ctx, t, s)
-}
-
-func (b *boxFunc) Init(ctx *Context) error {
-	return nil
-}
-
-func (b *boxFunc) InputConstraints() (*BoxInputConstraints, error) {
-	return nil, nil
-}
-
-func (b *boxFunc) OutputSchema(s map[string]*Schema) (*Schema, error) {
-	return nil, nil
-}
-
-func (b *boxFunc) Terminate(ctx *Context) error {
-	return nil
+func (b boxFunc) Process(ctx *Context, t *tuple.Tuple, w Writer) error {
+	return b(ctx, t, w)
 }

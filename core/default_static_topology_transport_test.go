@@ -405,7 +405,7 @@ func TestDefaultStaticTopologyTupleTransport(t *testing.T) {
 		}
 		tb.AddSource("source", so)
 
-		b1 := CollectorBox{InputSchema: map[string]*Schema{"hoge": nil}}
+		b1 := CollectorBox{InSchema: SchemaSet{"hoge": nil}}
 		tb.AddBox("box1", &b1).NamedInput("source", "hoge")
 		b2 := CollectorBox{}
 		tb.AddBox("box2", &b2).Input("source")
@@ -497,10 +497,15 @@ func TestDefaultStaticTopologyTupleTransport(t *testing.T) {
 // CollectorBox is a simple forwarder box that also stores a copy
 // of all forwarded data for later inspection.
 type CollectorBox struct {
-	mutex       *sync.Mutex
-	Tuples      []*tuple.Tuple
-	InputSchema map[string]*Schema
+	mutex    *sync.Mutex
+	Tuples   []*tuple.Tuple
+	InSchema SchemaSet
 }
+
+var (
+	_ StatefulBox  = &CollectorBox{}
+	_ SchemafulBox = &CollectorBox{}
+)
 
 func (b *CollectorBox) Init(ctx *Context) error {
 	b.mutex = &sync.Mutex{}
@@ -516,14 +521,10 @@ func (b *CollectorBox) Process(ctx *Context, t *tuple.Tuple, s Writer) error {
 	s.Write(ctx, t)
 	return nil
 }
-func (b *CollectorBox) InputConstraints() (*BoxInputConstraints, error) {
-	if b.InputSchema != nil {
-		ic := &BoxInputConstraints{b.InputSchema}
-		return ic, nil
-	}
-	return nil, nil
+func (b *CollectorBox) InputSchema() SchemaSet {
+	return b.InSchema
 }
-func (b *CollectorBox) OutputSchema(s map[string]*Schema) (*Schema, error) {
+func (b *CollectorBox) OutputSchema(s SchemaSet) (*Schema, error) {
 	return nil, nil
 }
 func (b *CollectorBox) Terminate(ctx *Context) error {
@@ -541,8 +542,13 @@ type SimpleJoinBox struct {
 	mutex       *sync.Mutex
 	LeftTuples  map[int64]*tuple.Tuple
 	RightTuples map[int64]*tuple.Tuple
-	inputSchema map[string]*Schema
+	inputSchema SchemaSet
 }
+
+var (
+	_ StatefulBox  = &SimpleJoinBox{}
+	_ SchemafulBox = &SimpleJoinBox{}
+)
 
 func (b *SimpleJoinBox) Init(ctx *Context) error {
 	b.mutex = &sync.Mutex{}
@@ -607,14 +613,11 @@ func (b *SimpleJoinBox) Process(ctx *Context, t *tuple.Tuple, s Writer) error {
 }
 
 // require schemafree input from "left" and "right" named streams
-func (b *SimpleJoinBox) InputConstraints() (*BoxInputConstraints, error) {
-	if b.inputSchema == nil {
-		b.inputSchema = map[string]*Schema{"left": nil, "right": nil}
-	}
-	return &BoxInputConstraints{b.inputSchema}, nil
+func (b *SimpleJoinBox) InputSchema() SchemaSet {
+	return b.inputSchema
 }
 
-func (b *SimpleJoinBox) OutputSchema(s map[string]*Schema) (*Schema, error) {
+func (b *SimpleJoinBox) OutputSchema(s SchemaSet) (*Schema, error) {
 	return nil, nil
 }
 

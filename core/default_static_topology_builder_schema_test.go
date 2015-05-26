@@ -36,7 +36,7 @@ func TestDefaultStaticTopologyBuilderSchemaChecks(t *testing.T) {
 		Convey("When using a box with {'*' => nil} input constraint", func() {
 			// A box with '*' => nil should allow any and all input
 			b := &DoesNothingBoxWithSchema{
-				InputSchema: map[string]*Schema{"*": nil}}
+				InSchema: SchemaSet{"*": nil}}
 
 			Convey("Then adding an unnamed input should succeed", func() {
 				bdecl := tb.AddBox("box", b).Input("source")
@@ -67,7 +67,7 @@ func TestDefaultStaticTopologyBuilderSchemaChecks(t *testing.T) {
 			// A box with 'hoge' => nil should only allow input
 			// if it comes from an input stream called 'hoge'
 			b := &DoesNothingBoxWithSchema{
-				InputSchema: map[string]*Schema{"hoge": nil}}
+				InSchema: SchemaSet{"hoge": nil}}
 
 			Convey("Then adding an unnamed input should fail", func() {
 				bdecl := tb.AddBox("box", b).Input("source")
@@ -100,7 +100,7 @@ func TestDefaultStaticTopologyBuilderSchemaChecks(t *testing.T) {
 			// A box with 'hoge' => nil, *' => nil should allow any and
 			// all input
 			b := &DoesNothingBoxWithSchema{
-				InputSchema: map[string]*Schema{"hoge": nil, "*": nil}}
+				InSchema: SchemaSet{"hoge": nil, "*": nil}}
 
 			Convey("Then adding an unnamed input should succeed", func() {
 				bdecl := tb.AddBox("box", b).Input("source")
@@ -143,14 +143,16 @@ func TestDefaultStaticTopologyBuilderSchemaChecks(t *testing.T) {
 // possible to add a schema that will be returned by InputConstraints.
 // This way it is possible to simulate a Box with input requirements
 type DoesNothingBoxWithSchema struct {
-	InputSchema map[string]*Schema
+	InSchema SchemaSet
 	DoesNothingBox
 }
 
-func (b *DoesNothingBoxWithSchema) InputConstraints() (*BoxInputConstraints, error) {
-	if b.InputSchema != nil {
-		ic := &BoxInputConstraints{b.InputSchema}
-		return ic, nil
-	}
+var _ SchemafulBox = &DoesNothingBoxWithSchema{}
+
+func (b *DoesNothingBoxWithSchema) InputSchema() SchemaSet {
+	return b.InSchema
+}
+
+func (b *DoesNothingBoxWithSchema) OutputSchema(s SchemaSet) (*Schema, error) {
 	return nil, nil
 }
