@@ -182,8 +182,8 @@ productExpr <- < baseExpr sp (MultDivOp sp baseExpr)? > {
     }
 
 baseExpr <-
-    BooleanLiteral /
     ('(' sp Expression sp ')') /
+    BooleanLiteral /
     FuncApp /
     ColumnName /
     Wildcard /
