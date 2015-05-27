@@ -88,7 +88,7 @@ func TestAssembleInsertIntoSelect(t *testing.T) {
 		p := &bqlPeg{}
 
 		Convey("When doing a full INSERT INTO SELECT", func() {
-			p.Buffer = "INSERT INTO x SELECT a, b FROM c, d WHERE e GROUP BY f, g HAVING h"
+			p.Buffer = "INSERT INTO x SELECT '日本語', b FROM c, d WHERE e GROUP BY f, g HAVING h"
 			p.Init()
 
 			Convey("Then the statement should be parsed correctly", func() {
@@ -104,7 +104,7 @@ func TestAssembleInsertIntoSelect(t *testing.T) {
 
 				So(comp.Sink, ShouldEqual, "x")
 				So(len(comp.Projections), ShouldEqual, 2)
-				So(comp.Projections[0], ShouldResemble, ColumnName{"a"})
+				So(comp.Projections[0], ShouldResemble, StringLiteral{"日本語"})
 				So(comp.Projections[1], ShouldResemble, ColumnName{"b"})
 				So(len(comp.Relations), ShouldEqual, 2)
 				So(comp.Relations[0].Name, ShouldEqual, "c")

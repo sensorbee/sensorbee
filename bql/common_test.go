@@ -4,6 +4,7 @@ import (
 	. "pfi/sensorbee/sensorbee/core"
 	"pfi/sensorbee/sensorbee/core/tuple"
 	"sync"
+	"time"
 )
 
 func newTestContext(config Configuration) *Context {
@@ -11,6 +12,28 @@ func newTestContext(config Configuration) *Context {
 		Logger: NewConsolePrintLogger(),
 		Config: config,
 	}
+}
+
+func getTuples(num int) []*tuple.Tuple {
+	tuples := make([]*tuple.Tuple, 0, num)
+	for i := 0; i < num; i++ {
+		tup := tuple.Tuple{
+			Data: tuple.Map{
+				"int": tuple.Int(i + 1),
+			},
+			InputName:     "input",
+			Timestamp:     time.Date(2015, time.April, 10, 10, 23, i, 0, time.UTC),
+			ProcTimestamp: time.Date(2015, time.April, 10, 10, 24, i, 0, time.UTC),
+			BatchID:       7,
+		}
+		tuples = append(tuples, &tup)
+	}
+	return tuples
+}
+
+func NewTupleEmitterSource(num int) *TupleEmitterSource {
+	s := TupleEmitterSource{Tuples: getTuples(num)}
+	return &s
 }
 
 //////// Below are all copies from the core package ////////

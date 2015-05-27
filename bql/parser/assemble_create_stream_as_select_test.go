@@ -17,7 +17,7 @@ func TestAssembleCreateStreamAsSelect(t *testing.T) {
 			ps.AssembleEmitProjections()
 			ps.PushComponent(12, 13, Relation{"c"})
 			ps.PushComponent(13, 14, Relation{"d"})
-			ps.PushComponent(14, 15, Raw{"2"})
+			ps.PushComponent(14, 15, NumericLiteral{2})
 			ps.PushComponent(15, 20, Seconds)
 			ps.AssembleRange()
 			ps.AssembleWindowedFrom(12, 20)
@@ -50,7 +50,7 @@ func TestAssembleCreateStreamAsSelect(t *testing.T) {
 						So(len(comp.Relations), ShouldEqual, 2)
 						So(comp.Relations[0].Name, ShouldEqual, "c")
 						So(comp.Relations[1].Name, ShouldEqual, "d")
-						So(comp.Expr, ShouldEqual, "2")
+						So(comp.Value, ShouldEqual, 2)
 						So(comp.Unit, ShouldEqual, Seconds)
 						So(comp.Filter, ShouldResemble, ColumnName{"e"})
 						So(len(comp.GroupList), ShouldEqual, 2)
@@ -79,7 +79,7 @@ func TestAssembleCreateStreamAsSelect(t *testing.T) {
 			ps.AssembleEmitProjections()
 			ps.PushComponent(12, 13, Relation{"c"})
 			ps.PushComponent(13, 14, Relation{"d"})
-			ps.PushComponent(14, 15, Raw{"2"})
+			ps.PushComponent(14, 15, NumericLiteral{2})
 			ps.PushComponent(15, 20, Seconds)
 			ps.AssembleRange()
 			ps.AssembleWindowedFrom(12, 20)
@@ -101,7 +101,7 @@ func TestAssembleCreateStreamAsSelect(t *testing.T) {
 		p := &bqlPeg{}
 
 		Convey("When doing a full SELECT", func() {
-			p.Buffer = "CREATE STREAM x AS SELECT ISTREAM(a, b) FROM c, d [RANGE 2 SECONDS] WHERE e GROUP BY f, g HAVING h"
+			p.Buffer = "CREATE STREAM x_2 AS SELECT ISTREAM('日本語', b) FROM c, d [RANGE 2 SECONDS] WHERE e GROUP BY f, g HAVING h"
 			p.Init()
 
 			Convey("Then the statement should be parsed correctly", func() {
@@ -115,15 +115,15 @@ func TestAssembleCreateStreamAsSelect(t *testing.T) {
 				So(top, ShouldHaveSameTypeAs, CreateStreamAsSelectStmt{})
 				comp := top.(CreateStreamAsSelectStmt)
 
-				So(comp.Name, ShouldEqual, "x")
+				So(comp.Name, ShouldEqual, "x_2")
 				So(comp.EmitterType, ShouldEqual, Istream)
 				So(len(comp.Projections), ShouldEqual, 2)
-				So(comp.Projections[0], ShouldResemble, ColumnName{"a"})
+				So(comp.Projections[0], ShouldResemble, StringLiteral{"日本語"})
 				So(comp.Projections[1], ShouldResemble, ColumnName{"b"})
 				So(len(comp.Relations), ShouldEqual, 2)
 				So(comp.Relations[0].Name, ShouldEqual, "c")
 				So(comp.Relations[1].Name, ShouldEqual, "d")
-				So(comp.Expr, ShouldEqual, "2")
+				So(comp.Value, ShouldEqual, 2)
 				So(comp.Unit, ShouldEqual, Seconds)
 				So(comp.Filter, ShouldResemble, ColumnName{"e"})
 				So(len(comp.GroupList), ShouldEqual, 2)

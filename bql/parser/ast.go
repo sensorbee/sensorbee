@@ -1,5 +1,10 @@
 package parser
 
+import (
+	"strconv"
+	"strings"
+)
+
 // This file holds a set of structs that make up the Abstract
 // Syntax Tree of a BQL statement. Usually, for every rule in
 // the PEG file, the left side should correspond to a struct
@@ -67,7 +72,7 @@ type WindowedFromAST struct {
 }
 
 type RangeAST struct {
-	Raw
+	NumericLiteral
 	Unit RangeUnit
 }
 
@@ -97,9 +102,18 @@ type SourceSinkParamAST struct {
 }
 
 type BinaryOpAST struct {
-	Op    string
+	Op    Operator
 	Left  interface{}
 	Right interface{}
+}
+
+type FuncAppAST struct {
+	Function FuncName
+	ExpressionsAST
+}
+
+type ExpressionsAST struct {
+	Expressions []interface{}
 }
 
 // Elementary Structures (all without *AST for now)
@@ -114,6 +128,13 @@ type Relation struct {
 
 func NewRelation(s string) Relation {
 	return Relation{s}
+}
+
+type Wildcard struct {
+}
+
+func NewWildcard() Wildcard {
+	return Wildcard{}
 }
 
 type ColumnName struct {
@@ -131,6 +152,51 @@ type Raw struct {
 func NewRaw(s string) Raw {
 	return Raw{s}
 }
+
+type NumericLiteral struct {
+	Value int64
+}
+
+func NewNumericLiteral(s string) NumericLiteral {
+	val, err := strconv.ParseInt(s, 10, 64)
+	if err != nil {
+		panic(err)
+	}
+	return NumericLiteral{val}
+}
+
+type FloatLiteral struct {
+	Value float64
+}
+
+func NewFloatLiteral(s string) FloatLiteral {
+	val, err := strconv.ParseFloat(s, 64)
+	if err != nil {
+		panic(err)
+	}
+	return FloatLiteral{val}
+}
+
+type BoolLiteral struct {
+	Value bool
+}
+
+func NewBoolLiteral(b bool) BoolLiteral {
+	return BoolLiteral{b}
+}
+
+type StringLiteral struct {
+	Value string
+}
+
+func NewStringLiteral(s string) StringLiteral {
+	runes := []rune(s)
+	stripped := string(runes[1 : len(runes)-1])
+	unescaped := strings.Replace(stripped, "''", "'", -1)
+	return StringLiteral{unescaped}
+}
+
+type FuncName string
 
 type SourceSinkName string
 
@@ -153,4 +219,22 @@ type RangeUnit int
 const (
 	Tuples RangeUnit = iota
 	Seconds
+)
+
+type Operator int
+
+const (
+	Or Operator = iota
+	And
+	Equal
+	Less
+	LessOrEqual
+	Greater
+	GreaterOrEqual
+	NotEqual
+	Plus
+	Minus
+	Multiply
+	Divide
+	Modulo
 )

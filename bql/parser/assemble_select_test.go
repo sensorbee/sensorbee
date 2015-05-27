@@ -84,7 +84,7 @@ func TestAssembleSelect(t *testing.T) {
 		p := &bqlPeg{}
 
 		Convey("When doing a full SELECT", func() {
-			p.Buffer = "SELECT a, b FROM c, d WHERE e GROUP BY f, g HAVING h"
+			p.Buffer = "SELECT '日本語', b FROM c, d WHERE e GROUP BY f, g HAVING h"
 			p.Init()
 
 			Convey("Then the statement should be parsed correctly", func() {
@@ -99,7 +99,7 @@ func TestAssembleSelect(t *testing.T) {
 				comp := top.(SelectStmt)
 
 				So(len(comp.Projections), ShouldEqual, 2)
-				So(comp.Projections[0], ShouldResemble, ColumnName{"a"})
+				So(comp.Projections[0], ShouldResemble, StringLiteral{"日本語"})
 				So(comp.Projections[1], ShouldResemble, ColumnName{"b"})
 				So(len(comp.Relations), ShouldEqual, 2)
 				So(comp.Relations[0].Name, ShouldEqual, "c")
