@@ -8,11 +8,22 @@ type bqlPeg Peg {
     parseStack
 }
 
-# below come the rules, in curly braces the action
+# Below come the rules, in curly braces the action
 # that should be taken after parsing is complete,
 # where `p` points to the `Bql` struct above and
 # `buffer[begin:end]` holds the string part matching
 # this rule.
+
+# Note that where there are multiple "/"-separated alternatives, we
+# must take care of the order: Items that match prefixes of other
+# items must come later (e.g. the integer parser must come after the
+# float parser since "3.14" would first be matched by the integer
+# parser and then fail at the "." character).
+
+
+###########################
+##### MAIN STATEMENTS #####
+###########################
 
 Statement <- (SelectStmt / CreateStreamAsSelectStmt / CreateSourceStmt /
              CreateStreamFromSourceStmt / CreateStreamFromSourceExtStmt /
@@ -74,7 +85,10 @@ InsertIntoSelectStmt <- "INSERT" sp "INTO" sp
         p.AssembleInsertIntoSelect()
     }
 
-# Projections/Columns (mandatory)
+
+################################
+##### STATEMENT COMPONENTS #####
+################################
 
 EmitProjections <- Emitter sp '(' Projections ')' {
         p.AssembleEmitProjections()
@@ -85,8 +99,6 @@ Projections <- < Projection sp (',' sp Projection)* > {
     }
 
 Projection <- Expression
-
-# FROM clause (optional)
 
 WindowedFrom <- < ("FROM" sp Relations sp
                    '[' sp "RANGE" sp Range sp ']')? > {
@@ -107,19 +119,11 @@ From <- < ("FROM" sp Relations)? > {
 
 Relations <- Relation sp (',' sp Relation)*
 
-Relation <- < [a-z]+ > {
-        p.PushComponent(begin, end, NewRelation(buffer[begin:end]))
-    }
-
-# WHERE clause (optional)
-
 Filter <- < ("WHERE" sp Expression)? > {
         // This is *always* executed, even if there is no
         // WHERE clause present in the statement.
         p.AssembleFilter(begin, end)
     }
-
-# GROUP BY clause (optional)
 
 Grouping <- < ("GROUP" sp "BY" sp GroupList)? > {
         // This is *always* executed, even if there is no
@@ -129,22 +133,10 @@ Grouping <- < ("GROUP" sp "BY" sp GroupList)? > {
 
 GroupList <- Expression sp (',' sp Expression)*
 
-# HAVING clause
-
 Having <- < ("HAVING" sp Expression)? > {
         // This is *always* executed, even if there is no
         // HAVING clause present in the statement.
         p.AssembleHaving(begin, end)
-    }
-
-# CREATE SOURCE parameters
-
-SourceSinkName <- < [a-z]+ > {
-        p.PushComponent(begin, end, SourceSinkName(buffer[begin:end]))
-    }
-
-SourceSinkType <- < [a-z]+ > {
-        p.PushComponent(begin, end, SourceSinkType(buffer[begin:end]))
     }
 
 SourceSinkSpecs <- < ("WITH" sp SourceSinkParam sp (',' sp SourceSinkParam)*)? > {
@@ -155,26 +147,17 @@ SourceSinkParam <- SourceSinkParamKey '=' SourceSinkParamVal {
         p.AssembleSourceSinkParam()
     }
 
-SourceSinkParamKey <- < [a-z0-9]+ > {
-        p.PushComponent(begin, end, SourceSinkParamKey(buffer[begin:end]))
-    }
 
-SourceSinkParamVal <- < [a-z0-9]+ > {
-        p.PushComponent(begin, end, SourceSinkParamVal(buffer[begin:end]))
-    }
+##############################
+##### NESTED EXPRESSIONS #####
+##############################
 
 # The rules below are for implementing nested expressions such
 # as `a + 3 = b OR a = b AND b > 0`.
 # Note: If we implement this the straightforward
 # `Expr <- Expr / (Expr "+" Expr) / ...` way, we will run into
-# infinite recursion.
-# Also note: If we use
-# `plusMinusExp <- (multExp "+" multExp) / (multExp "-" multExp)`
-# instead of
-# `plusExp <- (minusExp "+" minusExp)
-# `minusExp <- (multExp "-" multExp)
-# (in spirit) then for some reason this will not catch the "-"
-# operations properly.
+# infinite recursion, so we must at least "eat" one character
+# before we arrive back at `Expr`.
 
 Expression <- orExpr
 
@@ -223,11 +206,22 @@ ComparisonOp <- Equal / NotEqual / LessOrEqual / Less /
 PlusMinusOp <- Plus / Minus
 
 MultDivOp <- Multiply / Divide / Modulo
+
+
+#################################
+##### BASIC BUILDING BLOCKS #####
+#################################
+
 # NB. The `begin` and `end` indexes that we get from the peg
 # library are indexes of the `rune array` corresponding to
 # the input, but the `buffer` is a string! Therefore
 # `buffer[begin:end]` does only match the actual match for
 # ASCII strings and in general we have to use `string([]rune[begin:end])`.
+
+Relation <- < ident > {
+        substr := string([]rune(buffer)[begin:end])
+        p.PushComponent(begin, end, NewRelation(substr))
+    }
 
 ColumnName <- < ident > {
         substr := string([]rune(buffer)[begin:end])
@@ -290,6 +284,26 @@ TUPLES <- < "TUPLES" > {
 
 SECONDS <- < "SECONDS" > {
         p.PushComponent(begin, end, Seconds)
+    }
+
+SourceSinkName <- < ident > {
+        substr := string([]rune(buffer)[begin:end])
+        p.PushComponent(begin, end, SourceSinkName(substr))
+    }
+
+SourceSinkType <- < ident > {
+        substr := string([]rune(buffer)[begin:end])
+        p.PushComponent(begin, end, SourceSinkType(substr))
+    }
+
+SourceSinkParamKey <- < ident > {
+        substr := string([]rune(buffer)[begin:end])
+        p.PushComponent(begin, end, SourceSinkParamKey(substr))
+    }
+
+SourceSinkParamVal <- < ([[a-z]] / [0-9] / '_')+ > {
+        substr := string([]rune(buffer)[begin:end])
+        p.PushComponent(begin, end, SourceSinkParamVal(substr))
     }
 
 Or <- < "OR" > {

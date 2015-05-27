@@ -65,7 +65,7 @@ func TestAssembleCreateSource(t *testing.T) {
 		p := &bqlPeg{}
 
 		Convey("When doing a full CREATE SOURCE", func() {
-			p.Buffer = "CREATE SOURCE a TYPE b WITH c=d, e=f"
+			p.Buffer = "CREATE SOURCE a_1 TYPE b_b WITH c=27, e_=f_1"
 			p.Init()
 
 			Convey("Then the statement should be parsed correctly", func() {
@@ -79,13 +79,13 @@ func TestAssembleCreateSource(t *testing.T) {
 				So(top, ShouldHaveSameTypeAs, CreateSourceStmt{})
 				comp := top.(CreateSourceStmt)
 
-				So(comp.Name, ShouldEqual, "a")
-				So(comp.Type, ShouldEqual, "b")
+				So(comp.Name, ShouldEqual, "a_1")
+				So(comp.Type, ShouldEqual, "b_b")
 				So(len(comp.Params), ShouldEqual, 2)
 				So(comp.Params[0].Key, ShouldEqual, "c")
-				So(comp.Params[0].Value, ShouldEqual, "d")
-				So(comp.Params[1].Key, ShouldEqual, "e")
-				So(comp.Params[1].Value, ShouldEqual, "f")
+				So(comp.Params[0].Value, ShouldEqual, "27")
+				So(comp.Params[1].Key, ShouldEqual, "e_")
+				So(comp.Params[1].Value, ShouldEqual, "f_1")
 			})
 		})
 	})

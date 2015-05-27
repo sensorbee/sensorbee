@@ -65,7 +65,7 @@ func TestAssembleCreateStreamFromSourceExt(t *testing.T) {
 		p := &bqlPeg{}
 
 		Convey("When doing a full CREATE STREAM FROM type SOURCE", func() {
-			p.Buffer = "CREATE STREAM a FROM b SOURCE WITH c=d, e=f"
+			p.Buffer = "CREATE STREAM a FROM b SOURCE WITH c=27, e_=f_1"
 			p.Init()
 
 			Convey("Then the statement should be parsed correctly", func() {
@@ -83,9 +83,9 @@ func TestAssembleCreateStreamFromSourceExt(t *testing.T) {
 				So(comp.Type, ShouldEqual, "b")
 				So(len(comp.Params), ShouldEqual, 2)
 				So(comp.Params[0].Key, ShouldEqual, "c")
-				So(comp.Params[0].Value, ShouldEqual, "d")
-				So(comp.Params[1].Key, ShouldEqual, "e")
-				So(comp.Params[1].Value, ShouldEqual, "f")
+				So(comp.Params[0].Value, ShouldEqual, "27")
+				So(comp.Params[1].Key, ShouldEqual, "e_")
+				So(comp.Params[1].Value, ShouldEqual, "f_1")
 			})
 		})
 	})
