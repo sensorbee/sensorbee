@@ -40,7 +40,9 @@ func TestIstreamSecondsBqlBox(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		Convey("When 4 tuples are emitted by the source", func() {
-			t.Run(ctx)
+			err := t.Run(ctx)
+			So(err, ShouldBeNil)
+
 			Convey("Then the sink receives 2 tuples", func() {
 				So(si.Tuples, ShouldNotBeNil)
 				So(len(si.Tuples), ShouldEqual, 2)
@@ -74,7 +76,9 @@ func TestDstreamSecondsBqlBox(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		Convey("When 4 tuples are emitted by the source", func() {
-			t.Run(ctx)
+			err := t.Run(ctx)
+			So(err, ShouldBeNil)
+
 			Convey("Then the sink receives 0 tuples", func() {
 				So(si.Tuples, ShouldBeNil)
 			})
@@ -88,7 +92,9 @@ func TestDstreamSecondsBqlBox(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		Convey("When 4 tuples are emitted by the source", func() {
-			t.Run(ctx)
+			err := t.Run(ctx)
+			So(err, ShouldBeNil)
+
 			Convey("Then the sink receives 1 tuple", func() {
 				So(si.Tuples, ShouldNotBeNil)
 				So(len(si.Tuples), ShouldEqual, 1)
@@ -118,7 +124,9 @@ func TestRstreamSecondsBqlBox(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		Convey("When 4 tuples are emitted by the source", func() {
-			t.Run(ctx)
+			err := t.Run(ctx)
+			So(err, ShouldBeNil)
+
 			Convey("Then the sink receives 4 tuples", func() {
 				So(si.Tuples, ShouldNotBeNil)
 				So(len(si.Tuples), ShouldEqual, 4)
