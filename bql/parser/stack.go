@@ -310,9 +310,9 @@ func (ps *parseStack) AssembleWindowedFrom(begin int, end int) {
 // a single RangeAST element.
 //
 //  RangeUnit
-//  Raw
+//  NumericLiteral
 //   =>
-//  RangeAST{Raw, RangeUnit}
+//  RangeAST{NumericLiteral, RangeUnit}
 func (ps *parseStack) AssembleRange() {
 	// pop the components from the stack in reverse order
 	_unit, _num := ps.pop2()
@@ -320,7 +320,7 @@ func (ps *parseStack) AssembleRange() {
 	// extract and convert the contained structure
 	// (if this fails, this is a fundamental parser bug => panic ok)
 	unit := _unit.comp.(RangeUnit)
-	num := _num.comp.(Raw)
+	num := _num.comp.(NumericLiteral)
 
 	// assemble the RangeAST and push it back
 	ps.PushComponent(_num.begin, _unit.end, RangeAST{num, unit})
@@ -476,20 +476,61 @@ func (ps *parseStack) AssembleSourceSinkParam() {
 // it back unmodified.
 //
 //  Any
+//   =>
+//  Any
+// or
+//  Any
+//  Operator
 //  Any
 //   =>
-//  BinaryOpAST{op, Any, Any}
-func (ps *parseStack) AssembleBinaryOperation(begin int, end int, op string) {
+//  BinaryOpAST{Operator, Any, Any}
+func (ps *parseStack) AssembleBinaryOperation(begin int, end int) {
 	elems := ps.collectElements(begin, end)
 	if len(elems) == 1 {
 		// there is no "binary" operation, push back the single element
 		ps.PushComponent(begin, end, elems[0])
-	} else if len(elems) == 2 {
+	} else if len(elems) == 3 {
+		op := elems[1].(Operator)
 		// connect left and right with the given operator
-		ps.PushComponent(begin, end, BinaryOpAST{op, elems[0], elems[1]})
+		ps.PushComponent(begin, end, BinaryOpAST{op, elems[0], elems[2]})
 	} else {
 		panic(fmt.Sprintf("cannot turn %+v into a binary operation", elems))
 	}
+}
+
+// AssembleFuncApp takes the topmost elements from the stack, assuming
+// they are components of a function application clause, and replaces
+// them by a single FuncAppAST element.
+//
+//  ExpressionsAST
+//  FuncName
+//   =>
+//  FuncAppAST{FuncName, ExpressionsAST}
+func (ps *parseStack) AssembleFuncApp() {
+	_exprs, _funcName := ps.pop2()
+
+	// extract and convert the contained structure
+	// (if this fails, this is a fundamental parser bug => panic ok)
+	exprs := _exprs.comp.(ExpressionsAST)
+	funcName := _funcName.comp.(FuncName)
+
+	// assemble the FuncAppAST and push it back
+	ps.PushComponent(_funcName.begin, _exprs.end, FuncAppAST{funcName, exprs})
+}
+
+// AssembleExpressions takes the elements from the stack that
+// correspond to the input[begin:end] string and wraps a
+// ProjectionsAST struct around them.
+//
+//  Any
+//  Any
+//  Any
+//   =>
+//  ExpressionsAST{[Any, Any, Any]}
+func (ps *parseStack) AssembleExpressions(begin int, end int) {
+	elems := ps.collectElements(begin, end)
+	// push the grouped list back
+	ps.PushComponent(begin, end, ExpressionsAST{elems})
 }
 
 // PushComponent pushes the given component to the top of the stack

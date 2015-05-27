@@ -54,7 +54,7 @@ func TestAssembleCreateStreamFromSource(t *testing.T) {
 		p := &bqlPeg{}
 
 		Convey("When doing a CREATE STREAM", func() {
-			p.Buffer = "CREATE STREAM a FROM SOURCE b"
+			p.Buffer = "CREATE STREAM a_1 FROM SOURCE b_2"
 			p.Init()
 
 			Convey("Then the statement should be parsed correctly", func() {
@@ -68,8 +68,8 @@ func TestAssembleCreateStreamFromSource(t *testing.T) {
 				So(top, ShouldHaveSameTypeAs, CreateStreamFromSourceStmt{})
 				comp := top.(CreateStreamFromSourceStmt)
 
-				So(comp.Name, ShouldEqual, "a")
-				So(comp.Source, ShouldEqual, "b")
+				So(comp.Name, ShouldEqual, "a_1")
+				So(comp.Source, ShouldEqual, "b_2")
 			})
 		})
 	})

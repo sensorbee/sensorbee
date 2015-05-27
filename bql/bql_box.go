@@ -5,7 +5,6 @@ import (
 	"pfi/sensorbee/sensorbee/core"
 	"pfi/sensorbee/sensorbee/core/tuple"
 	"reflect"
-	"strconv"
 	"sync"
 )
 
@@ -31,17 +30,13 @@ func NewBqlBox(stmt *parser.CreateStreamAsSelectStmt) *bqlBox {
 }
 
 func (b *bqlBox) Init(ctx *core.Context) error {
-	// parse the string from the RANGE clause
-	size, err := strconv.ParseInt(b.stmt.Expr, 10, 64)
-	if err != nil {
-		return err
-	}
-	b.windowSize = size
+	// take the int from the RANGE clause
+	b.windowSize = b.stmt.Value
 	// initialize buffer
 	if b.stmt.Unit == parser.Tuples {
 		// we already know the required capacity of this buffer
 		// if we work with absolute numbers
-		b.buffer = make([]*tuple.Tuple, 0, size+1)
+		b.buffer = make([]*tuple.Tuple, 0, b.windowSize+1)
 	}
 	// initialize result tables
 	b.curResults = []tuple.Map{}

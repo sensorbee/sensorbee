@@ -65,7 +65,7 @@ func TestAssembleCreateSink(t *testing.T) {
 		p := &bqlPeg{}
 
 		Convey("When doing a full CREATE SINK", func() {
-			p.Buffer = "CREATE SINK a TYPE b WITH c=d, e=f"
+			p.Buffer = "CREATE SINK a_1 TYPE b WITH c=27, e_=f_1"
 			p.Init()
 
 			Convey("Then the statement should be parsed correctly", func() {
@@ -79,13 +79,13 @@ func TestAssembleCreateSink(t *testing.T) {
 				So(top, ShouldHaveSameTypeAs, CreateSinkStmt{})
 				comp := top.(CreateSinkStmt)
 
-				So(comp.Name, ShouldEqual, "a")
+				So(comp.Name, ShouldEqual, "a_1")
 				So(comp.Type, ShouldEqual, "b")
 				So(len(comp.Params), ShouldEqual, 2)
 				So(comp.Params[0].Key, ShouldEqual, "c")
-				So(comp.Params[0].Value, ShouldEqual, "d")
-				So(comp.Params[1].Key, ShouldEqual, "e")
-				So(comp.Params[1].Value, ShouldEqual, "f")
+				So(comp.Params[0].Value, ShouldEqual, "27")
+				So(comp.Params[1].Key, ShouldEqual, "e_")
+				So(comp.Params[1].Value, ShouldEqual, "f_1")
 			})
 		})
 	})
