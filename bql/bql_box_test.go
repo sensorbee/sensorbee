@@ -35,7 +35,7 @@ func TestIstreamSecondsBqlBox(t *testing.T) {
 
 	Convey("Given an ISTREAM/2 SECONDS BQL statement", t, func() {
 		s := "CREATE STREAM box AS SELECT " +
-			"ISTREAM(int) FROM source [RANGE 2 SECONDS] WHERE int = 2" // actually int % 2 == 0
+			"ISTREAM(int) FROM source [RANGE 2 SECONDS] WHERE int % 2 = 0"
 		t, si, err := setupTopology(s)
 		So(err, ShouldBeNil)
 
@@ -69,7 +69,7 @@ func TestDstreamSecondsBqlBox(t *testing.T) {
 
 	Convey("Given a DSTREAM/2 SECONDS BQL statement", t, func() {
 		s := "CREATE STREAM box AS SELECT " +
-			"DSTREAM(int) FROM source [RANGE 2 SECONDS] WHERE int = 2" // actually int % 2 == 0
+			"DSTREAM(int) FROM source [RANGE 2 SECONDS] WHERE int % 2 = 0"
 		t, si, err := setupTopology(s)
 		So(err, ShouldBeNil)
 
@@ -83,7 +83,7 @@ func TestDstreamSecondsBqlBox(t *testing.T) {
 
 	Convey("Given a DSTREAM/1 SECONDS BQL statement", t, func() {
 		s := "CREATE STREAM box AS SELECT " +
-			"DSTREAM(int) FROM source [RANGE 1 SECONDS] WHERE int = 2" // actually int % 2 == 0
+			"DSTREAM(int) FROM source [RANGE 1 SECONDS] WHERE int % 2 = 0"
 		t, si, err := setupTopology(s)
 		So(err, ShouldBeNil)
 
@@ -113,7 +113,7 @@ func TestRstreamSecondsBqlBox(t *testing.T) {
 
 	Convey("Given an RSTREAM/2 SECONDS BQL statement", t, func() {
 		s := "CREATE STREAM box AS SELECT " +
-			"RSTREAM(int) FROM source [RANGE 2 SECONDS] WHERE int = 2" // actually int % 2 == 0
+			"RSTREAM(int) FROM source [RANGE 2 SECONDS] WHERE int % 2 = 0"
 		t, si, err := setupTopology(s)
 		So(err, ShouldBeNil)
 
