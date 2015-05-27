@@ -176,39 +176,53 @@ SourceSinkParamVal <- < [a-z0-9]+ > {
 # (in spirit) then for some reason this will not catch the "-"
 # operations properly.
 
-Expression <- < andExpr sp ("OR" sp andExpr)? > {
-        p.AssembleBinaryOperation(begin, end, "OR")
+Expression <- orExpr
+
+orExpr <- < andExpr sp (Or sp andExpr)? > {
+        p.AssembleBinaryOperation(begin, end)
     }
 
-andExpr <-    < eqExpr sp ("AND" sp eqExpr)? > {
-        p.AssembleBinaryOperation(begin, end, "AND")
+andExpr <- < comparisonExpr sp (And sp comparisonExpr)? > {
+        p.AssembleBinaryOperation(begin, end)
     }
 
-eqExpr <-     < addExpr sp ("=" sp addExpr)? > {
-        p.AssembleBinaryOperation(begin, end, "=")
+comparisonExpr <- < termExpr sp (ComparisonOp sp termExpr)? > {
+        p.AssembleBinaryOperation(begin, end)
     }
 
-addExpr <-    < subExpr sp ("+" sp subExpr)? > {
-        p.AssembleBinaryOperation(begin, end, "+")
+termExpr <- < productExpr sp (PlusMinusOp sp productExpr)? > {
+        p.AssembleBinaryOperation(begin, end)
     }
 
-subExpr <-    < multExpr sp ("-" sp multExpr)? > {
-        p.AssembleBinaryOperation(begin, end, "-")
+productExpr <- < baseExpr sp (MultDivOp sp baseExpr)? > {
+        p.AssembleBinaryOperation(begin, end)
     }
 
-multExpr <-   < divExpr sp ("*" sp divExpr)? > {
-        p.AssembleBinaryOperation(begin, end, "*")
+baseExpr <-
+    BooleanLiteral /
+    ('(' sp Expression sp ')') /
+    FuncApp /
+    ColumnName /
+    Wildcard /
+    Literal
+
+FuncApp <- Function sp '(' sp FuncParams sp ')' {
+        p.AssembleFuncApp()
     }
 
-divExpr <-    < baseExpression sp ("/" sp baseExpression)? > {
-        p.AssembleBinaryOperation(begin, end, "/")
+FuncParams <- < Expression sp (',' sp Expression)* > {
+        p.AssembleExpressions(begin, end)
     }
 
-# note that the order of literals is important in baseExpression
-baseExpression <- ('(' sp Expression sp ')') /
-    BooleanLiteral / FuncApp / ColumnName / Wildcard /
+Literal <-
     FloatLiteral / NumericLiteral / StringLiteral
 
+ComparisonOp <- Equal / NotEqual / LessOrEqual / Less /
+        GreaterOrEqual / Greater / NotEqual
+
+PlusMinusOp <- Plus / Minus
+
+MultDivOp <- Multiply / Divide / Modulo
 # NB. The `begin` and `end` indexes that we get from the peg
 # library are indexes of the `rune array` corresponding to
 # the input, but the `buffer` is a string! Therefore
@@ -230,17 +244,9 @@ FloatLiteral <- < '-'? [0-9]+ '.' [0-9]+ > {
         p.PushComponent(begin, end, NewFloatLiteral(substr))
     }
 
-FuncApp <- Function sp '(' sp FuncParams sp ')' {
-        p.AssembleFuncApp()
-    }
-
 Function <- < ident > {
         substr := string([]rune(buffer)[begin:end])
         p.PushComponent(begin, end, FuncName(substr))
-    }
-
-FuncParams <- < Expression sp (',' sp Expression)* > {
-        p.AssembleExpressions(begin, end)
     }
 
 BooleanLiteral <- TRUE / FALSE
@@ -284,6 +290,58 @@ TUPLES <- < "TUPLES" > {
 
 SECONDS <- < "SECONDS" > {
         p.PushComponent(begin, end, Seconds)
+    }
+
+Or <- < "OR" > {
+        p.PushComponent(begin, end, Or)
+    }
+
+And <- < "AND" > {
+        p.PushComponent(begin, end, And)
+    }
+
+Equal <- < "=" > {
+        p.PushComponent(begin, end, Equal)
+    }
+
+Less <- < "<" > {
+        p.PushComponent(begin, end, Less)
+    }
+
+LessOrEqual <- < "<=" > {
+        p.PushComponent(begin, end, LessOrEqual)
+    }
+
+Greater <- < ">" > {
+        p.PushComponent(begin, end, Greater)
+    }
+
+GreaterOrEqual <- < ">=" > {
+        p.PushComponent(begin, end, GreaterOrEqual)
+    }
+
+NotEqual <- < "!=" / "<>" > {
+        p.PushComponent(begin, end, NotEqual)
+    }
+
+Plus <- < "+" > {
+        p.PushComponent(begin, end, Plus)
+    }
+
+Minus <- < "-" > {
+        p.PushComponent(begin, end, Minus)
+    }
+
+Multiply <- < "*" > {
+        p.PushComponent(begin, end, Multiply)
+    }
+
+Divide <- < "/" > {
+        p.PushComponent(begin, end, Divide)
+    }
+
+Modulo <- < "%" > {
+        p.PushComponent(begin, end, Modulo)
     }
 
 ident <- [[a-z]] ([[a-z]] / [0-9] / '_')*

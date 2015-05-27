@@ -102,7 +102,7 @@ type SourceSinkParamAST struct {
 }
 
 type BinaryOpAST struct {
-	Op    string
+	Op    Operator
 	Left  interface{}
 	Right interface{}
 }
@@ -219,4 +219,22 @@ type RangeUnit int
 const (
 	Tuples RangeUnit = iota
 	Seconds
+)
+
+type Operator int
+
+const (
+	Or Operator = iota
+	And
+	Equal
+	Less
+	LessOrEqual
+	Greater
+	GreaterOrEqual
+	NotEqual
+	Plus
+	Minus
+	Multiply
+	Divide
+	Modulo
 )
