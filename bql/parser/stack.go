@@ -476,17 +476,23 @@ func (ps *parseStack) AssembleSourceSinkParam() {
 // it back unmodified.
 //
 //  Any
+//   =>
+//  Any
+// or
+//  Any
+//  Operator
 //  Any
 //   =>
-//  BinaryOpAST{op, Any, Any}
-func (ps *parseStack) AssembleBinaryOperation(begin int, end int, op string) {
+//  BinaryOpAST{Operator, Any, Any}
+func (ps *parseStack) AssembleBinaryOperation(begin int, end int) {
 	elems := ps.collectElements(begin, end)
 	if len(elems) == 1 {
 		// there is no "binary" operation, push back the single element
 		ps.PushComponent(begin, end, elems[0])
-	} else if len(elems) == 2 {
+	} else if len(elems) == 3 {
+		op := elems[1].(Operator)
 		// connect left and right with the given operator
-		ps.PushComponent(begin, end, BinaryOpAST{op, elems[0], elems[1]})
+		ps.PushComponent(begin, end, BinaryOpAST{op, elems[0], elems[2]})
 	} else {
 		panic(fmt.Sprintf("cannot turn %+v into a binary operation", elems))
 	}
