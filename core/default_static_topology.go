@@ -285,7 +285,7 @@ func (t *defaultStaticTopology) Stop(ctx *Context) error {
 	return err
 }
 
-// AddFatalListener adds a lister function to the topology. The listener is
+// AddFatalListener adds a listener function to the topology. The listener is
 // called when a source, a box, or a sink returned a fatal error. Listeners
 // are never called concurrently, that is they don't have to acquire locks even
 // if two fatal errors occurred at the same time.
@@ -466,7 +466,7 @@ func newStaticDestinations() *staticDestinations {
 	return &staticDestinations{}
 }
 
-// addDestination add a WriteCloser as a destination.
+// addDestination adds a WriteCloser as a destination.
 // This method isn't thread-safe after the topology start flowing tuples.
 func (mc *staticDestinations) addDestination(name string, w WriteCloser) {
 	mc.names = append(mc.names, name)
