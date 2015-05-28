@@ -3,18 +3,26 @@ package core
 import (
 	"fmt"
 	"pfi/sensorbee/sensorbee/core/tuple"
+	"reflect"
 	"strings"
 	"sync"
 	"time"
 )
 
 type defaultStaticTopologyBuilder struct {
-	sources     map[string]Source
-	boxes       map[string]Box
-	boxpointers map[*Box]bool
-	sinks       map[string]Sink
-	Edges       []dataflowEdge
-	builtFlag   bool
+	sources   map[string]Source
+	boxes     map[string]Box
+	sinks     map[string]Sink
+	Edges     []dataflowEdge
+	builtFlag bool
+
+	// addedComponents have pointers of comopnents added to the builder.
+	// It has pointers to sources, boxes, and sinks.
+	addedComponents map[interface{}]string
+
+	// TODO: provide a flag whether the builder accepts duplicated registrations
+	// of the same instance of a Source, a Box, or a Sink (i.e. provide a way
+	// to disable addComponent method)
 }
 
 type dataflowEdge struct {
@@ -36,14 +44,14 @@ type dataflowEdge struct {
 // Also, this implementation will return an error when calling
 // Build more than once.
 func NewDefaultStaticTopologyBuilder() StaticTopologyBuilder {
-	tb := defaultStaticTopologyBuilder{}
-	tb.sources = make(map[string]Source)
-	tb.boxes = make(map[string]Box)
-	tb.boxpointers = make(map[*Box]bool)
-	tb.sinks = make(map[string]Sink)
-	tb.Edges = make([]dataflowEdge, 0)
-	tb.builtFlag = false
-	return &tb
+	return &defaultStaticTopologyBuilder{
+		sources:         map[string]Source{},
+		boxes:           map[string]Box{},
+		sinks:           map[string]Sink{},
+		Edges:           []dataflowEdge{},
+		builtFlag:       false,
+		addedComponents: map[interface{}]string{},
+	}
 }
 
 // check if the given name can be used as a source, box, or sink
@@ -84,9 +92,40 @@ func (tb *defaultStaticTopologyBuilder) AddSource(name string, source Source) So
 		return &defaultSourceDeclarer{nameErr}
 	}
 	// TODO check that declared schema is a valid JSON Schema string
+	if err := tb.addComponent(name, source); err != nil {
+		return &defaultSourceDeclarer{err}
+	}
 	// keep track of source
 	tb.sources[name] = source
 	return &defaultSourceDeclarer{}
+}
+
+func (tb *defaultStaticTopologyBuilder) addComponent(name string, c interface{}) error {
+	t := reflect.TypeOf(c)
+	if t.Kind() == reflect.Func { // TODO: Use reflect.Type.Comparable if it's available (> Go 1.4)
+		// When the component isn't comparable (e.g. functions), its uniqueness
+		// cannot be guaranteed.
+		return nil
+	}
+
+	{
+		v := reflect.ValueOf(c)
+		for v.Kind() == reflect.Ptr || v.Kind() == reflect.Interface {
+			v = v.Elem()
+		}
+		if v.Kind() == reflect.Struct && v.NumField() == 0 {
+			// When the version of Go is < 1.5, all instances of structs having
+			// no field will have the same address and uniqueness cannot be
+			// determined.
+			return nil
+		}
+	}
+
+	if name, ok := tb.addedComponents[c]; ok {
+		return fmt.Errorf("the component is already added to the builder with the name '%v'", name)
+	}
+	tb.addedComponents[c] = name
+	return nil
 }
 
 func (tb *defaultStaticTopologyBuilder) AddBox(name string, box Box) BoxDeclarer {
@@ -99,9 +138,11 @@ func (tb *defaultStaticTopologyBuilder) AddBox(name string, box Box) BoxDeclarer
 		return &defaultBoxDeclarer{err: nameErr}
 	}
 	// TODO check that declared schema is a valid JSON Schema string
+	if err := tb.addComponent(name, box); err != nil {
+		return &defaultBoxDeclarer{err: err}
+	}
 	// keep track of box
 	tb.boxes[name] = box
-	tb.boxpointers[&box] = true
 	return &defaultBoxDeclarer{tb, name, box, nil}
 }
 
@@ -113,6 +154,9 @@ func (tb *defaultStaticTopologyBuilder) AddSink(name string, sink Sink) SinkDecl
 	// check name
 	if nameErr := tb.checkName(name); nameErr != nil {
 		return &defaultSinkDeclarer{err: nameErr}
+	}
+	if err := tb.addComponent(name, sink); err != nil {
+		return &defaultSinkDeclarer{err: err}
 	}
 	// keep track of sink
 	tb.sinks[name] = sink
