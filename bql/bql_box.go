@@ -1,6 +1,7 @@
 package bql
 
 import (
+	"pfi/sensorbee/sensorbee/bql/execution"
 	"pfi/sensorbee/sensorbee/bql/parser"
 	"pfi/sensorbee/sensorbee/core"
 	"pfi/sensorbee/sensorbee/core/tuple"
@@ -11,6 +12,8 @@ import (
 type bqlBox struct {
 	// stmt is the BQL statement executed by this box
 	stmt *parser.CreateStreamAsSelectStmt
+	// plan is the execution plan for the SELECT statement in there
+	execPlan execution.ExecutionPlan
 	// windowSize is the size of the window as given
 	// in the RANGE clause -- TODO store an int in the stmt
 	windowSize int64
@@ -30,6 +33,19 @@ func NewBqlBox(stmt *parser.CreateStreamAsSelectStmt) *bqlBox {
 }
 
 func (b *bqlBox) Init(ctx *core.Context) error {
+	// create the execution plan
+	analyzedPlan, err := execution.Analyze(b.stmt)
+	if err != nil {
+		return err
+	}
+	optimizedPlan, err := analyzedPlan.LogicalOptimize()
+	if err != nil {
+		return err
+	}
+	b.execPlan, err = optimizedPlan.MakePhysicalPlan()
+	if err != nil {
+		return err
+	}
 	// take the int from the RANGE clause
 	b.windowSize = b.stmt.Value
 	// initialize buffer
@@ -105,19 +121,9 @@ func (b *bqlBox) removeOutdatedTuplesFromBuffer() {
 }
 
 func (b *bqlBox) performQueryOnBuffer() {
-	// TODO don't use a dummy filter, but the actual statement
-	results := []tuple.Map{}
-	for _, tup := range b.buffer {
-		value, _ := tup.Data.Get("int")
-		intVal, _ := value.AsInt()
-		// filter
-		if intVal%2 == 0 {
-			res := tuple.Map{}
-			// projection
-			res["int"] = value
-			results = append(results, res)
-		}
-	}
+	results, err := b.execPlan.Run(b.buffer)
+	// TODO check error
+	_ = err
 	b.curResults = results
 }
 
