@@ -139,7 +139,7 @@ func TestDefaultStaticTopologyBuilderInterface(t *testing.T) {
 		var err DeclarerError
 
 		Convey("when a new box references a non-existing item", func() {
-			err = tb.AddBox("otherBox", b).
+			err = tb.AddBox("otherBox", &DoesNothingBox{}).
 				Input("something")
 			So(err, ShouldNotBeNil)
 			Convey("adding should fail", func() {
@@ -148,7 +148,7 @@ func TestDefaultStaticTopologyBuilderInterface(t *testing.T) {
 		})
 
 		Convey("when a new box references an existing source", func() {
-			err = tb.AddBox("otherBox", b).
+			err = tb.AddBox("otherBox", &DoesNothingBox{}).
 				Input("aSource")
 			So(err, ShouldNotBeNil)
 			Convey("adding should work", func() {
@@ -156,8 +156,27 @@ func TestDefaultStaticTopologyBuilderInterface(t *testing.T) {
 			})
 		})
 
+		Convey("when adding a box which is alread added with a different name", func() {
+			err = tb.AddBox("otherBox", b)
+			So(err, ShouldNotBeNil)
+
+			Convey("adding should fail", func() {
+				So(err.Err(), ShouldNotBeNil)
+			})
+		})
+
+		Convey("when adding two boxes having the same address", func() {
+			So(tb.AddBox("otherBox1", &DummyBox{}).Err(), ShouldBeNil)
+			err = tb.AddBox("otherBox2", &DummyBox{})
+			So(err, ShouldNotBeNil)
+
+			Convey("adding should work", func() {
+				So(err.Err(), ShouldBeNil)
+			})
+		})
+
 		Convey("when a new box references an existing box", func() {
-			err = tb.AddBox("otherBox", b).
+			err = tb.AddBox("otherBox", &DoesNothingBox{}).
 				Input("aBox")
 			So(err, ShouldNotBeNil)
 			Convey("adding should work", func() {
@@ -166,7 +185,7 @@ func TestDefaultStaticTopologyBuilderInterface(t *testing.T) {
 		})
 
 		Convey("when a new box references multiple items", func() {
-			err = tb.AddBox("otherBox", b).
+			err = tb.AddBox("otherBox", &DoesNothingBox{}).
 				Input("aBox").
 				Input("aSource")
 			So(err, ShouldNotBeNil)
@@ -176,7 +195,7 @@ func TestDefaultStaticTopologyBuilderInterface(t *testing.T) {
 		})
 
 		Convey("when a new box references an existing source twice", func() {
-			err = tb.AddBox("otherBox", b).
+			err = tb.AddBox("otherBox", &DoesNothingBox{}).
 				Input("aSource").
 				Input("aSource")
 			So(err, ShouldNotBeNil)
@@ -186,7 +205,7 @@ func TestDefaultStaticTopologyBuilderInterface(t *testing.T) {
 		})
 
 		Convey("when a new box references an existing box twice", func() {
-			err = tb.AddBox("otherBox", b).
+			err = tb.AddBox("otherBox", &DoesNothingBox{}).
 				Input("aBox").
 				Input("aBox")
 			So(err, ShouldNotBeNil)
@@ -299,10 +318,11 @@ func TestDefaultStaticTopologyBuilderCycleChecker(t *testing.T) {
 			 */
 			tb.AddSource("src", &DoesNothingSource{})
 			b1 := tb.AddBox("box1", &DoesNothingBox{}).Input("src")
-			tb.AddBox("box2", &DoesNothingBox{}).Input("box1")
-			tb.AddBox("box3", &DoesNothingBox{}).Input("box2")
-			b1.Input("box3")
-			tb.AddSink("si", &DoesNothingSink{}).Input("box3")
+			So(tb.AddBox("box2", &DoesNothingBox{}).Input("box1").Err(), ShouldBeNil)
+			So(tb.AddBox("box3", &DoesNothingBox{}).Input("box2").Err(), ShouldBeNil)
+			So(b1.Input("box3").Err(), ShouldBeNil)
+			So(tb.AddSink("si", &DoesNothingSink{}).Input("box3").Err(), ShouldBeNil)
+
 			Convey("Then building the topology should fail", func() {
 				_, err := tb.Build()
 				So(err, ShouldNotBeNil)

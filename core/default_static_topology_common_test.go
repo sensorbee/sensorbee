@@ -15,7 +15,10 @@ func newTestContext(config Configuration) *Context {
 // DoesNothingSource is a dummy source that literally does nothing.
 // It just fulfills the Source interface so that we can build a
 // simple topology.
-type DoesNothingSource struct{}
+type DoesNothingSource struct {
+	// dummy is used to give a different address for each instance of this struct.
+	dummy int
+}
 
 func (s *DoesNothingSource) GenerateStream(ctx *Context, w Writer) error {
 	return nil
@@ -33,6 +36,8 @@ func (s *DoesNothingSource) Schema() *Schema {
 // It just fulfills the Box interface so that we can build a
 // simple topology.
 type DoesNothingBox struct {
+	// dummy is used to give a different address for each instance of this struct.
+	dummy int
 }
 
 func (b *DoesNothingBox) Process(ctx *Context, t *tuple.Tuple, s Writer) error {
@@ -86,7 +91,10 @@ func (b *ProxyBox) OutputSchema(ss SchemaSet) (*Schema, error) {
 // DoesNothingSink is a dummy source that literally does nothing.
 // It just fulfills the Sink interface so that we can build a
 // simple topology.
-type DoesNothingSink struct{}
+type DoesNothingSink struct {
+	// dummy is used to give a different address for each instance of this struct.
+	dummy int
+}
 
 func (s *DoesNothingSink) Write(ctx *Context, t *tuple.Tuple) error {
 	return nil
