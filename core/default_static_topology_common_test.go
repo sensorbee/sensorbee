@@ -327,6 +327,19 @@ func (s *TupleCollectorSink) Close(ctx *Context) error {
 
 /**************************************************/
 
+type stubForwardBox struct {
+	proc func() error
+}
+
+func (c *stubForwardBox) Process(ctx *Context, t *tuple.Tuple, w Writer) error {
+	if c.proc != nil {
+		if err := c.proc(); err != nil {
+			return err
+		}
+	}
+	return w.Write(ctx, t)
+}
+
 // forwardBox sends an input Tuple to the given Writer without
 // modification. It can be wrapped with BoxFunc to match the Box
 // interface.
