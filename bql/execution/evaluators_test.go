@@ -5,6 +5,7 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 	"math"
 	"pfi/sensorbee/sensorbee/bql/parser"
+	"pfi/sensorbee/sensorbee/bql/udf"
 	"pfi/sensorbee/sensorbee/core/tuple"
 	"testing"
 	"time"
@@ -17,6 +18,7 @@ type evalTest struct {
 
 func TestEvaluators(t *testing.T) {
 	testCases := getTestCases()
+	reg := &testFuncRegistry{}
 
 	for _, testCase := range testCases {
 		testCase := testCase
@@ -24,7 +26,7 @@ func TestEvaluators(t *testing.T) {
 		Convey(fmt.Sprintf("Given the AST Expression %v", ast), t, func() {
 
 			Convey("Then an Evaluator can be computed", func() {
-				eval, err := ExpressionToEvaluator(ast)
+				eval, err := ExpressionToEvaluator(ast, reg)
 				So(err, ShouldBeNil)
 
 				for i, tc := range testCase.inputs {
@@ -48,6 +50,69 @@ func TestEvaluators(t *testing.T) {
 			})
 		})
 	}
+}
+
+func TestFuncAppConversion(t *testing.T) {
+	Convey("Given a function registry", t, func() {
+		reg := &testFuncRegistry{}
+
+		Convey("When a function is known in the registry", func() {
+			ast := parser.FuncAppAST{parser.FuncName("plusone"),
+				parser.ExpressionsAST{[]interface{}{
+					parser.ColumnName{"a"},
+				}}}
+
+			Convey("Then we obtain an evaluatable funcApp", func() {
+				eval, err := ExpressionToEvaluator(ast, reg)
+				So(err, ShouldBeNil)
+				So(eval, ShouldHaveSameTypeAs, &funcApp{})
+			})
+		})
+
+		Convey("When the function is not known in the registry", func() {
+			ast := parser.FuncAppAST{parser.FuncName("fun"),
+				parser.ExpressionsAST{[]interface{}{
+					parser.ColumnName{"a"},
+				}}}
+
+			Convey("Then converting to an Evaluator fails", func() {
+				_, err := ExpressionToEvaluator(ast, reg)
+				So(err, ShouldNotBeNil)
+			})
+		})
+	})
+}
+
+// PlusOne is an example function that adds one to int and float Values.
+// It panics if the input is Null and returns an error for any other
+// type.
+func PlusOne(vs ...tuple.Value) (tuple.Value, error) {
+	if len(vs) != 1 {
+		err := fmt.Errorf("cannot use %d parameters for unary function", len(vs))
+		return nil, err
+	}
+	v := vs[0]
+	if v.Type() == tuple.TypeInt {
+		i, _ := v.AsInt()
+		return tuple.Int(i + 1), nil
+	} else if v.Type() == tuple.TypeFloat {
+		f, _ := v.AsFloat()
+		return tuple.Float(f + 1.0), nil
+	} else if v.Type() == tuple.TypeNull {
+		panic("null!")
+	}
+	return nil, fmt.Errorf("cannot add 1 to %v", v)
+}
+
+// testFuncRegistry returns the PlusOne function above for any parameter.
+type testFuncRegistry struct {
+}
+
+func (tfr *testFuncRegistry) Lookup(name string, arity int) (udf.VarParamFun, error) {
+	if name == "plusone" {
+		return PlusOne, nil
+	}
+	return nil, fmt.Errorf("no such function: %s", name)
 }
 
 func getTestCases() []struct {
@@ -882,6 +947,23 @@ func getTestCases() []struct {
 					"b": tuple.Timestamp(time.Now())}, nil},
 				// left and right present and not comparable => error
 			}, incomparables...),
+		},
+		/// Function Application
+		{parser.FuncAppAST{parser.FuncName("plusone"),
+			parser.ExpressionsAST{[]interface{}{parser.ColumnName{"a"}}}},
+			// NB. This only tests the behavior of funcApp.Eval.
+			// It does *not* test the function registry, mismatch
+			// in parameter counts or any particular function.
+			[]evalTest{
+				// function returns good result
+				{tuple.Map{"a": tuple.Int(16)}, tuple.Int(17)},
+				{tuple.Map{"a": tuple.Float(16.0)}, tuple.Float(17.0)},
+				// function errors
+				{tuple.Map{"x": tuple.Int(17)}, nil},
+				{tuple.Map{"a": tuple.Bool(false)}, nil},
+				// function panics
+				{tuple.Map{"a": tuple.Null{}}, nil},
+			},
 		},
 	}
 	return testCases

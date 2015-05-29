@@ -3,6 +3,7 @@ package bql
 import (
 	"pfi/sensorbee/sensorbee/bql/execution"
 	"pfi/sensorbee/sensorbee/bql/parser"
+	"pfi/sensorbee/sensorbee/bql/udf"
 	"pfi/sensorbee/sensorbee/core"
 	"pfi/sensorbee/sensorbee/core/tuple"
 	"reflect"
@@ -42,7 +43,9 @@ func (b *bqlBox) Init(ctx *core.Context) error {
 	if err != nil {
 		return err
 	}
-	b.execPlan, err = optimizedPlan.MakePhysicalPlan()
+	// TODO use a proper function registry
+	reg := &udf.EmptyFunctionRegistry{}
+	b.execPlan, err = optimizedPlan.MakePhysicalPlan(reg)
 	if err != nil {
 		return err
 	}

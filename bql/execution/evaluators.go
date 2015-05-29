@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"pfi/sensorbee/sensorbee/bql/parser"
+	"pfi/sensorbee/sensorbee/bql/udf"
 	"pfi/sensorbee/sensorbee/core/tuple"
 	"reflect"
 )
@@ -16,7 +17,7 @@ type Evaluator interface {
 // from parsing a BQL Expression (see parser/ast.go) and turns it into
 // an Evaluator that can be used to evaluate an expression given a particular
 // input Value.
-func ExpressionToEvaluator(ast interface{}) (Evaluator, error) {
+func ExpressionToEvaluator(ast interface{}, reg udf.FunctionRegistry) (Evaluator, error) {
 	switch obj := ast.(type) {
 	case parser.ColumnName:
 		return &PathAccess{obj.Name}, nil
@@ -28,11 +29,11 @@ func ExpressionToEvaluator(ast interface{}) (Evaluator, error) {
 		return &BoolConstant{obj.Value}, nil
 	case parser.BinaryOpAST:
 		// recurse
-		left, err := ExpressionToEvaluator(obj.Left)
+		left, err := ExpressionToEvaluator(obj.Left, reg)
 		if err != nil {
 			return nil, err
 		}
-		right, err := ExpressionToEvaluator(obj.Right)
+		right, err := ExpressionToEvaluator(obj.Right, reg)
 		if err != nil {
 			return nil, err
 		}
@@ -69,6 +70,25 @@ func ExpressionToEvaluator(ast interface{}) (Evaluator, error) {
 		case parser.Modulo:
 			return Modulo(bo), nil
 		}
+	case parser.FuncAppAST:
+		// lookup function in function registry
+		// (the registry will decide if the requested function
+		// is callable with the given number of arguments).
+		fName := string(obj.Function)
+		f, err := reg.Lookup(fName, len(obj.Expressions))
+		if err != nil {
+			return nil, err
+		}
+		// compute child Evaluators
+		evals := make([]Evaluator, len(obj.Expressions))
+		for i, ast := range obj.Expressions {
+			eval, err := ExpressionToEvaluator(ast, reg)
+			if err != nil {
+				return nil, err
+			}
+			evals[i] = eval
+		}
+		return FuncApp(fName, f, evals), nil
 	}
 	err := fmt.Errorf("don't know how to evaluate type %#v", ast)
 	return nil, err
@@ -424,4 +444,53 @@ func Modulo(bo binOp) Evaluator {
 		return math.Mod(a, b)
 	}
 	return &numBinOp{bo, "compute modulo for", intOp, floatOp}
+}
+
+/// Function Evaluation
+
+type funcApp struct {
+	name        string
+	fVal        reflect.Value
+	params      []Evaluator
+	paramValues []reflect.Value
+}
+
+func (f *funcApp) Eval(input tuple.Value) (v tuple.Value, err error) {
+	// catch panic (e.g., in called function)
+	defer func() {
+		if r := recover(); r != nil {
+			v = nil
+			err = fmt.Errorf("evaluating '%s' paniced: %s", f.name, r)
+		}
+	}()
+	// evaluate all the parameters and store the results
+	for i, param := range f.params {
+		value, err := param.Eval(input)
+		if err != nil {
+			return nil, err
+		}
+		f.paramValues[i] = reflect.ValueOf(value)
+	}
+	// evaluate the function
+	results := f.fVal.Call(f.paramValues)
+	// check results
+	if len(results) != 2 {
+		return nil, fmt.Errorf("function %s returned %d results, not 2",
+			f.name, len(results))
+	}
+	resultVal, errVal := results[0], results[1]
+	if !errVal.IsNil() {
+		err := errVal.Interface().(error)
+		return nil, err
+	}
+	result := resultVal.Interface().(tuple.Value)
+	return result, nil
+}
+
+// FuncApp represents evaluation of a function on a number
+// of parameters that are expressions over an input Value.
+func FuncApp(name string, f udf.VarParamFun, params []Evaluator) Evaluator {
+	fVal := reflect.ValueOf(f)
+	paramValues := make([]reflect.Value, len(params))
+	return &funcApp{name, fVal, params, paramValues}
 }

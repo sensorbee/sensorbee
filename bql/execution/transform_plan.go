@@ -3,6 +3,7 @@ package execution
 import (
 	"fmt"
 	"pfi/sensorbee/sensorbee/bql/parser"
+	"pfi/sensorbee/sensorbee/bql/udf"
 	"pfi/sensorbee/sensorbee/core/tuple"
 )
 
@@ -112,7 +113,7 @@ func (ep *defaultSelectExecutionPlan) Run(input []*tuple.Tuple) ([]tuple.Map, er
 	return output, nil
 }
 
-func (lp *LogicalPlan) MakePhysicalPlan() (ExecutionPlan, error) {
+func (lp *LogicalPlan) MakePhysicalPlan(reg udf.FunctionRegistry) (ExecutionPlan, error) {
 	/*
 	   In Spark, this does the following:
 
@@ -123,7 +124,7 @@ func (lp *LogicalPlan) MakePhysicalPlan() (ExecutionPlan, error) {
 	projs := make([]Evaluator, len(lp.Projections))
 	colHeaders := make([]string, len(lp.Projections))
 	for i, proj := range lp.Projections {
-		plan, err := ExpressionToEvaluator(proj)
+		plan, err := ExpressionToEvaluator(proj, reg)
 		if err != nil {
 			return nil, err
 		}
@@ -138,7 +139,7 @@ func (lp *LogicalPlan) MakePhysicalPlan() (ExecutionPlan, error) {
 	}
 	var filter Evaluator
 	if lp.Filter != nil {
-		f, err := ExpressionToEvaluator(lp.Filter)
+		f, err := ExpressionToEvaluator(lp.Filter, reg)
 		if err != nil {
 			return nil, err
 		}
