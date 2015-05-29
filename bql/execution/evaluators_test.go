@@ -449,6 +449,10 @@ func getTestCases() []struct {
 					"b": tuple.Int(17)}, tuple.Bool(true)},
 				{tuple.Map{"a": tuple.Float(3.14),
 					"b": tuple.Float(3.14)}, tuple.Bool(true)},
+				{tuple.Map{"a": tuple.Int(3),
+					"b": tuple.Float(3.0)}, tuple.Bool(true)},
+				{tuple.Map{"a": tuple.Float(3.0),
+					"b": tuple.Int(3)}, tuple.Bool(true)},
 				{tuple.Map{"a": tuple.String("日本語"),
 					"b": tuple.String("日本語")}, tuple.Bool(true)},
 				{tuple.Map{"a": tuple.Blob("hoge"),
@@ -501,11 +505,10 @@ func getTestCases() []struct {
 					"b": tuple.Bool(true)}, tuple.Bool(false)},
 				{tuple.Map{"a": tuple.Int(3),
 					"b": tuple.Int(3)}, tuple.Bool(false)},
-				/* At the moment, Int(3) != Float(3.0):
 				{tuple.Map{"a": tuple.Int(3),
 					"b": tuple.Float(3.0)}, tuple.Bool(false)},
 				{tuple.Map{"a": tuple.Float(3.0),
-					"b": tuple.Int(3)}, tuple.Bool(false)},*/
+					"b": tuple.Int(3)}, tuple.Bool(false)},
 				{tuple.Map{"a": tuple.Float(3.14),
 					"b": tuple.Float(3.14)}, tuple.Bool(false)},
 				{tuple.Map{"a": tuple.String("hoge"),
@@ -553,11 +556,10 @@ func getTestCases() []struct {
 					"b": tuple.Bool(true)}, tuple.Bool(true)},
 				{tuple.Map{"a": tuple.Int(3),
 					"b": tuple.Int(3)}, tuple.Bool(true)},
-				/* At the moment, Int(3) != Float(3.0):
 				{tuple.Map{"a": tuple.Int(3),
 					"b": tuple.Float(3.0)}, tuple.Bool(true)},
 				{tuple.Map{"a": tuple.Float(3.0),
-					"b": tuple.Int(3)}, tuple.Bool(true)},*/
+					"b": tuple.Int(3)}, tuple.Bool(true)},
 				{tuple.Map{"a": tuple.Float(3.14),
 					"b": tuple.Float(3.14)}, tuple.Bool(true)},
 				{tuple.Map{"a": tuple.String("hoge"),
@@ -605,11 +607,10 @@ func getTestCases() []struct {
 					"b": tuple.Bool(true)}, tuple.Bool(false)},
 				{tuple.Map{"a": tuple.Int(3),
 					"b": tuple.Int(3)}, tuple.Bool(false)},
-				/* At the moment, Int(3) != Float(3.0):
 				{tuple.Map{"a": tuple.Int(3),
 					"b": tuple.Float(3.0)}, tuple.Bool(false)},
 				{tuple.Map{"a": tuple.Float(3.0),
-					"b": tuple.Int(3)}, tuple.Bool(false)},*/
+					"b": tuple.Int(3)}, tuple.Bool(false)},
 				{tuple.Map{"a": tuple.Float(3.14),
 					"b": tuple.Float(3.14)}, tuple.Bool(false)},
 				{tuple.Map{"a": tuple.String("hoge"),
@@ -657,11 +658,10 @@ func getTestCases() []struct {
 					"b": tuple.Bool(true)}, tuple.Bool(true)},
 				{tuple.Map{"a": tuple.Int(3),
 					"b": tuple.Int(3)}, tuple.Bool(true)},
-				/* At the moment, Int(3) != Float(3.0):
 				{tuple.Map{"a": tuple.Int(3),
 					"b": tuple.Float(3.0)}, tuple.Bool(true)},
 				{tuple.Map{"a": tuple.Float(3.0),
-					"b": tuple.Int(3)}, tuple.Bool(true)},*/
+					"b": tuple.Int(3)}, tuple.Bool(true)},
 				{tuple.Map{"a": tuple.Float(3.14),
 					"b": tuple.Float(3.14)}, tuple.Bool(true)},
 				{tuple.Map{"a": tuple.String("hoge"),
@@ -718,6 +718,10 @@ func getTestCases() []struct {
 					"b": tuple.Int(17)}, tuple.Bool(false)},
 				{tuple.Map{"a": tuple.Float(3.14),
 					"b": tuple.Float(3.14)}, tuple.Bool(false)},
+				{tuple.Map{"a": tuple.Int(3),
+					"b": tuple.Float(3.0)}, tuple.Bool(false)},
+				{tuple.Map{"a": tuple.Float(3.0),
+					"b": tuple.Int(3)}, tuple.Bool(false)},
 				{tuple.Map{"a": tuple.String("日本語"),
 					"b": tuple.String("日本語")}, tuple.Bool(false)},
 				{tuple.Map{"a": tuple.Blob("hoge"),
