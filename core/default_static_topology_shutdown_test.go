@@ -40,7 +40,7 @@ type terminateChecker struct {
 	terminateCnt int
 }
 
-func NewTerminateChecker(b Box) *terminateChecker {
+func newTerminateChecker(b Box) *terminateChecker {
 	t := &terminateChecker{
 		ProxyBox: ProxyBox{b: b},
 	}
@@ -96,11 +96,11 @@ func TestShutdownLinearDefaultStaticTopology(t *testing.T) {
 		So(tb.AddSource("source", so).Err(), ShouldBeNil)
 
 		b1 := &BlockingForwardBox{cnt: 8}
-		tc1 := NewTerminateChecker(b1)
+		tc1 := newTerminateChecker(b1)
 		So(tb.AddBox("box1", tc1).Input("source").Err(), ShouldBeNil)
 
 		b2 := BoxFunc(forwardBox)
-		tc2 := NewTerminateChecker(b2)
+		tc2 := newTerminateChecker(b2)
 		So(tb.AddBox("box2", tc2).Input("box1").Err(), ShouldBeNil)
 
 		si := NewTupleCollectorSink()
@@ -257,10 +257,10 @@ func TestShutdownForkDefaultStaticTopology(t *testing.T) {
 		So(tb.AddSource("source", so).Err(), ShouldBeNil)
 
 		b1 := &BlockingForwardBox{cnt: 8}
-		tc1 := NewTerminateChecker(b1)
+		tc1 := newTerminateChecker(b1)
 		So(tb.AddBox("box1", tc1).Input("source").Err(), ShouldBeNil)
 		b2 := &BlockingForwardBox{cnt: 8}
-		tc2 := NewTerminateChecker(b2)
+		tc2 := newTerminateChecker(b2)
 		So(tb.AddBox("box2", tc2).Input("source").Err(), ShouldBeNil)
 
 		si1 := NewTupleCollectorSink()
@@ -454,7 +454,7 @@ func TestShutdownJoinDefaultStaticTopology(t *testing.T) {
 		So(tb.AddSource("source2", so2).Err(), ShouldBeNil)
 
 		b1 := &BlockingForwardBox{cnt: 8}
-		tc1 := NewTerminateChecker(b1)
+		tc1 := newTerminateChecker(b1)
 		So(tb.AddBox("box1", tc1).Input("source1").Input("source2").Err(), ShouldBeNil)
 
 		si := NewTupleCollectorSink()
