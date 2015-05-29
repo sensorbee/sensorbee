@@ -49,6 +49,10 @@ type StaticTopologyBuilder interface {
 	//
 	// Example:
 	//  tb.AddSource("fluentd-in", source)
+	//
+	// Don't add the same instance of a Source more than once.
+	// Some implementation of StaticTopologyBuilder may reject
+	// duplicated registrations of an instance.
 	AddSource(name string, source Source) SourceDeclarer
 
 	// AddBox will add a Box with the given name to the Topology
@@ -57,6 +61,12 @@ type StaticTopologyBuilder interface {
 	//
 	// Example:
 	//  tb.AddBox("filter", box).Input("fluentd-in")
+	//
+	// Don't add the same instance of a Box more than once even if they have
+	// different names. However, if a Box has a reference counter and
+	// its initialization and termination are done exactly once at proper
+	// timing, it can be added multiple times when a builder supports duplicated
+	// registration of the same instance of a Box.
 	AddBox(name string, box Box) BoxDeclarer
 
 	// AddSink will add a Sink with the given name to the Topology
@@ -65,6 +75,10 @@ type StaticTopologyBuilder interface {
 	//
 	// Example:
 	//  tb.AddSink("fluentd-out", sink).Input("filter")
+	//
+	// Don't add the same instance of a Sink more than once.
+	// Some implementation of StaticTopologyBuilder may reject
+	// duplicated registrations of an instance.
 	AddSink(name string, sink Sink) SinkDeclarer
 
 	// Build will assemble a processing pipeline from the given

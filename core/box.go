@@ -57,12 +57,19 @@ type Box interface {
 // before it's used by a topology. Because a Box can be implemented in C or
 // C++, a Terminate method is also provided to deallocate resources it used
 // during processing.
+//
+// An instance of StatefulBox shouldn't be added to a topology or a topology
+// builder more than once if it doesn't handle duplicated initialization and
+// termination correctly (i.e. with something like a reference counter).
 type StatefulBox interface {
 	Box
 
 	// Init is called on each Box in a Topology when StaticTopology.Run()
 	// is executed. It can be used to keep a reference to the Context
 	// object or initialize other forms of state.
+	//
+	// When the same instance of the box is added to a topology more than
+	// once, Init will be called multiple times.
 	Init(ctx *Context) error
 
 	// Terminate finalizes a Box. The Box can no longer be used after
@@ -74,6 +81,11 @@ type StatefulBox interface {
 	// will be called after the invocation of Terminate method. In addition,
 	// the Box may assume that Terminate is not called concurrently with
 	// any other methods.
+	//
+	// When the same instance of the box is added to a topology more than
+	// once, Terminate will be called multiple times. In that case, use
+	// something like a reference counter to avoid deallocating resources
+	// before the Box is actually removed from a topology.
 	Terminate(ctx *Context) error
 }
 
