@@ -43,8 +43,12 @@ func (b *bqlBox) Init(ctx *core.Context) error {
 	if err != nil {
 		return err
 	}
-	// TODO use a proper function registry
-	reg := &udf.EmptyFunctionRegistry{}
+	// TODO use a proper function registry (from context maybe?)
+	reg := udf.NewDefaultFunctionRegistry()
+	toString := func(v tuple.Value) (tuple.Value, error) {
+		return tuple.String(v.String()), nil
+	}
+	reg.RegisterUnary("str", toString)
 	b.execPlan, err = optimizedPlan.MakePhysicalPlan(reg)
 	if err != nil {
 		return err

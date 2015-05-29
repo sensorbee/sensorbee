@@ -133,7 +133,8 @@ func (lp *LogicalPlan) MakePhysicalPlan(reg udf.FunctionRegistry) (ExecutionPlan
 		switch projType := proj.(type) {
 		case parser.ColumnName:
 			colHeader = projType.Name
-
+		case parser.FuncAppAST:
+			colHeader = string(projType.Function)
 		}
 		colHeaders[i] = colHeader
 	}
