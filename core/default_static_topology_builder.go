@@ -38,9 +38,9 @@ type dataflowEdge struct {
 	InputName string
 }
 
-// Creates a default implementation of a StaticTopologyBuilder.
-// Note that this implementation is not thread-safe, i.e., it is
-// not safe to have, say, multiple calls to AddBox in parallel.
+// NewDefaultStaticTopologyBuilder creates a default implementation of a
+// StaticTopologyBuilder. Note that this implementation is not thread-safe,
+// i.e., it is not safe to have, say, multiple calls to AddBox in parallel.
 // Also, this implementation will return an error when calling
 // Build more than once.
 func NewDefaultStaticTopologyBuilder() StaticTopologyBuilder {
@@ -190,7 +190,7 @@ func (tb *defaultStaticTopologyBuilder) Build() (StaticTopology, error) {
 
 	// Create st.nodes and its next writer
 	dsts := map[string]*staticDestinations{}
-	for name, _ := range tb.sources {
+	for name := range tb.sources {
 		dsts[name] = newStaticDestinations()
 	}
 	for name, box := range tb.boxes {
@@ -208,7 +208,7 @@ func (tb *defaultStaticTopologyBuilder) Build() (StaticTopology, error) {
 		dsts[e.From].addDestination(e.To, s)
 	}
 
-	for name, _ := range tb.sources {
+	for name := range tb.sources {
 		st.srcDsts[name] = dsts[name]
 	}
 

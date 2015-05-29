@@ -9,7 +9,7 @@ import (
 // and dependencies are done correctly when building a topology.
 func TestDefaultStaticTopologyBuilderInterface(t *testing.T) {
 	Convey("When creating a default topology builder", t, func() {
-		var tb StaticTopologyBuilder = NewDefaultStaticTopologyBuilder()
+		tb := NewDefaultStaticTopologyBuilder()
 		So(tb, ShouldNotBeNil)
 	})
 

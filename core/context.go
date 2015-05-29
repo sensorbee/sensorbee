@@ -26,21 +26,35 @@ func (c *Context) IsTupleTraceEnabled() bool {
 // SetTupleTraceEnabled can switch the setting of tracing tuples events.
 // If the argument flag is the same as Context's Configuration, does nothing.
 func (c *Context) SetTupleTraceEnabled(b bool) {
-	var i int32 = 0
+	var i int32
 	if b {
-		i = int32(1)
+		i = 1
 	}
 	atomic.StoreInt32(&c.Config.TupleTraceEnabled, i)
 }
 
+// LogLevel represents severity of an event being logged.
 type LogLevel int
 
 // Constants that can be used as log levels
 const (
+	// Debug is a LogLevel which is used when the information is written
+	// for debug purposes and shouldn't be written in a production environment.
 	Debug LogLevel = iota
+
+	// Info is a LogLevel used for events which might be useful to report
+	// but no action is required.
 	Info
+
+	// Warning is a LogLevel used for events which don't require immediate
+	// actions but some diagnoses are required later.
 	Warning
+
+	// Error is a LogLevel used for events which require immediate actions.
 	Error
+
+	// Fatal is a LogLevel used when the process can no longer perform
+	// any operation correctly and should stop.
 	Fatal
 )
 
