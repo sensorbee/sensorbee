@@ -21,7 +21,7 @@ func TestDefaultStaticTopologyTupleTracingConfiguration(t *testing.T) {
 			Timestamp:     time.Date(2015, time.May, 1, 11, 18, 0, 0, time.UTC),
 			ProcTimestamp: time.Date(2015, time.May, 1, 11, 18, 0, 0, time.UTC),
 			BatchID:       7,
-			Trace:         make([]tuple.TraceEvent, 0),
+			Trace:         []tuple.TraceEvent{},
 		}
 		tb := NewDefaultStaticTopologyBuilder()
 		so1 := NewTupleIncrementalEmitterSource([]*tuple.Tuple{tup.Copy(), tup.Copy(), tup.Copy()})
@@ -67,7 +67,7 @@ func TestDefaultStaticTopologyTupleTracing(t *testing.T) {
 			Timestamp:     time.Date(2015, time.April, 10, 10, 23, 0, 0, time.UTC),
 			ProcTimestamp: time.Date(2015, time.April, 10, 10, 24, 0, 0, time.UTC),
 			BatchID:       7,
-			Trace:         make([]tuple.TraceEvent, 0),
+			Trace:         []tuple.TraceEvent{},
 		}
 		tup2 := tuple.Tuple{
 			Data: tuple.Map{
@@ -76,7 +76,7 @@ func TestDefaultStaticTopologyTupleTracing(t *testing.T) {
 			Timestamp:     time.Date(2015, time.April, 10, 10, 23, 1, 0, time.UTC),
 			ProcTimestamp: time.Date(2015, time.April, 10, 10, 24, 1, 0, time.UTC),
 			BatchID:       7,
-			Trace:         make([]tuple.TraceEvent, 0),
+			Trace:         []tuple.TraceEvent{},
 		}
 		/*
 		 *   so1 \        /--> b2 \        /-*--> si1
@@ -139,9 +139,9 @@ func TestDefaultStaticTopologyTupleTracing(t *testing.T) {
 					strings.Join(route3, "->"),
 					strings.Join(route4, "->"),
 				}
-				aRoutes := make([]string, 0)
+				var aRoutes []string
 				for _, tu := range si1.Tuples {
-					aRoute := make([]string, 0)
+					var aRoute []string
 					for _, ev := range tu.Trace {
 						aRoute = append(aRoute, ev.Type.String()+" "+ev.Msg)
 					}
@@ -177,9 +177,9 @@ func TestDefaultStaticTopologyTupleTracing(t *testing.T) {
 					strings.Join(route3, "->"),
 					strings.Join(route4, "->"),
 				}
-				aRoutes := make([]string, 0)
+				var aRoutes []string
 				for _, tu := range si2.Tuples {
-					aRoute := make([]string, 0)
+					var aRoute []string
 					for _, ev := range tu.Trace {
 						aRoute = append(aRoute, ev.Type.String()+" "+ev.Msg)
 					}

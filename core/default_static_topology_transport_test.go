@@ -553,22 +553,22 @@ var (
 func (b *SimpleJoinBox) Init(ctx *Context) error {
 	b.mutex = &sync.Mutex{}
 	b.ctx = ctx
-	b.LeftTuples = make(map[int64]*tuple.Tuple, 0)
-	b.RightTuples = make(map[int64]*tuple.Tuple, 0)
+	b.LeftTuples = map[int64]*tuple.Tuple{}
+	b.RightTuples = map[int64]*tuple.Tuple{}
 	return nil
 }
 
 func (b *SimpleJoinBox) Process(ctx *Context, t *tuple.Tuple, s Writer) error {
 	// get user id and convert it to int64
-	userId, err := t.Data.Get("uid")
+	userID, err := t.Data.Get("uid")
 	if err != nil {
 		b.ctx.Logger.DroppedTuple(t, "no uid field")
 		return nil
 	}
-	uid, err := userId.AsInt()
+	uid, err := userID.AsInt()
 	if err != nil {
 		b.ctx.Logger.DroppedTuple(t, "uid value was not an integer: %v (%v)",
-			userId, err)
+			userID, err)
 		return nil
 	}
 	// prevent concurrent access

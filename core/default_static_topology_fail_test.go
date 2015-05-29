@@ -33,9 +33,9 @@ type stubInitTerminateBox struct {
 
 var _ StatefulBox = &stubInitTerminateBox{}
 
-func NewStubInitTerminateBox(b Box, s *stubInitTerminateBoxSharedConfig) *stubInitTerminateBox {
+func newStubInitTerminateBox(b Box, s *stubInitTerminateBoxSharedConfig) *stubInitTerminateBox {
 	return &stubInitTerminateBox{
-		terminateChecker: NewTerminateChecker(b),
+		terminateChecker: newTerminateChecker(b),
 		shared:           s,
 	}
 }
@@ -80,7 +80,7 @@ func TestDefaultStaticTopologyRun(t *testing.T) {
 	Convey("Given a default static topology", t, func() {
 		tb := NewDefaultStaticTopologyBuilder()
 		s := NewTupleEmitterSource(freshTuples())
-		b1 := NewStubInitTerminateBox(BoxFunc(forwardBox), &stubInitTerminateBoxSharedConfig{})
+		b1 := newStubInitTerminateBox(BoxFunc(forwardBox), &stubInitTerminateBoxSharedConfig{})
 		b2 := &BlockingForwardBox{cnt: 8}
 		// Sink isn't necessary
 
@@ -187,9 +187,9 @@ func TestDefaultStaticTopologyRunAndInit(t *testing.T) {
 		s := &DoesNothingSource{}
 		// assuming Box.Init won't be called concurrently
 		sc := &stubInitTerminateBoxSharedConfig{}
-		b1 := NewStubInitTerminateBox(&DoesNothingBox{}, sc)
-		b2 := NewStubInitTerminateBox(&DoesNothingBox{}, sc)
-		b3 := NewStubInitTerminateBox(&DoesNothingBox{}, sc)
+		b1 := newStubInitTerminateBox(&DoesNothingBox{}, sc)
+		b2 := newStubInitTerminateBox(&DoesNothingBox{}, sc)
+		b3 := newStubInitTerminateBox(&DoesNothingBox{}, sc)
 		bs := []*stubInitTerminateBox{b1, b2, b3}
 
 		// Sink isn't necessary
@@ -301,7 +301,7 @@ type stubFailingSource struct {
 	stopFailCh  <-chan struct{}
 }
 
-func NewStubFailingSource() (*stubFailingSource, chan<- struct{}) {
+func newStubFailingSource() (*stubFailingSource, chan<- struct{}) {
 	sfc := make(chan struct{})
 	s := &stubFailingSource{
 		genBlocker:  make(chan struct{}, 1),
@@ -351,8 +351,8 @@ func TestDefaultStaticTopologyStop(t *testing.T) {
 
 	Convey("Given a default static topology", t, func() {
 		tb := NewDefaultStaticTopologyBuilder()
-		s, sfc := NewStubFailingSource()
-		b := NewStubInitTerminateBox(&DoesNothingBox{}, &stubInitTerminateBoxSharedConfig{})
+		s, sfc := newStubFailingSource()
+		b := newStubInitTerminateBox(&DoesNothingBox{}, &stubInitTerminateBoxSharedConfig{})
 		// Sink isn't necessary
 
 		So(tb.AddSource("source", s).Err(), ShouldBeNil)
@@ -444,7 +444,7 @@ func TestDefaultStaticTopologyStop(t *testing.T) {
 						var err error
 						select {
 						case <-runCh:
-							err = fmt.Errorf("Run has already returned")
+							err = fmt.Errorf("'Run' method has already returned")
 						default:
 						}
 						So(err, ShouldBeNil)
@@ -477,11 +477,11 @@ func TestDefaultStaticTopologyFatalFailure(t *testing.T) {
 		So(tb.AddSource("source", so).Err(), ShouldBeNil)
 
 		b1 := &stubForwardBox{}
-		tc1 := NewTerminateChecker(b1)
+		tc1 := newTerminateChecker(b1)
 		So(tb.AddBox("box1", tc1).Input("source").Err(), ShouldBeNil)
 
 		b2 := &stubForwardBox{}
-		tc2 := NewTerminateChecker(b2)
+		tc2 := newTerminateChecker(b2)
 		So(tb.AddBox("box2", tc2).Input("source").Err(), ShouldBeNil)
 
 		si := NewTupleCollectorSink()
