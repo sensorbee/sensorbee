@@ -16,7 +16,7 @@ type bqlBox struct {
 	// plan is the execution plan for the SELECT statement in there
 	execPlan execution.ExecutionPlan
 	// windowSize is the size of the window as given
-	// in the RANGE clause -- TODO store an int in the stmt
+	// in the RANGE clause
 	windowSize int64
 	// mutex protects access to shared state
 	mutex sync.Mutex
