@@ -69,7 +69,7 @@ func (ds *DummySource) Stop(ctx *Context) error {
 	return nil
 }
 func (ds *DummySource) Schema() *Schema {
-	var s Schema = Schema("test")
+	s := Schema("test")
 	return &s
 }
 
