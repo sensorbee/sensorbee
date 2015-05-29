@@ -38,22 +38,22 @@ type LogLevel int
 
 // Constants that can be used as log levels
 const (
-	// Debug is one of LogLevel which is used when the information is written
-	// for debug purpose and shouldn't be written in a production environment.
+	// Debug is a LogLevel which is used when the information is written
+	// for debug purposes and shouldn't be written in a production environment.
 	Debug LogLevel = iota
 
-	// Info is one of LogLevel used for events which might be useful to report
+	// Info is a LogLevel used for events which might be useful to report
 	// but no action is required.
 	Info
 
-	// Warning is one of LogLevel used for events which don't require immediate
-	// actions but some diagnoses are reqquired later.
+	// Warning is a LogLevel used for events which don't require immediate
+	// actions but some diagnoses are required later.
 	Warning
 
-	// Error is one of LogLevel used for events which requires immediate actions.
+	// Error is a LogLevel used for events which require immediate actions.
 	Error
 
-	// Fatal is one of LogLevel used when the process can no longer perform
+	// Fatal is a LogLevel used when the process can no longer perform
 	// any operation correctly and should stop.
 	Fatal
 )
