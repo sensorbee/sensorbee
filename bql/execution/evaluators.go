@@ -226,8 +226,24 @@ func (cbo *compBinOp) Eval(input tuple.Value) (tuple.Value, error) {
 
 func Equal(bo binOp) Evaluator {
 	cmpOp := func(leftVal tuple.Value, rightVal tuple.Value) (bool, error) {
-		eq := reflect.DeepEqual(leftVal, rightVal)
+		leftType := leftVal.Type()
+		rightType := rightVal.Type()
+		eq := false
+		if leftType == rightType {
+			eq = reflect.DeepEqual(leftVal, rightVal)
+		} else if leftType == tuple.TypeInt && rightType == tuple.TypeFloat {
+			l, _ := leftVal.AsInt()
+			r, _ := rightVal.AsFloat()
+			// convert left to float to get 2 == 2.0
+			eq = float64(l) == r
+		} else if leftType == tuple.TypeFloat && rightType == tuple.TypeInt {
+			l, _ := leftVal.AsFloat()
+			r, _ := rightVal.AsInt()
+			// convert right to float to get 2.0 == 2
+			eq = l == float64(r)
+		}
 		return eq, nil
+
 	}
 	return &compBinOp{bo, cmpOp}
 }
