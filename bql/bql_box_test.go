@@ -1,8 +1,10 @@
 package bql
 
 import (
+	"fmt"
 	. "github.com/smartystreets/goconvey/convey"
 	"pfi/sensorbee/sensorbee/core"
+	"pfi/sensorbee/sensorbee/core/tuple"
 	"testing"
 )
 
@@ -35,12 +37,16 @@ func TestIstreamSecondsBqlBox(t *testing.T) {
 
 	Convey("Given an ISTREAM/2 SECONDS BQL statement", t, func() {
 		s := "CREATE STREAM box AS SELECT " +
-			"ISTREAM(int) FROM source [RANGE 2 SECONDS] WHERE int % 2 = 0"
+			"ISTREAM(int, str((int+1) % 3)) FROM source [RANGE 2 SECONDS] WHERE int % 2 = 0"
 		t, si, err := setupTopology(s)
 		So(err, ShouldBeNil)
 
 		Convey("When 4 tuples are emitted by the source", func() {
-			t.Run(ctx)
+			err := t.Run(ctx)
+			So(err, ShouldBeNil)
+			tup2.Data["str"] = tuple.String(fmt.Sprintf("%d", ((2 + 1) % 3)))
+			tup4.Data["str"] = tuple.String(fmt.Sprintf("%d", ((4 + 1) % 3)))
+
 			Convey("Then the sink receives 2 tuples", func() {
 				So(si.Tuples, ShouldNotBeNil)
 				So(len(si.Tuples), ShouldEqual, 2)
@@ -74,7 +80,9 @@ func TestDstreamSecondsBqlBox(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		Convey("When 4 tuples are emitted by the source", func() {
-			t.Run(ctx)
+			err := t.Run(ctx)
+			So(err, ShouldBeNil)
+
 			Convey("Then the sink receives 0 tuples", func() {
 				So(si.Tuples, ShouldBeNil)
 			})
@@ -88,7 +96,9 @@ func TestDstreamSecondsBqlBox(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		Convey("When 4 tuples are emitted by the source", func() {
-			t.Run(ctx)
+			err := t.Run(ctx)
+			So(err, ShouldBeNil)
+
 			Convey("Then the sink receives 1 tuple", func() {
 				So(si.Tuples, ShouldNotBeNil)
 				So(len(si.Tuples), ShouldEqual, 1)
@@ -118,7 +128,9 @@ func TestRstreamSecondsBqlBox(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		Convey("When 4 tuples are emitted by the source", func() {
-			t.Run(ctx)
+			err := t.Run(ctx)
+			So(err, ShouldBeNil)
+
 			Convey("Then the sink receives 4 tuples", func() {
 				So(si.Tuples, ShouldNotBeNil)
 				So(len(si.Tuples), ShouldEqual, 4)
