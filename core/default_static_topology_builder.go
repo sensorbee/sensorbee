@@ -16,7 +16,7 @@ type defaultStaticTopologyBuilder struct {
 	Edges     []dataflowEdge
 	builtFlag bool
 
-	// addedComponents have pointers of comopnents added to the builder.
+	// addedComponents has pointers of components added to the builder.
 	// It has pointers to sources, boxes, and sinks.
 	addedComponents map[interface{}]string
 
