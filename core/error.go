@@ -5,6 +5,10 @@ import (
 	"strings"
 )
 
+var (
+	pipeClosedError = fmt.Errorf("the pipe is already closed")
+)
+
 type bulkErrors struct {
 	errs []error
 }
