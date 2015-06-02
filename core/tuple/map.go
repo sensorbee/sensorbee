@@ -12,35 +12,35 @@ func (m Map) Type() TypeID {
 	return TypeMap
 }
 
-func (m Map) AsBool() (bool, error) {
+func (m Map) asBool() (bool, error) {
 	return false, castError(m.Type(), TypeBool)
 }
 
-func (m Map) AsInt() (int64, error) {
+func (m Map) asInt() (int64, error) {
 	return 0, castError(m.Type(), TypeInt)
 }
 
-func (m Map) AsFloat() (float64, error) {
+func (m Map) asFloat() (float64, error) {
 	return 0, castError(m.Type(), TypeFloat)
 }
 
-func (m Map) AsString() (string, error) {
+func (m Map) asString() (string, error) {
 	return "", castError(m.Type(), TypeString)
 }
 
-func (m Map) AsBlob() ([]byte, error) {
+func (m Map) asBlob() ([]byte, error) {
 	return nil, castError(m.Type(), TypeBlob)
 }
 
-func (m Map) AsTimestamp() (time.Time, error) {
+func (m Map) asTimestamp() (time.Time, error) {
 	return time.Time{}, castError(m.Type(), TypeTimestamp)
 }
 
-func (m Map) AsArray() (Array, error) {
+func (m Map) asArray() (Array, error) {
 	return nil, castError(m.Type(), TypeArray)
 }
 
-func (m Map) AsMap() (Map, error) {
+func (m Map) asMap() (Map, error) {
 	return m, nil
 }
 
@@ -75,7 +75,7 @@ func (m Map) Copy() Map {
 //
 // Example:
 //  v, err := map.Get("path")
-//  s, err := v.AsString() // cast to String
+//  s, err := v.asString() // cast to String
 //
 // Path Expression Example:
 // Given the following Map structure

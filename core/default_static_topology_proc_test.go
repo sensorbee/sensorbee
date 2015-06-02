@@ -161,7 +161,7 @@ func TestDefaultStaticTopologyTupleProcessing(t *testing.T) {
 
 func toUpper(ctx *Context, t *tuple.Tuple, w Writer) error {
 	x, _ := t.Data.Get("source")
-	s, _ := x.AsString()
+	s, _ := tuple.AsString(x)
 	t.Data["to-upper"] = tuple.String(strings.ToUpper(s))
 	w.Write(ctx, t)
 	return nil
@@ -169,7 +169,7 @@ func toUpper(ctx *Context, t *tuple.Tuple, w Writer) error {
 
 func addSuffix(ctx *Context, t *tuple.Tuple, w Writer) error {
 	x, _ := t.Data.Get("source")
-	s, _ := x.AsString()
+	s, _ := tuple.AsString(x)
 	t.Data["add-suffix"] = tuple.String(s + "_1")
 	w.Write(ctx, t)
 	return nil
@@ -188,13 +188,13 @@ type TupleContentsCollectorSink struct {
 func (s *TupleContentsCollectorSink) Write(ctx *Context, t *tuple.Tuple) (err error) {
 	x, err := t.Data.Get("to-upper")
 	if err == nil {
-		str, _ := x.AsString()
+		str, _ := tuple.AsString(x)
 		s.uppercaseResults = append(s.uppercaseResults, str)
 	}
 
 	x, err = t.Data.Get("add-suffix")
 	if err == nil {
-		str, _ := x.AsString()
+		str, _ := tuple.AsString(x)
 		s.suffixResults = append(s.suffixResults, str)
 	}
 	return err

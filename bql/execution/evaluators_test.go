@@ -93,10 +93,10 @@ func PlusOne(vs ...tuple.Value) (tuple.Value, error) {
 	}
 	v := vs[0]
 	if v.Type() == tuple.TypeInt {
-		i, _ := v.AsInt()
+		i, _ := tuple.AsInt(v)
 		return tuple.Int(i + 1), nil
 	} else if v.Type() == tuple.TypeFloat {
-		f, _ := v.AsFloat()
+		f, _ := tuple.AsFloat(v)
 		return tuple.Float(f + 1.0), nil
 	} else if v.Type() == tuple.TypeNull {
 		panic("null!")
