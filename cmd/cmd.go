@@ -116,6 +116,7 @@ func (li *liner) get() string {
 // files or os.stdin
 type controller struct {
 	tb *bql.TopologyBuilder
+	tp core.StaticTopology
 }
 
 func newController() (*controller, error) {
@@ -145,15 +146,18 @@ func (c *controller) readFile(src []byte) error {
 }
 
 func (c *controller) eval(in string) error {
-	fmt.Printf("BQL: %s\n", in)
+	fmt.Printf("BQL: %s\n", in) // debug BQL
 	err := c.tb.BQL(in)
 	return err
 }
 
 func (c *controller) start() error {
-	tp, err := c.tb.Build()
-	if err != nil {
-		return err
+	if c.tp == nil {
+		tp, err := c.tb.Build()
+		if err != nil {
+			return err
+		}
+		c.tp = tp
 	}
 	// TODO create context
 	logManager := core.NewConsolePrintLogger()
@@ -164,7 +168,7 @@ func (c *controller) start() error {
 		Logger: logManager,
 		Config: conf,
 	}
-	err = tp.Run(&ctx) // TODO use goroutine?
+	err := c.tp.Run(&ctx) // TODO use goroutine?
 	fmt.Println("!!!!! topology is run and end !!!!!")
 	return err
 }
