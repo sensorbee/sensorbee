@@ -1,21 +1,13 @@
 package execution
 
 import (
-	"fmt"
 	"pfi/sensorbee/sensorbee/bql/parser"
 	"pfi/sensorbee/sensorbee/bql/udf"
 	"pfi/sensorbee/sensorbee/core/tuple"
 )
 
 type filterIstreamPlan struct {
-	// TODO turn this into a list of structs to ensure same length
-	// colHeaders stores the names of the result columns.
-	colHeaders []string
-	// selectors stores the evaluators of the result columns.
-	selectors []Evaluator
-	// filter stores the evaluator of the filter condition,
-	// or nil if there is no WHERE clause.
-	filter Evaluator
+	commonExecutionPlan
 }
 
 // CanBuildFilterIstreamPlan checks whether the given statement
@@ -35,39 +27,19 @@ func CanBuildFilterIstreamPlan(lp *LogicalPlan, reg udf.FunctionRegistry) bool {
 // on the incoming tuple and emit it right away if the filter matches.
 func NewFilterIstreamPlan(lp *LogicalPlan, reg udf.FunctionRegistry) (ExecutionPlan, error) {
 	// prepare projection components
-	projs := make([]Evaluator, len(lp.Projections))
-	colHeaders := make([]string, len(lp.Projections))
-	for i, proj := range lp.Projections {
-		// compute evaluators for each column
-		plan, err := ExpressionToEvaluator(proj, reg)
-		if err != nil {
-			return nil, err
-		}
-		projs[i] = plan
-		// compute column name
-		colHeader := fmt.Sprintf("col_%v", i+1)
-		switch projType := proj.(type) {
-		case parser.ColumnName:
-			colHeader = projType.Name
-		case parser.FuncAppAST:
-			colHeader = string(projType.Function)
-		}
-		colHeaders[i] = colHeader
+	projs, err := prepareProjections(lp.Projections, reg)
+	if err != nil {
+		return nil, err
 	}
 	// compute evaluator for the filter
-	var filter Evaluator
-	if lp.Filter != nil {
-		f, err := ExpressionToEvaluator(lp.Filter, reg)
-		if err != nil {
-			return nil, err
-		}
-		filter = f
+	filter, err := prepareFilter(lp.Filter, reg)
+	if err != nil {
+		return nil, err
 	}
-	return &filterIstreamPlan{
-		colHeaders: colHeaders,
-		selectors:  projs,
-		filter:     filter,
-	}, nil
+	return &filterIstreamPlan{commonExecutionPlan{
+		projections: projs,
+		filter:      filter,
+	}}, nil
 }
 
 func (ep *filterIstreamPlan) Process(input *tuple.Tuple) ([]tuple.Map, error) {
@@ -85,14 +57,13 @@ func (ep *filterIstreamPlan) Process(input *tuple.Tuple) ([]tuple.Map, error) {
 		return []tuple.Map{}, nil
 	}
 	// otherwise, compute all the expressions
-	result := tuple.Map(make(map[string]tuple.Value, len(ep.colHeaders)))
-	for idx, selector := range ep.selectors {
-		colName := ep.colHeaders[idx]
-		value, err := selector.Eval(input.Data)
+	result := tuple.Map(make(map[string]tuple.Value, len(ep.projections)))
+	for _, proj := range ep.projections {
+		value, err := proj.evaluator.Eval(input.Data)
 		if err != nil {
 			return nil, err
 		}
-		result[colName] = value
+		result[proj.alias] = value
 	}
 	return []tuple.Map{result}, nil
 }
