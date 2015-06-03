@@ -91,6 +91,8 @@ func ExpressionToEvaluator(ast interface{}, reg udf.FunctionRegistry) (Evaluator
 			evals[i] = eval
 		}
 		return FuncApp(fName, f, evals), nil
+	case parser.Wildcard:
+		return &Wildcard{}, nil
 	}
 	err := fmt.Errorf("don't know how to evaluate type %#v", ast)
 	return nil, err
@@ -495,4 +497,15 @@ func FuncApp(name string, f udf.VarParamFun, params []Evaluator) Evaluator {
 	fVal := reflect.ValueOf(f)
 	paramValues := make([]reflect.Value, len(params))
 	return &funcApp{name, fVal, params, paramValues}
+}
+
+// Wildcard only works on Maps and returns the data given to it.
+type Wildcard struct{}
+
+func (w *Wildcard) Eval(input tuple.Value) (tuple.Value, error) {
+	aMap, err := tuple.AsMap(input)
+	if err != nil {
+		return nil, err
+	}
+	return aMap, nil
 }

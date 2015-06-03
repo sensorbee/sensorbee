@@ -170,7 +170,9 @@ func (ep *defaultSelectExecutionPlan) performQueryOnBuffer() error {
 			if err != nil {
 				return err
 			}
-			result[proj.alias] = value
+			if err := assignOutputValue(result, proj.alias, value); err != nil {
+				return err
+			}
 		}
 		output = append(output, result)
 	}
