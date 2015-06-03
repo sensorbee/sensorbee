@@ -565,7 +565,7 @@ func (b *SimpleJoinBox) Process(ctx *Context, t *tuple.Tuple, s Writer) error {
 		b.ctx.Logger.DroppedTuple(t, "no uid field")
 		return nil
 	}
-	uid, err := userID.AsInt()
+	uid, err := tuple.AsInt(userID)
 	if err != nil {
 		b.ctx.Logger.DroppedTuple(t, "uid value was not an integer: %v (%v)",
 			userID, err)

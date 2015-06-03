@@ -12,35 +12,35 @@ func (a Array) Type() TypeID {
 	return TypeArray
 }
 
-func (a Array) AsBool() (bool, error) {
+func (a Array) asBool() (bool, error) {
 	return false, castError(a.Type(), TypeBool)
 }
 
-func (a Array) AsInt() (int64, error) {
+func (a Array) asInt() (int64, error) {
 	return 0, castError(a.Type(), TypeInt)
 }
 
-func (a Array) AsFloat() (float64, error) {
+func (a Array) asFloat() (float64, error) {
 	return 0, castError(a.Type(), TypeFloat)
 }
 
-func (a Array) AsString() (string, error) {
+func (a Array) asString() (string, error) {
 	return "", castError(a.Type(), TypeString)
 }
 
-func (a Array) AsBlob() ([]byte, error) {
+func (a Array) asBlob() ([]byte, error) {
 	return nil, castError(a.Type(), TypeBlob)
 }
 
-func (a Array) AsTimestamp() (time.Time, error) {
+func (a Array) asTimestamp() (time.Time, error) {
 	return time.Time{}, castError(a.Type(), TypeTimestamp)
 }
 
-func (a Array) AsArray() (Array, error) {
+func (a Array) asArray() (Array, error) {
 	return a, nil
 }
 
-func (a Array) AsMap() (Map, error) {
+func (a Array) asMap() (Map, error) {
 	return nil, castError(a.Type(), TypeMap)
 }
 

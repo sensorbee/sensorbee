@@ -131,7 +131,7 @@ type PathAccess struct {
 }
 
 func (fa *PathAccess) Eval(input tuple.Value) (tuple.Value, error) {
-	aMap, err := input.AsMap()
+	aMap, err := tuple.AsMap(input)
 	if err != nil {
 		return nil, err
 	}
@@ -213,7 +213,7 @@ func (n *not) Eval(input tuple.Value) (tuple.Value, error) {
 	if err != nil {
 		return nil, err
 	}
-	negBool, err := neg.AsBool()
+	negBool, err := tuple.AsBool(neg)
 	if err != nil {
 		return nil, err
 	}
@@ -252,13 +252,13 @@ func Equal(bo binOp) Evaluator {
 		if leftType == rightType {
 			eq = reflect.DeepEqual(leftVal, rightVal)
 		} else if leftType == tuple.TypeInt && rightType == tuple.TypeFloat {
-			l, _ := leftVal.AsInt()
-			r, _ := rightVal.AsFloat()
+			l, _ := tuple.AsInt(leftVal)
+			r, _ := tuple.AsFloat(rightVal)
 			// convert left to float to get 2 == 2.0
 			eq = float64(l) == r
 		} else if leftType == tuple.TypeFloat && rightType == tuple.TypeInt {
-			l, _ := leftVal.AsFloat()
-			r, _ := rightVal.AsInt()
+			l, _ := tuple.AsFloat(leftVal)
+			r, _ := tuple.AsInt(rightVal)
 			// convert right to float to get 2.0 == 2
 			eq = l == float64(r)
 		}
@@ -279,38 +279,38 @@ func Less(bo binOp) Evaluator {
 			default:
 				return false, stdErr
 			case tuple.TypeInt:
-				l, _ := leftVal.AsInt()
-				r, _ := rightVal.AsInt()
+				l, _ := tuple.AsInt(leftVal)
+				r, _ := tuple.AsInt(rightVal)
 				retVal = l < r
 			case tuple.TypeFloat:
-				l, _ := leftVal.AsFloat()
-				r, _ := rightVal.AsFloat()
+				l, _ := tuple.AsFloat(leftVal)
+				r, _ := tuple.AsFloat(rightVal)
 				retVal = l < r
 			case tuple.TypeString:
-				l, _ := leftVal.AsString()
-				r, _ := rightVal.AsString()
+				l, _ := tuple.AsString(leftVal)
+				r, _ := tuple.AsString(rightVal)
 				retVal = l < r
 			case tuple.TypeBool:
-				l, _ := leftVal.AsBool()
-				r, _ := rightVal.AsBool()
+				l, _ := tuple.AsBool(leftVal)
+				r, _ := tuple.AsBool(rightVal)
 				retVal = (l == false) && (r == true)
 			case tuple.TypeTimestamp:
-				l, _ := leftVal.AsTimestamp()
-				r, _ := rightVal.AsTimestamp()
+				l, _ := tuple.AsTimestamp(leftVal)
+				r, _ := tuple.AsTimestamp(rightVal)
 				retVal = l.Before(r)
 			}
 			return retVal, nil
 		} else if leftType == tuple.TypeInt && rightType == tuple.TypeFloat {
 			// left is integer
-			l, _ := leftVal.AsInt()
+			l, _ := tuple.AsInt(leftVal)
 			// right is float; also convert left to float to avoid overflow
-			r, _ := rightVal.AsFloat()
+			r, _ := tuple.AsFloat(rightVal)
 			return float64(l) < r, nil
 		} else if leftType == tuple.TypeFloat && rightType == tuple.TypeInt {
 			// left is float
-			l, _ := leftVal.AsFloat()
+			l, _ := tuple.AsFloat(leftVal)
 			// right is int; convert right to float to avoid overflow
-			r, _ := rightVal.AsInt()
+			r, _ := tuple.AsInt(rightVal)
 			return l < float64(r), nil
 		}
 		return false, stdErr
@@ -368,25 +368,25 @@ func (nbo *numBinOp) Eval(input tuple.Value) (v tuple.Value, err error) {
 		default:
 			return nil, stdErr
 		case tuple.TypeInt:
-			l, _ := leftVal.AsInt()
-			r, _ := rightVal.AsInt()
+			l, _ := tuple.AsInt(leftVal)
+			r, _ := tuple.AsInt(rightVal)
 			return tuple.Int(nbo.intOp(l, r)), nil
 		case tuple.TypeFloat:
-			l, _ := leftVal.AsFloat()
-			r, _ := rightVal.AsFloat()
+			l, _ := tuple.AsFloat(leftVal)
+			r, _ := tuple.AsFloat(rightVal)
 			return tuple.Float(nbo.floatOp(l, r)), nil
 		}
 	} else if leftType == tuple.TypeInt && rightType == tuple.TypeFloat {
 		// left is integer
-		l, _ := leftVal.AsInt()
+		l, _ := tuple.AsInt(leftVal)
 		// right is float; also convert left to float, possibly losing precision
-		r, _ := rightVal.AsFloat()
+		r, _ := tuple.AsFloat(rightVal)
 		return tuple.Float(nbo.floatOp(float64(l), r)), nil
 	} else if leftType == tuple.TypeFloat && rightType == tuple.TypeInt {
 		// left is float
-		l, _ := leftVal.AsFloat()
+		l, _ := tuple.AsFloat(leftVal)
 		// right is int; convert right to float, possibly losing precision
-		r, _ := rightVal.AsInt()
+		r, _ := tuple.AsInt(rightVal)
 		return tuple.Float(nbo.floatOp(l, float64(r))), nil
 	}
 	return nil, stdErr

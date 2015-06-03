@@ -15,6 +15,54 @@ const (
 	MinConvFloat64 = float64(math.MinInt64)
 )
 
+// AsBool returns a bool value only when the type of Value is TypeBool,
+// otherwise it returns error.
+func AsBool(v Value) (bool, error) {
+	return v.asBool()
+}
+
+// AsInt returns an integer value only when the type of Value is TypeInt,
+// otherwise it returns error.
+func AsInt(v Value) (int64, error) {
+	return v.asInt()
+}
+
+// AsFloat returns a float value only when the type of Value is TypeFloat,
+// otherwise it returns error.
+func AsFloat(v Value) (float64, error) {
+	return v.asFloat()
+}
+
+// AsString returns a string only when the type of Value is TypeString,
+// otherwise it returns error.
+func AsString(v Value) (string, error) {
+	return v.asString()
+}
+
+// AsBlob returns an array of bytes only when the type of Value is TypeBlob,
+// otherwise it returns error.
+func AsBlob(v Value) ([]byte, error) {
+	return v.asBlob()
+}
+
+// AsTimestamp returns a time.Time only when the type of Value is TypeTime,
+// otherwise it returns error.
+func AsTimestamp(v Value) (time.Time, error) {
+	return v.asTimestamp()
+}
+
+// AsArray returns an array of Values only when the type of Value is TypeArray,
+// otherwise it returns error.
+func AsArray(v Value) (Array, error) {
+	return v.asArray()
+}
+
+// AsMap returns a map of string keys and Values only when the type of Value is
+// TypeMap, otherwise it returns error.
+func AsMap(v Value) (Map, error) {
+	return v.asMap()
+}
+
 // ToBool converts a given Value to a bool, if possible. The conversion
 // rules are similar to those in Python:
 //
@@ -33,27 +81,27 @@ func ToBool(v Value) (bool, error) {
 	case TypeNull:
 		return false, nil
 	case TypeBool:
-		return v.AsBool()
+		return v.asBool()
 	case TypeInt:
-		val, _ := v.AsInt()
+		val, _ := v.asInt()
 		return val != 0, nil
 	case TypeFloat:
-		val, _ := v.AsFloat()
+		val, _ := v.asFloat()
 		return val != 0.0 && !math.IsNaN(val), nil
 	case TypeString:
-		val, _ := v.AsString()
+		val, _ := v.asString()
 		return len(val) > 0, nil
 	case TypeBlob:
-		val, _ := v.AsBlob()
+		val, _ := v.asBlob()
 		return len(val) > 0, nil
 	case TypeTimestamp:
-		val, _ := v.AsTimestamp()
+		val, _ := v.asTimestamp()
 		return !val.IsZero(), nil
 	case TypeArray:
-		val, _ := v.AsArray()
+		val, _ := v.asArray()
 		return len(val) > 0, nil
 	case TypeMap:
-		val, _ := v.AsMap()
+		val, _ := v.asMap()
 		return len(val) > 0, nil
 	default:
 		return defaultValue,
@@ -80,25 +128,25 @@ func ToInt(v Value) (int64, error) {
 	defaultValue := int64(0)
 	switch v.Type() {
 	case TypeBool:
-		val, _ := v.AsBool()
+		val, _ := v.asBool()
 		if val {
 			return 1, nil
 		}
 		return 0, nil
 	case TypeInt:
-		return v.AsInt()
+		return v.asInt()
 	case TypeFloat:
-		val, _ := v.AsFloat()
+		val, _ := v.asFloat()
 		if val >= MinConvFloat64 && val <= MaxConvFloat64 {
 			return int64(val), nil
 		}
 		return defaultValue,
 			fmt.Errorf("%v is out of bounds for int64 conversion", val)
 	case TypeString:
-		val, _ := v.AsString()
+		val, _ := v.asString()
 		return strconv.ParseInt(val, 0, 64)
 	case TypeTimestamp:
-		val, _ := v.AsTimestamp()
+		val, _ := v.asTimestamp()
 		// What we would like to return is `val.UnixNano()/time.Microsecond`,
 		// but `val.UnixNano()` is not a valid call for some times, so we use
 		// a different computation method.
@@ -131,21 +179,21 @@ func ToFloat(v Value) (float64, error) {
 	defaultValue := float64(0)
 	switch v.Type() {
 	case TypeBool:
-		val, _ := v.AsBool()
+		val, _ := v.asBool()
 		if val {
 			return 1.0, nil
 		}
 		return 0.0, nil
 	case TypeInt:
-		val, _ := v.AsInt()
+		val, _ := v.asInt()
 		return float64(val), nil
 	case TypeFloat:
-		return v.AsFloat()
+		return v.asFloat()
 	case TypeString:
-		val, _ := v.AsString()
+		val, _ := v.asString()
 		return strconv.ParseFloat(val, 64)
 	case TypeTimestamp:
-		val, _ := v.AsTimestamp()
+		val, _ := v.asTimestamp()
 		// We want to compute `val.UnixNano()/1e9`, but sometimes `UnixNano()`
 		// is not defined, so we switch to `val.Unix() + val.Nanosecond()/1e9`.
 		// Note that due to numerical issues, this sometimes yields different
@@ -173,12 +221,12 @@ func ToString(v Value) (string, error) {
 		// if we used "%#v", we will get a quoted string; if
 		// we used "%v", we will get the result of String()
 		// (which is JSON, i.e., also quoted)
-		return v.AsString()
+		return v.asString()
 	case TypeBlob:
-		val, _ := v.AsBlob()
+		val, _ := v.asBlob()
 		return string(val), nil
 	case TypeTimestamp:
-		val, _ := v.AsTimestamp()
+		val, _ := v.asTimestamp()
 		return val.Format(time.RFC3339Nano), nil
 	default:
 		return fmt.Sprintf("%#v", v), nil
@@ -197,10 +245,10 @@ func ToBlob(v Value) ([]byte, error) {
 	case TypeNull:
 		return nil, nil
 	case TypeString:
-		val, _ := v.AsString()
+		val, _ := v.asString()
 		return []byte(val), nil
 	case TypeBlob:
-		return v.AsBlob()
+		return v.asBlob()
 	default:
 		return nil, fmt.Errorf("cannot convert %T to Blob", v)
 	}
@@ -223,7 +271,7 @@ func ToTime(v Value) (time.Time, error) {
 	case TypeNull:
 		return defaultValue, nil
 	case TypeInt:
-		val, _ := v.AsInt()
+		val, _ := v.asInt()
 		// val is a number of microseconds, e.g. 12345678
 		// To get only the second part (12), the straightforward way would
 		// be `val * time.Microsecond / time.Second`, but this may overflow
@@ -236,7 +284,7 @@ func ToTime(v Value) (time.Time, error) {
 		fracNanoSeconds := fracMicroSeconds * time.Microsecond
 		return time.Unix(int64(secondPart), int64(fracNanoSeconds)), nil
 	case TypeFloat:
-		val, _ := v.AsFloat()
+		val, _ := v.asFloat()
 		if val >= MinConvFloat64 && val <= MaxConvFloat64 {
 			// say val is 3.7 or -4.6
 			integralPart := int64(val)                 // 3 or -4
@@ -247,10 +295,10 @@ func ToTime(v Value) (time.Time, error) {
 		return defaultValue,
 			fmt.Errorf("%v is out of bounds for int64 conversion", val)
 	case TypeString:
-		val, _ := v.AsString()
+		val, _ := v.asString()
 		return time.Parse(time.RFC3339Nano, val)
 	case TypeTimestamp:
-		return v.AsTimestamp()
+		return v.asTimestamp()
 	default:
 		return defaultValue,
 			fmt.Errorf("cannot convert %T to Time", v)
