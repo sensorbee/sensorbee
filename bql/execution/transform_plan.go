@@ -21,8 +21,10 @@ in three phases:
 
 type LogicalPlan struct {
 	parser.EmitProjectionsAST
+	parser.WindowedFromAST
 	parser.FilterAST
-	parser.RangeAST
+	parser.GroupingAST
+	parser.HavingAST
 }
 
 // ExecutionPlan is a physical interface that is capable of
@@ -34,6 +36,7 @@ type ExecutionPlan interface {
 	// items where each of these items is to be emitted as
 	// a tuple. It is the caller's task to create those tuples
 	// and set appropriate meta information such as timestamps.
+	//
 	// NB. Process is not thread-safe, i.e., it must be called in
 	// a single-threaded context.
 	Process(input *tuple.Tuple) ([]tuple.Map, error)
@@ -54,13 +57,12 @@ func Analyze(s *parser.CreateStreamAsSelectStmt) (*LogicalPlan, error) {
 	   >   have resolved col and possibly casted its subexpressions to a
 	   >   compatible types.
 	*/
-	if len(s.Relations) != 1 {
-		return nil, fmt.Errorf("Using multiple relations is not implemented yet")
-	}
 	return &LogicalPlan{
 		s.EmitProjectionsAST,
+		s.WindowedFromAST,
 		s.FilterAST,
-		s.RangeAST,
+		s.GroupingAST,
+		s.HavingAST,
 	}, nil
 }
 
@@ -83,5 +85,10 @@ func (lp *LogicalPlan) MakePhysicalPlan(reg udf.FunctionRegistry) (ExecutionPlan
 	   > and generates one or more physical plans, using physical operators
 	   > that match the Spark execution engine.
 	*/
-	return NewDefaultSelectExecutionPlan(lp, reg)
+	if CanBuildFilterIstreamPlan(lp, reg) {
+		return NewFilterIstreamPlan(lp, reg)
+	} else if CanBuildDefaultSelectExecutionPlan(lp, reg) {
+		return NewDefaultSelectExecutionPlan(lp, reg)
+	}
+	return nil, fmt.Errorf("no plan can deal with such a statement")
 }

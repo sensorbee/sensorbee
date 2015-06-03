@@ -32,6 +32,15 @@ type defaultSelectExecutionPlan struct {
 	prevResults []tuple.Map
 }
 
+// CanBuildDefaultSelectExecutionPlan checks whether the given statement
+// allows to use an defaultSelectExecutionPlan.
+func CanBuildDefaultSelectExecutionPlan(lp *LogicalPlan, reg udf.FunctionRegistry) bool {
+	// TODO check that there are no aggregate functions
+	return len(lp.Relations) == 1 &&
+		len(lp.GroupList) == 0 &&
+		lp.Having == nil
+}
+
 // defaultSelectExecutionPlan is a very simple plan that follows the
 // theoretical processing model.
 //
