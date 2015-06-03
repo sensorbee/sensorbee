@@ -51,8 +51,8 @@ func split(s string) []string {
 			// hoge[123] or hoge["key"] or some invalid situation.
 			if i < length-1 {
 				nr := runes[i+1]
-                               // if we have the hoge["key"] situation, get the
-                               // part until the closing bracket.
+				// if we have the hoge["key"] situation, get the
+				// part until the closing bracket.
 				if nr == '"' || nr == '\'' {
 					inbracket := splitBracket(runes, i+2, nr)
 					if inbracket != "" {
@@ -176,7 +176,7 @@ func scanMap(m Map, p string, v *Value) (err error) {
 		if submatchStr[1] != "" {
 			// try to access the current tempValue as a map and
 			// pull out the value therein
-			tempMap, err := tempValue.AsMap()
+			tempMap, err := tempValue.asMap()
 			if err != nil {
 				return fmt.Errorf("cannot access a %T using key \"%s\"",
 					tempValue, token)
@@ -200,7 +200,7 @@ func scanMap(m Map, p string, v *Value) (err error) {
 			}
 			// try to access the current tempValue as an array
 			// and access the value therein
-			tempArr, err := tempValue.AsArray()
+			tempArr, err := tempValue.asArray()
 			if err != nil {
 				return fmt.Errorf("cannot access a %T using index %d",
 					tempValue, i64)

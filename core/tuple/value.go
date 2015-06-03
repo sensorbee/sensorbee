@@ -17,7 +17,7 @@ import (
 // and error checking must be done.
 //
 // Example:
-//  i, err := val.AsInt()
+//  i, err := val.asInt()
 //  if err != nil { ... }
 type Value interface {
 	// Type returns the actual type of a Value. (Note that this is
@@ -25,14 +25,14 @@ type Value interface {
 	// then it can be assumed that the `As{X}()` conversion will
 	// not fail.
 	Type() TypeID
-	AsBool() (bool, error)
-	AsInt() (int64, error)
-	AsFloat() (float64, error)
-	AsString() (string, error)
-	AsBlob() ([]byte, error)
-	AsTimestamp() (time.Time, error)
-	AsArray() (Array, error)
-	AsMap() (Map, error)
+	asBool() (bool, error)
+	asInt() (int64, error)
+	asFloat() (float64, error)
+	asString() (string, error)
+	asBlob() ([]byte, error)
+	asTimestamp() (time.Time, error)
+	asArray() (Array, error)
+	asMap() (Map, error)
 	clone() Value
 	String() string
 }
@@ -263,22 +263,22 @@ func newIValue(v Value) interface{} {
 	var result interface{}
 	switch v.Type() {
 	case TypeBool:
-		result, _ = v.AsBool()
+		result, _ = v.asBool()
 	case TypeInt:
-		result, _ = v.AsInt()
+		result, _ = v.asInt()
 	case TypeFloat:
-		result, _ = v.AsFloat()
+		result, _ = v.asFloat()
 	case TypeString:
-		result, _ = v.AsString()
+		result, _ = v.asString()
 	case TypeBlob:
-		result, _ = v.AsBlob()
+		result, _ = v.asBlob()
 	case TypeTimestamp:
 		result, _ = ToInt(v)
 	case TypeArray:
-		innerArray, _ := v.AsArray()
+		innerArray, _ := v.asArray()
 		result = newIArray(innerArray)
 	case TypeMap:
-		innerMap, _ := v.AsMap()
+		innerMap, _ := v.asMap()
 		result = newIMap(innerMap)
 	case TypeNull:
 		result = nil
