@@ -66,6 +66,11 @@ type ProjectionsAST struct {
 	Projections []interface{}
 }
 
+type AliasAST struct {
+	Expr  interface{}
+	Alias string
+}
+
 type WindowedFromAST struct {
 	FromAST
 	RangeAST

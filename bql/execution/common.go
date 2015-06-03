@@ -32,6 +32,8 @@ func prepareProjections(projections []interface{}, reg udf.FunctionRegistry) ([]
 		switch projType := proj.(type) {
 		case parser.ColumnName:
 			colHeader = projType.Name
+		case parser.AliasAST:
+			colHeader = projType.Alias
 		case parser.FuncAppAST:
 			colHeader = string(projType.Function)
 		}

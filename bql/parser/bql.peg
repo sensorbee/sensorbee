@@ -98,7 +98,11 @@ Projections <- < Projection sp (',' sp Projection)* > {
         p.AssembleProjections(begin, end)
     }
 
-Projection <- Expression
+Projection <- AliasExpression / Expression
+
+AliasExpression <- Expression sp "AS" sp ColumnName {
+        p.AssembleAlias()
+    }
 
 WindowedFrom <- < ("FROM" sp Relations sp
                    '[' sp "RANGE" sp Range sp ']')? > {
