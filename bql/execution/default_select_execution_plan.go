@@ -1,7 +1,6 @@
 package execution
 
 import (
-	"fmt"
 	"pfi/sensorbee/sensorbee/bql/parser"
 	"pfi/sensorbee/sensorbee/bql/udf"
 	"pfi/sensorbee/sensorbee/core/tuple"
@@ -9,14 +8,7 @@ import (
 )
 
 type defaultSelectExecutionPlan struct {
-	// TODO turn this into a list of structs to ensure same length
-	// colHeaders stores the names of the result columns.
-	colHeaders []string
-	// selectors stores the evaluators of the result columns.
-	selectors []Evaluator
-	// filter stores the evaluator of the filter condition,
-	// or nil if there is no WHERE clause.
-	filter Evaluator
+	commonExecutionPlan
 	// Window information (extracted from LogicalPlan):
 	windowSize int64
 	windowType parser.RangeUnit
@@ -52,33 +44,14 @@ func CanBuildDefaultSelectExecutionPlan(lp *LogicalPlan, reg udf.FunctionRegistr
 //   the previous run's results.
 func NewDefaultSelectExecutionPlan(lp *LogicalPlan, reg udf.FunctionRegistry) (ExecutionPlan, error) {
 	// prepare projection components
-	projs := make([]Evaluator, len(lp.Projections))
-	colHeaders := make([]string, len(lp.Projections))
-	for i, proj := range lp.Projections {
-		// compute evaluators for each column
-		plan, err := ExpressionToEvaluator(proj, reg)
-		if err != nil {
-			return nil, err
-		}
-		projs[i] = plan
-		// compute column name
-		colHeader := fmt.Sprintf("col_%v", i+1)
-		switch projType := proj.(type) {
-		case parser.ColumnName:
-			colHeader = projType.Name
-		case parser.FuncAppAST:
-			colHeader = string(projType.Function)
-		}
-		colHeaders[i] = colHeader
+	projs, err := prepareProjections(lp.Projections, reg)
+	if err != nil {
+		return nil, err
 	}
 	// compute evaluator for the filter
-	var filter Evaluator
-	if lp.Filter != nil {
-		f, err := ExpressionToEvaluator(lp.Filter, reg)
-		if err != nil {
-			return nil, err
-		}
-		filter = f
+	filter, err := prepareFilter(lp.Filter, reg)
+	if err != nil {
+		return nil, err
 	}
 	// initialize buffer
 	var buffer []*tuple.Tuple
@@ -88,9 +61,10 @@ func NewDefaultSelectExecutionPlan(lp *LogicalPlan, reg udf.FunctionRegistry) (E
 		buffer = make([]*tuple.Tuple, 0, lp.Value+1)
 	}
 	return &defaultSelectExecutionPlan{
-		colHeaders:  colHeaders,
-		selectors:   projs,
-		filter:      filter,
+		commonExecutionPlan: commonExecutionPlan{
+			projections: projs,
+			filter:      filter,
+		},
 		windowSize:  lp.Value,
 		windowType:  lp.Unit,
 		emitter:     lp.EmitterType,
@@ -171,10 +145,6 @@ func (ep *defaultSelectExecutionPlan) removeOutdatedTuplesFromBuffer() error {
 // queries on a single relation without aggregate functions, GROUP BY,
 // JOIN etc. clauses.
 func (ep *defaultSelectExecutionPlan) performQueryOnBuffer() error {
-	if len(ep.colHeaders) != len(ep.selectors) {
-		return fmt.Errorf("number of columns (%v) doesn't match selectors (%v)",
-			len(ep.colHeaders), len(ep.selectors))
-	}
 	// reuse the allocated memory
 	output := ep.prevResults[0:0]
 	// remember the previous results
@@ -194,14 +164,13 @@ func (ep *defaultSelectExecutionPlan) performQueryOnBuffer() error {
 			continue
 		}
 		// otherwise, compute all the expressions
-		result := tuple.Map(make(map[string]tuple.Value, len(ep.colHeaders)))
-		for idx, selector := range ep.selectors {
-			colName := ep.colHeaders[idx]
-			value, err := selector.Eval(t.Data)
+		result := tuple.Map(make(map[string]tuple.Value, len(ep.projections)))
+		for _, proj := range ep.projections {
+			value, err := proj.evaluator.Eval(t.Data)
 			if err != nil {
 				return err
 			}
-			result[colName] = value
+			result[proj.alias] = value
 		}
 		output = append(output, result)
 	}
