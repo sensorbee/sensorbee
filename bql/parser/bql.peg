@@ -98,9 +98,12 @@ Projections <- < Projection sp (',' sp Projection)* > {
         p.AssembleProjections(begin, end)
     }
 
-Projection <- AliasExpression / Expression
+# Note: We only allow the Wildcard expression in the Projections,
+# not as part of an Expression. Without a schema, it is very hard
+# to reason about the applicability of * as part of an expression.
+Projection <- AliasExpression / Expression / Wildcard
 
-AliasExpression <- Expression sp "AS" sp ColumnName {
+AliasExpression <- (Expression / Wildcard) sp "AS" sp ColumnName {
         p.AssembleAlias()
     }
 
@@ -190,7 +193,6 @@ baseExpr <-
     BooleanLiteral /
     FuncApp /
     ColumnName /
-    Wildcard /
     Literal
 
 FuncApp <- Function sp '(' sp FuncParams sp ')' {

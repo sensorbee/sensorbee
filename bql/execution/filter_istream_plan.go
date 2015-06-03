@@ -63,7 +63,9 @@ func (ep *filterIstreamPlan) Process(input *tuple.Tuple) ([]tuple.Map, error) {
 		if err != nil {
 			return nil, err
 		}
-		result[proj.alias] = value
+		if err := assignOutputValue(result, proj.alias, value); err != nil {
+			return nil, err
+		}
 	}
 	return []tuple.Map{result}, nil
 }
