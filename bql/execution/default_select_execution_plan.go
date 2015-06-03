@@ -166,7 +166,10 @@ func (ep *defaultSelectExecutionPlan) performQueryOnBuffer() error {
 		return fmt.Errorf("number of columns (%v) doesn't match selectors (%v)",
 			len(ep.colHeaders), len(ep.selectors))
 	}
-	output := []tuple.Map{}
+	// reuse the allocated memory
+	output := ep.prevResults[0:0]
+	// remember the previous results
+	ep.prevResults = ep.curResults
 	for _, t := range ep.buffer {
 		// evaluate filter condition and convert to bool
 		filterResult, err := ep.filter.Eval(t.Data)
@@ -193,9 +196,6 @@ func (ep *defaultSelectExecutionPlan) performQueryOnBuffer() error {
 		}
 		output = append(output, result)
 	}
-	// TODO optimize memory usage/allocation; we can swap this before and
-	//      write directly to ep.curResults
-	ep.prevResults = ep.curResults
 	ep.curResults = output
 	return nil
 }
