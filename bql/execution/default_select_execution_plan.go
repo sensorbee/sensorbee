@@ -151,17 +151,19 @@ func (ep *defaultSelectExecutionPlan) performQueryOnBuffer() error {
 	ep.prevResults = ep.curResults
 	for _, t := range ep.buffer {
 		// evaluate filter condition and convert to bool
-		filterResult, err := ep.filter.Eval(t.Data)
-		if err != nil {
-			return err
-		}
-		filterResultBool, err := tuple.ToBool(filterResult)
-		if err != nil {
-			return err
-		}
-		// if it evaluated to false, do not further process this tuple
-		if !filterResultBool {
-			continue
+		if ep.filter != nil {
+			filterResult, err := ep.filter.Eval(t.Data)
+			if err != nil {
+				return err
+			}
+			filterResultBool, err := tuple.ToBool(filterResult)
+			if err != nil {
+				return err
+			}
+			// if it evaluated to false, do not further process this tuple
+			if !filterResultBool {
+				continue
+			}
 		}
 		// otherwise, compute all the expressions
 		result := tuple.Map(make(map[string]tuple.Value, len(ep.projections)))

@@ -25,6 +25,9 @@ func CanBuildFilterIstreamPlan(lp *LogicalPlan, reg udf.FunctionRegistry) bool {
 // (no GROUP BY/aggregate functions). In that case we do not need
 // an internal buffer, but we can just evaluate filter on projections
 // on the incoming tuple and emit it right away if the filter matches.
+//
+// TODO: THIS IS NOT CORRECT!! `SELECT ISTREAM(17) FROM s [RANGE 2 SECONDS]`
+//       should emit `17` only once every 2 seconds!
 func NewFilterIstreamPlan(lp *LogicalPlan, reg udf.FunctionRegistry) (ExecutionPlan, error) {
 	// prepare projection components
 	projs, err := prepareProjections(lp.Projections, reg)
@@ -44,17 +47,19 @@ func NewFilterIstreamPlan(lp *LogicalPlan, reg udf.FunctionRegistry) (ExecutionP
 
 func (ep *filterIstreamPlan) Process(input *tuple.Tuple) ([]tuple.Map, error) {
 	// evaluate filter condition and convert to bool
-	filterResult, err := ep.filter.Eval(input.Data)
-	if err != nil {
-		return nil, err
-	}
-	filterResultBool, err := tuple.ToBool(filterResult)
-	if err != nil {
-		return nil, err
-	}
-	// if it evaluated to false, do not further process this tuple
-	if !filterResultBool {
-		return []tuple.Map{}, nil
+	if ep.filter != nil {
+		filterResult, err := ep.filter.Eval(input.Data)
+		if err != nil {
+			return nil, err
+		}
+		filterResultBool, err := tuple.ToBool(filterResult)
+		if err != nil {
+			return nil, err
+		}
+		// if it evaluated to false, do not further process this tuple
+		if !filterResultBool {
+			return []tuple.Map{}, nil
+		}
 	}
 	// otherwise, compute all the expressions
 	result := tuple.Map(make(map[string]tuple.Value, len(ep.projections)))
