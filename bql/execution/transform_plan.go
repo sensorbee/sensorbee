@@ -67,52 +67,6 @@ func (lp *LogicalPlan) LogicalOptimize() (*LogicalPlan, error) {
 	return lp, nil
 }
 
-// defaultSelectExecutionPlan can only process statements consisting of
-// expressions in the SELECT and WHERE clause; it is not able to JOIN
-// or GROUP BY. Therefore the processing is very simple: First compute
-// the tuples for which the filter expression evaluates to true, then
-// evaluate all the expressions in the SELECT clause.
-type defaultSelectExecutionPlan struct {
-	colHeaders []string
-	selectors  []Evaluator
-	filter     Evaluator
-}
-
-func (ep *defaultSelectExecutionPlan) Run(input []*tuple.Tuple) ([]tuple.Map, error) {
-	if len(ep.colHeaders) != len(ep.selectors) {
-		return nil, fmt.Errorf("number of columns (%v) doesn't match selectors (%v)",
-			len(ep.colHeaders), len(ep.selectors))
-	}
-	output := []tuple.Map{}
-	for _, t := range input {
-		// evaluate filter condition and convert to bool
-		filterResult, err := ep.filter.Eval(t.Data)
-		if err != nil {
-			return nil, err
-		}
-		filterResultBool, err := tuple.ToBool(filterResult)
-		if err != nil {
-			return nil, err
-		}
-		// if it evaluated to false, do not further process this tuple
-		if !filterResultBool {
-			continue
-		}
-		// otherwise, compute all the expressions
-		result := tuple.Map(make(map[string]tuple.Value, len(ep.colHeaders)))
-		for idx, selector := range ep.selectors {
-			colName := ep.colHeaders[idx]
-			value, err := selector.Eval(t.Data)
-			if err != nil {
-				return nil, err
-			}
-			result[colName] = value
-		}
-		output = append(output, result)
-	}
-	return output, nil
-}
-
 func (lp *LogicalPlan) MakePhysicalPlan(reg udf.FunctionRegistry) (ExecutionPlan, error) {
 	/*
 	   In Spark, this does the following:
@@ -121,30 +75,5 @@ func (lp *LogicalPlan) MakePhysicalPlan(reg udf.FunctionRegistry) (ExecutionPlan
 	   > and generates one or more physical plans, using physical operators
 	   > that match the Spark execution engine.
 	*/
-	projs := make([]Evaluator, len(lp.Projections))
-	colHeaders := make([]string, len(lp.Projections))
-	for i, proj := range lp.Projections {
-		plan, err := ExpressionToEvaluator(proj, reg)
-		if err != nil {
-			return nil, err
-		}
-		projs[i] = plan
-		colHeader := fmt.Sprintf("col_%v", i+1)
-		switch projType := proj.(type) {
-		case parser.ColumnName:
-			colHeader = projType.Name
-		case parser.FuncAppAST:
-			colHeader = string(projType.Function)
-		}
-		colHeaders[i] = colHeader
-	}
-	var filter Evaluator
-	if lp.Filter != nil {
-		f, err := ExpressionToEvaluator(lp.Filter, reg)
-		if err != nil {
-			return nil, err
-		}
-		filter = f
-	}
-	return &defaultSelectExecutionPlan{colHeaders, projs, filter}, nil
+	return NewDefaultSelectExecutionPlan(lp.Projections, lp.Filter, reg)
 }
