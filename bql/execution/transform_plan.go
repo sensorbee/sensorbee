@@ -9,27 +9,34 @@ import (
 
 /*
 The functions in this file transform an AST as returned by
-`parser.bqlParser.ParseStmt()` into a physical execution plan
-that can be used to query a set of Tuples. This works similar
-to the way it is done in Spark SQL as outlined on
+`parser.bqlParser.ParseStmt()` into a physical execution plan.
+This works similar to the way it is done in Spark SQL as
+outlined on
   https://databricks.com/blog/2015/04/13/deep-dive-into-spark-sqls-catalyst-optimizer.html
 in three phases:
 - Analyze
 - LogicalOptimize
 - MakePhysicalPlan
-
-The ExecutionPlan that is returned has a method
-  Run(input []*tuple.Tuple) ([]tuple.Map, error)
-which can be used to run the query and obtain its results.
 */
 
 type LogicalPlan struct {
-	parser.ProjectionsAST
+	parser.EmitProjectionsAST
 	parser.FilterAST
+	parser.RangeAST
 }
 
+// ExecutionPlan is a physical interface that is capable of
+// computing the data that needs to be emitted into an output
+// stream when a new tuple arrives in the input stream.
 type ExecutionPlan interface {
-	Run(input []*tuple.Tuple) ([]tuple.Map, error)
+	// Process must be called whenever a new tuple arrives in
+	// the input stream. It will return a list of tuple.Map
+	// items where each of these items is to be emitted as
+	// a tuple. It is the caller's task to create those tuples
+	// and set appropriate meta information such as timestamps.
+	// NB. Process is not thread-safe, i.e., it must be called in
+	// a single-threaded context.
+	Process(input *tuple.Tuple) ([]tuple.Map, error)
 }
 
 func Analyze(s *parser.CreateStreamAsSelectStmt) (*LogicalPlan, error) {
@@ -51,8 +58,9 @@ func Analyze(s *parser.CreateStreamAsSelectStmt) (*LogicalPlan, error) {
 		return nil, fmt.Errorf("Using multiple relations is not implemented yet")
 	}
 	return &LogicalPlan{
-		s.ProjectionsAST,
+		s.EmitProjectionsAST,
 		s.FilterAST,
+		s.RangeAST,
 	}, nil
 }
 
@@ -75,5 +83,5 @@ func (lp *LogicalPlan) MakePhysicalPlan(reg udf.FunctionRegistry) (ExecutionPlan
 	   > and generates one or more physical plans, using physical operators
 	   > that match the Spark execution engine.
 	*/
-	return NewDefaultSelectExecutionPlan(lp.Projections, lp.Filter, reg)
+	return NewDefaultSelectExecutionPlan(lp, reg)
 }
