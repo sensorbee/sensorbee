@@ -1,13 +1,14 @@
-package bql
+package bql_test
 
 import (
 	. "github.com/smartystreets/goconvey/convey"
+	"pfi/sensorbee/sensorbee/bql"
 	"testing"
 )
 
 func TestCreateSourceStmt(t *testing.T) {
 	Convey("Given a BQL TopologyBuilder", t, func() {
-		tb := NewTopologyBuilder()
+		tb := bql.NewTopologyBuilder()
 
 		Convey("When running CREATE SOURCE with a dummy source", func() {
 			err := tb.BQL(`CREATE SOURCE hoge TYPE dummy`)
@@ -73,7 +74,7 @@ func TestCreateSourceStmt(t *testing.T) {
 
 func TestCreateStreamFromSourceStmt(t *testing.T) {
 	Convey("Given a BQL TopologyBuilder with a source", t, func() {
-		tb := NewTopologyBuilder()
+		tb := bql.NewTopologyBuilder()
 		err := tb.BQL(`CREATE SOURCE hoge TYPE dummy`)
 		So(err, ShouldBeNil)
 
@@ -123,7 +124,7 @@ func TestCreateStreamFromSourceStmt(t *testing.T) {
 
 func TestCreateStreamFromSourceExtStmt(t *testing.T) {
 	Convey("Given a BQL TopologyBuilder", t, func() {
-		tb := NewTopologyBuilder()
+		tb := bql.NewTopologyBuilder()
 
 		Convey("When running CREATE STREAM FROM SOURCE (combo) with a dummy source", func() {
 			err := tb.BQL(`CREATE STREAM hoge FROM dummy SOURCE`)
@@ -159,7 +160,7 @@ func TestCreateStreamFromSourceExtStmt(t *testing.T) {
 
 func TestCreateStreamAsSelectStmt(t *testing.T) {
 	Convey("Given a BQL TopologyBuilder with source and stream", t, func() {
-		tb := NewTopologyBuilder()
+		tb := bql.NewTopologyBuilder()
 		err := tb.BQL(`CREATE SOURCE hoge TYPE dummy`)
 		So(err, ShouldBeNil)
 		err = tb.BQL(`CREATE STREAM s FROM SOURCE hoge`)
@@ -227,7 +228,7 @@ func TestCreateStreamAsSelectStmt(t *testing.T) {
 
 func TestCreateSinkStmt(t *testing.T) {
 	Convey("Given a BQL TopologyBuilder", t, func() {
-		tb := NewTopologyBuilder()
+		tb := bql.NewTopologyBuilder()
 
 		Convey("When running CREATE SINK with a collector source", func() {
 			err := tb.BQL(`CREATE SINK hoge TYPE collector`)
@@ -266,7 +267,7 @@ func TestCreateSinkStmt(t *testing.T) {
 
 func TestInsertIntoSelectStmt(t *testing.T) {
 	Convey("Given a BQL TopologyBuilder with source, stream, and sink", t, func() {
-		tb := NewTopologyBuilder()
+		tb := bql.NewTopologyBuilder()
 		err := tb.BQL(`CREATE SOURCE hoge TYPE dummy`)
 		So(err, ShouldBeNil)
 		err = tb.BQL(`CREATE STREAM s FROM SOURCE hoge`)
