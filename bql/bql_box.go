@@ -12,14 +12,16 @@ import (
 type bqlBox struct {
 	// stmt is the BQL statement executed by this box
 	stmt *parser.CreateStreamAsSelectStmt
+	// reg holds functions that can be used in this box
+	reg udf.FunctionRegistry
 	// plan is the execution plan for the SELECT statement in there
 	execPlan execution.ExecutionPlan
 	// mutex protects access to shared state
 	mutex sync.Mutex
 }
 
-func NewBqlBox(stmt *parser.CreateStreamAsSelectStmt) *bqlBox {
-	return &bqlBox{stmt: stmt}
+func NewBQLBox(stmt *parser.CreateStreamAsSelectStmt, reg udf.FunctionRegistry) *bqlBox {
+	return &bqlBox{stmt: stmt, reg: reg}
 }
 
 func (b *bqlBox) Init(ctx *core.Context) error {
@@ -32,13 +34,7 @@ func (b *bqlBox) Init(ctx *core.Context) error {
 	if err != nil {
 		return err
 	}
-	// TODO use a proper function registry (from context maybe?)
-	reg := udf.NewDefaultFunctionRegistry()
-	toString := func(v tuple.Value) (tuple.Value, error) {
-		return tuple.String(v.String()), nil
-	}
-	reg.RegisterUnary("str", toString)
-	b.execPlan, err = optimizedPlan.MakePhysicalPlan(reg)
+	b.execPlan, err = optimizedPlan.MakePhysicalPlan(b.reg)
 	if err != nil {
 		return err
 	}

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/rand"
 	"pfi/sensorbee/sensorbee/bql/parser"
+	"pfi/sensorbee/sensorbee/bql/udf"
 	"pfi/sensorbee/sensorbee/core"
 	"pfi/sensorbee/sensorbee/core/tuple"
 )
@@ -12,13 +13,16 @@ type TopologyBuilder struct {
 	stb      core.StaticTopologyBuilder
 	sinks    map[string]core.Sink
 	sinkDecl map[string]core.SinkDeclarer
+	Reg      udf.FunctionManager
 }
 
 func NewTopologyBuilder() *TopologyBuilder {
+	// create topology
 	tb := TopologyBuilder{
 		core.NewDefaultStaticTopologyBuilder(),
 		map[string]core.Sink{},
 		map[string]core.SinkDeclarer{},
+		udf.NewDefaultFunctionRegistry(),
 	}
 	return &tb
 }
@@ -95,7 +99,7 @@ func (tb *TopologyBuilder) processStmt(_stmt interface{}) error {
 	case parser.CreateStreamAsSelectStmt:
 		// insert a bqlBox that executes the SELECT statement
 		outName := stmt.Name
-		box := NewBqlBox(&stmt)
+		box := NewBQLBox(&stmt, tb.Reg)
 		// add all the referenced relations as named inputs
 		decl := tb.stb.AddBox(outName, box)
 		for _, rel := range stmt.Relations {
