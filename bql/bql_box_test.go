@@ -1,16 +1,19 @@
-package bql
+package bql_test
 
 import (
 	"fmt"
 	. "github.com/smartystreets/goconvey/convey"
+	"pfi/sensorbee/sensorbee/bql"
 	"pfi/sensorbee/sensorbee/core"
 	"pfi/sensorbee/sensorbee/core/tuple"
+	"pfi/sensorbee/sensorbee/io/dummy_sink"
+	"pfi/sensorbee/sensorbee/io/dummy_source"
 	"testing"
 )
 
-func setupTopology(stmt string) (core.StaticTopology, *TupleCollectorSink, error) {
+func setupTopology(stmt string) (core.StaticTopology, *dummy_sink.TupleCollectorSink, error) {
 	// create a stream from a dummy source
-	tb := NewTopologyBuilder()
+	tb := bql.NewTopologyBuilder()
 	err := tb.BQL("CREATE STREAM source FROM dummy SOURCE WITH num=4")
 	if err != nil {
 		return nil, nil, err
@@ -21,14 +24,29 @@ func setupTopology(stmt string) (core.StaticTopology, *TupleCollectorSink, error
 		return nil, nil, err
 	}
 	// sink
-	si := &TupleCollectorSink{}
-	tb.stb.AddSink("sink", si).Input("box")
+	err = tb.BQL("CREATE SINK snk TYPE collector")
+	if err != nil {
+		return nil, nil, err
+	}
+	// connect box and sink
+	err = tb.BQL("INSERT INTO snk SELECT * FROM box")
+	if err != nil {
+		return nil, nil, err
+	}
+	si_, ok := tb.GetSink("snk")
+	if !ok {
+		return nil, nil, fmt.Errorf("unable to get sink from TopologyBuilder")
+	}
+	si, ok := si_.(*dummy_sink.TupleCollectorSink)
+	if !ok {
+		return nil, nil, fmt.Errorf("returned sink has unexpected type: %v", si_)
+	}
 	t, err := tb.Build()
 	return t, si, err
 }
 
 func TestBasicBqlBoxConnectivity(t *testing.T) {
-	tuples := getTuples(4)
+	tuples := dummy_source.MkTuples(4)
 	tup2 := *tuples[1]
 	tup4 := *tuples[3]
 
