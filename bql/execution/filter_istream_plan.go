@@ -4,10 +4,14 @@ import (
 	"pfi/sensorbee/sensorbee/bql/parser"
 	"pfi/sensorbee/sensorbee/bql/udf"
 	"pfi/sensorbee/sensorbee/core/tuple"
+	"reflect"
 )
 
 type filterIstreamPlan struct {
 	commonExecutionPlan
+	windowSize  int64
+	prevResults []tuple.Map
+	procItems   int64
 }
 
 // CanBuildFilterIstreamPlan checks whether the given statement
@@ -17,19 +21,14 @@ func CanBuildFilterIstreamPlan(lp *LogicalPlan, reg udf.FunctionRegistry) bool {
 	return len(lp.Relations) == 1 &&
 		len(lp.GroupList) == 0 &&
 		lp.Having == nil &&
-		lp.EmitterType == parser.Istream
+		lp.EmitterType == parser.Istream &&
+		lp.Unit == parser.Tuples
 }
 
-// filterIstreamPlan is a fast and simple plan for the case where
-// the BQL statement has an Istream emitter and only a WHERE clause
-// (no GROUP BY/aggregate functions). In that case we do not need
-// an internal buffer, but we can just evaluate filter on projections
-// on the incoming tuple and emit it right away if the filter matches.
-//
-// ************************************************************************* //
-// TODO: THIS IS NOT CORRECT!! `SELECT ISTREAM(17) FROM s [RANGE 2 SECONDS]` //
-//       should emit `17` only once every 2 seconds!                         //
-// ************************************************************************* //
+// filterIstreamPlan is a fast and simple plan for the case where the
+// BQL statement has an Istream emitter, a TUPLES range clause and only
+// a WHERE clause (no GROUP BY/aggregate functions). In that case we can
+// perform the check with less memory and faster than the default plan.
 func NewFilterIstreamPlan(lp *LogicalPlan, reg udf.FunctionRegistry) (ExecutionPlan, error) {
 	// prepare projection components
 	projs, err := prepareProjections(lp.Projections, reg)
@@ -44,10 +43,20 @@ func NewFilterIstreamPlan(lp *LogicalPlan, reg udf.FunctionRegistry) (ExecutionP
 	return &filterIstreamPlan{commonExecutionPlan{
 		projections: projs,
 		filter:      filter,
-	}}, nil
+	}, lp.Value, make([]tuple.Map, 0, lp.Value), 0}, nil
 }
 
 func (ep *filterIstreamPlan) Process(input *tuple.Tuple) ([]tuple.Map, error) {
+	// remove the oldest item from prevResults after it has once
+	// been filled completely
+	if ep.procItems >= ep.windowSize {
+		if len(ep.prevResults) >= 1 {
+			ep.prevResults = ep.prevResults[1:]
+		}
+	} else {
+		ep.procItems++
+	}
+
 	// evaluate filter condition and convert to bool
 	if ep.filter != nil {
 		filterResult, err := ep.filter.Eval(input.Data)
@@ -73,6 +82,19 @@ func (ep *filterIstreamPlan) Process(input *tuple.Tuple) ([]tuple.Map, error) {
 		if err := assignOutputValue(result, proj.alias, value); err != nil {
 			return nil, err
 		}
+	}
+	// check if the item is in the previous results
+	alreadyEmitted := false
+	for _, item := range ep.prevResults {
+		if reflect.DeepEqual(result, item) {
+			alreadyEmitted = true
+			break
+		}
+	}
+	// in any way, append it the the previous results
+	ep.prevResults = append(ep.prevResults, result)
+	if alreadyEmitted {
+		return nil, nil
 	}
 	return []tuple.Map{result}, nil
 }
