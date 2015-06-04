@@ -26,8 +26,10 @@ func CanBuildFilterIstreamPlan(lp *LogicalPlan, reg udf.FunctionRegistry) bool {
 // an internal buffer, but we can just evaluate filter on projections
 // on the incoming tuple and emit it right away if the filter matches.
 //
-// TODO: THIS IS NOT CORRECT!! `SELECT ISTREAM(17) FROM s [RANGE 2 SECONDS]`
-//       should emit `17` only once every 2 seconds!
+// ************************************************************************* //
+// TODO: THIS IS NOT CORRECT!! `SELECT ISTREAM(17) FROM s [RANGE 2 SECONDS]` //
+//       should emit `17` only once every 2 seconds!                         //
+// ************************************************************************* //
 func NewFilterIstreamPlan(lp *LogicalPlan, reg udf.FunctionRegistry) (ExecutionPlan, error) {
 	// prepare projection components
 	projs, err := prepareProjections(lp.Projections, reg)
@@ -58,7 +60,7 @@ func (ep *filterIstreamPlan) Process(input *tuple.Tuple) ([]tuple.Map, error) {
 		}
 		// if it evaluated to false, do not further process this tuple
 		if !filterResultBool {
-			return []tuple.Map{}, nil
+			return nil, nil
 		}
 	}
 	// otherwise, compute all the expressions
