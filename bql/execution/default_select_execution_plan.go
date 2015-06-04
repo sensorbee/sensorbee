@@ -195,7 +195,9 @@ func (ep *defaultSelectExecutionPlan) computeResultTuples() ([]tuple.Map, error)
 	var output []tuple.Map
 	if ep.emitter == parser.Rstream {
 		// emit all tuples
-		output = ep.curResults
+		for _, res := range ep.curResults {
+			output = append(output, res)
+		}
 	} else if ep.emitter == parser.Istream {
 		// emit only new tuples
 		for _, res := range ep.curResults {
