@@ -1,7 +1,9 @@
 package core
 
 import (
+	"fmt"
 	"pfi/sensorbee/sensorbee/core/tuple"
+	"strings"
 )
 
 // A Box is an elementary building block of a SensorBee topology.
@@ -182,4 +184,69 @@ type boxFunc func(ctx *Context, t *tuple.Tuple, w Writer) error
 
 func (b boxFunc) Process(ctx *Context, t *tuple.Tuple, w Writer) error {
 	return b(ctx, t, w)
+}
+
+// checkBoxInputName checks if the Box accept the given input name. It returns
+// an error when the Box doesn't accept the name.
+func checkBoxInputName(b Box, boxName string, inputName string) error {
+	// The `Input()` caller said that we should attach the name
+	// `inputName` to incoming data (or not if inputName is "*").
+	// This is ok if
+	// - Box is schemaless
+	// - InputSchema() is nil
+	// - InputSchema() has a schema for that name
+	// - there is a "*" schema declared in InputSchema()
+	// Otherwise this is an error.
+	sbox, ok := b.(SchemafulBox)
+	if !ok {
+		return nil // This box is schemaless.
+	}
+
+	inSchema := sbox.InputSchema()
+	if inSchema == nil {
+		return nil // schemaless
+	} else if inSchema.Has(inputName) {
+		// TODO: check if given schema matches the referenced source or box
+		return nil
+	} else if inSchema.Has("*") {
+		// TODO: check if given schema matches the referenced source or box
+		return nil
+	}
+	return fmt.Errorf("an input name %s isn't defined in the box '%v': %v",
+		inputName, boxName, strings.Join(inSchema.Names(), ", "))
+}
+
+// boxWriterAdapter provides a Writer interface which writes tuples to a Box.
+// It also records traces input and output tuples.
+type boxWriterAdapter struct {
+	box  Box
+	name string
+	dst  *traceWriter
+}
+
+func newBoxWriterAdapter(b Box, name string, dst WriteCloser) *boxWriterAdapter {
+	return &boxWriterAdapter{
+		box:  b,
+		name: name,
+		// An output traces is written just after the box Process writes a tuple.
+		dst: newTraceWriter(dst, tuple.Output, name),
+	}
+}
+
+func (wa *boxWriterAdapter) Write(ctx *Context, t *tuple.Tuple) error {
+	tracing(t, ctx, tuple.Input, wa.name)
+	return wa.box.Process(ctx, t, wa.dst)
+}
+
+func (wa *boxWriterAdapter) Close(ctx *Context) error {
+	// TODO: handle panics
+	var errb error
+	if sbox, ok := wa.box.(StatefulBox); ok {
+		errb = sbox.Terminate(ctx)
+	}
+	errw := wa.dst.w.Close(ctx)
+	if errb != nil {
+		return errb // An error from the Box is considered more important.
+	}
+	return errw
 }

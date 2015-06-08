@@ -6,7 +6,6 @@ import (
 	"reflect"
 	"strings"
 	"sync"
-	"time"
 )
 
 type defaultStaticTopologyBuilder struct {
@@ -265,24 +264,6 @@ func (tb *defaultStaticTopologyBuilder) detectCycle(node string, adj map[string]
 
 /**************************************************/
 
-func tracing(t *tuple.Tuple, ctx *Context, inout tuple.EventType, msg string) {
-	if !ctx.IsTupleTraceEnabled() {
-		return
-	}
-	ev := newDefaultEvent(inout, msg)
-	t.AddEvent(ev)
-}
-
-func newDefaultEvent(inout tuple.EventType, msg string) tuple.TraceEvent {
-	return tuple.TraceEvent{
-		time.Now(),
-		inout,
-		msg,
-	}
-}
-
-/**************************************************/
-
 type defaultSourceDeclarer struct {
 	err error
 }
@@ -316,7 +297,7 @@ func (bd *defaultBoxDeclarer) NamedInput(refname string, inputName string) BoxDe
 		return bd
 	}
 
-	if err := bd.checkInput(inputName); err != nil {
+	if err := checkBoxInputName(bd.box, bd.name, inputName); err != nil {
 		bd.err = err
 		return bd
 	}
@@ -337,34 +318,6 @@ func (bd *defaultBoxDeclarer) NamedInput(refname string, inputName string) BoxDe
 	// if not, store it
 	bd.tb.Edges = append(bd.tb.Edges, edge)
 	return bd
-}
-
-func (bd *defaultBoxDeclarer) checkInput(inputName string) error {
-	// The `Input()` caller said that we should attach the name
-	// `inputName` to incoming data (or not if inputName is "*").
-	// This is ok if
-	// - Box is schemaless
-	// - InputSchema() is nil
-	// - InputSchema() has a schema for that name
-	// - there is a "*" schema declared in InputSchema()
-	// Otherwise this is an error.
-	sbox, ok := bd.box.(SchemafulBox)
-	if !ok {
-		return nil // This box is schemaless.
-	}
-
-	inSchema := sbox.InputSchema()
-	if inSchema == nil {
-		return nil // schemaless
-	} else if inSchema.Has(inputName) {
-		// TODO: check if given schema matches the referenced source or box
-		return nil
-	} else if inSchema.Has("*") {
-		// TODO: check if given schema matches the referenced source or box
-		return nil
-	}
-	return fmt.Errorf("an input name %s isn't defined in the box '%v': %v",
-		inputName, bd.name, strings.Join(inSchema.Names(), ", "))
 }
 
 func (bd *defaultBoxDeclarer) Err() error {
