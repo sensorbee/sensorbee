@@ -5,6 +5,7 @@ import (
 	"pfi/sensorbee/sensorbee/bql/parser"
 	"pfi/sensorbee/sensorbee/bql/udf"
 	"pfi/sensorbee/sensorbee/core/tuple"
+	"strings"
 )
 
 /*
@@ -57,6 +58,11 @@ func Analyze(s *parser.CreateStreamAsSelectStmt) (*LogicalPlan, error) {
 	   >   have resolved col and possibly casted its subexpressions to a
 	   >   compatible types.
 	*/
+
+	if err := validateReferences(s); err != nil {
+		return nil, err
+	}
+
 	return &LogicalPlan{
 		s.EmitProjectionsAST,
 		s.WindowedFromAST,
@@ -64,6 +70,149 @@ func Analyze(s *parser.CreateStreamAsSelectStmt) (*LogicalPlan, error) {
 		s.GroupingAST,
 		s.HavingAST,
 	}, nil
+}
+
+// validateReferences checks if the references to input relations
+// in SELECT, WHERE, GROUP BY and HAVING clauses of the given
+// statement are matching the relations mentioned in the FROM
+// clause.
+func validateReferences(s *parser.CreateStreamAsSelectStmt) error {
+
+	/* We want to check if we can access all relations properly.
+	   If there is just one input relation, we ask that none of the
+	   RowValue structs has a Relation string different from ""
+	   (as in `SELECT col FROM stream`).
+	   If there are multiple input relations, we ask that *all*
+	   RowValue structs have a Relation string that matches one of
+	   the input relations (as in `SELECT a.col, b.col FROM a, b`).
+	*/
+
+	// define a recursive function to collect all referenced relations
+	// and store them in the given map
+	var collectRels func(interface{}, map[string]bool) error
+	collectRels = func(_expr interface{}, rels map[string]bool) error {
+		if _expr == nil {
+			return nil
+		}
+		switch expr := _expr.(type) {
+		default:
+			return fmt.Errorf("don't know how to collect referenced "+
+				"relations from AST object %T", _expr)
+		case parser.RowValue:
+			rels[expr.Relation] = true
+		case parser.AliasAST:
+			return collectRels(expr.Expr, rels)
+		case parser.NumericLiteral, parser.FloatLiteral, parser.BoolLiteral:
+			// no referenced relations
+		case parser.BinaryOpAST:
+			if err := collectRels(expr.Left, rels); err != nil {
+				return err
+			}
+			if err := collectRels(expr.Right, rels); err != nil {
+				return err
+			}
+		case parser.FuncAppAST:
+			for _, e := range expr.Expressions {
+				if err := collectRels(e, rels); err != nil {
+					return err
+				}
+			}
+		case parser.Wildcard:
+			// this is special, we can't use `rel.*` at the moment
+		}
+		return nil
+	}
+
+	// collect the referenced relations in SELECT, WHERE, GROUP BY clauses
+	refRels := map[string]bool{}
+	for _, proj := range s.Projections {
+		if err := collectRels(proj, refRels); err != nil {
+			return err
+		}
+	}
+	if err := collectRels(s.Filter, refRels); err != nil {
+		return err
+	}
+	for _, group := range s.GroupList {
+		if err := collectRels(group, refRels); err != nil {
+			return err
+		}
+	}
+
+	// do the correctness check for SELECT, WHERE, GROUP BY clauses
+	if len(s.Relations) == 0 {
+		// Sample: SELECT a (no FROM clause)
+		// this case should never happen due to parser setup
+		return fmt.Errorf("need at least one relation to select from")
+	} else if len(s.Relations) == 1 {
+		inputRel := s.Relations[0].Name
+		if len(refRels) == 1 {
+			// Sample: SELECT a FROM b // SELECT b.a FROM b
+			// check if the one map item is either "" or the name of
+			// the input relation
+			for rel := range refRels {
+				if rel != "" && rel != inputRel {
+					err := fmt.Errorf("cannot refer to relation '%s' "+
+						"when using only '%s'", rel, inputRel)
+					return err
+				}
+			}
+		} else if len(refRels) > 1 {
+			// Sample: SELECT a, b.a FROM b // SELECT b.a, x.a FROM b
+			// this is an invalid statement
+			failRels := make([]string, 0, len(refRels))
+			for rel := range refRels {
+				failRels = append(failRels, fmt.Sprintf("'%s'", rel))
+			}
+			failRelsStr := strings.Join(failRels, ", ")
+			err := fmt.Errorf("cannot refer to relations %s "+
+				"when using only '%s'", failRelsStr, inputRel)
+			return err
+		}
+		// if we arrive here, the only referenced relation is valid or
+		// we do not actually reference anything
+	} else if len(s.Relations) > 1 {
+		// Sample: SELECT b.a, c.d FROM b, c
+		// check if all referenced relations are actually listed in FROM
+		for rel := range refRels {
+			found := false
+			for _, inputRel := range s.Relations {
+				if rel == inputRel.Name {
+					found = true
+					break
+				}
+			}
+			if !found {
+				prettyRels := make([]string, 0, len(s.Relations))
+				for rel := range s.Relations {
+					prettyRels = append(prettyRels, fmt.Sprintf("'%s'", rel))
+				}
+				prettyRelsStr := strings.Join(prettyRels, ", ")
+				err := fmt.Errorf("cannot reference relation '%s' "+
+					"when using input relations %s", rel, prettyRelsStr)
+				return err
+			}
+		}
+		// if we arrive here, all referenced relations exist in the
+		// FROM clause -> OK
+	}
+
+	// HAVING is fundamentally different in that it does refer to
+	// output columns, therefore must not contain references to input
+	// relations
+	havingRels := map[string]bool{}
+	if err := collectRels(s.Having, havingRels); err != nil {
+		return err
+	}
+	for rel := range havingRels {
+		if rel != "" {
+			err := fmt.Errorf("cannot refer to input relation '%s' "+
+				"from HAVING clause", rel)
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (lp *LogicalPlan) LogicalOptimize() (*LogicalPlan, error) {
