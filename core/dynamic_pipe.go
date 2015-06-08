@@ -46,13 +46,13 @@ type dynamicPipeSender struct {
 }
 
 // Write outputs the given tuple to the pipe. This method only returns
-// pipeClosedError and never panics.
+// errPipeClosed and never panics.
 func (s *dynamicPipeSender) Write(ctx *Context, t *tuple.Tuple) error {
 	s.rwm.RLock()
 	defer s.rwm.RUnlock()
 
 	if s.closed {
-		return pipeClosedError
+		return errPipeClosed
 	}
 
 	t.InputName = s.inputName
@@ -343,7 +343,7 @@ func (d *dynamicDataDestinations) Write(ctx *Context, t *tuple.Tuple) error {
 		}
 
 		if err := dst.Write(ctx, s); err != nil { // never panics
-			// err is always pipeClosedError when it isn't nil.
+			// err is always errPipeClosed when it isn't nil.
 			// Because the closed destination doesn't do anything harmful,
 			// it'll be removed later for performance reason.
 

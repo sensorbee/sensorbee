@@ -6,7 +6,7 @@ import (
 )
 
 var (
-	pipeClosedError = fmt.Errorf("the pipe is already closed")
+	errPipeClosed = fmt.Errorf("the pipe is already closed")
 )
 
 type bulkErrors struct {
