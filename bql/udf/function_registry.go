@@ -45,7 +45,13 @@ func NewDefaultFunctionRegistry() *defaultFunctionRegistry {
 		fun     VarParamFun
 		checker func(int) bool
 	}{}
-	return &defaultFunctionRegistry{empty}
+	reg := &defaultFunctionRegistry{empty}
+	// register some standard functions
+	toString := func(v tuple.Value) (tuple.Value, error) {
+		return tuple.String(v.String()), nil
+	}
+	reg.RegisterUnary("str", toString)
+	return reg
 }
 
 func (fr *defaultFunctionRegistry) Lookup(name string, arity int) (VarParamFun, error) {

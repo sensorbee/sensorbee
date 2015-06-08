@@ -1,16 +1,19 @@
-package bql
+package bql_test
 
 import (
 	"fmt"
 	. "github.com/smartystreets/goconvey/convey"
+	"pfi/sensorbee/sensorbee/bql"
 	"pfi/sensorbee/sensorbee/core"
 	"pfi/sensorbee/sensorbee/core/tuple"
+	"pfi/sensorbee/sensorbee/io/dummy_sink"
+	"pfi/sensorbee/sensorbee/io/dummy_source"
 	"testing"
 )
 
-func setupTopology(stmt string) (core.StaticTopology, *TupleCollectorSink, error) {
+func setupTopology(stmt string) (core.StaticTopology, *dummy_sink.TupleCollectorSink, error) {
 	// create a stream from a dummy source
-	tb := NewTopologyBuilder()
+	tb := bql.NewTopologyBuilder()
 	err := tb.BQL("CREATE STREAM source FROM dummy SOURCE WITH num=4")
 	if err != nil {
 		return nil, nil, err
@@ -21,14 +24,29 @@ func setupTopology(stmt string) (core.StaticTopology, *TupleCollectorSink, error
 		return nil, nil, err
 	}
 	// sink
-	si := &TupleCollectorSink{}
-	tb.stb.AddSink("sink", si).Input("box")
+	err = tb.BQL("CREATE SINK snk TYPE collector")
+	if err != nil {
+		return nil, nil, err
+	}
+	// connect box and sink
+	err = tb.BQL("INSERT INTO snk SELECT * FROM box")
+	if err != nil {
+		return nil, nil, err
+	}
+	si_, ok := tb.GetSink("snk")
+	if !ok {
+		return nil, nil, fmt.Errorf("unable to get sink from TopologyBuilder")
+	}
+	si, ok := si_.(*dummy_sink.TupleCollectorSink)
+	if !ok {
+		return nil, nil, fmt.Errorf("returned sink has unexpected type: %v", si_)
+	}
 	t, err := tb.Build()
 	return t, si, err
 }
 
-func TestIstreamSecondsBqlBox(t *testing.T) {
-	tuples := getTuples(4)
+func TestBasicBqlBoxConnectivity(t *testing.T) {
+	tuples := dummy_source.MkTuples(4)
 	tup2 := *tuples[1]
 	tup4 := *tuples[3]
 
@@ -37,15 +55,15 @@ func TestIstreamSecondsBqlBox(t *testing.T) {
 
 	Convey("Given an ISTREAM/2 SECONDS BQL statement", t, func() {
 		s := "CREATE STREAM box AS SELECT " +
-			"ISTREAM(int, str((int+1) % 3)) FROM source [RANGE 2 SECONDS] WHERE int % 2 = 0"
+			"ISTREAM(int, str((int+1) % 3) AS x) FROM source [RANGE 2 SECONDS] WHERE int % 2 = 0"
 		t, si, err := setupTopology(s)
 		So(err, ShouldBeNil)
 
 		Convey("When 4 tuples are emitted by the source", func() {
 			err := t.Run(ctx)
 			So(err, ShouldBeNil)
-			tup2.Data["str"] = tuple.String(fmt.Sprintf("%d", ((2 + 1) % 3)))
-			tup4.Data["str"] = tuple.String(fmt.Sprintf("%d", ((4 + 1) % 3)))
+			tup2.Data["x"] = tuple.String(fmt.Sprintf("%d", ((2 + 1) % 3)))
+			tup4.Data["x"] = tuple.String(fmt.Sprintf("%d", ((4 + 1) % 3)))
 
 			Convey("Then the sink receives 2 tuples", func() {
 				So(si.Tuples, ShouldNotBeNil)
@@ -59,100 +77,6 @@ func TestIstreamSecondsBqlBox(t *testing.T) {
 				Convey("And the second tuple has tup4's data and timestamp", func() {
 					si.Tuples[1].InputName = "input"
 					So(*si.Tuples[1], ShouldResemble, tup4)
-				})
-			})
-		})
-	})
-}
-
-func TestDstreamSecondsBqlBox(t *testing.T) {
-	tuples := getTuples(4)
-	tup2 := *tuples[1]
-	tup4 := *tuples[3]
-
-	config := core.Configuration{TupleTraceEnabled: 0}
-	ctx := newTestContext(config)
-
-	Convey("Given a DSTREAM/2 SECONDS BQL statement", t, func() {
-		s := "CREATE STREAM box AS SELECT " +
-			"DSTREAM(int) FROM source [RANGE 2 SECONDS] WHERE int % 2 = 0"
-		t, si, err := setupTopology(s)
-		So(err, ShouldBeNil)
-
-		Convey("When 4 tuples are emitted by the source", func() {
-			err := t.Run(ctx)
-			So(err, ShouldBeNil)
-
-			Convey("Then the sink receives 0 tuples", func() {
-				So(si.Tuples, ShouldBeNil)
-			})
-		})
-	})
-
-	Convey("Given a DSTREAM/1 SECONDS BQL statement", t, func() {
-		s := "CREATE STREAM box AS SELECT " +
-			"DSTREAM(int) FROM source [RANGE 1 SECONDS] WHERE int % 2 = 0"
-		t, si, err := setupTopology(s)
-		So(err, ShouldBeNil)
-
-		Convey("When 4 tuples are emitted by the source", func() {
-			err := t.Run(ctx)
-			So(err, ShouldBeNil)
-
-			Convey("Then the sink receives 1 tuple", func() {
-				So(si.Tuples, ShouldNotBeNil)
-				So(len(si.Tuples), ShouldEqual, 1)
-
-				Convey("And it has tup2's data and tup4's timestamp", func() {
-					So(si.Tuples[0].Data, ShouldResemble, tup2.Data)
-					So(si.Tuples[0].Timestamp, ShouldResemble, tup4.Timestamp)
-				})
-			})
-		})
-	})
-}
-
-func TestRstreamSecondsBqlBox(t *testing.T) {
-	tuples := getTuples(4)
-	tup2 := *tuples[1]
-	tup3 := *tuples[2]
-	tup4 := *tuples[3]
-
-	config := core.Configuration{TupleTraceEnabled: 0}
-	ctx := newTestContext(config)
-
-	Convey("Given an RSTREAM/2 SECONDS BQL statement", t, func() {
-		s := "CREATE STREAM box AS SELECT " +
-			"RSTREAM(int) FROM source [RANGE 2 SECONDS] WHERE int % 2 = 0"
-		t, si, err := setupTopology(s)
-		So(err, ShouldBeNil)
-
-		Convey("When 4 tuples are emitted by the source", func() {
-			err := t.Run(ctx)
-			So(err, ShouldBeNil)
-
-			Convey("Then the sink receives 4 tuples", func() {
-				So(si.Tuples, ShouldNotBeNil)
-				So(len(si.Tuples), ShouldEqual, 4)
-
-				Convey("And the first tuple has tup2's data and timestamp", func() {
-					So(si.Tuples[0].Data, ShouldResemble, tup2.Data)
-					So(si.Tuples[0].Timestamp, ShouldResemble, tup2.Timestamp)
-				})
-
-				Convey("And the second tuple has tup2's data and tup3's timestamp", func() {
-					So(si.Tuples[1].Data, ShouldResemble, tup2.Data)
-					So(si.Tuples[1].Timestamp, ShouldResemble, tup3.Timestamp)
-				})
-
-				Convey("And the third tuple has tup2's data and tup4's timestamp", func() {
-					So(si.Tuples[2].Data, ShouldResemble, tup2.Data)
-					So(si.Tuples[2].Timestamp, ShouldResemble, tup4.Timestamp)
-				})
-
-				Convey("And the fourth tuple has tup4's data and timestamp", func() {
-					So(si.Tuples[3].Data, ShouldResemble, tup4.Data)
-					So(si.Tuples[3].Timestamp, ShouldResemble, tup4.Timestamp)
 				})
 			})
 		})

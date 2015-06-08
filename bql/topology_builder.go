@@ -4,20 +4,25 @@ import (
 	"fmt"
 	"math/rand"
 	"pfi/sensorbee/sensorbee/bql/parser"
+	"pfi/sensorbee/sensorbee/bql/udf"
 	"pfi/sensorbee/sensorbee/core"
 	"pfi/sensorbee/sensorbee/core/tuple"
-	"strconv"
 )
 
 type TopologyBuilder struct {
 	stb      core.StaticTopologyBuilder
+	sinks    map[string]core.Sink
 	sinkDecl map[string]core.SinkDeclarer
+	Reg      udf.FunctionManager
 }
 
 func NewTopologyBuilder() *TopologyBuilder {
+	// create topology
 	tb := TopologyBuilder{
 		core.NewDefaultStaticTopologyBuilder(),
+		map[string]core.Sink{},
 		map[string]core.SinkDeclarer{},
+		udf.NewDefaultFunctionRegistry(),
 	}
 	return &tb
 }
@@ -47,9 +52,15 @@ func (tb *TopologyBuilder) processStmt(_stmt interface{}) error {
 		srcName := string(stmt.Name + "-src")
 		// load params into map for faster access
 		paramsMap := tb.mkParamsMap(stmt.Params)
-		// pick the type of source
-		if stmt.Type == "dummy" {
-			return tb.createDummySource(srcName, paramsMap)
+		// check if we know whis type of source
+		if creator, ok := LookupSourceType(stmt.Type); ok {
+			// if so, try to create such a source
+			source, err := creator(paramsMap)
+			if err != nil {
+				return err
+			}
+			decl := tb.stb.AddSource(srcName, source)
+			return decl.Err()
 		}
 		return fmt.Errorf("unknown source type: %s", stmt.Type)
 
@@ -73,15 +84,22 @@ func (tb *TopologyBuilder) processStmt(_stmt interface{}) error {
 
 		// load params into map for faster access
 		paramsMap := tb.mkParamsMap(stmt.Params)
-		if stmt.Type == "dummy" {
-			return tb.createDummySource(string(stmt.Name), paramsMap)
+		// check if we know whis type of source
+		if creator, ok := LookupSourceType(stmt.Type); ok {
+			// if so, try to create such a source
+			source, err := creator(paramsMap)
+			if err != nil {
+				return err
+			}
+			decl := tb.stb.AddSource(stmt.Name, source)
+			return decl.Err()
 		}
 		return fmt.Errorf("unknown source type: %s", stmt.Type)
 
 	case parser.CreateStreamAsSelectStmt:
 		// insert a bqlBox that executes the SELECT statement
 		outName := stmt.Name
-		box := NewBqlBox(&stmt)
+		box := NewBQLBox(&stmt, tb.Reg)
 		// add all the referenced relations as named inputs
 		decl := tb.stb.AddBox(outName, box)
 		for _, rel := range stmt.Relations {
@@ -92,11 +110,23 @@ func (tb *TopologyBuilder) processStmt(_stmt interface{}) error {
 	case parser.CreateSinkStmt:
 		// load params into map for faster access
 		paramsMap := tb.mkParamsMap(stmt.Params)
-		// we insert a sink, but cannot connect it to
-		// any streams yet, therefore we have to keep track
-		// of the SinkDeclarer
-		if stmt.Type == "collector" {
-			return tb.createCollectorSink(string(stmt.Name), paramsMap)
+
+		// check if we know whis type of sink
+		if creator, ok := LookupSinkType(stmt.Type); ok {
+			// if so, try to create such a sink
+			sink, err := creator(paramsMap)
+			if err != nil {
+				return err
+			}
+			// we insert a sink, but cannot connect it to
+			// any streams yet, therefore we have to keep track
+			// of the SinkDeclarer
+			sinkName := string(stmt.Name)
+			decl := tb.stb.AddSink(sinkName, sink)
+			tb.sinkDecl[sinkName] = decl
+			// also remember the sink itself for programmatic access
+			tb.sinks[sinkName] = sink
+			return decl.Err()
 		}
 		return fmt.Errorf("unknown sink type: %s", stmt.Type)
 
@@ -144,34 +174,9 @@ func (tb *TopologyBuilder) mkParamsMap(params []parser.SourceSinkParamAST) map[s
 	return paramsMap
 }
 
-func (tb *TopologyBuilder) createDummySource(srcName string, paramsMap map[string]string) error {
-	numTuples := 4
-	// check the given source parameters
-	for key, value := range paramsMap {
-		if key == "num" {
-			numTuples64, err := strconv.ParseInt(value, 10, 32)
-			if err != nil {
-				msg := "num: cannot convert string '%s' into integer"
-				return fmt.Errorf(msg, value)
-			}
-			numTuples = int(numTuples64)
-		} else {
-			return fmt.Errorf("unknown source parameter: %s", key)
-		}
-	}
-	// create source and add it to the topology
-	so := NewTupleEmitterSource(numTuples)
-	decl := tb.stb.AddSource(srcName, so)
-	return decl.Err()
-}
-
-func (tb *TopologyBuilder) createCollectorSink(sinkName string, paramsMap map[string]string) error {
-	// check the given sink parameters
-	for key, _ := range paramsMap {
-		return fmt.Errorf("unknown sink parameter: %s", key)
-	}
-	si := &TupleCollectorSink{}
-	decl := tb.stb.AddSink(sinkName, si)
-	tb.sinkDecl[sinkName] = decl
-	return decl.Err()
+// GetSink can be used to get programmatic access to a sink created via
+// a CREATE SINK statement.
+func (tb *TopologyBuilder) GetSink(name string) (core.Sink, bool) {
+	sink, ok := tb.sinks[name]
+	return sink, ok
 }

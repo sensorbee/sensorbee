@@ -9,27 +9,37 @@ import (
 
 /*
 The functions in this file transform an AST as returned by
-`parser.bqlParser.ParseStmt()` into a physical execution plan
-that can be used to query a set of Tuples. This works similar
-to the way it is done in Spark SQL as outlined on
+`parser.bqlParser.ParseStmt()` into a physical execution plan.
+This works similar to the way it is done in Spark SQL as
+outlined on
   https://databricks.com/blog/2015/04/13/deep-dive-into-spark-sqls-catalyst-optimizer.html
 in three phases:
 - Analyze
 - LogicalOptimize
 - MakePhysicalPlan
-
-The ExecutionPlan that is returned has a method
-  Run(input []*tuple.Tuple) ([]tuple.Map, error)
-which can be used to run the query and obtain its results.
 */
 
 type LogicalPlan struct {
-	parser.ProjectionsAST
+	parser.EmitProjectionsAST
+	parser.WindowedFromAST
 	parser.FilterAST
+	parser.GroupingAST
+	parser.HavingAST
 }
 
+// ExecutionPlan is a physical interface that is capable of
+// computing the data that needs to be emitted into an output
+// stream when a new tuple arrives in the input stream.
 type ExecutionPlan interface {
-	Run(input []*tuple.Tuple) ([]tuple.Map, error)
+	// Process must be called whenever a new tuple arrives in
+	// the input stream. It will return a list of tuple.Map
+	// items where each of these items is to be emitted as
+	// a tuple. It is the caller's task to create those tuples
+	// and set appropriate meta information such as timestamps.
+	//
+	// NB. Process is not thread-safe, i.e., it must be called in
+	// a single-threaded context.
+	Process(input *tuple.Tuple) ([]tuple.Map, error)
 }
 
 func Analyze(s *parser.CreateStreamAsSelectStmt) (*LogicalPlan, error) {
@@ -47,12 +57,12 @@ func Analyze(s *parser.CreateStreamAsSelectStmt) (*LogicalPlan, error) {
 	   >   have resolved col and possibly casted its subexpressions to a
 	   >   compatible types.
 	*/
-	if len(s.Relations) != 1 {
-		return nil, fmt.Errorf("Using multiple relations is not implemented yet")
-	}
 	return &LogicalPlan{
-		s.ProjectionsAST,
+		s.EmitProjectionsAST,
+		s.WindowedFromAST,
 		s.FilterAST,
+		s.GroupingAST,
+		s.HavingAST,
 	}, nil
 }
 
@@ -67,52 +77,6 @@ func (lp *LogicalPlan) LogicalOptimize() (*LogicalPlan, error) {
 	return lp, nil
 }
 
-// defaultSelectExecutionPlan can only process statements consisting of
-// expressions in the SELECT and WHERE clause; it is not able to JOIN
-// or GROUP BY. Therefore the processing is very simple: First compute
-// the tuples for which the filter expression evaluates to true, then
-// evaluate all the expressions in the SELECT clause.
-type defaultSelectExecutionPlan struct {
-	colHeaders []string
-	selectors  []Evaluator
-	filter     Evaluator
-}
-
-func (ep *defaultSelectExecutionPlan) Run(input []*tuple.Tuple) ([]tuple.Map, error) {
-	if len(ep.colHeaders) != len(ep.selectors) {
-		return nil, fmt.Errorf("number of columns (%v) doesn't match selectors (%v)",
-			len(ep.colHeaders), len(ep.selectors))
-	}
-	output := []tuple.Map{}
-	for _, t := range input {
-		// evaluate filter condition and convert to bool
-		filterResult, err := ep.filter.Eval(t.Data)
-		if err != nil {
-			return nil, err
-		}
-		filterResultBool, err := tuple.ToBool(filterResult)
-		if err != nil {
-			return nil, err
-		}
-		// if it evaluated to false, do not further process this tuple
-		if !filterResultBool {
-			continue
-		}
-		// otherwise, compute all the expressions
-		result := tuple.Map(make(map[string]tuple.Value, len(ep.colHeaders)))
-		for idx, selector := range ep.selectors {
-			colName := ep.colHeaders[idx]
-			value, err := selector.Eval(t.Data)
-			if err != nil {
-				return nil, err
-			}
-			result[colName] = value
-		}
-		output = append(output, result)
-	}
-	return output, nil
-}
-
 func (lp *LogicalPlan) MakePhysicalPlan(reg udf.FunctionRegistry) (ExecutionPlan, error) {
 	/*
 	   In Spark, this does the following:
@@ -121,30 +85,10 @@ func (lp *LogicalPlan) MakePhysicalPlan(reg udf.FunctionRegistry) (ExecutionPlan
 	   > and generates one or more physical plans, using physical operators
 	   > that match the Spark execution engine.
 	*/
-	projs := make([]Evaluator, len(lp.Projections))
-	colHeaders := make([]string, len(lp.Projections))
-	for i, proj := range lp.Projections {
-		plan, err := ExpressionToEvaluator(proj, reg)
-		if err != nil {
-			return nil, err
-		}
-		projs[i] = plan
-		colHeader := fmt.Sprintf("col_%v", i+1)
-		switch projType := proj.(type) {
-		case parser.ColumnName:
-			colHeader = projType.Name
-		case parser.FuncAppAST:
-			colHeader = string(projType.Function)
-		}
-		colHeaders[i] = colHeader
+	if CanBuildFilterIstreamPlan(lp, reg) {
+		return NewFilterIstreamPlan(lp, reg)
+	} else if CanBuildDefaultSelectExecutionPlan(lp, reg) {
+		return NewDefaultSelectExecutionPlan(lp, reg)
 	}
-	var filter Evaluator
-	if lp.Filter != nil {
-		f, err := ExpressionToEvaluator(lp.Filter, reg)
-		if err != nil {
-			return nil, err
-		}
-		filter = f
-	}
-	return &defaultSelectExecutionPlan{colHeaders, projs, filter}, nil
+	return nil, fmt.Errorf("no plan can deal with such a statement")
 }

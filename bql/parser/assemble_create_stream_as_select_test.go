@@ -13,7 +13,9 @@ func TestAssembleCreateStreamAsSelect(t *testing.T) {
 			ps.PushComponent(4, 6, Istream)
 			ps.PushComponent(6, 7, ColumnName{"a"})
 			ps.PushComponent(7, 8, ColumnName{"b"})
-			ps.AssembleProjections(6, 8)
+			ps.PushComponent(8, 9, ColumnName{"y"})
+			ps.AssembleAlias()
+			ps.AssembleProjections(6, 9)
 			ps.AssembleEmitProjections()
 			ps.PushComponent(12, 13, Relation{"c"})
 			ps.PushComponent(13, 14, Relation{"d"})
@@ -46,7 +48,7 @@ func TestAssembleCreateStreamAsSelect(t *testing.T) {
 						So(comp.EmitterType, ShouldEqual, Istream)
 						So(len(comp.Projections), ShouldEqual, 2)
 						So(comp.Projections[0], ShouldResemble, ColumnName{"a"})
-						So(comp.Projections[1], ShouldResemble, ColumnName{"b"})
+						So(comp.Projections[1], ShouldResemble, AliasAST{ColumnName{"b"}, "y"})
 						So(len(comp.Relations), ShouldEqual, 2)
 						So(comp.Relations[0].Name, ShouldEqual, "c")
 						So(comp.Relations[1].Name, ShouldEqual, "d")
@@ -75,7 +77,9 @@ func TestAssembleCreateStreamAsSelect(t *testing.T) {
 			ps.PushComponent(4, 6, Istream)
 			ps.PushComponent(6, 7, ColumnName{"a"})
 			ps.PushComponent(7, 8, ColumnName{"b"})
-			ps.AssembleProjections(6, 8)
+			ps.PushComponent(8, 9, ColumnName{"y"})
+			ps.AssembleAlias()
+			ps.AssembleProjections(6, 9)
 			ps.AssembleEmitProjections()
 			ps.PushComponent(12, 13, Relation{"c"})
 			ps.PushComponent(13, 14, Relation{"d"})
@@ -101,7 +105,7 @@ func TestAssembleCreateStreamAsSelect(t *testing.T) {
 		p := &bqlPeg{}
 
 		Convey("When doing a full SELECT", func() {
-			p.Buffer = "CREATE STREAM x_2 AS SELECT ISTREAM('日本語', b) FROM c, d [RANGE 2 SECONDS] WHERE e GROUP BY f, g HAVING h"
+			p.Buffer = "CREATE STREAM x_2 AS SELECT ISTREAM('日本語', b AS y) FROM c, d [RANGE 2 SECONDS] WHERE e GROUP BY f, g HAVING h"
 			p.Init()
 
 			Convey("Then the statement should be parsed correctly", func() {
@@ -119,7 +123,7 @@ func TestAssembleCreateStreamAsSelect(t *testing.T) {
 				So(comp.EmitterType, ShouldEqual, Istream)
 				So(len(comp.Projections), ShouldEqual, 2)
 				So(comp.Projections[0], ShouldResemble, StringLiteral{"日本語"})
-				So(comp.Projections[1], ShouldResemble, ColumnName{"b"})
+				So(comp.Projections[1], ShouldResemble, AliasAST{ColumnName{"b"}, "y"})
 				So(len(comp.Relations), ShouldEqual, 2)
 				So(comp.Relations[0].Name, ShouldEqual, "c")
 				So(comp.Relations[1].Name, ShouldEqual, "d")
