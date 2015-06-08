@@ -143,11 +143,12 @@ func NewWildcard() Wildcard {
 }
 
 type RowValue struct {
-	Column string
+	Relation string
+	Column   string
 }
 
 func NewRowValue(s string) RowValue {
-	return RowValue{s}
+	return RowValue{"", s}
 }
 
 type Raw struct {
