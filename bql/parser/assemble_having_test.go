@@ -11,7 +11,7 @@ func TestAssembleHaving(t *testing.T) {
 
 		Convey("When the stack contains one item in the given range", func() {
 			ps.PushComponent(0, 6, Raw{"PRE"})
-			ps.PushComponent(6, 7, ColumnName{"a"})
+			ps.PushComponent(6, 7, RowValue{"a"})
 			ps.AssembleHaving(6, 7)
 
 			Convey("Then AssembleHaving replaces this with a new item", func() {
@@ -26,7 +26,7 @@ func TestAssembleHaving(t *testing.T) {
 
 					Convey("And it contains the previous data", func() {
 						comp := top.comp.(HavingAST)
-						So(comp.Having, ShouldResemble, ColumnName{"a"})
+						So(comp.Having, ShouldResemble, RowValue{"a"})
 					})
 				})
 			})
@@ -56,7 +56,7 @@ func TestAssembleHaving(t *testing.T) {
 
 		Convey("When the stack contains one item not in the given range", func() {
 			ps.PushComponent(0, 6, Raw{"PRE"})
-			ps.PushComponent(6, 7, ColumnName{"a"})
+			ps.PushComponent(6, 7, RowValue{"a"})
 			f := func() {
 				ps.AssembleHaving(5, 6)
 			}
@@ -102,7 +102,7 @@ func TestAssembleHaving(t *testing.T) {
 				So(top, ShouldHaveSameTypeAs, SelectStmt{})
 				s := top.(SelectStmt)
 				So(s.Having, ShouldNotBeNil)
-				So(s.Having, ShouldResemble, ColumnName{"c"})
+				So(s.Having, ShouldResemble, RowValue{"c"})
 			})
 		})
 	})

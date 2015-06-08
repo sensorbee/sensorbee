@@ -50,7 +50,7 @@ const (
 	rulePlusMinusOp
 	ruleMultDivOp
 	ruleRelation
-	ruleColumnName
+	ruleRowValue
 	ruleNumericLiteral
 	ruleFloatLiteral
 	ruleFunction
@@ -186,7 +186,7 @@ var rul3s = [...]string{
 	"PlusMinusOp",
 	"MultDivOp",
 	"Relation",
-	"ColumnName",
+	"RowValue",
 	"NumericLiteral",
 	"FloatLiteral",
 	"Function",
@@ -1041,7 +1041,7 @@ func (p *bqlPeg) Execute() {
 		case ruleAction26:
 
 			substr := string([]rune(buffer)[begin:end])
-			p.PushComponent(begin, end, NewColumnName(substr))
+			p.PushComponent(begin, end, NewRowValue(substr))
 
 		case ruleAction27:
 
@@ -3373,7 +3373,7 @@ func (p *bqlPeg) Init() {
 			position, tokenIndex, depth = position251, tokenIndex251, depth251
 			return false
 		},
-		/* 11 AliasExpression <- <((Expression / Wildcard) sp (('a' / 'A') ('s' / 'S')) sp ColumnName Action9)> */
+		/* 11 AliasExpression <- <((Expression / Wildcard) sp (('a' / 'A') ('s' / 'S')) sp RowValue Action9)> */
 		func() bool {
 			position256, tokenIndex256, depth256 := position, tokenIndex, depth
 			{
@@ -3428,7 +3428,7 @@ func (p *bqlPeg) Init() {
 				if !_rules[rulesp]() {
 					goto l256
 				}
-				if !_rules[ruleColumnName]() {
+				if !_rules[ruleRowValue]() {
 					goto l256
 				}
 				if !_rules[ruleAction9]() {
@@ -4598,7 +4598,7 @@ func (p *bqlPeg) Init() {
 			position, tokenIndex, depth = position400, tokenIndex400, depth400
 			return false
 		},
-		/* 28 baseExpr <- <(('(' sp Expression sp ')') / BooleanLiteral / FuncApp / ColumnName / Literal)> */
+		/* 28 baseExpr <- <(('(' sp Expression sp ')') / BooleanLiteral / FuncApp / RowValue / Literal)> */
 		func() bool {
 			position405, tokenIndex405, depth405 := position, tokenIndex, depth
 			{
@@ -4638,7 +4638,7 @@ func (p *bqlPeg) Init() {
 					goto l407
 				l410:
 					position, tokenIndex, depth = position407, tokenIndex407, depth407
-					if !_rules[ruleColumnName]() {
+					if !_rules[ruleRowValue]() {
 						goto l411
 					}
 					goto l407
@@ -4919,7 +4919,7 @@ func (p *bqlPeg) Init() {
 			position, tokenIndex, depth = position442, tokenIndex442, depth442
 			return false
 		},
-		/* 36 ColumnName <- <(<ident> Action26)> */
+		/* 36 RowValue <- <(<ident> Action26)> */
 		func() bool {
 			position445, tokenIndex445, depth445 := position, tokenIndex, depth
 			{
@@ -4938,7 +4938,7 @@ func (p *bqlPeg) Init() {
 					goto l445
 				}
 				depth--
-				add(ruleColumnName, position446)
+				add(ruleRowValue, position446)
 			}
 			return true
 		l445:
@@ -7037,7 +7037,7 @@ func (p *bqlPeg) Init() {
 		},
 		/* 99 Action26 <- <{
 		    substr := string([]rune(buffer)[begin:end])
-		    p.PushComponent(begin, end, NewColumnName(substr))
+		    p.PushComponent(begin, end, NewRowValue(substr))
 		}> */
 		func() bool {
 			{

@@ -41,7 +41,7 @@ func TestAssembleCreateSource(t *testing.T) {
 		})
 
 		Convey("When the stack does not contain enough items", func() {
-			ps.PushComponent(6, 7, ColumnName{"a"})
+			ps.PushComponent(6, 7, RowValue{"a"})
 			ps.AssembleProjections(6, 7)
 			Convey("Then AssembleCreateSource panics", func() {
 				So(ps.AssembleCreateSource, ShouldPanic)

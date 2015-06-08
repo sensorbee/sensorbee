@@ -12,7 +12,7 @@ func TestAssembleAlias(t *testing.T) {
 		Convey("When the stack contains two correct items", func() {
 			ps.PushComponent(0, 6, Raw{"PRE"})
 			ps.PushComponent(6, 7, NumericLiteral{2})
-			ps.PushComponent(7, 8, ColumnName{"out"})
+			ps.PushComponent(7, 8, RowValue{"out"})
 			ps.AssembleAlias()
 
 			Convey("Then AssembleAlias replaces them with a new item", func() {

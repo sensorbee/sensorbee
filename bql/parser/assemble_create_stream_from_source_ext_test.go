@@ -41,7 +41,7 @@ func TestAssembleCreateStreamFromSourceExt(t *testing.T) {
 		})
 
 		Convey("When the stack does not contain enough items", func() {
-			ps.PushComponent(6, 7, ColumnName{"a"})
+			ps.PushComponent(6, 7, RowValue{"a"})
 			ps.AssembleProjections(6, 7)
 			Convey("Then AssembleCreateStreamFromSourceExt panics", func() {
 				So(ps.AssembleCreateStreamFromSourceExt, ShouldPanic)

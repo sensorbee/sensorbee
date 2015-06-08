@@ -19,8 +19,8 @@ type Evaluator interface {
 // input Value.
 func ExpressionToEvaluator(ast interface{}, reg udf.FunctionRegistry) (Evaluator, error) {
 	switch obj := ast.(type) {
-	case parser.ColumnName:
-		return &PathAccess{obj.Name}, nil
+	case parser.RowValue:
+		return &PathAccess{obj.Column}, nil
 	case parser.AliasAST:
 		return ExpressionToEvaluator(obj.Expr, reg)
 	case parser.NumericLiteral:

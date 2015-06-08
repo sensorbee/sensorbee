@@ -14,7 +14,7 @@ func TestAssembleFuncApp(t *testing.T) {
 			ps.PushComponent(6, 7, FuncName("add"))
 			ps.PushComponent(7, 8, ExpressionsAST{[]interface{}{
 				NumericLiteral{2},
-				ColumnName{"a"}}})
+				RowValue{"a"}}})
 			ps.AssembleFuncApp()
 
 			Convey("Then AssembleFuncApp replaces them with a new item", func() {
@@ -32,7 +32,7 @@ func TestAssembleFuncApp(t *testing.T) {
 						So(comp.Function, ShouldEqual, "add")
 						So(len(comp.Expressions), ShouldEqual, 2)
 						So(comp.Expressions[0], ShouldResemble, NumericLiteral{2})
-						So(comp.Expressions[1], ShouldResemble, ColumnName{"a"})
+						So(comp.Expressions[1], ShouldResemble, RowValue{"a"})
 					})
 				})
 			})

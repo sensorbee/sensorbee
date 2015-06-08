@@ -270,18 +270,18 @@ func (ps *parseStack) AssembleProjections(begin int, end int) {
 // they are components of an AS clause, and replaces them by
 // a single AliasAST element.
 //
-//  ColumnName
+//  RowValue
 //  Any
 //   =>
-//  AliasAST{Any, ColumnName}
+//  AliasAST{Any, RowValue}
 func (ps *parseStack) AssembleAlias() {
 	// pop the components from the stack in reverse order
 	_name, _expr := ps.pop2()
 
-	name := _name.comp.(ColumnName)
+	name := _name.comp.(RowValue)
 	expr := _expr.comp
 
-	ps.PushComponent(_expr.begin, _name.end, AliasAST{expr, name.Name})
+	ps.PushComponent(_expr.begin, _name.end, AliasAST{expr, name.Column})
 }
 
 /* FROM clause */

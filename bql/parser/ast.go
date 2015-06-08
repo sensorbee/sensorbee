@@ -142,12 +142,12 @@ func NewWildcard() Wildcard {
 	return Wildcard{}
 }
 
-type ColumnName struct {
-	Name string
+type RowValue struct {
+	Column string
 }
 
-func NewColumnName(s string) ColumnName {
-	return ColumnName{s}
+func NewRowValue(s string) RowValue {
+	return RowValue{s}
 }
 
 type Raw struct {
