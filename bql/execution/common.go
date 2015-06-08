@@ -31,8 +31,8 @@ func prepareProjections(projections []interface{}, reg udf.FunctionRegistry) ([]
 		// compute column name
 		colHeader := fmt.Sprintf("col_%v", i+1)
 		switch projType := proj.(type) {
-		case parser.ColumnName:
-			colHeader = projType.Name
+		case parser.RowValue:
+			colHeader = projType.Column
 		case parser.AliasAST:
 			colHeader = projType.Alias
 		case parser.FuncAppAST:

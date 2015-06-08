@@ -11,7 +11,7 @@ func TestAssembleFilter(t *testing.T) {
 
 		Convey("When the stack contains one item in the given range", func() {
 			ps.PushComponent(0, 6, Raw{"PRE"})
-			ps.PushComponent(6, 7, ColumnName{"a"})
+			ps.PushComponent(6, 7, RowValue{"a"})
 			ps.AssembleFilter(6, 7)
 
 			Convey("Then AssembleFilter replaces this with a new item", func() {
@@ -26,7 +26,7 @@ func TestAssembleFilter(t *testing.T) {
 
 					Convey("And it contains the previous data", func() {
 						comp := top.comp.(FilterAST)
-						So(comp.Filter, ShouldResemble, ColumnName{"a"})
+						So(comp.Filter, ShouldResemble, RowValue{"a"})
 					})
 				})
 			})
@@ -56,7 +56,7 @@ func TestAssembleFilter(t *testing.T) {
 
 		Convey("When the stack contains one item not in the given range", func() {
 			ps.PushComponent(0, 6, Raw{"PRE"})
-			ps.PushComponent(6, 7, ColumnName{"a"})
+			ps.PushComponent(6, 7, RowValue{"a"})
 			f := func() {
 				ps.AssembleFilter(5, 6)
 			}
@@ -102,7 +102,7 @@ func TestAssembleFilter(t *testing.T) {
 				So(top, ShouldHaveSameTypeAs, SelectStmt{})
 				s := top.(SelectStmt)
 				So(s.Filter, ShouldNotBeNil)
-				So(s.Filter, ShouldResemble, ColumnName{"c"})
+				So(s.Filter, ShouldResemble, RowValue{"c"})
 			})
 		})
 	})

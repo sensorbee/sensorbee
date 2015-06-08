@@ -59,7 +59,7 @@ func TestFuncAppConversion(t *testing.T) {
 		Convey("When a function is known in the registry", func() {
 			ast := parser.FuncAppAST{parser.FuncName("plusone"),
 				parser.ExpressionsAST{[]interface{}{
-					parser.ColumnName{"a"},
+					parser.RowValue{"a"},
 				}}}
 
 			Convey("Then we obtain an evaluatable funcApp", func() {
@@ -72,7 +72,7 @@ func TestFuncAppConversion(t *testing.T) {
 		Convey("When the function is not known in the registry", func() {
 			ast := parser.FuncAppAST{parser.FuncName("fun"),
 				parser.ExpressionsAST{[]interface{}{
-					parser.ColumnName{"a"},
+					parser.RowValue{"a"},
 				}}}
 
 			Convey("Then converting to an Evaluator fails", func() {
@@ -338,7 +338,7 @@ func getTestCases() []struct {
 			},
 		},
 		// Access to columns/keys should return the same values
-		{parser.ColumnName{"a"},
+		{parser.RowValue{"a"},
 			[]evalTest{
 				// not a map:
 				{tuple.Int(17), nil},
@@ -357,7 +357,7 @@ func getTestCases() []struct {
 			},
 		},
 		// Access to columns/keys should return the same values
-		{parser.AliasAST{parser.ColumnName{"a"}, "hoge"},
+		{parser.AliasAST{parser.RowValue{"a"}, "hoge"},
 			[]evalTest{
 				// not a map:
 				{tuple.Int(17), nil},
@@ -377,7 +377,7 @@ func getTestCases() []struct {
 		},
 		/// Combined operations
 		// Or
-		{parser.BinaryOpAST{parser.Or, parser.ColumnName{"a"}, parser.ColumnName{"b"}},
+		{parser.BinaryOpAST{parser.Or, parser.RowValue{"a"}, parser.RowValue{"b"}},
 			[]evalTest{
 				// not a map:
 				{tuple.Int(17), nil},
@@ -439,7 +439,7 @@ func getTestCases() []struct {
 			},
 		},
 		// And
-		{parser.BinaryOpAST{parser.And, parser.ColumnName{"a"}, parser.ColumnName{"b"}},
+		{parser.BinaryOpAST{parser.And, parser.RowValue{"a"}, parser.RowValue{"b"}},
 			[]evalTest{
 				// not a map:
 				{tuple.Int(17), nil},
@@ -502,7 +502,7 @@ func getTestCases() []struct {
 		},
 		/// Comparison Operations
 		// Equal
-		{parser.BinaryOpAST{parser.Equal, parser.ColumnName{"a"}, parser.ColumnName{"b"}},
+		{parser.BinaryOpAST{parser.Equal, parser.RowValue{"a"}, parser.RowValue{"b"}},
 			[]evalTest{
 				// not a map:
 				{tuple.Int(17), nil},
@@ -567,7 +567,7 @@ func getTestCases() []struct {
 			},
 		},
 		// Less
-		{parser.BinaryOpAST{parser.Less, parser.ColumnName{"a"}, parser.ColumnName{"b"}},
+		{parser.BinaryOpAST{parser.Less, parser.RowValue{"a"}, parser.RowValue{"b"}},
 			append([]evalTest{
 				// left and right present and comparable and left is less => true
 				{tuple.Map{"a": tuple.Bool(false),
@@ -618,7 +618,7 @@ func getTestCases() []struct {
 			}, incomparables...),
 		},
 		// LessOrEqual
-		{parser.BinaryOpAST{parser.LessOrEqual, parser.ColumnName{"a"}, parser.ColumnName{"b"}},
+		{parser.BinaryOpAST{parser.LessOrEqual, parser.RowValue{"a"}, parser.RowValue{"b"}},
 			append([]evalTest{
 				// left and right present and comparable and left is less => true
 				{tuple.Map{"a": tuple.Bool(false),
@@ -669,7 +669,7 @@ func getTestCases() []struct {
 			}, incomparables...),
 		},
 		// Greater
-		{parser.BinaryOpAST{parser.Greater, parser.ColumnName{"a"}, parser.ColumnName{"b"}},
+		{parser.BinaryOpAST{parser.Greater, parser.RowValue{"a"}, parser.RowValue{"b"}},
 			append([]evalTest{
 				// left and right present and comparable and left is less => false
 				{tuple.Map{"a": tuple.Bool(false),
@@ -720,7 +720,7 @@ func getTestCases() []struct {
 			}, incomparables...),
 		},
 		// GreaterOrEqual
-		{parser.BinaryOpAST{parser.GreaterOrEqual, parser.ColumnName{"a"}, parser.ColumnName{"b"}},
+		{parser.BinaryOpAST{parser.GreaterOrEqual, parser.RowValue{"a"}, parser.RowValue{"b"}},
 			append([]evalTest{
 				// left and right present and comparable and left is less => false
 				{tuple.Map{"a": tuple.Bool(false),
@@ -771,7 +771,7 @@ func getTestCases() []struct {
 			}, incomparables...),
 		},
 		// NotEqual
-		{parser.BinaryOpAST{parser.NotEqual, parser.ColumnName{"a"}, parser.ColumnName{"b"}},
+		{parser.BinaryOpAST{parser.NotEqual, parser.RowValue{"a"}, parser.RowValue{"b"}},
 			[]evalTest{
 				// not a map:
 				{tuple.Int(17), nil},
@@ -837,7 +837,7 @@ func getTestCases() []struct {
 		},
 		/// Computational Operations
 		// Plus
-		{parser.BinaryOpAST{parser.Plus, parser.ColumnName{"a"}, parser.ColumnName{"b"}},
+		{parser.BinaryOpAST{parser.Plus, parser.RowValue{"a"}, parser.RowValue{"b"}},
 			append([]evalTest{
 				// left and right present and can be added
 				{tuple.Map{"a": tuple.Int(2),
@@ -859,7 +859,7 @@ func getTestCases() []struct {
 			}, incomparables...),
 		},
 		// Minus
-		{parser.BinaryOpAST{parser.Minus, parser.ColumnName{"a"}, parser.ColumnName{"b"}},
+		{parser.BinaryOpAST{parser.Minus, parser.RowValue{"a"}, parser.RowValue{"b"}},
 			append([]evalTest{
 				// left and right present and can be subtracted
 				{tuple.Map{"a": tuple.Int(2),
@@ -881,7 +881,7 @@ func getTestCases() []struct {
 			}, incomparables...),
 		},
 		// Multiply
-		{parser.BinaryOpAST{parser.Multiply, parser.ColumnName{"a"}, parser.ColumnName{"b"}},
+		{parser.BinaryOpAST{parser.Multiply, parser.RowValue{"a"}, parser.RowValue{"b"}},
 			append([]evalTest{
 				// left and right present and can be multiplied
 				{tuple.Map{"a": tuple.Int(2),
@@ -903,7 +903,7 @@ func getTestCases() []struct {
 			}, incomparables...),
 		},
 		// Divide
-		{parser.BinaryOpAST{parser.Divide, parser.ColumnName{"a"}, parser.ColumnName{"b"}},
+		{parser.BinaryOpAST{parser.Divide, parser.RowValue{"a"}, parser.RowValue{"b"}},
 			append([]evalTest{
 				// left and right present and can be divided
 				{tuple.Map{"a": tuple.Int(2),
@@ -934,7 +934,7 @@ func getTestCases() []struct {
 			}, incomparables...),
 		},
 		// Modulo
-		{parser.BinaryOpAST{parser.Modulo, parser.ColumnName{"a"}, parser.ColumnName{"b"}},
+		{parser.BinaryOpAST{parser.Modulo, parser.RowValue{"a"}, parser.RowValue{"b"}},
 			append([]evalTest{
 				// left and right present and can be moduled
 				{tuple.Map{"a": tuple.Int(2),
@@ -969,7 +969,7 @@ func getTestCases() []struct {
 		},
 		/// Function Application
 		{parser.FuncAppAST{parser.FuncName("plusone"),
-			parser.ExpressionsAST{[]interface{}{parser.ColumnName{"a"}}}},
+			parser.ExpressionsAST{[]interface{}{parser.RowValue{"a"}}}},
 			// NB. This only tests the behavior of funcApp.Eval.
 			// It does *not* test the function registry, mismatch
 			// in parameter counts or any particular function.
