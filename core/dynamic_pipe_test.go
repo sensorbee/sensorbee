@@ -62,7 +62,7 @@ func TestDynamicPipe(t *testing.T) {
 			s.Close(ctx)
 
 			Convey("Then it cannot no longer write a tuple", func() {
-				So(s.Write(ctx, t), ShouldPointTo, pipeClosedError)
+				So(s.Write(ctx, t), ShouldPointTo, errPipeClosed)
 			})
 
 			Convey("Then it can be closed again although it's not a part of the specification", func() {
@@ -85,7 +85,7 @@ func TestDynamicPipe(t *testing.T) {
 						break
 					}
 				}
-				So(err, ShouldPointTo, pipeClosedError)
+				So(err, ShouldPointTo, errPipeClosed)
 			})
 		})
 	})
@@ -164,7 +164,7 @@ func TestDynamicDataSources(t *testing.T) {
 
 			Convey("Then it should eventually stop", func() {
 				for _, d := range dsts {
-					So(d.Write(ctx, t), ShouldPointTo, pipeClosedError)
+					So(d.Write(ctx, t), ShouldPointTo, errPipeClosed)
 				}
 				So(<-stopped, ShouldBeNil)
 			})
@@ -223,7 +223,7 @@ func TestDynamicDataSources(t *testing.T) {
 			srcs.remove("test_node_1")
 
 			Convey("Then the input should be closed", func() {
-				So(dsts[0].Write(ctx, t), ShouldPointTo, pipeClosedError)
+				So(dsts[0].Write(ctx, t), ShouldPointTo, errPipeClosed)
 			})
 
 			Convey("Then the sink should receive it", func() {
