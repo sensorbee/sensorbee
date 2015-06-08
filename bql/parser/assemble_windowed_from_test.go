@@ -12,7 +12,9 @@ func TestAssembleWindowedFrom(t *testing.T) {
 		Convey("When the stack contains only Relations and a RangeAST in the given range", func() {
 			ps.PushComponent(0, 6, Raw{"PRE"})
 			ps.PushComponent(6, 7, Relation{"a"})
+			ps.EnsureAliasRelation()
 			ps.PushComponent(7, 8, Relation{"b"})
+			ps.EnsureAliasRelation()
 			ps.PushComponent(8, 10, RangeAST{NumericLiteral{2}, Seconds})
 			ps.AssembleWindowedFrom(6, 10)
 
@@ -97,7 +99,9 @@ func TestAssembleWindowedFrom(t *testing.T) {
 		Convey("When the stack contains a non-RangeAST on top", func() {
 			ps.PushComponent(0, 6, Raw{"PRE"})
 			ps.PushComponent(6, 7, Relation{"a"})
+			ps.EnsureAliasRelation()
 			ps.PushComponent(7, 8, Relation{"b"})
+			ps.EnsureAliasRelation()
 			f := func() {
 				ps.AssembleWindowedFrom(0, 8)
 			}

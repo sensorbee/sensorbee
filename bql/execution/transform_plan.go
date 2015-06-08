@@ -43,7 +43,7 @@ type ExecutionPlan interface {
 	Process(input *tuple.Tuple) ([]tuple.Map, error)
 }
 
-func Analyze(s *parser.CreateStreamAsSelectStmt) (*LogicalPlan, error) {
+func Analyze(s parser.CreateStreamAsSelectStmt) (*LogicalPlan, error) {
 	/*
 	   In Spark, this does the following:
 
@@ -59,7 +59,11 @@ func Analyze(s *parser.CreateStreamAsSelectStmt) (*LogicalPlan, error) {
 	   >   compatible types.
 	*/
 
-	if err := validateReferences(s); err != nil {
+	if err := makeRelationAliases(&s); err != nil {
+		return nil, err
+	}
+
+	if err := validateReferences(&s); err != nil {
 		return nil, err
 	}
 
@@ -70,6 +74,31 @@ func Analyze(s *parser.CreateStreamAsSelectStmt) (*LogicalPlan, error) {
 		s.GroupingAST,
 		s.HavingAST,
 	}, nil
+}
+
+// makeRelationAliases will assign an internal alias to every relation
+// does not yet have one (given by the user). It will also detect if
+// there is a conflict between aliases.
+func makeRelationAliases(s *parser.CreateStreamAsSelectStmt) error {
+	relNames := make(map[string]parser.AliasRelationAST, len(s.Relations))
+	newRels := make([]parser.AliasRelationAST, len(s.Relations))
+	for i, aliasedRel := range s.Relations {
+		// if the relation does not yet have an internal alias, use
+		// the relation name itself
+		if aliasedRel.Alias == "" {
+			aliasedRel.Alias = aliasedRel.Name
+		}
+		otherRel, exists := relNames[aliasedRel.Alias]
+		if exists {
+			return fmt.Errorf("cannot use relations '%s' and '%s' with the "+
+				"same alias '%s'", aliasedRel.Name, otherRel.Name, aliasedRel.Alias)
+		} else {
+			relNames[aliasedRel.Alias] = aliasedRel
+		}
+		newRels[i] = aliasedRel
+	}
+	s.Relations = newRels
+	return nil
 }
 
 // validateReferences checks if the references to input relations
@@ -145,7 +174,7 @@ func validateReferences(s *parser.CreateStreamAsSelectStmt) error {
 		// this case should never happen due to parser setup
 		return fmt.Errorf("need at least one relation to select from")
 	} else if len(s.Relations) == 1 {
-		inputRel := s.Relations[0].Name
+		inputRel := s.Relations[0].Alias
 		if len(refRels) == 1 {
 			// Sample: SELECT a FROM b // SELECT b.a FROM b
 			// check if the one map item is either "" or the name of
@@ -177,7 +206,7 @@ func validateReferences(s *parser.CreateStreamAsSelectStmt) error {
 		for rel := range refRels {
 			found := false
 			for _, inputRel := range s.Relations {
-				if rel == inputRel.Name {
+				if rel == inputRel.Alias {
 					found = true
 					break
 				}

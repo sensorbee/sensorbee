@@ -4,6 +4,7 @@ import (
 	"fmt"
 	. "github.com/smartystreets/goconvey/convey"
 	"pfi/sensorbee/sensorbee/bql/parser"
+	"reflect"
 	"testing"
 )
 
@@ -14,7 +15,10 @@ type analyzeTest struct {
 
 func TestRelationChecker(t *testing.T) {
 	singleFrom := parser.FromAST{
-		[]parser.Relation{{"t"}},
+		[]parser.AliasRelationAST{{"t", ""}},
+	}
+	singleFromAlias := parser.FromAST{
+		[]parser.AliasRelationAST{{"s", "t"}},
 	}
 	two := parser.NumericLiteral{2}
 	a := parser.RowValue{"", "a"}
@@ -273,7 +277,7 @@ func TestRelationChecker(t *testing.T) {
 		selectAst := testCase.input
 
 		Convey(fmt.Sprintf("Given the AST %+v", selectAst), t, func() {
-			ast := &parser.CreateStreamAsSelectStmt{
+			ast := parser.CreateStreamAsSelectStmt{
 				Relation: parser.Relation{"x"},
 				EmitProjectionsAST: parser.EmitProjectionsAST{
 					parser.Istream,
@@ -286,6 +290,128 @@ func TestRelationChecker(t *testing.T) {
 				FilterAST:   selectAst.FilterAST,
 				GroupingAST: selectAst.GroupingAST,
 				HavingAST:   selectAst.HavingAST,
+			}
+
+			Convey("When we analyze it", func() {
+				_, err := Analyze(ast)
+				expectedError := testCase.expectedError
+				if expectedError == "" {
+					Convey("There is no error", func() {
+						So(err, ShouldBeNil)
+					})
+				} else {
+					Convey("There is an error", func() {
+						So(err, ShouldNotBeNil)
+						So(err.Error(), ShouldStartWith, expectedError)
+					})
+				}
+			})
+		})
+	}
+
+	for _, testCase := range testCases {
+		testCase := testCase
+		selectAst := testCase.input
+
+		Convey(fmt.Sprintf("Given the AST %+v with an aliased relation", selectAst), t, func() {
+			// we use the same test cases, but with `FROM s AS t` instead of `FROM t`
+			var myFrom parser.FromAST
+			if reflect.DeepEqual(selectAst.FromAST, singleFrom) {
+				myFrom = singleFromAlias
+			} else {
+				myFrom = selectAst.FromAST
+			}
+			ast := parser.CreateStreamAsSelectStmt{
+				Relation: parser.Relation{"x"},
+				EmitProjectionsAST: parser.EmitProjectionsAST{
+					parser.Istream,
+					selectAst.ProjectionsAST,
+				},
+				WindowedFromAST: parser.WindowedFromAST{
+					myFrom,
+					parser.RangeAST{parser.NumericLiteral{2}, parser.Seconds},
+				},
+				FilterAST:   selectAst.FilterAST,
+				GroupingAST: selectAst.GroupingAST,
+				HavingAST:   selectAst.HavingAST,
+			}
+
+			Convey("When we analyze it", func() {
+				_, err := Analyze(ast)
+				expectedError := testCase.expectedError
+				if expectedError == "" {
+					Convey("There is no error", func() {
+						So(err, ShouldBeNil)
+					})
+				} else {
+					Convey("There is an error", func() {
+						So(err, ShouldNotBeNil)
+						So(err.Error(), ShouldStartWith, expectedError)
+					})
+				}
+			})
+		})
+	}
+}
+
+func TestRelationAliasing(t *testing.T) {
+	two := parser.NumericLiteral{2}
+	proj := parser.ProjectionsAST{[]interface{}{two}}
+
+	testCases := []analyzeTest{
+		// SELECT 2 FROM a              -> OK
+		{&parser.SelectStmt{
+			ProjectionsAST: proj,
+			FromAST: parser.FromAST{
+				[]parser.AliasRelationAST{{"a", ""}}},
+		}, ""},
+		// SELECT 2 FROM a AS b         -> OK
+		{&parser.SelectStmt{
+			ProjectionsAST: proj,
+			FromAST: parser.FromAST{
+				[]parser.AliasRelationAST{{"a", "b"}}},
+		}, ""},
+		// SELECT 2 FROM a AS b, a      -> OK
+		{&parser.SelectStmt{
+			ProjectionsAST: proj,
+			FromAST: parser.FromAST{
+				[]parser.AliasRelationAST{{"a", "b"}, {"a", ""}}},
+		}, ""},
+		// SELECT 2 FROM a AS b, c AS a -> OK
+		{&parser.SelectStmt{
+			ProjectionsAST: proj,
+			FromAST: parser.FromAST{
+				[]parser.AliasRelationAST{{"a", "b"}, {"c", "a"}}},
+		}, ""},
+		// SELECT 2 FROM a, a           -> NG
+		{&parser.SelectStmt{
+			ProjectionsAST: proj,
+			FromAST: parser.FromAST{
+				[]parser.AliasRelationAST{{"a", ""}, {"a", ""}}},
+		}, "cannot use relations"},
+		// SELECT 2 FROM a, b AS a      -> NG
+		{&parser.SelectStmt{
+			ProjectionsAST: proj,
+			FromAST: parser.FromAST{
+				[]parser.AliasRelationAST{{"a", ""}, {"b", "a"}}},
+		}, "cannot use relations"},
+	}
+
+	for _, testCase := range testCases {
+		testCase := testCase
+		selectAst := testCase.input
+
+		Convey(fmt.Sprintf("Given the AST %+v", selectAst), t, func() {
+			ast := parser.CreateStreamAsSelectStmt{
+				Relation: parser.Relation{"x"},
+				EmitProjectionsAST: parser.EmitProjectionsAST{
+					parser.Istream,
+					selectAst.ProjectionsAST,
+				},
+				WindowedFromAST: parser.WindowedFromAST{
+					selectAst.FromAST,
+					parser.RangeAST{parser.NumericLiteral{2}, parser.Seconds},
+				},
 			}
 
 			Convey("When we analyze it", func() {

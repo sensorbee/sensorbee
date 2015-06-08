@@ -82,7 +82,7 @@ type RangeAST struct {
 }
 
 type FromAST struct {
-	Relations []Relation
+	Relations []AliasRelationAST
 }
 
 type FilterAST struct {
@@ -95,6 +95,11 @@ type GroupingAST struct {
 
 type HavingAST struct {
 	Having interface{}
+}
+
+type AliasRelationAST struct {
+	Name  string
+	Alias string
 }
 
 type SourceSinkSpecsAST struct {
