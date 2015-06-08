@@ -83,6 +83,7 @@ const (
 	ruleMultiply
 	ruleDivide
 	ruleModulo
+	ruleIdentifier
 	ruleident
 	rulesp
 	ruleAction0
@@ -142,6 +143,7 @@ const (
 	ruleAction53
 	ruleAction54
 	ruleAction55
+	ruleAction56
 
 	rulePre_
 	rule_In_
@@ -219,6 +221,7 @@ var rul3s = [...]string{
 	"Multiply",
 	"Divide",
 	"Modulo",
+	"Identifier",
 	"ident",
 	"sp",
 	"Action0",
@@ -278,6 +281,7 @@ var rul3s = [...]string{
 	"Action53",
 	"Action54",
 	"Action55",
+	"Action56",
 
 	"Pre_",
 	"_In_",
@@ -846,7 +850,7 @@ type bqlPeg struct {
 
 	Buffer string
 	buffer []rune
-	rules  [129]func() bool
+	rules  [131]func() bool
 	Parse  func(rule ...int) error
 	Reset  func()
 	tokenTree
@@ -1166,6 +1170,11 @@ func (p *bqlPeg) Execute() {
 		case ruleAction55:
 
 			p.PushComponent(begin, end, Modulo)
+
+		case ruleAction56:
+
+			substr := string([]rune(buffer)[begin:end])
+			p.PushComponent(begin, end, Identifier(substr))
 
 		}
 	}
@@ -3373,7 +3382,7 @@ func (p *bqlPeg) Init() {
 			position, tokenIndex, depth = position251, tokenIndex251, depth251
 			return false
 		},
-		/* 11 AliasExpression <- <((Expression / Wildcard) sp (('a' / 'A') ('s' / 'S')) sp RowValue Action9)> */
+		/* 11 AliasExpression <- <((Expression / Wildcard) sp (('a' / 'A') ('s' / 'S')) sp Identifier Action9)> */
 		func() bool {
 			position256, tokenIndex256, depth256 := position, tokenIndex, depth
 			{
@@ -3428,7 +3437,7 @@ func (p *bqlPeg) Init() {
 				if !_rules[rulesp]() {
 					goto l256
 				}
-				if !_rules[ruleRowValue]() {
+				if !_rules[ruleIdentifier]() {
 					goto l256
 				}
 				if !_rules[ruleAction9]() {
@@ -6699,111 +6708,137 @@ func (p *bqlPeg) Init() {
 			position, tokenIndex, depth = position670, tokenIndex670, depth670
 			return false
 		},
-		/* 69 ident <- <(([a-z] / [A-Z]) ([a-z] / [A-Z] / [0-9] / '_')*)> */
+		/* 69 Identifier <- <(<ident> Action56)> */
 		func() bool {
 			position673, tokenIndex673, depth673 := position, tokenIndex, depth
 			{
 				position674 := position
 				depth++
 				{
-					position675, tokenIndex675, depth675 := position, tokenIndex, depth
-					if c := buffer[position]; c < rune('a') || c > rune('z') {
-						goto l676
-					}
-					position++
-					goto l675
-				l676:
-					position, tokenIndex, depth = position675, tokenIndex675, depth675
-					if c := buffer[position]; c < rune('A') || c > rune('Z') {
+					position675 := position
+					depth++
+					if !_rules[ruleident]() {
 						goto l673
 					}
-					position++
+					depth--
+					add(rulePegText, position675)
 				}
-			l675:
-			l677:
-				{
-					position678, tokenIndex678, depth678 := position, tokenIndex, depth
-					{
-						position679, tokenIndex679, depth679 := position, tokenIndex, depth
-						if c := buffer[position]; c < rune('a') || c > rune('z') {
-							goto l680
-						}
-						position++
-						goto l679
-					l680:
-						position, tokenIndex, depth = position679, tokenIndex679, depth679
-						if c := buffer[position]; c < rune('A') || c > rune('Z') {
-							goto l681
-						}
-						position++
-						goto l679
-					l681:
-						position, tokenIndex, depth = position679, tokenIndex679, depth679
-						if c := buffer[position]; c < rune('0') || c > rune('9') {
-							goto l682
-						}
-						position++
-						goto l679
-					l682:
-						position, tokenIndex, depth = position679, tokenIndex679, depth679
-						if buffer[position] != rune('_') {
-							goto l678
-						}
-						position++
-					}
-				l679:
-					goto l677
-				l678:
-					position, tokenIndex, depth = position678, tokenIndex678, depth678
+				if !_rules[ruleAction56]() {
+					goto l673
 				}
 				depth--
-				add(ruleident, position674)
+				add(ruleIdentifier, position674)
 			}
 			return true
 		l673:
 			position, tokenIndex, depth = position673, tokenIndex673, depth673
 			return false
 		},
-		/* 70 sp <- <(' ' / '\t' / '\n')*> */
+		/* 70 ident <- <(([a-z] / [A-Z]) ([a-z] / [A-Z] / [0-9] / '_')*)> */
 		func() bool {
+			position676, tokenIndex676, depth676 := position, tokenIndex, depth
 			{
-				position684 := position
+				position677 := position
 				depth++
-			l685:
 				{
-					position686, tokenIndex686, depth686 := position, tokenIndex, depth
+					position678, tokenIndex678, depth678 := position, tokenIndex, depth
+					if c := buffer[position]; c < rune('a') || c > rune('z') {
+						goto l679
+					}
+					position++
+					goto l678
+				l679:
+					position, tokenIndex, depth = position678, tokenIndex678, depth678
+					if c := buffer[position]; c < rune('A') || c > rune('Z') {
+						goto l676
+					}
+					position++
+				}
+			l678:
+			l680:
+				{
+					position681, tokenIndex681, depth681 := position, tokenIndex, depth
 					{
-						position687, tokenIndex687, depth687 := position, tokenIndex, depth
-						if buffer[position] != rune(' ') {
-							goto l688
+						position682, tokenIndex682, depth682 := position, tokenIndex, depth
+						if c := buffer[position]; c < rune('a') || c > rune('z') {
+							goto l683
 						}
 						position++
-						goto l687
-					l688:
-						position, tokenIndex, depth = position687, tokenIndex687, depth687
-						if buffer[position] != rune('\t') {
-							goto l689
+						goto l682
+					l683:
+						position, tokenIndex, depth = position682, tokenIndex682, depth682
+						if c := buffer[position]; c < rune('A') || c > rune('Z') {
+							goto l684
 						}
 						position++
-						goto l687
-					l689:
-						position, tokenIndex, depth = position687, tokenIndex687, depth687
-						if buffer[position] != rune('\n') {
-							goto l686
+						goto l682
+					l684:
+						position, tokenIndex, depth = position682, tokenIndex682, depth682
+						if c := buffer[position]; c < rune('0') || c > rune('9') {
+							goto l685
+						}
+						position++
+						goto l682
+					l685:
+						position, tokenIndex, depth = position682, tokenIndex682, depth682
+						if buffer[position] != rune('_') {
+							goto l681
 						}
 						position++
 					}
-				l687:
-					goto l685
-				l686:
-					position, tokenIndex, depth = position686, tokenIndex686, depth686
+				l682:
+					goto l680
+				l681:
+					position, tokenIndex, depth = position681, tokenIndex681, depth681
 				}
 				depth--
-				add(rulesp, position684)
+				add(ruleident, position677)
+			}
+			return true
+		l676:
+			position, tokenIndex, depth = position676, tokenIndex676, depth676
+			return false
+		},
+		/* 71 sp <- <(' ' / '\t' / '\n')*> */
+		func() bool {
+			{
+				position687 := position
+				depth++
+			l688:
+				{
+					position689, tokenIndex689, depth689 := position, tokenIndex, depth
+					{
+						position690, tokenIndex690, depth690 := position, tokenIndex, depth
+						if buffer[position] != rune(' ') {
+							goto l691
+						}
+						position++
+						goto l690
+					l691:
+						position, tokenIndex, depth = position690, tokenIndex690, depth690
+						if buffer[position] != rune('\t') {
+							goto l692
+						}
+						position++
+						goto l690
+					l692:
+						position, tokenIndex, depth = position690, tokenIndex690, depth690
+						if buffer[position] != rune('\n') {
+							goto l689
+						}
+						position++
+					}
+				l690:
+					goto l688
+				l689:
+					position, tokenIndex, depth = position689, tokenIndex689, depth689
+				}
+				depth--
+				add(rulesp, position687)
 			}
 			return true
 		},
-		/* 72 Action0 <- <{
+		/* 73 Action0 <- <{
 		    p.AssembleSelect()
 		}> */
 		func() bool {
@@ -6812,7 +6847,7 @@ func (p *bqlPeg) Init() {
 			}
 			return true
 		},
-		/* 73 Action1 <- <{
+		/* 74 Action1 <- <{
 		    p.AssembleCreateStreamAsSelect()
 		}> */
 		func() bool {
@@ -6821,7 +6856,7 @@ func (p *bqlPeg) Init() {
 			}
 			return true
 		},
-		/* 74 Action2 <- <{
+		/* 75 Action2 <- <{
 		    p.AssembleCreateSource()
 		}> */
 		func() bool {
@@ -6830,7 +6865,7 @@ func (p *bqlPeg) Init() {
 			}
 			return true
 		},
-		/* 75 Action3 <- <{
+		/* 76 Action3 <- <{
 		    p.AssembleCreateSink()
 		}> */
 		func() bool {
@@ -6839,7 +6874,7 @@ func (p *bqlPeg) Init() {
 			}
 			return true
 		},
-		/* 76 Action4 <- <{
+		/* 77 Action4 <- <{
 		    p.AssembleCreateStreamFromSource()
 		}> */
 		func() bool {
@@ -6848,7 +6883,7 @@ func (p *bqlPeg) Init() {
 			}
 			return true
 		},
-		/* 77 Action5 <- <{
+		/* 78 Action5 <- <{
 		    p.AssembleCreateStreamFromSourceExt()
 		}> */
 		func() bool {
@@ -6857,7 +6892,7 @@ func (p *bqlPeg) Init() {
 			}
 			return true
 		},
-		/* 78 Action6 <- <{
+		/* 79 Action6 <- <{
 		    p.AssembleInsertIntoSelect()
 		}> */
 		func() bool {
@@ -6866,7 +6901,7 @@ func (p *bqlPeg) Init() {
 			}
 			return true
 		},
-		/* 79 Action7 <- <{
+		/* 80 Action7 <- <{
 		    p.AssembleEmitProjections()
 		}> */
 		func() bool {
@@ -6876,7 +6911,7 @@ func (p *bqlPeg) Init() {
 			return true
 		},
 		nil,
-		/* 81 Action8 <- <{
+		/* 82 Action8 <- <{
 		    p.AssembleProjections(begin, end)
 		}> */
 		func() bool {
@@ -6885,7 +6920,7 @@ func (p *bqlPeg) Init() {
 			}
 			return true
 		},
-		/* 82 Action9 <- <{
+		/* 83 Action9 <- <{
 		    p.AssembleAlias()
 		}> */
 		func() bool {
@@ -6894,7 +6929,7 @@ func (p *bqlPeg) Init() {
 			}
 			return true
 		},
-		/* 83 Action10 <- <{
+		/* 84 Action10 <- <{
 		    // This is *always* executed, even if there is no
 		    // FROM clause present in the statement.
 		    p.AssembleWindowedFrom(begin, end)
@@ -6905,7 +6940,7 @@ func (p *bqlPeg) Init() {
 			}
 			return true
 		},
-		/* 84 Action11 <- <{
+		/* 85 Action11 <- <{
 		    p.AssembleRange()
 		}> */
 		func() bool {
@@ -6914,7 +6949,7 @@ func (p *bqlPeg) Init() {
 			}
 			return true
 		},
-		/* 85 Action12 <- <{
+		/* 86 Action12 <- <{
 		    // This is *always* executed, even if there is no
 		    // FROM clause present in the statement.
 		    p.AssembleFrom(begin, end)
@@ -6925,7 +6960,7 @@ func (p *bqlPeg) Init() {
 			}
 			return true
 		},
-		/* 86 Action13 <- <{
+		/* 87 Action13 <- <{
 		    // This is *always* executed, even if there is no
 		    // WHERE clause present in the statement.
 		    p.AssembleFilter(begin, end)
@@ -6936,7 +6971,7 @@ func (p *bqlPeg) Init() {
 			}
 			return true
 		},
-		/* 87 Action14 <- <{
+		/* 88 Action14 <- <{
 		    // This is *always* executed, even if there is no
 		    // GROUP BY clause present in the statement.
 		    p.AssembleGrouping(begin, end)
@@ -6947,7 +6982,7 @@ func (p *bqlPeg) Init() {
 			}
 			return true
 		},
-		/* 88 Action15 <- <{
+		/* 89 Action15 <- <{
 		    // This is *always* executed, even if there is no
 		    // HAVING clause present in the statement.
 		    p.AssembleHaving(begin, end)
@@ -6958,7 +6993,7 @@ func (p *bqlPeg) Init() {
 			}
 			return true
 		},
-		/* 89 Action16 <- <{
+		/* 90 Action16 <- <{
 		    p.AssembleSourceSinkSpecs(begin, end)
 		}> */
 		func() bool {
@@ -6967,7 +7002,7 @@ func (p *bqlPeg) Init() {
 			}
 			return true
 		},
-		/* 90 Action17 <- <{
+		/* 91 Action17 <- <{
 		    p.AssembleSourceSinkParam()
 		}> */
 		func() bool {
@@ -6976,7 +7011,7 @@ func (p *bqlPeg) Init() {
 			}
 			return true
 		},
-		/* 91 Action18 <- <{
+		/* 92 Action18 <- <{
 		    p.AssembleBinaryOperation(begin, end)
 		}> */
 		func() bool {
@@ -6985,7 +7020,7 @@ func (p *bqlPeg) Init() {
 			}
 			return true
 		},
-		/* 92 Action19 <- <{
+		/* 93 Action19 <- <{
 		    p.AssembleBinaryOperation(begin, end)
 		}> */
 		func() bool {
@@ -6994,7 +7029,7 @@ func (p *bqlPeg) Init() {
 			}
 			return true
 		},
-		/* 93 Action20 <- <{
+		/* 94 Action20 <- <{
 		    p.AssembleBinaryOperation(begin, end)
 		}> */
 		func() bool {
@@ -7003,7 +7038,7 @@ func (p *bqlPeg) Init() {
 			}
 			return true
 		},
-		/* 94 Action21 <- <{
+		/* 95 Action21 <- <{
 		    p.AssembleBinaryOperation(begin, end)
 		}> */
 		func() bool {
@@ -7012,7 +7047,7 @@ func (p *bqlPeg) Init() {
 			}
 			return true
 		},
-		/* 95 Action22 <- <{
+		/* 96 Action22 <- <{
 		    p.AssembleBinaryOperation(begin, end)
 		}> */
 		func() bool {
@@ -7021,7 +7056,7 @@ func (p *bqlPeg) Init() {
 			}
 			return true
 		},
-		/* 96 Action23 <- <{
+		/* 97 Action23 <- <{
 		    p.AssembleFuncApp()
 		}> */
 		func() bool {
@@ -7030,7 +7065,7 @@ func (p *bqlPeg) Init() {
 			}
 			return true
 		},
-		/* 97 Action24 <- <{
+		/* 98 Action24 <- <{
 		    p.AssembleExpressions(begin, end)
 		}> */
 		func() bool {
@@ -7039,7 +7074,7 @@ func (p *bqlPeg) Init() {
 			}
 			return true
 		},
-		/* 98 Action25 <- <{
+		/* 99 Action25 <- <{
 		    substr := string([]rune(buffer)[begin:end])
 		    p.PushComponent(begin, end, NewRelation(substr))
 		}> */
@@ -7049,7 +7084,7 @@ func (p *bqlPeg) Init() {
 			}
 			return true
 		},
-		/* 99 Action26 <- <{
+		/* 100 Action26 <- <{
 		    substr := string([]rune(buffer)[begin:end])
 		    p.PushComponent(begin, end, NewRowValue(substr))
 		}> */
@@ -7059,7 +7094,7 @@ func (p *bqlPeg) Init() {
 			}
 			return true
 		},
-		/* 100 Action27 <- <{
+		/* 101 Action27 <- <{
 		    substr := string([]rune(buffer)[begin:end])
 		    p.PushComponent(begin, end, NewNumericLiteral(substr))
 		}> */
@@ -7069,7 +7104,7 @@ func (p *bqlPeg) Init() {
 			}
 			return true
 		},
-		/* 101 Action28 <- <{
+		/* 102 Action28 <- <{
 		    substr := string([]rune(buffer)[begin:end])
 		    p.PushComponent(begin, end, NewFloatLiteral(substr))
 		}> */
@@ -7079,7 +7114,7 @@ func (p *bqlPeg) Init() {
 			}
 			return true
 		},
-		/* 102 Action29 <- <{
+		/* 103 Action29 <- <{
 		    substr := string([]rune(buffer)[begin:end])
 		    p.PushComponent(begin, end, FuncName(substr))
 		}> */
@@ -7089,7 +7124,7 @@ func (p *bqlPeg) Init() {
 			}
 			return true
 		},
-		/* 103 Action30 <- <{
+		/* 104 Action30 <- <{
 		    p.PushComponent(begin, end, NewBoolLiteral(true))
 		}> */
 		func() bool {
@@ -7098,7 +7133,7 @@ func (p *bqlPeg) Init() {
 			}
 			return true
 		},
-		/* 104 Action31 <- <{
+		/* 105 Action31 <- <{
 		    p.PushComponent(begin, end, NewBoolLiteral(false))
 		}> */
 		func() bool {
@@ -7107,7 +7142,7 @@ func (p *bqlPeg) Init() {
 			}
 			return true
 		},
-		/* 105 Action32 <- <{
+		/* 106 Action32 <- <{
 		    p.PushComponent(begin, end, NewWildcard())
 		}> */
 		func() bool {
@@ -7116,7 +7151,7 @@ func (p *bqlPeg) Init() {
 			}
 			return true
 		},
-		/* 106 Action33 <- <{
+		/* 107 Action33 <- <{
 		    substr := string([]rune(buffer)[begin:end])
 		    p.PushComponent(begin, end, NewStringLiteral(substr))
 		}> */
@@ -7126,7 +7161,7 @@ func (p *bqlPeg) Init() {
 			}
 			return true
 		},
-		/* 107 Action34 <- <{
+		/* 108 Action34 <- <{
 		    p.PushComponent(begin, end, Istream)
 		}> */
 		func() bool {
@@ -7135,7 +7170,7 @@ func (p *bqlPeg) Init() {
 			}
 			return true
 		},
-		/* 108 Action35 <- <{
+		/* 109 Action35 <- <{
 		    p.PushComponent(begin, end, Dstream)
 		}> */
 		func() bool {
@@ -7144,7 +7179,7 @@ func (p *bqlPeg) Init() {
 			}
 			return true
 		},
-		/* 109 Action36 <- <{
+		/* 110 Action36 <- <{
 		    p.PushComponent(begin, end, Rstream)
 		}> */
 		func() bool {
@@ -7153,7 +7188,7 @@ func (p *bqlPeg) Init() {
 			}
 			return true
 		},
-		/* 110 Action37 <- <{
+		/* 111 Action37 <- <{
 		    p.PushComponent(begin, end, Tuples)
 		}> */
 		func() bool {
@@ -7162,7 +7197,7 @@ func (p *bqlPeg) Init() {
 			}
 			return true
 		},
-		/* 111 Action38 <- <{
+		/* 112 Action38 <- <{
 		    p.PushComponent(begin, end, Seconds)
 		}> */
 		func() bool {
@@ -7171,7 +7206,7 @@ func (p *bqlPeg) Init() {
 			}
 			return true
 		},
-		/* 112 Action39 <- <{
+		/* 113 Action39 <- <{
 		    substr := string([]rune(buffer)[begin:end])
 		    p.PushComponent(begin, end, SourceSinkName(substr))
 		}> */
@@ -7181,7 +7216,7 @@ func (p *bqlPeg) Init() {
 			}
 			return true
 		},
-		/* 113 Action40 <- <{
+		/* 114 Action40 <- <{
 		    substr := string([]rune(buffer)[begin:end])
 		    p.PushComponent(begin, end, SourceSinkType(substr))
 		}> */
@@ -7191,7 +7226,7 @@ func (p *bqlPeg) Init() {
 			}
 			return true
 		},
-		/* 114 Action41 <- <{
+		/* 115 Action41 <- <{
 		    substr := string([]rune(buffer)[begin:end])
 		    p.PushComponent(begin, end, SourceSinkParamKey(substr))
 		}> */
@@ -7201,7 +7236,7 @@ func (p *bqlPeg) Init() {
 			}
 			return true
 		},
-		/* 115 Action42 <- <{
+		/* 116 Action42 <- <{
 		    substr := string([]rune(buffer)[begin:end])
 		    p.PushComponent(begin, end, SourceSinkParamVal(substr))
 		}> */
@@ -7211,7 +7246,7 @@ func (p *bqlPeg) Init() {
 			}
 			return true
 		},
-		/* 116 Action43 <- <{
+		/* 117 Action43 <- <{
 		    p.PushComponent(begin, end, Or)
 		}> */
 		func() bool {
@@ -7220,7 +7255,7 @@ func (p *bqlPeg) Init() {
 			}
 			return true
 		},
-		/* 117 Action44 <- <{
+		/* 118 Action44 <- <{
 		    p.PushComponent(begin, end, And)
 		}> */
 		func() bool {
@@ -7229,7 +7264,7 @@ func (p *bqlPeg) Init() {
 			}
 			return true
 		},
-		/* 118 Action45 <- <{
+		/* 119 Action45 <- <{
 		    p.PushComponent(begin, end, Equal)
 		}> */
 		func() bool {
@@ -7238,7 +7273,7 @@ func (p *bqlPeg) Init() {
 			}
 			return true
 		},
-		/* 119 Action46 <- <{
+		/* 120 Action46 <- <{
 		    p.PushComponent(begin, end, Less)
 		}> */
 		func() bool {
@@ -7247,7 +7282,7 @@ func (p *bqlPeg) Init() {
 			}
 			return true
 		},
-		/* 120 Action47 <- <{
+		/* 121 Action47 <- <{
 		    p.PushComponent(begin, end, LessOrEqual)
 		}> */
 		func() bool {
@@ -7256,7 +7291,7 @@ func (p *bqlPeg) Init() {
 			}
 			return true
 		},
-		/* 121 Action48 <- <{
+		/* 122 Action48 <- <{
 		    p.PushComponent(begin, end, Greater)
 		}> */
 		func() bool {
@@ -7265,7 +7300,7 @@ func (p *bqlPeg) Init() {
 			}
 			return true
 		},
-		/* 122 Action49 <- <{
+		/* 123 Action49 <- <{
 		    p.PushComponent(begin, end, GreaterOrEqual)
 		}> */
 		func() bool {
@@ -7274,7 +7309,7 @@ func (p *bqlPeg) Init() {
 			}
 			return true
 		},
-		/* 123 Action50 <- <{
+		/* 124 Action50 <- <{
 		    p.PushComponent(begin, end, NotEqual)
 		}> */
 		func() bool {
@@ -7283,7 +7318,7 @@ func (p *bqlPeg) Init() {
 			}
 			return true
 		},
-		/* 124 Action51 <- <{
+		/* 125 Action51 <- <{
 		    p.PushComponent(begin, end, Plus)
 		}> */
 		func() bool {
@@ -7292,7 +7327,7 @@ func (p *bqlPeg) Init() {
 			}
 			return true
 		},
-		/* 125 Action52 <- <{
+		/* 126 Action52 <- <{
 		    p.PushComponent(begin, end, Minus)
 		}> */
 		func() bool {
@@ -7301,7 +7336,7 @@ func (p *bqlPeg) Init() {
 			}
 			return true
 		},
-		/* 126 Action53 <- <{
+		/* 127 Action53 <- <{
 		    p.PushComponent(begin, end, Multiply)
 		}> */
 		func() bool {
@@ -7310,7 +7345,7 @@ func (p *bqlPeg) Init() {
 			}
 			return true
 		},
-		/* 127 Action54 <- <{
+		/* 128 Action54 <- <{
 		    p.PushComponent(begin, end, Divide)
 		}> */
 		func() bool {
@@ -7319,12 +7354,22 @@ func (p *bqlPeg) Init() {
 			}
 			return true
 		},
-		/* 128 Action55 <- <{
+		/* 129 Action55 <- <{
 		    p.PushComponent(begin, end, Modulo)
 		}> */
 		func() bool {
 			{
 				add(ruleAction55, position)
+			}
+			return true
+		},
+		/* 130 Action56 <- <{
+		    substr := string([]rune(buffer)[begin:end])
+		    p.PushComponent(begin, end, Identifier(substr))
+		}> */
+		func() bool {
+			{
+				add(ruleAction56, position)
 			}
 			return true
 		},

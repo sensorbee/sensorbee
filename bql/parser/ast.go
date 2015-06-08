@@ -251,3 +251,5 @@ const (
 	Divide
 	Modulo
 )
+
+type Identifier string
