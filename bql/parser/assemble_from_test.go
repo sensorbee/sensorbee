@@ -12,7 +12,9 @@ func TestAssembleFrom(t *testing.T) {
 		Convey("When the stack contains only Relations in the given range", func() {
 			ps.PushComponent(0, 6, Raw{"PRE"})
 			ps.PushComponent(6, 7, Relation{"a"})
+			ps.EnsureAliasRelation()
 			ps.PushComponent(7, 8, Relation{"b"})
+			ps.EnsureAliasRelation()
 			ps.AssembleFrom(6, 8)
 
 			Convey("Then AssembleFrom transforms them into one item", func() {

@@ -287,13 +287,13 @@ func (ps *parseStack) AssembleAlias() {
 /* FROM clause */
 
 // AssembleWindowedFrom assumes that the string input[begin:end]
-// holds a number of Relation elements followed by a RangeAST, pops all
+// holds a number of AliasRelationAST elements followed by a RangeAST, pops all
 // of them and turns them into a WindowedFromAST.
 //
 //  RangeAST
-//  Relation
-//  Relation
-//  Relation
+//  AliasRelationAST
+//  AliasRelationAST
+//  AliasRelationAST
 //   =>
 //  WindowedFromAST{FromAST, RangeAST}
 func (ps *parseStack) AssembleWindowedFrom(begin int, end int) {
@@ -309,11 +309,11 @@ func (ps *parseStack) AssembleWindowedFrom(begin int, end int) {
 			// convert the last item to a RangeAST (if this does
 			// not work, it is a fundamental parser bug)
 			rangeClause := elems[numElems-1].(RangeAST)
-			// convert the rest to Relation structs
-			rels := make([]Relation, numElems-1, numElems-1)
+			// convert the rest to AliasRelationAST structs
+			rels := make([]AliasRelationAST, numElems-1, numElems-1)
 			for i, elem := range elems[:numElems-1] {
 				// (if this conversion fails, this is a fundamental parser bug)
-				e := elem.(Relation)
+				e := elem.(AliasRelationAST)
 				rels[i] = e
 			}
 			// push the grouped list wrapped in a FromAST and the RangeAST
@@ -346,25 +346,25 @@ func (ps *parseStack) AssembleRange() {
 
 // AssembleFrom takes the elements from the stack that
 // correspond to the input[begin:end] string, makes sure
-// they are all Relation elements and wraps a FromAST struct
+// they are all AliasRelationAST elements and wraps a FromAST struct
 // around them. If there are no such elements, adds an
 // empty FromAST struct to the stack.
 //
-//  Relation
-//  Relation
-//  Relation
+//  AliasRelationAST
+//  AliasRelationAST
+//  AliasRelationAST
 //   =>
-//  FromAST{[Relation, Relation, Relation]}
+//  FromAST{[AliasRelationAST, AliasRelationAST, AliasRelationAST]}
 func (ps *parseStack) AssembleFrom(begin int, end int) {
 	if begin == end {
 		// push an empty from clause
 		ps.PushComponent(begin, end, FromAST{})
 	} else {
 		elems := ps.collectElements(begin, end)
-		rels := make([]Relation, len(elems), len(elems))
+		rels := make([]AliasRelationAST, len(elems), len(elems))
 		for i, elem := range elems {
 			// (if this conversion fails, this is a fundamental parser bug)
-			e := elem.(Relation)
+			e := elem.(AliasRelationAST)
 			rels[i] = e
 		}
 		// push the grouped list back
@@ -438,6 +438,43 @@ func (ps *parseStack) AssembleHaving(begin int, end int) {
 		}
 		ps.PushComponent(begin, end, HavingAST{h.comp})
 	}
+}
+
+// AssembleAliasRelation takes the topmost elements from the stack, assuming
+// they are components of an AS clause, and replaces them by
+// a single AliasRelationAST element.
+//
+//  Identifier
+//  Relation
+//   =>
+//  AliasRelationAST{Relation, Identifier}
+func (ps *parseStack) AssembleAliasRelation() {
+	// pop the components from the stack in reverse order
+	_name, _rel := ps.pop2()
+
+	name := _name.comp.(Identifier)
+	rel := _rel.comp.(Relation)
+
+	ps.PushComponent(_rel.begin, _name.end, AliasRelationAST{rel.Name, string(name)})
+}
+
+// EnsureAliasRelation takes the top element from the stack. If it is a
+// Relation element, it wraps it into an AliasRelationAST struct; if it
+// is already an AliasRelationAST it just pushes it back. This helps to
+// ensure we only deal with AliasRelationAST objects in the collection step.
+func (ps *parseStack) EnsureAliasRelation() {
+	_elem := ps.Pop()
+	elem := _elem.comp
+
+	var aliasRel AliasRelationAST
+	e, ok := elem.(AliasRelationAST)
+	if ok {
+		aliasRel = e
+	} else {
+		e := elem.(Relation)
+		aliasRel = AliasRelationAST{e.Name, ""}
+	}
+	ps.PushComponent(_elem.begin, _elem.end, aliasRel)
 }
 
 // AssembleSourceSinkSpecs takes the elements from the stack that

@@ -124,7 +124,7 @@ From <- < ("FROM" sp Relations)? > {
         p.AssembleFrom(begin, end)
     }
 
-Relations <- Relation sp (',' sp Relation)*
+Relations <- RelationLike sp (',' sp RelationLike)*
 
 Filter <- < ("WHERE" sp Expression)? > {
         // This is *always* executed, even if there is no
@@ -144,6 +144,14 @@ Having <- < ("HAVING" sp Expression)? > {
         // This is *always* executed, even if there is no
         // HAVING clause present in the statement.
         p.AssembleHaving(begin, end)
+    }
+
+RelationLike <- AliasRelation / Relation {
+        p.EnsureAliasRelation()
+    }
+
+AliasRelation <- Relation sp "AS" sp Identifier {
+        p.AssembleAliasRelation()
     }
 
 SourceSinkSpecs <- < ("WITH" sp SourceSinkParam sp (',' sp SourceSinkParam)*)? > {

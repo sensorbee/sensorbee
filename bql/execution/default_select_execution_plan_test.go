@@ -34,7 +34,7 @@ func createDefaultSelectPlan(s string, t *testing.T) (ExecutionPlan, error) {
 	So(err, ShouldBeNil)
 	So(_stmt, ShouldHaveSameTypeAs, parser.CreateStreamAsSelectStmt{})
 	stmt := _stmt.(parser.CreateStreamAsSelectStmt)
-	logicalPlan, err := Analyze(&stmt)
+	logicalPlan, err := Analyze(stmt)
 	So(err, ShouldBeNil)
 	canBuild := CanBuildDefaultSelectExecutionPlan(logicalPlan, reg)
 	So(canBuild, ShouldBeTrue)
