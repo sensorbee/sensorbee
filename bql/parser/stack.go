@@ -266,6 +266,24 @@ func (ps *parseStack) AssembleProjections(begin int, end int) {
 	ps.PushComponent(begin, end, ProjectionsAST{elems})
 }
 
+// AssembleAlias takes the topmost elements from the stack, assuming
+// they are components of an AS clause, and replaces them by
+// a single AliasAST element.
+//
+//  ColumnName
+//  Any
+//   =>
+//  AliasAST{Any, ColumnName}
+func (ps *parseStack) AssembleAlias() {
+	// pop the components from the stack in reverse order
+	_name, _expr := ps.pop2()
+
+	name := _name.comp.(ColumnName)
+	expr := _expr.comp
+
+	ps.PushComponent(_expr.begin, _name.end, AliasAST{expr, name.Name})
+}
+
 /* FROM clause */
 
 // AssembleWindowedFrom assumes that the string input[begin:end]

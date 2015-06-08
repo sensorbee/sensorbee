@@ -84,7 +84,7 @@ func TestAssembleProjections(t *testing.T) {
 		p := &bqlPeg{}
 
 		Convey("When selecting multiple columns", func() {
-			p.Buffer = "SELECT a, b"
+			p.Buffer = "SELECT a, *, b AS c, * AS d"
 			p.Init()
 
 			Convey("Then the statement should be parsed correctly", func() {
@@ -97,9 +97,11 @@ func TestAssembleProjections(t *testing.T) {
 				top := ps.Peek().comp
 				So(top, ShouldHaveSameTypeAs, SelectStmt{})
 				s := top.(SelectStmt)
-				So(len(s.Projections), ShouldEqual, 2)
+				So(len(s.Projections), ShouldEqual, 4)
 				So(s.Projections[0], ShouldResemble, ColumnName{"a"})
-				So(s.Projections[1], ShouldResemble, ColumnName{"b"})
+				So(s.Projections[1], ShouldResemble, Wildcard{})
+				So(s.Projections[2], ShouldResemble, AliasAST{ColumnName{"b"}, "c"})
+				So(s.Projections[3], ShouldResemble, AliasAST{Wildcard{}, "d"})
 			})
 		})
 	})

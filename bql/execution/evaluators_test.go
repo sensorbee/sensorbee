@@ -356,6 +356,25 @@ func getTestCases() []struct {
 				{tuple.Map{"a": tuple.Map{"b": tuple.Int(3)}}, tuple.Map{"b": tuple.Int(3)}},
 			},
 		},
+		// Access to columns/keys should return the same values
+		{parser.AliasAST{parser.ColumnName{"a"}, "hoge"},
+			[]evalTest{
+				// not a map:
+				{tuple.Int(17), nil},
+				// key not present:
+				{tuple.Map{"x": tuple.Int(17)}, nil},
+				// key present
+				{tuple.Map{"a": tuple.Null{}}, tuple.Null{}},
+				{tuple.Map{"a": tuple.Bool(true)}, tuple.Bool(true)},
+				{tuple.Map{"a": tuple.Int(17)}, tuple.Int(17)},
+				{tuple.Map{"a": tuple.Float(3.14)}, tuple.Float(3.14)},
+				{tuple.Map{"a": tuple.String("日本語")}, tuple.String("日本語")},
+				{tuple.Map{"a": tuple.Blob("hoge")}, tuple.Blob("hoge")},
+				{tuple.Map{"a": tuple.Timestamp(now)}, tuple.Timestamp(now)},
+				{tuple.Map{"a": tuple.Array{tuple.Int(2)}}, tuple.Array{tuple.Int(2)}},
+				{tuple.Map{"a": tuple.Map{"b": tuple.Int(3)}}, tuple.Map{"b": tuple.Int(3)}},
+			},
+		},
 		/// Combined operations
 		// Or
 		{parser.BinaryOpAST{parser.Or, parser.ColumnName{"a"}, parser.ColumnName{"b"}},
