@@ -33,7 +33,7 @@ func TestAssembleCreateStreamFromSource(t *testing.T) {
 		})
 
 		Convey("When the stack does not contain enough items", func() {
-			ps.PushComponent(6, 7, RowValue{"a"})
+			ps.PushComponent(6, 7, RowValue{"", "a"})
 			ps.AssembleProjections(6, 7)
 			Convey("Then AssembleCreateStreamFromSource panics", func() {
 				So(ps.AssembleCreateStreamFromSource, ShouldPanic)
