@@ -229,7 +229,7 @@ Relation <- < ident > {
         p.PushComponent(begin, end, NewRelation(substr))
     }
 
-RowValue <- < ident > {
+RowValue <- < (ident '.')? ident > {
         substr := string([]rune(buffer)[begin:end])
         p.PushComponent(begin, end, NewRowValue(substr))
     }

@@ -148,7 +148,14 @@ type RowValue struct {
 }
 
 func NewRowValue(s string) RowValue {
-	return RowValue{"", s}
+	components := strings.SplitN(s, ".", 2)
+	if len(components) == 1 {
+		// just "col"
+		return RowValue{"", components[0]}
+	}
+	// "table.col"
+	return RowValue{components[0], components[1]}
+
 }
 
 type Raw struct {
