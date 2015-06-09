@@ -95,7 +95,70 @@ func TestDynamicDataSources(t *testing.T) {
 	config := Configuration{TupleTraceEnabled: 1}
 	ctx := newTestContext(config)
 
-	Convey("Given an empty data sources", t, func() {
+	Convey("Given an empty data source", t, func() {
+		srcs := newDynamicDataSources("test_component")
+
+		Convey("When stopping it before starting to pour tuples", func() {
+			srcs.stop(ctx)
+
+			Convey("Then it pouring should fail", func() {
+				si := NewTupleCollectorSink()
+				So(srcs.pour(ctx, si, 1, nil), ShouldNotBeNil)
+			})
+		})
+	})
+
+	Convey("Given an empty data source", t, func() {
+		srcs := newDynamicDataSources("test_component")
+		si := NewTupleCollectorSink()
+
+		t := &tuple.Tuple{
+			InputName: "some_component",
+			Data: tuple.Map{
+				"v": tuple.Int(1),
+			},
+		}
+
+		started := make(chan struct{})
+		stopped := make(chan error, 1)
+		go func() {
+			stopped <- srcs.pour(ctx, si, 4, func() {
+				started <- struct{}{}
+			})
+		}()
+		Reset(func() {
+			srcs.stop(ctx)
+		})
+		<-started
+
+		Convey("When starting it without any input", func() {
+			Convey("Then it should start pouring", func() {
+				// Just check if this test isn't dead-locked.
+				So(true, ShouldBeTrue)
+			})
+
+			Convey("Then the sink should receive anything", func() {
+				srcs.stop(ctx)
+				<-stopped
+				So(si.Tuples, ShouldBeEmpty)
+			})
+		})
+
+		Convey("When adding an input after starting pouring and write a tuple", func() {
+			r, s := newDynamicPipe("test1", 1)
+			So(srcs.add("test_node_1", r), ShouldBeNil)
+			So(s.Write(ctx, t), ShouldBeNil)
+			s.close()
+			srcs.stop(ctx)
+			<-stopped
+
+			Convey("Then the sink receive the tuple", func() {
+				So(len(si.Tuples), ShouldEqual, 1)
+			})
+		})
+	})
+
+	Convey("Given a data source having destinations", t, func() {
 		srcs := newDynamicDataSources("test_component")
 		dsts := make([]*dynamicPipeSender, 2)
 		for i := range dsts {
@@ -124,6 +187,9 @@ func TestDynamicDataSources(t *testing.T) {
 				started <- struct{}{}
 			})
 		}()
+		Reset(func() {
+			srcs.stop(ctx)
+		})
 		<-started
 
 		Convey("When starting it again", func() {
@@ -170,13 +236,24 @@ func TestDynamicDataSources(t *testing.T) {
 			})
 		})
 
-		Convey("When stopping inputs", func() {
+		Convey("When stopping all inputs", func() {
 			for _, d := range dsts {
 				d.close()
 			}
+			Reset(func() {
+				srcs.stop(ctx)
+			})
 
-			Convey("Then it should stop pouring", func() {
-				So(<-stopped, ShouldBeNil)
+			Convey("Then it shouldn't stop pouring", func() {
+				// This actually doesn't guarantee anything, but test should
+				// sometimes fail if the code above stopped the source.
+				received := false
+				select {
+				case <-stopped:
+					received = true
+				default:
+				}
+				So(received, ShouldBeFalse)
 			})
 		})
 
@@ -190,6 +267,7 @@ func TestDynamicDataSources(t *testing.T) {
 			}
 			dsts[0].close()
 			dsts[1].close()
+			srcs.stop(ctx)
 			So(<-stopped, ShouldBeNil)
 
 			Convey("Then the sink should receive all tuples", func() {

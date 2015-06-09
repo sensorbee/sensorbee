@@ -93,6 +93,9 @@ type dynamicDataSources struct {
 	// recvChs is a slice of channels which are connected to goroutines
 	// pouring tuples.
 	recvChs []chan<- *dynamicPipeReceiver
+
+	// stopCh is used to stop pouringThreads. They're signaled by close(stopCh).
+	stopCh chan<- struct{}
 }
 
 func newDynamicDataSources(nodeName string) *dynamicDataSources {
@@ -108,6 +111,9 @@ func (s *dynamicDataSources) add(name string, r *dynamicPipeReceiver) error {
 	// actually acquiring Lock.
 	s.m.Lock()
 	defer s.m.Unlock()
+	if s.recvs == nil {
+		return fmt.Errorf("node '%v' already closed its input", s.nodeName)
+	}
 
 	if _, ok := s.recvs[name]; ok {
 		return fmt.Errorf("node '%v' is already receiving tuples from '%v'", s.nodeName, name)
@@ -147,15 +153,33 @@ func (s *dynamicDataSources) pour(ctx *Context, w Writer, paralellism int, callb
 	err := func() error {
 		s.m.Lock()
 		defer s.m.Unlock()
+		if s.recvs == nil {
+			return fmt.Errorf("'%v' already stopped receiving tuples", s.nodeName)
+		}
+
 		if len(s.recvChs) != 0 {
 			return fmt.Errorf("'%v' already started to receive tuples", s.nodeName)
 		}
+
+		stopCh := make(chan struct{})
+		s.stopCh = stopCh
 
 		genCases := func(newRecvCh <-chan *dynamicPipeReceiver) []reflect.SelectCase {
 			cs := make([]reflect.SelectCase, 0, len(s.recvs)+1)
 			cs = append(cs, reflect.SelectCase{
 				Dir:  reflect.SelectRecv,
 				Chan: reflect.ValueOf(newRecvCh),
+			})
+			cs = append(cs, reflect.SelectCase{
+				Dir:  reflect.SelectRecv,
+				Chan: reflect.ValueOf(stopCh),
+			})
+
+			// This case is used as a default case after stopCh is closed.
+			// Currently, it only has recv with nil channel so that
+			// reflect.Select does nothing on it.
+			cs = append(cs, reflect.SelectCase{
+				Dir: reflect.SelectRecv,
 			})
 
 			for _, r := range s.recvs {
@@ -198,10 +222,12 @@ func (s *dynamicDataSources) pour(ctx *Context, w Writer, paralellism int, callb
 func (s *dynamicDataSources) pouringThread(ctx *Context, w Writer, cs []reflect.SelectCase) (retErr error) {
 	const (
 		newRecv = iota
+		stopSignal
+		defaultCase
 
 		// maxControlIndex has the max index of special channels used to
 		// control this method.
-		maxControlIndex = newRecv
+		maxControlIndex = defaultCase
 	)
 
 	defer func() {
@@ -217,17 +243,21 @@ func (s *dynamicDataSources) pouringThread(ctx *Context, w Writer, cs []reflect.
 		}
 	}()
 
-	for len(cs) > maxControlIndex+1 {
+receiveLoop:
+	for {
 		i, v, ok := reflect.Select(cs) // all cases are receive direction
-		if !ok {
-			if i <= maxControlIndex {
-				return FatalError(fmt.Errorf("a controlling channel of '%v' has been closed", s.nodeName))
+		if !ok && i != defaultCase {
+			if i == stopSignal {
+				cs[i].Chan = reflect.Value{}
+				cs[defaultCase].Dir = reflect.SelectDefault // activate the default case
+				continue
+
+			} else if i <= maxControlIndex {
+				return FatalError(fmt.Errorf("a controlling channel (%v) of '%v' has been closed", i, s.nodeName))
 			}
 
-			// remove the closed channel
-			for k := i + 1; k < len(cs); k++ {
-				cs[k-1] = cs[k]
-			}
+			// remove the closed channel by swapping it with the last element.
+			cs[i], cs[len(cs)-1] = cs[len(cs)-1], cs[i]
 			cs = cs[0 : len(cs)-1]
 			continue
 		}
@@ -243,6 +273,13 @@ func (s *dynamicDataSources) pouringThread(ctx *Context, w Writer, cs []reflect.
 				Dir:  reflect.SelectRecv,
 				Chan: reflect.ValueOf(c.in),
 			})
+
+		case stopSignal:
+			return FatalError(fmt.Errorf("a stopping channel mustn't send anything"))
+
+		case defaultCase:
+			// stop has been called and there's no additional input.
+			break receiveLoop
 
 		default:
 			t, ok := v.Interface().(*tuple.Tuple)
@@ -272,6 +309,10 @@ func (s *dynamicDataSources) stop(ctx *Context) {
 	func() {
 		s.m.Lock()
 		defer s.m.Unlock()
+		if s.recvs == nil || s.stopCh == nil { // already stopped or not started yet
+			s.recvs = nil // stop the pipe before it starts
+			return
+		}
 
 		for _, r := range s.recvs {
 			// This eventually closes the channels and remove edges from
@@ -279,8 +320,9 @@ func (s *dynamicDataSources) stop(ctx *Context) {
 			r.close()
 		}
 		s.recvs = nil
+		close(s.stopCh)
+		s.stopCh = nil
 	}()
-
 	s.wg.Wait()
 }
 
@@ -304,6 +346,9 @@ func newDynamicDataDestinations(nodeName string) *dynamicDataDestinations {
 func (d *dynamicDataDestinations) add(name string, s *dynamicPipeSender) error {
 	d.rwm.Lock()
 	defer d.rwm.Unlock()
+	if d.dsts == nil {
+		return fmt.Errorf("node '%v' already closed its output", d.nodeName)
+	}
 
 	if _, ok := d.dsts[name]; ok {
 		return fmt.Errorf("node '%v' already has the destination '%v'", d.nodeName, name)
