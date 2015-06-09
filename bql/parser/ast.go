@@ -7,6 +7,7 @@ import (
 
 type Expression interface {
 	ReferencedRelations() map[string]bool
+	RenameReferencedRelation(string, string) Expression
 }
 
 // This file holds a set of structs that make up the Abstract
@@ -79,6 +80,10 @@ func (a AliasAST) ReferencedRelations() map[string]bool {
 	return a.Expr.ReferencedRelations()
 }
 
+func (a AliasAST) RenameReferencedRelation(from, to string) Expression {
+	return AliasAST{a.Expr.RenameReferencedRelation(from, to), a.Alias}
+}
+
 type WindowedFromAST struct {
 	FromAST
 	RangeAST
@@ -133,6 +138,12 @@ func (b BinaryOpAST) ReferencedRelations() map[string]bool {
 	return rels
 }
 
+func (b BinaryOpAST) RenameReferencedRelation(from, to string) Expression {
+	return BinaryOpAST{b.Op,
+		b.Left.RenameReferencedRelation(from, to),
+		b.Right.RenameReferencedRelation(from, to)}
+}
+
 type FuncAppAST struct {
 	Function FuncName
 	ExpressionsAST
@@ -146,6 +157,14 @@ func (f FuncAppAST) ReferencedRelations() map[string]bool {
 		}
 	}
 	return rels
+}
+
+func (f FuncAppAST) RenameReferencedRelation(from, to string) Expression {
+	newExprs := make([]Expression, len(f.Expressions))
+	for i, expr := range f.Expressions {
+		newExprs[i] = expr.RenameReferencedRelation(from, to)
+	}
+	return FuncAppAST{f.Function, ExpressionsAST{newExprs}}
 }
 
 type ExpressionsAST struct {
@@ -173,6 +192,10 @@ func (w Wildcard) ReferencedRelations() map[string]bool {
 	return map[string]bool{"": true}
 }
 
+func (w Wildcard) RenameReferencedRelation(from, to string) Expression {
+	return Wildcard{}
+}
+
 func NewWildcard() Wildcard {
 	return Wildcard{}
 }
@@ -184,6 +207,13 @@ type RowValue struct {
 
 func (rv RowValue) ReferencedRelations() map[string]bool {
 	return map[string]bool{rv.Relation: true}
+}
+
+func (rv RowValue) RenameReferencedRelation(from, to string) Expression {
+	if rv.Relation == from {
+		return RowValue{to, rv.Column}
+	}
+	return rv
 }
 
 func NewRowValue(s string) RowValue {
@@ -213,6 +243,10 @@ func (l NumericLiteral) ReferencedRelations() map[string]bool {
 	return nil
 }
 
+func (l NumericLiteral) RenameReferencedRelation(from, to string) Expression {
+	return l
+}
+
 func NewNumericLiteral(s string) NumericLiteral {
 	val, err := strconv.ParseInt(s, 10, 64)
 	if err != nil {
@@ -227,6 +261,10 @@ type FloatLiteral struct {
 
 func (l FloatLiteral) ReferencedRelations() map[string]bool {
 	return nil
+}
+
+func (l FloatLiteral) RenameReferencedRelation(from, to string) Expression {
+	return l
 }
 
 func NewFloatLiteral(s string) FloatLiteral {
@@ -245,6 +283,10 @@ func (l BoolLiteral) ReferencedRelations() map[string]bool {
 	return nil
 }
 
+func (l BoolLiteral) RenameReferencedRelation(from, to string) Expression {
+	return l
+}
+
 func NewBoolLiteral(b bool) BoolLiteral {
 	return BoolLiteral{b}
 }
@@ -255,6 +297,10 @@ type StringLiteral struct {
 
 func (l StringLiteral) ReferencedRelations() map[string]bool {
 	return nil
+}
+
+func (l StringLiteral) RenameReferencedRelation(from, to string) Expression {
+	return l
 }
 
 func NewStringLiteral(s string) StringLiteral {

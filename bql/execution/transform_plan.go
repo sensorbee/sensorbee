@@ -116,65 +116,6 @@ func validateReferences(s *parser.CreateStreamAsSelectStmt) error {
 	   the input relations (as in `SELECT a.col, b.col FROM a, b`).
 	*/
 
-	// define a recursive function to rename all referenced relations
-	// TODO move this to the AST structs as a method?
-	var renameRelationRefs func(*parser.Expression, string, string) error
-	renameRelationRefs = func(_exprPtr *parser.Expression, from, to string) error {
-		if _exprPtr == nil || *_exprPtr == nil {
-			return nil
-		}
-		switch expr := (*_exprPtr).(type) {
-		default:
-			return fmt.Errorf("don't know how to rename referenced "+
-				"relations in AST object %v", expr)
-		case parser.RowValue:
-			if expr.Relation == from {
-				expr.Relation = to
-			}
-			*_exprPtr = expr
-		case parser.AliasAST:
-			renameRelationRefs(&expr.Expr, from, to)
-			*_exprPtr = expr
-		case parser.NumericLiteral, parser.FloatLiteral, parser.BoolLiteral:
-			// no referenced relations
-		case parser.BinaryOpAST:
-			if err := renameRelationRefs(&expr.Left, from, to); err != nil {
-				return err
-			}
-			if err := renameRelationRefs(&expr.Right, from, to); err != nil {
-				return err
-			}
-			*_exprPtr = expr
-		case parser.FuncAppAST:
-			for i := range expr.Expressions {
-				if err := renameRelationRefs(&expr.Expressions[i], from, to); err != nil {
-					return err
-				}
-			}
-			*_exprPtr = expr
-		case parser.Wildcard:
-			// this is special, we can't use `rel.*` at the moment
-		}
-		return nil
-	}
-	// rename all referenced relations in SELECT, WHERE, GROUP BY clauses
-	renameAllRelationRefs := func(from, to string) error {
-		for i := range s.Projections {
-			if err := renameRelationRefs(&s.Projections[i], from, to); err != nil {
-				return err
-			}
-		}
-		if err := renameRelationRefs(&s.Filter, from, to); err != nil {
-			return err
-		}
-		for i := range s.GroupList {
-			if err := renameRelationRefs(&s.GroupList[i], from, to); err != nil {
-				return err
-			}
-		}
-		return nil
-	}
-
 	// collect the referenced relations in SELECT, WHERE, GROUP BY clauses
 	// and store them in the given map
 	refRels := map[string]bool{}
@@ -199,6 +140,7 @@ func validateReferences(s *parser.CreateStreamAsSelectStmt) error {
 		// Sample: SELECT a (no FROM clause)
 		// this case should never happen due to parser setup
 		return fmt.Errorf("need at least one relation to select from")
+
 	} else if len(s.Relations) == 1 {
 		inputRel := s.Relations[0].Alias
 		if len(refRels) == 1 {
@@ -213,11 +155,21 @@ func validateReferences(s *parser.CreateStreamAsSelectStmt) error {
 				}
 			}
 			// we need to make the references more explicit,
-			// i.e., change all the references to "" to the name
+			// i.e., change all "" references to the name
 			// of the only input relation
-			if err := renameAllRelationRefs("", inputRel); err != nil {
-				return err
+			newProjs := make([]parser.Expression, len(s.Projections))
+			for i, proj := range s.Projections {
+				newProjs[i] = proj.RenameReferencedRelation("", inputRel)
 			}
+			s.Projections = newProjs
+			if s.Filter != nil {
+				s.Filter = s.Filter.RenameReferencedRelation("", inputRel)
+			}
+			newGroup := make([]parser.Expression, len(s.GroupList))
+			for i, group := range s.GroupList {
+				newGroup[i] = group.RenameReferencedRelation("", inputRel)
+			}
+			s.GroupList = newGroup
 
 		} else if len(refRels) > 1 {
 			// Sample: SELECT a, b.a FROM b // SELECT b.a, x.a FROM b
@@ -233,6 +185,7 @@ func validateReferences(s *parser.CreateStreamAsSelectStmt) error {
 		}
 		// if we arrive here, the only referenced relation is valid or
 		// we do not actually reference anything
+
 	} else if len(s.Relations) > 1 {
 		// Sample: SELECT b.a, c.d FROM b, c
 		// check if all referenced relations are actually listed in FROM
