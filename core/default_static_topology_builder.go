@@ -182,9 +182,8 @@ func (tb *defaultStaticTopologyBuilder) Build() (StaticTopology, error) {
 		srcDsts: map[string]WriteCloser{},
 		nodes:   map[string]*staticNode{},
 
-		state:      TSInitialized,
+		state:      newTopologyStateHolder(stateMutex),
 		stateMutex: stateMutex,
-		stateCond:  sync.NewCond(stateMutex),
 	}
 
 	// Create st.nodes and its next writer
