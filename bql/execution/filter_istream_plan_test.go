@@ -43,9 +43,9 @@ func TestFilterIstreamPlan(t *testing.T) {
 
 		Convey("When feeding it with tuples", func() {
 			for idx, inTup := range tuples {
-				out, err := plan.Process(inTup)
+				out, err := plan.Process(inTup.Copy())
 				So(err, ShouldBeNil)
-				refOut, err := refPlan.Process(inTup)
+				refOut, err := refPlan.Process(inTup.Copy())
 				So(err, ShouldBeNil)
 
 				Convey(fmt.Sprintf("Then the result should match the reference in %v", idx), func() {
@@ -65,9 +65,9 @@ func TestFilterIstreamPlan(t *testing.T) {
 
 		Convey("When feeding it with tuples", func() {
 			for idx, inTup := range tuples {
-				out, err := plan.Process(inTup)
+				out, err := plan.Process(inTup.Copy())
 				So(err, ShouldBeNil)
-				refOut, err := refPlan.Process(inTup)
+				refOut, err := refPlan.Process(inTup.Copy())
 				So(err, ShouldBeNil)
 
 				Convey(fmt.Sprintf("Then the result should match the reference in %v", idx), func() {
@@ -87,7 +87,7 @@ func TestFilterIstreamPlan(t *testing.T) {
 
 		Convey("When feeding it with tuples", func() {
 			for _, inTup := range tuples {
-				_, err := plan.Process(inTup)
+				_, err := plan.Process(inTup.Copy())
 				So(err, ShouldNotBeNil) // hoge not found
 			}
 
@@ -102,7 +102,7 @@ func TestFilterIstreamPlan(t *testing.T) {
 
 		Convey("When feeding it with tuples", func() {
 			for _, inTup := range tuples {
-				_, err := plan.Process(inTup)
+				_, err := plan.Process(inTup.Copy())
 				So(err, ShouldNotBeNil) // hoge not found
 			}
 
@@ -118,9 +118,9 @@ func TestFilterIstreamPlan(t *testing.T) {
 
 		Convey("When feeding it with tuples", func() {
 			for idx, inTup := range tuples {
-				out, err := plan.Process(inTup)
+				out, err := plan.Process(inTup.Copy())
 				So(err, ShouldBeNil)
-				refOut, err := refPlan.Process(inTup)
+				refOut, err := refPlan.Process(inTup.Copy())
 				So(err, ShouldBeNil)
 
 				Convey(fmt.Sprintf("Then the result should match the reference in %v", idx), func() {
@@ -140,9 +140,9 @@ func TestFilterIstreamPlan(t *testing.T) {
 
 		Convey("When feeding it with tuples", func() {
 			for idx, inTup := range tuples {
-				out, err := plan.Process(inTup)
+				out, err := plan.Process(inTup.Copy())
 				So(err, ShouldBeNil)
-				refOut, err := refPlan.Process(inTup)
+				refOut, err := refPlan.Process(inTup.Copy())
 				So(err, ShouldBeNil)
 
 				Convey(fmt.Sprintf("Then the result should match the reference in %v", idx), func() {
@@ -162,9 +162,9 @@ func TestFilterIstreamPlan(t *testing.T) {
 
 		Convey("When feeding it with tuples", func() {
 			for idx, inTup := range tuples {
-				out, err := plan.Process(inTup)
+				out, err := plan.Process(inTup.Copy())
 				So(err, ShouldBeNil)
-				refOut, err := refPlan.Process(inTup)
+				refOut, err := refPlan.Process(inTup.Copy())
 				So(err, ShouldBeNil)
 
 				Convey(fmt.Sprintf("Then the result should match the reference in %v", idx), func() {
@@ -183,9 +183,9 @@ func TestFilterIstreamPlan(t *testing.T) {
 
 		Convey("When feeding it with tuples", func() {
 			for idx, inTup := range tuples {
-				out, err := plan.Process(inTup)
+				out, err := plan.Process(inTup.Copy())
 				So(err, ShouldBeNil)
-				refOut, err := refPlan.Process(inTup)
+				refOut, err := refPlan.Process(inTup.Copy())
 				So(err, ShouldBeNil)
 
 				Convey(fmt.Sprintf("Then the result should match the reference in %v", idx), func() {
@@ -204,9 +204,9 @@ func TestFilterIstreamPlan(t *testing.T) {
 
 		Convey("When feeding it with tuples", func() {
 			for idx, inTup := range tuples {
-				out, err := plan.Process(inTup)
+				out, err := plan.Process(inTup.Copy())
 				So(err, ShouldBeNil)
-				refOut, err := refPlan.Process(inTup)
+				refOut, err := refPlan.Process(inTup.Copy())
 				So(err, ShouldBeNil)
 
 				Convey(fmt.Sprintf("Then the result should match the reference in %v", idx), func() {
@@ -225,9 +225,9 @@ func TestFilterIstreamPlan(t *testing.T) {
 
 		Convey("When feeding it with tuples", func() {
 			for idx, inTup := range tuples {
-				out, err := plan.Process(inTup)
+				out, err := plan.Process(inTup.Copy())
 				So(err, ShouldBeNil)
-				refOut, err := refPlan.Process(inTup)
+				refOut, err := refPlan.Process(inTup.Copy())
 				So(err, ShouldBeNil)
 
 				Convey(fmt.Sprintf("Then the result should match the reference in %v", idx), func() {
@@ -248,9 +248,9 @@ func TestFilterIstreamPlan(t *testing.T) {
 
 		Convey("When feeding it with tuples", func() {
 			for idx, inTup := range tuples {
-				out, err := plan.Process(inTup)
+				out, err := plan.Process(inTup.Copy())
 				So(err, ShouldBeNil)
-				refOut, err := refPlan.Process(inTup)
+				refOut, err := refPlan.Process(inTup.Copy())
 				So(err, ShouldBeNil)
 
 				Convey(fmt.Sprintf("Then the result should match the reference in %v", idx), func() {
@@ -273,7 +273,7 @@ func TestFilterIstreamPlan(t *testing.T) {
 		Convey("When feeding it with tuples", func() {
 			output := [][]tuple.Map{}
 			for _, inTup := range tuples {
-				out, err := plan.Process(inTup)
+				out, err := plan.Process(inTup.Copy())
 				So(err, ShouldBeNil)
 				output = append(output, out)
 			}
@@ -299,7 +299,7 @@ func TestFilterIstreamPlan(t *testing.T) {
 		Convey("When feeding it with tuples", func() {
 			output := [][]tuple.Map{}
 			for _, inTup := range tuples {
-				out, err := plan.Process(inTup)
+				out, err := plan.Process(inTup.Copy())
 				So(err, ShouldBeNil)
 				output = append(output, out)
 			}
