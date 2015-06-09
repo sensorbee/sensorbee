@@ -16,7 +16,7 @@ type bqlCmdState struct {
 // command is the interface to management SensorBee.
 type command interface {
 	// init the command. Returns error if the command fail to initialize.
-	init(state bqlCmdState) error
+	init(state *bqlCmdState) error
 	// name returns the names of the command. Users can execute the command
 	// function by inputting these names. The command names are not
 	// distinguished upper case or lower case.
@@ -25,14 +25,14 @@ type command interface {
 	// be executing. state have share object needed to execute the command.
 	// If input command is on the way, return false, and user can input
 	// next command.
-	execute(state bqlCmdState, input string) (bool, error)
+	execute(state *bqlCmdState, input string) (bool, error)
 }
 
 type bqlCmd struct {
 	buffer string
 }
 
-func (b *bqlCmd) init(state bqlCmdState) error {
+func (b *bqlCmd) init(state *bqlCmdState) error {
 	state.tb = bql.NewTopologyBuilder()
 	return nil
 }
@@ -41,16 +41,20 @@ func (b *bqlCmd) name() []string {
 	return []string{"select", "create", "insert"}
 }
 
-func (b *bqlCmd) execute(state bqlCmdState, input string) (bool, error) {
+func (b *bqlCmd) execute(state *bqlCmdState, input string) (bool, error) {
+	if b.buffer == "" {
+		b.buffer = input
+	} else {
+		b.buffer += "\n" + input
+	}
 	if !strings.HasSuffix(input, ";") {
-		b.buffer = b.buffer + "\n" + input
 		return false, nil
 	}
 
 	// flush buffer and get complete statement
-	b.buffer = ""
 	stmt := strings.Replace(b.buffer, "\n", " ", -1)
 	stmt = stmt[:len(stmt)-1]
+	b.buffer = ""
 
 	fmt.Printf("BQL: %s\n", stmt) // for debug, delete later
 	err := state.tb.BQL(stmt)
@@ -60,7 +64,7 @@ func (b *bqlCmd) execute(state bqlCmdState, input string) (bool, error) {
 type bqlExecuter struct {
 }
 
-func (be *bqlExecuter) init(state bqlCmdState) error {
+func (be *bqlExecuter) init(state *bqlCmdState) error {
 	return nil
 }
 
@@ -70,7 +74,7 @@ func (be *bqlExecuter) name() []string {
 
 // TODO execute can only deal with static topology
 // we have to deal with dynamic topology
-func (be *bqlExecuter) execute(state bqlCmdState, input string) (bool, error) {
+func (be *bqlExecuter) execute(state *bqlCmdState, input string) (bool, error) {
 	if state.tp == nil {
 		tp, err := state.tb.Build()
 		if err != nil {
@@ -98,7 +102,7 @@ func (be *bqlExecuter) execute(state bqlCmdState, input string) (bool, error) {
 type bqlStop struct {
 }
 
-func (bs *bqlStop) init(state bqlCmdState) error {
+func (bs *bqlStop) init(state *bqlCmdState) error {
 	return nil
 }
 
@@ -106,7 +110,7 @@ func (bs *bqlStop) name() []string {
 	return []string{"stop"}
 }
 
-func (bs *bqlStop) execute(state bqlCmdState, input string) (bool, error) {
+func (bs *bqlStop) execute(state *bqlCmdState, input string) (bool, error) {
 	if state.tp == nil {
 		return true, fmt.Errorf("not set up topology: %v", "")
 	}

@@ -12,7 +12,7 @@ var (
 	history_fn           = "/tmp/.liner_history"
 	executeExternalFiles = flag.String("file", "", "execute BQL commands from external files")
 	commandState         = bqlCmdState{}
-	commandMap           = map[string](func(bqlCmdState, string) (bool, error)){}
+	commandMap           = map[string](func(*bqlCmdState, string) (bool, error)){}
 )
 
 func setUpCommands() {
@@ -21,7 +21,7 @@ func setUpCommands() {
 	}
 
 	for _, cmd := range commands {
-		cmd.init(commandState)
+		cmd.init(&commandState)
 		for _, v := range cmd.name() {
 			commandMap[v] = cmd.execute
 		}
@@ -35,7 +35,6 @@ func prompt(line *liner.State) {
 		return
 	}
 
-	fmt.Fprintf(os.Stdout, "got: %v", input) // delete later
 	line.AppendHistory(input)
 
 	if input == "exit" {
@@ -45,30 +44,35 @@ func prompt(line *liner.State) {
 
 	in := strings.ToLower(strings.Split(input, " ")[0])
 	if cmd, ok := commandMap[in]; ok {
-		isContinue, err := cmd(commandState, input)
+		isComplete, err := cmd(&commandState, input)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
-			prompt(line)
 		}
-		if isContinue {
+		if !isComplete {
 			continuous(line, cmd)
 		}
+	} else {
+		fmt.Fprintf(os.Stdout, "not found the command: %v\n", in)
 	}
+	prompt(line)
 }
-func continuous(line *liner.State, cmd func(bqlCmdState, string) (bool, error)) {
+func continuous(line *liner.State, cmd func(*bqlCmdState, string) (bool, error)) {
 	input, err := line.Prompt(promptLineContinue)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return
 	}
-	line.AppendHistory(input)
-	isContinue, err := cmd(commandState, input)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return
-	}
-	if !isContinue {
-		return
+
+	if input != "" {
+		line.AppendHistory(input)
+		isComplete, err := cmd(&commandState, input)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return
+		}
+		if isComplete {
+			return
+		}
 	}
 	continuous(line, cmd)
 }
@@ -93,6 +97,7 @@ func CommandStart() {
 		f.Close()
 	}
 
+	fmt.Fprintln(os.Stdout, "SensorBee is started...")
 	setUpCommands()
 	prompt(line)
 
