@@ -5,6 +5,10 @@ import (
 	"strings"
 )
 
+type Expression interface {
+	ReferencedRelations() map[string]bool
+}
+
 // This file holds a set of structs that make up the Abstract
 // Syntax Tree of a BQL statement. Usually, for every rule in
 // the PEG file, the left side should correspond to a struct
@@ -63,12 +67,16 @@ type EmitProjectionsAST struct {
 }
 
 type ProjectionsAST struct {
-	Projections []interface{}
+	Projections []Expression
 }
 
 type AliasAST struct {
-	Expr  interface{}
+	Expr  Expression
 	Alias string
+}
+
+func (a AliasAST) ReferencedRelations() map[string]bool {
+	return a.Expr.ReferencedRelations()
 }
 
 type WindowedFromAST struct {
@@ -86,15 +94,15 @@ type FromAST struct {
 }
 
 type FilterAST struct {
-	Filter interface{}
+	Filter Expression
 }
 
 type GroupingAST struct {
-	GroupList []interface{}
+	GroupList []Expression
 }
 
 type HavingAST struct {
-	Having interface{}
+	Having Expression
 }
 
 type AliasRelationAST struct {
@@ -113,8 +121,16 @@ type SourceSinkParamAST struct {
 
 type BinaryOpAST struct {
 	Op    Operator
-	Left  interface{}
-	Right interface{}
+	Left  Expression
+	Right Expression
+}
+
+func (b BinaryOpAST) ReferencedRelations() map[string]bool {
+	rels := b.Left.ReferencedRelations()
+	for rel := range b.Right.ReferencedRelations() {
+		rels[rel] = true
+	}
+	return rels
 }
 
 type FuncAppAST struct {
@@ -122,8 +138,18 @@ type FuncAppAST struct {
 	ExpressionsAST
 }
 
+func (f FuncAppAST) ReferencedRelations() map[string]bool {
+	rels := map[string]bool{}
+	for _, expr := range f.Expressions {
+		for rel := range expr.ReferencedRelations() {
+			rels[rel] = true
+		}
+	}
+	return rels
+}
+
 type ExpressionsAST struct {
-	Expressions []interface{}
+	Expressions []Expression
 }
 
 // Elementary Structures (all without *AST for now)
@@ -143,6 +169,10 @@ func NewRelation(s string) Relation {
 type Wildcard struct {
 }
 
+func (w Wildcard) ReferencedRelations() map[string]bool {
+	return map[string]bool{"": true}
+}
+
 func NewWildcard() Wildcard {
 	return Wildcard{}
 }
@@ -150,6 +180,10 @@ func NewWildcard() Wildcard {
 type RowValue struct {
 	Relation string
 	Column   string
+}
+
+func (rv RowValue) ReferencedRelations() map[string]bool {
+	return map[string]bool{rv.Relation: true}
 }
 
 func NewRowValue(s string) RowValue {
@@ -175,6 +209,10 @@ type NumericLiteral struct {
 	Value int64
 }
 
+func (l NumericLiteral) ReferencedRelations() map[string]bool {
+	return nil
+}
+
 func NewNumericLiteral(s string) NumericLiteral {
 	val, err := strconv.ParseInt(s, 10, 64)
 	if err != nil {
@@ -185,6 +223,10 @@ func NewNumericLiteral(s string) NumericLiteral {
 
 type FloatLiteral struct {
 	Value float64
+}
+
+func (l FloatLiteral) ReferencedRelations() map[string]bool {
+	return nil
 }
 
 func NewFloatLiteral(s string) FloatLiteral {
@@ -199,12 +241,20 @@ type BoolLiteral struct {
 	Value bool
 }
 
+func (l BoolLiteral) ReferencedRelations() map[string]bool {
+	return nil
+}
+
 func NewBoolLiteral(b bool) BoolLiteral {
 	return BoolLiteral{b}
 }
 
 type StringLiteral struct {
 	Value string
+}
+
+func (l StringLiteral) ReferencedRelations() map[string]bool {
+	return nil
 }
 
 func NewStringLiteral(s string) StringLiteral {

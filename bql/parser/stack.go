@@ -262,8 +262,12 @@ func (ps *parseStack) AssembleEmitProjections() {
 //  ProjectionsAST{[Any, Any, Any]}
 func (ps *parseStack) AssembleProjections(begin int, end int) {
 	elems := ps.collectElements(begin, end)
+	exprs := make([]Expression, len(elems))
+	for i := range elems {
+		exprs[i] = elems[i].(Expression)
+	}
 	// push the grouped list back
-	ps.PushComponent(begin, end, ProjectionsAST{elems})
+	ps.PushComponent(begin, end, ProjectionsAST{exprs})
 }
 
 // AssembleAlias takes the topmost elements from the stack, assuming
@@ -279,7 +283,7 @@ func (ps *parseStack) AssembleAlias() {
 	_name, _expr := ps.pop2()
 
 	name := _name.comp.(Identifier)
-	expr := _expr.comp
+	expr := _expr.comp.(Expression)
 
 	ps.PushComponent(_expr.begin, _name.end, AliasAST{expr, string(name)})
 }
@@ -393,7 +397,7 @@ func (ps *parseStack) AssembleFilter(begin int, end int) {
 		if begin > f.begin || end < f.end {
 			panic("the item on top of the stack is not within given range")
 		}
-		ps.PushComponent(begin, end, FilterAST{f.comp})
+		ps.PushComponent(begin, end, FilterAST{f.comp.(Expression)})
 	}
 }
 
@@ -411,8 +415,12 @@ func (ps *parseStack) AssembleFilter(begin int, end int) {
 //  GroupingAST{[Any, Any, Any]}
 func (ps *parseStack) AssembleGrouping(begin int, end int) {
 	elems := ps.collectElements(begin, end)
+	exprs := make([]Expression, len(elems))
+	for i := range elems {
+		exprs[i] = elems[i].(Expression)
+	}
 	// push the grouped list back
-	ps.PushComponent(begin, end, GroupingAST{elems})
+	ps.PushComponent(begin, end, GroupingAST{exprs})
 }
 
 /* HAVING clause */
@@ -436,7 +444,7 @@ func (ps *parseStack) AssembleHaving(begin int, end int) {
 		if begin > h.begin || end < h.end {
 			panic("the item on top of the stack is not within given range")
 		}
-		ps.PushComponent(begin, end, HavingAST{h.comp})
+		ps.PushComponent(begin, end, HavingAST{h.comp.(Expression)})
 	}
 }
 
@@ -547,7 +555,7 @@ func (ps *parseStack) AssembleBinaryOperation(begin int, end int) {
 	} else if len(elems) == 3 {
 		op := elems[1].(Operator)
 		// connect left and right with the given operator
-		ps.PushComponent(begin, end, BinaryOpAST{op, elems[0], elems[2]})
+		ps.PushComponent(begin, end, BinaryOpAST{op, elems[0].(Expression), elems[2].(Expression)})
 	} else {
 		panic(fmt.Sprintf("cannot turn %+v into a binary operation", elems))
 	}
@@ -584,8 +592,12 @@ func (ps *parseStack) AssembleFuncApp() {
 //  ExpressionsAST{[Any, Any, Any]}
 func (ps *parseStack) AssembleExpressions(begin int, end int) {
 	elems := ps.collectElements(begin, end)
+	exprs := make([]Expression, len(elems))
+	for i := range elems {
+		exprs[i] = elems[i].(Expression)
+	}
 	// push the grouped list back
-	ps.PushComponent(begin, end, ExpressionsAST{elems})
+	ps.PushComponent(begin, end, ExpressionsAST{exprs})
 }
 
 // PushComponent pushes the given component to the top of the stack

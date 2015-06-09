@@ -58,7 +58,7 @@ func TestFuncAppConversion(t *testing.T) {
 
 		Convey("When a function is known in the registry", func() {
 			ast := parser.FuncAppAST{parser.FuncName("plusone"),
-				parser.ExpressionsAST{[]interface{}{
+				parser.ExpressionsAST{[]parser.Expression{
 					parser.RowValue{"", "a"},
 				}}}
 
@@ -71,7 +71,7 @@ func TestFuncAppConversion(t *testing.T) {
 
 		Convey("When the function is not known in the registry", func() {
 			ast := parser.FuncAppAST{parser.FuncName("fun"),
-				parser.ExpressionsAST{[]interface{}{
+				parser.ExpressionsAST{[]parser.Expression{
 					parser.RowValue{"", "a"},
 				}}}
 
@@ -969,7 +969,7 @@ func getTestCases() []struct {
 		},
 		/// Function Application
 		{parser.FuncAppAST{parser.FuncName("plusone"),
-			parser.ExpressionsAST{[]interface{}{parser.RowValue{"", "a"}}}},
+			parser.ExpressionsAST{[]parser.Expression{parser.RowValue{"", "a"}}}},
 			// NB. This only tests the behavior of funcApp.Eval.
 			// It does *not* test the function registry, mismatch
 			// in parameter counts or any particular function.
