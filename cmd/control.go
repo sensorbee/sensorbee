@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	history_fn           = "/tmp/.liner_history"
+	historyFn            = "/tmp/.liner_history"
 	executeExternalFiles = flag.String("file", "", "execute BQL commands from external files")
 	commandState         = bqlCmdState{}
 	commandMap           = map[string](func(*bqlCmdState, string) (bool, error)){}
@@ -92,7 +92,7 @@ func CommandStart() {
 		return
 	})
 
-	if f, err := os.Open(history_fn); err == nil {
+	if f, err := os.Open(historyFn); err == nil {
 		line.ReadHistory(f)
 		f.Close()
 	}
@@ -101,7 +101,7 @@ func CommandStart() {
 	setUpCommands()
 	prompt(line)
 
-	if f, err := os.Create(history_fn); err != nil {
+	if f, err := os.Create(historyFn); err != nil {
 		fmt.Fprintf(os.Stderr, "error writing history file: %v", err)
 	} else {
 		line.WriteHistory(f)
