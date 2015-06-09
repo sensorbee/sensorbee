@@ -143,6 +143,8 @@ func (ep *defaultSelectExecutionPlan) addTupleToBuffer(t *tuple.Tuple) error {
 			if numAppends > 1 {
 				editTuple = t.Copy()
 			}
+			// nest the data in a one-element map using the alias as the key
+			editTuple.Data = tuple.Map{rel.Alias: editTuple.Data}
 			// TODO maybe a slice is not the best implementation for a queue?
 			ep.buffers[rel.Alias] = append(ep.buffers[rel.Alias], editTuple)
 		}

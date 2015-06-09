@@ -118,6 +118,7 @@ func validateReferences(s *parser.CreateStreamAsSelectStmt) error {
 
 	// define a recursive function to collect all referenced relations
 	// and store them in the given map
+	// TODO move this to the AST structs as a method?
 	var collectRels func(interface{}, map[string]bool) error
 	collectRels = func(_expr interface{}, rels map[string]bool) error {
 		if _expr == nil {
@@ -151,21 +152,87 @@ func validateReferences(s *parser.CreateStreamAsSelectStmt) error {
 		}
 		return nil
 	}
-
 	// collect the referenced relations in SELECT, WHERE, GROUP BY clauses
+	// and store them in the given map
+	collectAllRels := func(rels map[string]bool) error {
+		for _, proj := range s.Projections {
+			if err := collectRels(proj, rels); err != nil {
+				return err
+			}
+		}
+		if err := collectRels(s.Filter, rels); err != nil {
+			return err
+		}
+		for _, group := range s.GroupList {
+			if err := collectRels(group, rels); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
+	// define a recursive function to rename all referenced relations
+	// TODO move this to the AST structs as a method?
+	var renameRelationRefs func(*interface{}, string, string) error
+	renameRelationRefs = func(_exprPtr *interface{}, from, to string) error {
+		if _exprPtr == nil || *_exprPtr == nil {
+			return nil
+		}
+		switch expr := (*_exprPtr).(type) {
+		default:
+			return fmt.Errorf("don't know how to rename referenced "+
+				"relations in AST object %v", expr)
+		case parser.RowValue:
+			if expr.Relation == from {
+				expr.Relation = to
+			}
+			*_exprPtr = expr
+		case parser.AliasAST:
+			renameRelationRefs(&expr.Expr, from, to)
+			*_exprPtr = expr
+		case parser.NumericLiteral, parser.FloatLiteral, parser.BoolLiteral:
+			// no referenced relations
+		case parser.BinaryOpAST:
+			if err := renameRelationRefs(&expr.Left, from, to); err != nil {
+				return err
+			}
+			if err := renameRelationRefs(&expr.Right, from, to); err != nil {
+				return err
+			}
+			*_exprPtr = expr
+		case parser.FuncAppAST:
+			for i := range expr.Expressions {
+				if err := renameRelationRefs(&expr.Expressions[i], from, to); err != nil {
+					return err
+				}
+			}
+			*_exprPtr = expr
+		case parser.Wildcard:
+			// this is special, we can't use `rel.*` at the moment
+		}
+		return nil
+	}
+	// rename all referenced relations in SELECT, WHERE, GROUP BY clauses
+	renameAllRelationRefs := func(from, to string) error {
+		for i := range s.Projections {
+			if err := renameRelationRefs(&s.Projections[i], from, to); err != nil {
+				return err
+			}
+		}
+		if err := renameRelationRefs(&s.Filter, from, to); err != nil {
+			return err
+		}
+		for i := range s.GroupList {
+			if err := renameRelationRefs(&s.GroupList[i], from, to); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
 	refRels := map[string]bool{}
-	for _, proj := range s.Projections {
-		if err := collectRels(proj, refRels); err != nil {
-			return err
-		}
-	}
-	if err := collectRels(s.Filter, refRels); err != nil {
+	if err := collectAllRels(refRels); err != nil {
 		return err
-	}
-	for _, group := range s.GroupList {
-		if err := collectRels(group, refRels); err != nil {
-			return err
-		}
 	}
 
 	// do the correctness check for SELECT, WHERE, GROUP BY clauses
@@ -186,6 +253,13 @@ func validateReferences(s *parser.CreateStreamAsSelectStmt) error {
 					return err
 				}
 			}
+			// we need to make the references more explicit,
+			// i.e., change all the references to "" to the name
+			// of the only input relation
+			if err := renameAllRelationRefs("", inputRel); err != nil {
+				return err
+			}
+
 		} else if len(refRels) > 1 {
 			// Sample: SELECT a, b.a FROM b // SELECT b.a, x.a FROM b
 			// this is an invalid statement

@@ -20,7 +20,7 @@ type Evaluator interface {
 func ExpressionToEvaluator(ast interface{}, reg udf.FunctionRegistry) (Evaluator, error) {
 	switch obj := ast.(type) {
 	case parser.RowValue:
-		return &PathAccess{obj.Column}, nil
+		return &PathAccess{obj.Relation + "." + obj.Column}, nil
 	case parser.AliasAST:
 		return ExpressionToEvaluator(obj.Expr, reg)
 	case parser.NumericLiteral:
@@ -499,7 +499,13 @@ func FuncApp(name string, f udf.VarParamFun, params []Evaluator) Evaluator {
 	return &funcApp{name, fVal, params, paramValues}
 }
 
-// Wildcard only works on Maps and returns the data given to it.
+// Wildcard only works on Maps, assumes that the elements are also Maps
+// and pulls them up one level, so
+//   {"a": {"x": ...}, "b": {"y": ..., "z": ...}}
+// becomes
+//   {"x": ..., "y": ..., "z": ...}.
+// If there are keys appearing in multiple top-level Maps, then only one
+// of them will appear in the output, but it is undefined which of them.
 type Wildcard struct{}
 
 func (w *Wildcard) Eval(input tuple.Value) (tuple.Value, error) {
@@ -507,5 +513,15 @@ func (w *Wildcard) Eval(input tuple.Value) (tuple.Value, error) {
 	if err != nil {
 		return nil, err
 	}
-	return aMap, nil
+	output := tuple.Map{}
+	for _, subElement := range aMap {
+		subMap, err := tuple.AsMap(subElement)
+		if err != nil {
+			return nil, err
+		}
+		for key, value := range subMap {
+			output[key] = value
+		}
+	}
+	return output, nil
 }
