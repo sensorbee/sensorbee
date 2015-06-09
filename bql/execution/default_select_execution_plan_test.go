@@ -17,7 +17,7 @@ func getTuples(num int) []*tuple.Tuple {
 			Data: tuple.Map{
 				"int": tuple.Int(i + 1),
 			},
-			InputName:     "input",
+			InputName:     "src",
 			Timestamp:     time.Date(2015, time.April, 10, 10, 23, i, 0, time.UTC),
 			ProcTimestamp: time.Date(2015, time.April, 10, 10, 24, i, 0, time.UTC),
 			BatchID:       7,
@@ -127,6 +127,28 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 	Convey("Given a SELECT clause with a constant and a column", t, func() {
 		tuples := getTuples(4)
 		s := `CREATE STREAM box AS SELECT ISTREAM(2, int) FROM src [RANGE 2 SECONDS]`
+		plan, err := createDefaultSelectPlan(s, t)
+		So(err, ShouldBeNil)
+
+		Convey("When feeding it with tuples", func() {
+			for idx, inTup := range tuples {
+				out, err := plan.Process(inTup)
+				So(err, ShouldBeNil)
+
+				Convey(fmt.Sprintf("Then those values should appear in %v", idx), func() {
+					So(len(out), ShouldEqual, 1)
+					So(out[0], ShouldResemble,
+						tuple.Map{"col_1": tuple.Int(2), "int": tuple.Int(idx + 1)})
+				})
+			}
+
+		})
+	})
+
+	// Select constant and a column with changing values from aliased relation
+	Convey("Given a SELECT clause with a constant and a column", t, func() {
+		tuples := getTuples(4)
+		s := `CREATE STREAM box AS SELECT ISTREAM(2, int) FROM src AS x [RANGE 2 SECONDS]`
 		plan, err := createDefaultSelectPlan(s, t)
 		So(err, ShouldBeNil)
 
