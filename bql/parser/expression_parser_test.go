@@ -7,7 +7,7 @@ import (
 )
 
 func TestExpressionParser(t *testing.T) {
-	testCases := map[string][]interface{}{
+	testCases := map[string][]Expression{
 		/// Base Expressions
 		// BooleanLiteral
 		"true":  {BoolLiteral{true}},
@@ -15,9 +15,9 @@ func TestExpressionParser(t *testing.T) {
 		"false": {BoolLiteral{false}},
 		// Function Application
 		"f(a)": {FuncAppAST{FuncName("f"),
-			ExpressionsAST{[]interface{}{RowValue{"", "a"}}}}},
+			ExpressionsAST{[]Expression{RowValue{"", "a"}}}}},
 		"f(2.1, 'a')": {FuncAppAST{FuncName("f"),
-			ExpressionsAST{[]interface{}{FloatLiteral{2.1}, StringLiteral{"a"}}}}},
+			ExpressionsAST{[]Expression{FloatLiteral{2.1}, StringLiteral{"a"}}}}},
 		// RowValue
 		"a":         {RowValue{"", "a"}},
 		"tab.a":     {RowValue{"tab", "a"}},
@@ -115,7 +115,7 @@ func TestExpressionParser(t *testing.T) {
 		"a, 3.1, false, -2": {RowValue{"", "a"}, FloatLiteral{3.1}, BoolLiteral{false}, NumericLiteral{-2}},
 		`'日本語', 13`:         {StringLiteral{"日本語"}, NumericLiteral{13}},
 		"concat(a, 'Pi', 3.1), b": {FuncAppAST{FuncName("concat"), ExpressionsAST{
-			[]interface{}{RowValue{"", "a"}, StringLiteral{"Pi"}, FloatLiteral{3.1}}}},
+			[]Expression{RowValue{"", "a"}, StringLiteral{"Pi"}, FloatLiteral{3.1}}}},
 			RowValue{"", "b"}},
 	}
 

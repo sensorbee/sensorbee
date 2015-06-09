@@ -116,65 +116,10 @@ func validateReferences(s *parser.CreateStreamAsSelectStmt) error {
 	   the input relations (as in `SELECT a.col, b.col FROM a, b`).
 	*/
 
-	// define a recursive function to collect all referenced relations
-	// and store them in the given map
-	// TODO move this to the AST structs as a method?
-	var collectRels func(interface{}, map[string]bool) error
-	collectRels = func(_expr interface{}, rels map[string]bool) error {
-		if _expr == nil {
-			return nil
-		}
-		switch expr := _expr.(type) {
-		default:
-			return fmt.Errorf("don't know how to collect referenced "+
-				"relations from AST object %T", _expr)
-		case parser.RowValue:
-			rels[expr.Relation] = true
-		case parser.AliasAST:
-			return collectRels(expr.Expr, rels)
-		case parser.NumericLiteral, parser.FloatLiteral, parser.BoolLiteral:
-			// no referenced relations
-		case parser.BinaryOpAST:
-			if err := collectRels(expr.Left, rels); err != nil {
-				return err
-			}
-			if err := collectRels(expr.Right, rels); err != nil {
-				return err
-			}
-		case parser.FuncAppAST:
-			for _, e := range expr.Expressions {
-				if err := collectRels(e, rels); err != nil {
-					return err
-				}
-			}
-		case parser.Wildcard:
-			// this is special, we can't use `rel.*` at the moment
-		}
-		return nil
-	}
-	// collect the referenced relations in SELECT, WHERE, GROUP BY clauses
-	// and store them in the given map
-	collectAllRels := func(rels map[string]bool) error {
-		for _, proj := range s.Projections {
-			if err := collectRels(proj, rels); err != nil {
-				return err
-			}
-		}
-		if err := collectRels(s.Filter, rels); err != nil {
-			return err
-		}
-		for _, group := range s.GroupList {
-			if err := collectRels(group, rels); err != nil {
-				return err
-			}
-		}
-		return nil
-	}
-
 	// define a recursive function to rename all referenced relations
 	// TODO move this to the AST structs as a method?
-	var renameRelationRefs func(*interface{}, string, string) error
-	renameRelationRefs = func(_exprPtr *interface{}, from, to string) error {
+	var renameRelationRefs func(*parser.Expression, string, string) error
+	renameRelationRefs = func(_exprPtr *parser.Expression, from, to string) error {
 		if _exprPtr == nil || *_exprPtr == nil {
 			return nil
 		}
@@ -230,9 +175,23 @@ func validateReferences(s *parser.CreateStreamAsSelectStmt) error {
 		return nil
 	}
 
+	// collect the referenced relations in SELECT, WHERE, GROUP BY clauses
+	// and store them in the given map
 	refRels := map[string]bool{}
-	if err := collectAllRels(refRels); err != nil {
-		return err
+	for _, proj := range s.Projections {
+		for rel := range proj.ReferencedRelations() {
+			refRels[rel] = true
+		}
+	}
+	if s.Filter != nil {
+		for rel := range s.Filter.ReferencedRelations() {
+			refRels[rel] = true
+		}
+	}
+	for _, group := range s.GroupList {
+		for rel := range group.ReferencedRelations() {
+			refRels[rel] = true
+		}
 	}
 
 	// do the correctness check for SELECT, WHERE, GROUP BY clauses
@@ -304,8 +263,10 @@ func validateReferences(s *parser.CreateStreamAsSelectStmt) error {
 	// output columns, therefore must not contain references to input
 	// relations
 	havingRels := map[string]bool{}
-	if err := collectRels(s.Having, havingRels); err != nil {
-		return err
+	if s.Having != nil {
+		for rel := range s.Having.ReferencedRelations() {
+			havingRels[rel] = true
+		}
 	}
 	for rel := range havingRels {
 		if rel != "" {

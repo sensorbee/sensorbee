@@ -12,7 +12,7 @@ func TestAssembleEmitProjections(t *testing.T) {
 		Convey("When the stack contains two correct items", func() {
 			ps.PushComponent(0, 4, Raw{"PRE"})
 			ps.PushComponent(4, 6, Istream)
-			ps.PushComponent(6, 8, ProjectionsAST{[]interface{}{RowValue{"", "a"},
+			ps.PushComponent(6, 8, ProjectionsAST{[]Expression{RowValue{"", "a"},
 				RowValue{"", "b"}}})
 			ps.AssembleEmitProjections()
 
