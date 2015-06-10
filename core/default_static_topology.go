@@ -23,9 +23,8 @@ type defaultStaticTopology struct {
 	// nodes holds a staticNode for each box or sink in the topology.
 	nodes map[string]*staticNode
 
-	state      TopologyState
+	state      *topologyStateHolder
 	stateMutex *sync.Mutex
-	stateCond  *sync.Cond
 
 	fatalListenerMutex sync.Mutex
 	fatalListener      []func(ctx *Context, name string, err error)
@@ -35,14 +34,12 @@ func (t *defaultStaticTopology) Run(ctx *Context) error {
 	checkState := func() error { // A closure is used to perform defer
 		t.stateMutex.Lock()
 		defer t.stateMutex.Unlock()
-		switch t.state {
+		switch t.state.state {
 		case TSInitialized:
 		case TSStarting:
 			// Immediately returning an error could be confusing for callers,
 			// so wait until the topology becomes at least the running state.
-			if _, err := t.wait(TSRunning); err != nil {
-				return err
-			}
+			t.state.waitWithoutLock(TSRunning)
 
 			// It's natural for Run to return an error when the state isn't
 			// TSInitialized even if it's TSStarting so that only a single
@@ -52,8 +49,7 @@ func (t *defaultStaticTopology) Run(ctx *Context) error {
 		default:
 			return fmt.Errorf("the static topology has already started")
 		}
-		t.state = TSStarting
-		t.stateCond.Broadcast()
+		t.state.setWithoutLock(TSStarting)
 		return nil
 	}
 	if err := checkState(); err != nil {
@@ -63,7 +59,7 @@ func (t *defaultStaticTopology) Run(ctx *Context) error {
 	// Don't move this defer to the head of the method otherwise calling
 	// Run method when the state is TSRunning will set TSStopped without
 	// actually stopping the topology.
-	defer t.setState(TSStopped)
+	defer t.state.Set(TSStopped)
 
 	// Initialize boxes in advance.
 	var inited []string
@@ -92,13 +88,6 @@ func (t *defaultStaticTopology) Run(ctx *Context) error {
 		inited = append(inited, name)
 	}
 	return t.run(ctx)
-}
-
-func (t *defaultStaticTopology) setState(s TopologyState) {
-	t.stateMutex.Lock()
-	defer t.stateMutex.Unlock()
-	t.state = s
-	t.stateCond.Broadcast()
 }
 
 // run spawns goroutines for sources, boxes, and sinks.
@@ -146,7 +135,7 @@ func (t *defaultStaticTopology) run(ctx *Context) error {
 		go f()
 	}
 
-	t.setState(TSRunning)
+	t.state.Set(TSRunning)
 	wg.Wait()
 	return nil
 }
@@ -175,9 +164,7 @@ func (t *defaultStaticTopology) closeDestination(ctx *Context, src string) error
 
 // State returns the current state of the topology. See TopologyState for details.
 func (t *defaultStaticTopology) State(ctx *Context) TopologyState {
-	t.stateMutex.Lock()
-	defer t.stateMutex.Unlock()
-	return t.state
+	return t.state.Get()
 }
 
 // Wait waits until the topology has the specified state. It returns the
@@ -186,18 +173,8 @@ func (t *defaultStaticTopology) State(ctx *Context) TopologyState {
 // the given state when error is nil. For example, when Wait(TSStarting) is
 // is called, TSRunning or TSStopped can be returned.
 func (t *defaultStaticTopology) Wait(ctx *Context, s TopologyState) (TopologyState, error) {
-	t.stateMutex.Lock()
-	defer t.stateMutex.Unlock()
-	return t.wait(s)
-}
-
-// wait is the internal version of Wait. It assumes the caller
-// has already acquired the lock of stateMutex.
-func (t *defaultStaticTopology) wait(s TopologyState) (TopologyState, error) {
-	for t.state < s {
-		t.stateCond.Wait()
-	}
-	return t.state, nil
+	newState := t.state.Wait(s)
+	return newState, nil
 }
 
 func (t *defaultStaticTopology) Stop(ctx *Context) error {
@@ -205,36 +182,32 @@ func (t *defaultStaticTopology) Stop(ctx *Context) error {
 		t.stateMutex.Lock()
 		defer t.stateMutex.Unlock()
 		for {
-			switch t.state {
+			switch t.state.state {
 			case TSInitialized:
-				t.state = TSStopped
-				t.stateCond.Broadcast()
+				t.state.setWithoutLock(TSStopped)
 				return true, nil
 
 			case TSStarting:
-				if _, err := t.wait(TSRunning); err != nil {
-					return false, err
-				}
+				t.state.waitWithoutLock(TSRunning)
 				// If somebody else has already stopped the topology,
 				// the state might be different from TSRunning. So, this process
 				// continues to the next iteration.
 
 			case TSRunning:
-				t.state = TSStopping
-				t.stateCond.Broadcast()
+				t.state.setWithoutLock(TSStopping)
 				return false, nil
 
 			case TSStopping:
 				// Someone else is trying to stop the topology. This thread
 				// just waits until it's stopped.
-				_, err := t.wait(TSStopped)
-				return true, err
+				t.state.waitWithoutLock(TSStopped)
+				return true, nil
 
 			case TSStopped:
 				return true, nil
 
 			default:
-				return false, fmt.Errorf("the static topology has an invalid state: %v", t.state)
+				return false, fmt.Errorf("the static topology has an invalid state: %v", t.state.state)
 			}
 		}
 	}()
@@ -276,13 +249,12 @@ func (t *defaultStaticTopology) Stop(ctx *Context) error {
 	if err == nil && len(stopFailures) > 0 {
 		// If some sources couldn't be stopped, t.wait(TSStopped) would block forever.
 		// So, the state must be set TSStopped here although Run is still running,
-		t.state = TSStopped
-		t.stateCond.Broadcast()
+		t.state.setWithoutLock(TSStopped)
 		return fmt.Errorf("%v sources couldn't be stopped but the topology has stopped: failed sources = %v",
 			len(stopFailures), strings.Join(stopFailures, ", "))
 	}
-	_, err = t.wait(TSStopped)
-	return err
+	t.state.waitWithoutLock(TSStopped)
+	return nil
 }
 
 // AddFatalListener adds a listener function to the topology. The listener is
