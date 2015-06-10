@@ -237,6 +237,8 @@ func (s *dynamicDataSources) pouringThread(ctx *Context, w Writer, cs []reflect.
 		maxControlIndex = defaultCase
 	)
 
+	// TODO: currently defaultDynamicTopology.Stop deadlocks when a box panics. Fix it later.
+
 	defer func() {
 		if e := recover(); e != nil {
 			if err, ok := e.(error); ok {

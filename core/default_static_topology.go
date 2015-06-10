@@ -164,7 +164,7 @@ func (t *defaultStaticTopology) closeDestination(ctx *Context, src string) error
 
 // State returns the current state of the topology. See TopologyState for details.
 func (t *defaultStaticTopology) State(ctx *Context) TopologyState {
-	return t.state.State()
+	return t.state.Get()
 }
 
 // Wait waits until the topology has the specified state. It returns the
