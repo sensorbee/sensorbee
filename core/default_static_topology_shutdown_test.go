@@ -4,6 +4,7 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 	"pfi/sensorbee/sensorbee/core/tuple"
 	"sync"
+	"sync/atomic"
 	"testing"
 )
 
@@ -64,6 +65,20 @@ func (t *terminateChecker) WaitForTermination() {
 	}
 }
 
+type sinkCloseChecker struct {
+	s        Sink
+	closeCnt int32
+}
+
+func (s *sinkCloseChecker) Write(ctx *Context, t *tuple.Tuple) error {
+	return s.s.Write(ctx, t)
+}
+
+func (s *sinkCloseChecker) Close(ctx *Context) error {
+	atomic.AddInt32(&s.closeCnt, 1)
+	return s.s.Close(ctx)
+}
+
 // On one topology, there're some patterns to be tested.
 //
 // 1. Call Stop when no tuple was generated from Source.
@@ -104,7 +119,8 @@ func TestShutdownLinearDefaultStaticTopology(t *testing.T) {
 		So(tb.AddBox("box2", tc2).Input("box1").Err(), ShouldBeNil)
 
 		si := NewTupleCollectorSink()
-		So(tb.AddSink("sink", si).Input("box2").Err(), ShouldBeNil)
+		sic := &sinkCloseChecker{s: si}
+		So(tb.AddSink("sink", sic).Input("box2").Err(), ShouldBeNil)
 
 		ti, err := tb.Build()
 		So(err, ShouldBeNil)
@@ -119,6 +135,10 @@ func TestShutdownLinearDefaultStaticTopology(t *testing.T) {
 			Convey("Then Box.Terminate should be called exactly once", func() {
 				So(tc1.terminateCnt, ShouldEqual, 1)
 				So(tc2.terminateCnt, ShouldEqual, 1)
+			})
+
+			Convey("Then Sink.Close should be called exactly once", func() {
+				So(sic.closeCnt, ShouldEqual, 1)
 			})
 		}
 
@@ -264,9 +284,11 @@ func TestShutdownForkDefaultStaticTopology(t *testing.T) {
 		So(tb.AddBox("box2", tc2).Input("source").Err(), ShouldBeNil)
 
 		si1 := NewTupleCollectorSink()
-		So(tb.AddSink("si1", si1).Input("box1").Err(), ShouldBeNil)
+		sic1 := &sinkCloseChecker{s: si1}
+		So(tb.AddSink("si1", sic1).Input("box1").Err(), ShouldBeNil)
 		si2 := NewTupleCollectorSink()
-		So(tb.AddSink("si2", si2).Input("box2").Err(), ShouldBeNil)
+		sic2 := &sinkCloseChecker{s: si2}
+		So(tb.AddSink("si2", sic2).Input("box2").Err(), ShouldBeNil)
 
 		ti, err := tb.Build()
 		So(err, ShouldBeNil)
@@ -281,6 +303,11 @@ func TestShutdownForkDefaultStaticTopology(t *testing.T) {
 			Convey("Then Box.Terminate should be called exactly once", func() {
 				So(tc1.terminateCnt, ShouldEqual, 1)
 				So(tc2.terminateCnt, ShouldEqual, 1)
+			})
+
+			Convey("Then Sink.Close should be called exactly once", func() {
+				So(sic1.closeCnt, ShouldEqual, 1)
+				So(sic2.closeCnt, ShouldEqual, 1)
 			})
 		}
 
@@ -458,7 +485,8 @@ func TestShutdownJoinDefaultStaticTopology(t *testing.T) {
 		So(tb.AddBox("box1", tc1).Input("source1").Input("source2").Err(), ShouldBeNil)
 
 		si := NewTupleCollectorSink()
-		So(tb.AddSink("sink", si).Input("box1").Err(), ShouldBeNil)
+		sic := &sinkCloseChecker{s: si}
+		So(tb.AddSink("sink", sic).Input("box1").Err(), ShouldBeNil)
 
 		ti, err := tb.Build()
 		So(err, ShouldBeNil)
@@ -472,6 +500,10 @@ func TestShutdownJoinDefaultStaticTopology(t *testing.T) {
 
 			Convey("Then Box.Terminate should be called exactly once", func() {
 				So(tc1.terminateCnt, ShouldEqual, 1)
+			})
+
+			Convey("Then Sink.Close should be called exactly once", func() {
+				So(sic.closeCnt, ShouldEqual, 1)
 			})
 		}
 
