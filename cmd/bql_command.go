@@ -7,41 +7,31 @@ import (
 	"strings"
 )
 
-type bqlCmdState struct {
+type bqlCommandState struct {
 	tb  *bql.TopologyBuilder
 	tp  core.StaticTopology
 	ctx core.Context
 }
 
-// command is the interface to management SensorBee.
-type command interface {
-	// init the command. Returns error if the command fail to initialize.
-	init(state *bqlCmdState) error
-	// name returns the names of the command. Users can execute the command
-	// function by inputting these names. The command names are not
-	// distinguished upper case or lower case.
-	name() []string
-	// execute the command function. Returns error if the function fail to
-	// be executing. state have share object needed to execute the command.
-	// If input command is on the way, return false, and user can input
-	// next command.
-	execute(state *bqlCmdState, input string) (bool, error)
-}
+var bqlCmdState = bqlCommandState{}
 
 type bqlCmd struct {
 	buffer string
 }
 
-func (b *bqlCmd) init(state *bqlCmdState) error {
-	state.tb = bql.NewTopologyBuilder()
+// Init BQL state.
+func (b *bqlCmd) Init() error {
+	bqlCmdState.tb = bql.NewTopologyBuilder()
 	return nil
 }
 
-func (b *bqlCmd) name() []string {
+// Name returns BQL start words.
+func (b *bqlCmd) Name() []string {
 	return []string{"select", "create", "insert"}
 }
 
-func (b *bqlCmd) execute(state *bqlCmdState, input string) (bool, error) {
+// Execute topology builder building, and register BQL statements.
+func (b *bqlCmd) Execute(input string) (bool, error) {
 	if b.buffer == "" {
 		b.buffer = input
 	} else {
@@ -57,30 +47,33 @@ func (b *bqlCmd) execute(state *bqlCmdState, input string) (bool, error) {
 	b.buffer = ""
 
 	fmt.Printf("BQL: %s\n", stmt) // for debug, delete later
-	err := state.tb.BQL(stmt)
+	err := bqlCmdState.tb.BQL(stmt)
 	return true, err
 }
 
 type bqlExecuter struct {
 }
 
-func (be *bqlExecuter) init(state *bqlCmdState) error {
+// Init (nothing to do)
+func (be *bqlExecuter) Init() error {
 	return nil
 }
 
-func (be *bqlExecuter) name() []string {
+// Name returns topology start words.
+func (be *bqlExecuter) Name() []string {
 	return []string{"run", "start"}
 }
 
+// Execute topology run.
 // TODO execute can only deal with static topology
 // we have to deal with dynamic topology
-func (be *bqlExecuter) execute(state *bqlCmdState, input string) (bool, error) {
-	if state.tp == nil {
-		tp, err := state.tb.Build()
+func (be *bqlExecuter) Execute(input string) (bool, error) {
+	if bqlCmdState.tp == nil {
+		tp, err := bqlCmdState.tb.Build()
 		if err != nil {
 			return true, err
 		}
-		state.tp = tp
+		bqlCmdState.tp = tp
 
 		// TODO create context
 		logManaget := core.NewConsolePrintLogger()
@@ -91,10 +84,10 @@ func (be *bqlExecuter) execute(state *bqlCmdState, input string) (bool, error) {
 			Logger: logManaget,
 			Config: conf,
 		}
-		state.ctx = ctx
+		bqlCmdState.ctx = ctx
 	}
 
-	err := state.tp.Run(&(state.ctx))              // TODO use goroutine?
+	err := bqlCmdState.tp.Run(&(bqlCmdState.ctx))  // TODO use goroutine?
 	fmt.Println("!!! topology is run and end !!!") // for debug, delete later
 	return true, err
 }
@@ -102,18 +95,22 @@ func (be *bqlExecuter) execute(state *bqlCmdState, input string) (bool, error) {
 type bqlStop struct {
 }
 
-func (bs *bqlStop) init(state *bqlCmdState) error {
+// Init (nothing to do)
+func (bs *bqlStop) Init() error {
 	return nil
 }
 
-func (bs *bqlStop) name() []string {
+// Name returns topology stop word.
+func (bs *bqlStop) Name() []string {
 	return []string{"stop"}
 }
 
-func (bs *bqlStop) execute(state *bqlCmdState, input string) (bool, error) {
-	if state.tp == nil {
+// Execute to stop topology, will be stopped all components.
+// This means not to stop SensorBee.
+func (bs *bqlStop) Execute(input string) (bool, error) {
+	if bqlCmdState.tp == nil {
 		return true, fmt.Errorf("not set up topology: %v", "")
 	}
-	err := state.tp.Stop(&(state.ctx))
+	err := bqlCmdState.tp.Stop(&(bqlCmdState.ctx))
 	return true, err
 }
