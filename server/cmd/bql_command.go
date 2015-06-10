@@ -7,6 +7,11 @@ import (
 	"strings"
 )
 
+// NewBQLCommands return command list to execute BQL statement.
+func NewBQLCommands() []Command {
+	return []Command{&bqlCmd{}, &bqlExecuter{}, &bqlStop{}}
+}
+
 type bqlCommandState struct {
 	tb  *bql.TopologyBuilder
 	tp  core.StaticTopology
