@@ -393,7 +393,7 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 		})
 	})
 
-	SkipConvey("Given a SELECT clause with a column that does not exist in one tuple (ISTREAM)", t, func() {
+	Convey("Given a SELECT clause with a column that does not exist in one tuple (ISTREAM)", t, func() {
 		tuples := getTuples(6)
 		// remove the selected key from one tuple
 		delete(tuples[1].Data, "int")
@@ -450,7 +450,7 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 		})
 	})
 
-	SkipConvey("Given a SELECT clause with a column that does not exist in one tuple (DSTREAM)", t, func() {
+	Convey("Given a SELECT clause with a column that does not exist in one tuple (DSTREAM)", t, func() {
 		tuples := getTuples(6)
 		// remove the selected key from one tuple
 		delete(tuples[1].Data, "int")
@@ -849,6 +849,121 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 				So(output[3][0], ShouldResemble, tuple.Map{"a": tuple.Int(2)})
 			})
 
+		})
+	})
+}
+
+func TestDefaultSelectExecutionPlanJoin(t *testing.T) {
+	Convey("Given a JOIN selecting from left and right", t, func() {
+		tuples := getTuples(8)
+		// rearrange the tuples
+		for i, t := range tuples {
+			if i%2 == 0 {
+				t.InputName = "src1"
+				t.Data["l"] = tuple.String(fmt.Sprintf("l%d", i))
+			} else {
+				t.InputName = "src2"
+				t.Data["r"] = tuple.String(fmt.Sprintf("r%d", i))
+			}
+		}
+		s := `CREATE STREAM box AS SELECT ISTREAM(src1.l, src2.r) FROM src1, src2 [RANGE 2 TUPLES]`
+		plan, err := createDefaultSelectPlan(s, t)
+		So(err, ShouldBeNil)
+
+		Convey("When feeding it with tuples", func() {
+			for idx, inTup := range tuples {
+				out, err := plan.Process(inTup)
+				So(err, ShouldBeNil)
+
+				Convey(fmt.Sprintf("Then that constant should appear in %v", idx), func() {
+					if idx == 0 {
+						So(len(out), ShouldEqual, 0)
+					} else if idx == 1 {
+						So(len(out), ShouldEqual, 1)
+						So(out[0], ShouldResemble, tuple.Map{
+							"l": tuple.String("l0"),
+							"r": tuple.String("r1"),
+						})
+					} else if idx == 2 {
+						So(len(out), ShouldEqual, 1)
+						So(out[0], ShouldResemble, tuple.Map{
+							"l": tuple.String("l2"),
+							"r": tuple.String("r1"),
+						})
+					} else if idx%2 == 1 {
+						// a tuple from src2 (=right) was just added
+						So(len(out), ShouldEqual, 2)
+						So(out[0], ShouldResemble, tuple.Map{
+							"l": tuple.String(fmt.Sprintf("l%d", idx-3)),
+							"r": tuple.String(fmt.Sprintf("r%d", idx)),
+						})
+						So(out[1], ShouldResemble, tuple.Map{
+							"l": tuple.String(fmt.Sprintf("l%d", idx-1)),
+							"r": tuple.String(fmt.Sprintf("r%d", idx)),
+						})
+					} else {
+						// a tuple from src1 (=left) was just added
+						So(len(out), ShouldEqual, 2)
+						So(out[0], ShouldResemble, tuple.Map{
+							"l": tuple.String(fmt.Sprintf("l%d", idx)),
+							"r": tuple.String(fmt.Sprintf("r%d", idx-3)),
+						})
+						So(out[1], ShouldResemble, tuple.Map{
+							"l": tuple.String(fmt.Sprintf("l%d", idx)),
+							"r": tuple.String(fmt.Sprintf("r%d", idx-1)),
+						})
+					}
+				})
+			}
+		})
+	})
+
+	Convey("Given a JOIN selecting from left and right with a join condition", t, func() {
+		tuples := getTuples(8)
+		// rearrange the tuples
+		for i, t := range tuples {
+			if i%2 == 0 {
+				t.InputName = "src1"
+				t.Data["l"] = tuple.String(fmt.Sprintf("l%d", i))
+			} else {
+				t.InputName = "src2"
+				t.Data["r"] = tuple.String(fmt.Sprintf("r%d", i))
+			}
+		}
+		s := `CREATE STREAM box AS SELECT ISTREAM(src1.l, src2.r) FROM src1, src2 [RANGE 2 TUPLES] ` +
+			`WHERE src1.int + 1 = src2.int`
+		plan, err := createDefaultSelectPlan(s, t)
+		So(err, ShouldBeNil)
+
+		Convey("When feeding it with tuples", func() {
+			for idx, inTup := range tuples {
+				out, err := plan.Process(inTup)
+				So(err, ShouldBeNil)
+
+				Convey(fmt.Sprintf("Then that constant should appear in %v", idx), func() {
+					if idx == 0 {
+						So(len(out), ShouldEqual, 0)
+					} else if idx == 1 {
+						So(len(out), ShouldEqual, 1)
+						So(out[0], ShouldResemble, tuple.Map{
+							"l": tuple.String("l0"), // int: 1
+							"r": tuple.String("r1"), // int: 2
+						})
+					} else if idx == 2 {
+						So(len(out), ShouldEqual, 0)
+					} else if idx%2 == 1 {
+						// a tuple from src2 (=right) was just added
+						So(len(out), ShouldEqual, 1)
+						So(out[0], ShouldResemble, tuple.Map{
+							"l": tuple.String(fmt.Sprintf("l%d", idx-1)), // int: x
+							"r": tuple.String(fmt.Sprintf("r%d", idx)),   // int: x+1
+						})
+					} else {
+						// a tuple from src1 (=left) was just added
+						So(len(out), ShouldEqual, 0)
+					}
+				})
+			}
 		})
 	})
 }
