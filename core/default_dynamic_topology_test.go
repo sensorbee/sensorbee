@@ -212,6 +212,10 @@ func TestLinearDefaultDynamicTopology(t *testing.T) {
 		}
 
 		Convey("When getting registered nodes", func() {
+			Reset(func() {
+				t.Stop()
+			})
+
 			Convey("Then the topology should return all nodes", func() {
 				ns := t.Nodes()
 				So(len(ns), ShouldEqual, 4)
@@ -389,6 +393,98 @@ func TestLinearDefaultDynamicTopology(t *testing.T) {
 
 			Convey("Then the sink should receive all tuples", func() {
 				So(len(si.Tuples), ShouldEqual, 8)
+			})
+		})
+
+		Convey("When removing the source after generating some tuples", func() {
+			Reset(func() {
+				t.Stop()
+			})
+			so.EmitTuples(2)
+			So(t.Remove("source"), ShouldBeNil)
+
+			Convey("Then the source should be stopped", func() {
+				So(son.State().Get(), ShouldEqual, TSStopped)
+			})
+
+			Convey("Then the source shouldn't be found", func() {
+				_, err := t.Source("source")
+				So(err, ShouldNotBeNil)
+			})
+
+			Convey("Then the sink should receive the tuples", func() {
+				si.Wait(2)
+				So(len(si.Tuples), ShouldEqual, 2)
+			})
+		})
+
+		Convey("When removing a box after processing some tuples", func() {
+			Reset(func() {
+				t.Stop()
+			})
+			so.EmitTuples(2)
+			si.Wait(2)
+			So(t.Remove("box1"), ShouldBeNil)
+			so.EmitTuples(2)
+
+			Convey("Then the box should be stopped", func() {
+				So(bn1.State().Get(), ShouldEqual, TSStopped)
+			})
+
+			Convey("Then the box shouldn't be found", func() {
+				_, err := t.Box("box1")
+				So(err, ShouldNotBeNil)
+			})
+
+			Convey("Then sink should only receive the processed tuples", func() {
+				So(len(si.Tuples), ShouldEqual, 2)
+			})
+
+			Convey("And connecting another box in the topology", func() {
+				b3 := BoxFunc(forwardBox)
+				bn3, err := t.AddBox("box3", b3, nil)
+				So(err, ShouldBeNil)
+				So(bn3.Input("source", nil), ShouldBeNil)
+				So(bn2.Input("box3", nil), ShouldBeNil)
+				so.EmitTuples(4)
+
+				Convey("Then the sink should receive the correct number of tuples", func() {
+					si.Wait(6) // 2 tuples which send just after box1 was removed were lost.
+					So(len(si.Tuples), ShouldEqual, 6)
+				})
+			})
+
+			Convey("And connecting the sink directly to the source", func() {
+				So(sin.Input("source", nil), ShouldBeNil)
+				so.EmitTuples(4)
+
+				Convey("Then the sink should receive the correct number of tuples", func() {
+					si.Wait(6) // 2 tuples which send just after box1 was removed were lost.
+					So(len(si.Tuples), ShouldEqual, 6)
+				})
+			})
+		})
+
+		Convey("When removing a sink after receiving some tuples", func() {
+			Reset(func() {
+				t.Stop()
+			})
+			so.EmitTuples(2)
+			si.Wait(2)
+			So(t.Remove("sink"), ShouldBeNil)
+			so.EmitTuples(2)
+
+			Convey("Then the sink should be stopped", func() {
+				So(sin.State().Get(), ShouldEqual, TSStopped)
+			})
+
+			Convey("Then the sink shouldn't be found", func() {
+				_, err := t.Sink("sink")
+				So(err, ShouldNotBeNil)
+			})
+
+			Convey("Then sink shouldn't receive tuples generated after it got removed", func() {
+				So(len(si.Tuples), ShouldEqual, 2)
 			})
 		})
 	})
