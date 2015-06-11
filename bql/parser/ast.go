@@ -85,7 +85,16 @@ func (a AliasAST) RenameReferencedRelation(from, to string) Expression {
 }
 
 type WindowedFromAST struct {
-	FromAST
+	Relations []AliasWindowedRelationAST
+}
+
+type AliasWindowedRelationAST struct {
+	WindowedRelationAST
+	Alias string
+}
+
+type WindowedRelationAST struct {
+	Relation
 	RangeAST
 }
 
@@ -96,6 +105,18 @@ type RangeAST struct {
 
 type FromAST struct {
 	Relations []AliasRelationAST
+}
+
+func (f FromAST) ToWindowedFrom(size int64, unit RangeUnit) WindowedFromAST {
+	output := make([]AliasWindowedRelationAST, len(f.Relations))
+	for i, rel := range f.Relations {
+		output[i] = AliasWindowedRelationAST{
+			WindowedRelationAST{Relation{rel.Name},
+				RangeAST{NumericLiteral{size}, unit}},
+			rel.Alias,
+		}
+	}
+	return WindowedFromAST{output}
 }
 
 type FilterAST struct {

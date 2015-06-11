@@ -16,7 +16,7 @@ type defaultSelectExecutionPlan struct {
 	windowType parser.RangeUnit
 	emitter    parser.Emitter
 	// store name->alias mapping
-	relations []parser.AliasRelationAST
+	relations []parser.AliasWindowedRelationAST
 	// buffers holds data of a single stream window, keyed by the
 	// alias (!) of the respective input stream. It will be
 	// updated (appended and possibly truncated) whenever
@@ -57,14 +57,20 @@ func NewDefaultSelectExecutionPlan(lp *LogicalPlan, reg udf.FunctionRegistry) (E
 	if err != nil {
 		return nil, err
 	}
+	// for compatibility with the old syntax, take the last RANGE
+	// specification as valid for all buffers
+	// TODO every buffer should use the specified RANGE data
+	rangeUnit := lp.Relations[len(lp.Relations)-1].Unit
+	rangeValue := lp.Relations[len(lp.Relations)-1].Value
+
 	// initialize buffers (one per declared input relation)
 	buffers := make(map[string][]*tuple.Tuple, len(lp.Relations))
 	for _, rel := range lp.Relations {
 		var buffer []*tuple.Tuple
-		if lp.Unit == parser.Tuples {
+		if rangeUnit == parser.Tuples {
 			// we already know the required capacity of this buffer
 			// if we work with absolute numbers
-			buffer = make([]*tuple.Tuple, 0, lp.Value+1)
+			buffer = make([]*tuple.Tuple, 0, rangeValue+1)
 		}
 		// the alias of the relation is the key of the buffer
 		buffers[rel.Alias] = buffer
@@ -74,8 +80,8 @@ func NewDefaultSelectExecutionPlan(lp *LogicalPlan, reg udf.FunctionRegistry) (E
 			projections: projs,
 			filter:      filter,
 		},
-		windowSize:  lp.Value,
-		windowType:  lp.Unit,
+		windowSize:  rangeValue,
+		windowType:  rangeUnit,
 		emitter:     lp.EmitterType,
 		relations:   lp.Relations,
 		buffers:     buffers,

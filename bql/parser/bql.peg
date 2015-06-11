@@ -107,8 +107,7 @@ AliasExpression <- (Expression / Wildcard) sp "AS" sp Identifier {
         p.AssembleAlias()
     }
 
-WindowedFrom <- < ("FROM" sp Relations sp
-                   '[' sp "RANGE" sp Range sp ']')? > {
+WindowedFrom <- < ("FROM" sp WindowedRelations sp)? > {
         // This is *always* executed, even if there is no
         // FROM clause present in the statement.
         p.AssembleWindowedFrom(begin, end)
@@ -125,6 +124,8 @@ From <- < ("FROM" sp Relations)? > {
     }
 
 Relations <- RelationLike sp (',' sp RelationLike)*
+
+WindowedRelations <- WindowedRelationLike sp (',' sp WindowedRelationLike)*
 
 Filter <- < ("WHERE" sp Expression)? > {
         // This is *always* executed, even if there is no
@@ -150,8 +151,20 @@ RelationLike <- AliasRelation / Relation {
         p.EnsureAliasRelation()
     }
 
+WindowedRelationLike <- AliasWindowedRelation / WindowedRelation {
+        p.EnsureAliasWindowedRelation()
+    }
+
 AliasRelation <- Relation sp "AS" sp Identifier {
         p.AssembleAliasRelation()
+    }
+
+AliasWindowedRelation <- WindowedRelation sp "AS" sp Identifier {
+        p.AssembleAliasWindowedRelation()
+    }
+
+WindowedRelation <- Relation sp '[' sp "RANGE" sp Range sp ']' {
+        p.AssembleWindowedRelation()
     }
 
 SourceSinkSpecs <- < ("WITH" sp SourceSinkParam sp (',' sp SourceSinkParam)*)? > {

@@ -9,7 +9,7 @@ func TestAssembleFrom(t *testing.T) {
 	Convey("Given a parseStack", t, func() {
 		ps := parseStack{}
 
-		Convey("When the stack contains only Relations in the given range", func() {
+		Convey("When the stack contains only AliasRelations in the given range", func() {
 			ps.PushComponent(0, 6, Raw{"PRE"})
 			ps.PushComponent(6, 7, Relation{"a"})
 			ps.EnsureAliasRelation()
@@ -31,7 +31,9 @@ func TestAssembleFrom(t *testing.T) {
 						comp := top.comp.(FromAST)
 						So(len(comp.Relations), ShouldEqual, 2)
 						So(comp.Relations[0].Name, ShouldEqual, "a")
+						So(comp.Relations[0].Alias, ShouldEqual, "")
 						So(comp.Relations[1].Name, ShouldEqual, "b")
+						So(comp.Relations[1].Alias, ShouldEqual, "")
 					})
 				})
 			})
@@ -81,7 +83,7 @@ func TestAssembleFrom(t *testing.T) {
 			})
 		})
 
-		Convey("When the stack contains non-Relations in the given range", func() {
+		Convey("When the stack contains non-AliasRelations in the given range", func() {
 			ps.PushComponent(0, 6, Raw{"PRE"})
 			f := func() {
 				ps.AssembleFrom(0, 8)

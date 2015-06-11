@@ -9,13 +9,14 @@ func TestAssembleWindowedFrom(t *testing.T) {
 	Convey("Given a parseStack", t, func() {
 		ps := parseStack{}
 
-		Convey("When the stack contains only Relations and a RangeAST in the given range", func() {
+		Convey("When the stack contains only AliasWindowedRelations in the given range", func() {
 			ps.PushComponent(0, 6, Raw{"PRE"})
-			ps.PushComponent(6, 7, Relation{"a"})
-			ps.EnsureAliasRelation()
-			ps.PushComponent(7, 8, Relation{"b"})
-			ps.EnsureAliasRelation()
-			ps.PushComponent(8, 10, RangeAST{NumericLiteral{2}, Seconds})
+			ps.PushComponent(6, 8, AliasWindowedRelationAST{
+				WindowedRelationAST{Relation{"a"}, RangeAST{NumericLiteral{3}, Tuples}}, "",
+			})
+			ps.PushComponent(8, 10, AliasWindowedRelationAST{
+				WindowedRelationAST{Relation{"b"}, RangeAST{NumericLiteral{2}, Seconds}}, "",
+			})
 			ps.AssembleWindowedFrom(6, 10)
 
 			Convey("Then AssembleWindowedFrom transforms them into one item", func() {
@@ -32,9 +33,13 @@ func TestAssembleWindowedFrom(t *testing.T) {
 						comp := top.comp.(WindowedFromAST)
 						So(len(comp.Relations), ShouldEqual, 2)
 						So(comp.Relations[0].Name, ShouldEqual, "a")
+						So(comp.Relations[0].Value, ShouldEqual, 3)
+						So(comp.Relations[0].Unit, ShouldEqual, Tuples)
+						So(comp.Relations[0].Alias, ShouldEqual, "")
 						So(comp.Relations[1].Name, ShouldEqual, "b")
-						So(comp.Value, ShouldEqual, 2)
-						So(comp.Unit, ShouldEqual, Seconds)
+						So(comp.Relations[1].Value, ShouldEqual, 2)
+						So(comp.Relations[1].Unit, ShouldEqual, Seconds)
+						So(comp.Relations[1].Alias, ShouldEqual, "")
 					})
 				})
 			})
@@ -84,24 +89,8 @@ func TestAssembleWindowedFrom(t *testing.T) {
 			})
 		})
 
-		Convey("When the stack contains non-Relations in the given range", func() {
+		Convey("When the stack contains non-AliasWindowedRelations in the given range", func() {
 			ps.PushComponent(0, 6, Raw{"PRE"})
-			ps.PushComponent(6, 8, RangeAST{NumericLiteral{2}, Seconds})
-			f := func() {
-				ps.AssembleWindowedFrom(0, 8)
-			}
-
-			Convey("Then AssembleWindowedFrom panics", func() {
-				So(f, ShouldPanic)
-			})
-		})
-
-		Convey("When the stack contains a non-RangeAST on top", func() {
-			ps.PushComponent(0, 6, Raw{"PRE"})
-			ps.PushComponent(6, 7, Relation{"a"})
-			ps.EnsureAliasRelation()
-			ps.PushComponent(7, 8, Relation{"b"})
-			ps.EnsureAliasRelation()
 			f := func() {
 				ps.AssembleWindowedFrom(0, 8)
 			}
@@ -134,7 +123,7 @@ func TestAssembleWindowedFrom(t *testing.T) {
 		})
 
 		Convey("When selecting with a FROM", func() {
-			p.Buffer = "CREATE STREAM x AS SELECT ISTREAM a, b FROM c, d [RANGE 2 SECONDS]"
+			p.Buffer = "CREATE STREAM x AS SELECT ISTREAM a, b FROM c [RANGE 3 TUPLES] AS x, d [RANGE 2 SECONDS]"
 			p.Init()
 
 			Convey("Then the statement should be parsed correctly", func() {
@@ -148,10 +137,15 @@ func TestAssembleWindowedFrom(t *testing.T) {
 				So(top, ShouldHaveSameTypeAs, CreateStreamAsSelectStmt{})
 				comp := top.(CreateStreamAsSelectStmt)
 				So(len(comp.Relations), ShouldEqual, 2)
+				So(len(comp.Relations), ShouldEqual, 2)
 				So(comp.Relations[0].Name, ShouldEqual, "c")
+				So(comp.Relations[0].Value, ShouldEqual, 3)
+				So(comp.Relations[0].Unit, ShouldEqual, Tuples)
+				So(comp.Relations[0].Alias, ShouldEqual, "x")
 				So(comp.Relations[1].Name, ShouldEqual, "d")
-				So(comp.Value, ShouldEqual, 2)
-				So(comp.Unit, ShouldEqual, Seconds)
+				So(comp.Relations[1].Value, ShouldEqual, 2)
+				So(comp.Relations[1].Unit, ShouldEqual, Seconds)
+				So(comp.Relations[1].Alias, ShouldEqual, "")
 			})
 		})
 	})

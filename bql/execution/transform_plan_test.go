@@ -283,13 +283,10 @@ func TestRelationChecker(t *testing.T) {
 					parser.Istream,
 					selectAst.ProjectionsAST,
 				},
-				WindowedFromAST: parser.WindowedFromAST{
-					selectAst.FromAST,
-					parser.RangeAST{parser.NumericLiteral{2}, parser.Seconds},
-				},
-				FilterAST:   selectAst.FilterAST,
-				GroupingAST: selectAst.GroupingAST,
-				HavingAST:   selectAst.HavingAST,
+				WindowedFromAST: selectAst.FromAST.ToWindowedFrom(2, parser.Seconds),
+				FilterAST:       selectAst.FilterAST,
+				GroupingAST:     selectAst.GroupingAST,
+				HavingAST:       selectAst.HavingAST,
 			}
 
 			Convey("When we analyze it", func() {
@@ -327,13 +324,10 @@ func TestRelationChecker(t *testing.T) {
 					parser.Istream,
 					selectAst.ProjectionsAST,
 				},
-				WindowedFromAST: parser.WindowedFromAST{
-					myFrom,
-					parser.RangeAST{parser.NumericLiteral{2}, parser.Seconds},
-				},
-				FilterAST:   selectAst.FilterAST,
-				GroupingAST: selectAst.GroupingAST,
-				HavingAST:   selectAst.HavingAST,
+				WindowedFromAST: myFrom.ToWindowedFrom(2, parser.Seconds),
+				FilterAST:       selectAst.FilterAST,
+				GroupingAST:     selectAst.GroupingAST,
+				HavingAST:       selectAst.HavingAST,
 			}
 
 			Convey("When we analyze it", func() {
@@ -408,10 +402,7 @@ func TestRelationAliasing(t *testing.T) {
 					parser.Istream,
 					selectAst.ProjectionsAST,
 				},
-				WindowedFromAST: parser.WindowedFromAST{
-					selectAst.FromAST,
-					parser.RangeAST{parser.NumericLiteral{2}, parser.Seconds},
-				},
+				WindowedFromAST: selectAst.FromAST.ToWindowedFrom(2, parser.Seconds),
 			}
 
 			Convey("When we analyze it", func() {

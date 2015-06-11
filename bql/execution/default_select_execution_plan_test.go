@@ -169,7 +169,7 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 	// Select constant and a column with changing values from aliased relation
 	Convey("Given a SELECT clause with a constant, a column, and a table alias", t, func() {
 		tuples := getTuples(4)
-		s := `CREATE STREAM box AS SELECT ISTREAM 2, int FROM src AS x [RANGE 2 SECONDS]`
+		s := `CREATE STREAM box AS SELECT ISTREAM 2, int FROM src [RANGE 2 SECONDS] AS x`
 		plan, err := createDefaultSelectPlan(s, t)
 		So(err, ShouldBeNil)
 
@@ -192,7 +192,7 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 	// using that alias
 	Convey("Given a SELECT clause with a constant, a table alias, and a column using it", t, func() {
 		tuples := getTuples(4)
-		s := `CREATE STREAM box AS SELECT ISTREAM 2, x.int FROM src AS x [RANGE 2 SECONDS]`
+		s := `CREATE STREAM box AS SELECT ISTREAM 2, x.int FROM src [RANGE 2 SECONDS] AS x`
 		plan, err := createDefaultSelectPlan(s, t)
 		So(err, ShouldBeNil)
 
@@ -866,7 +866,7 @@ func TestDefaultSelectExecutionPlanJoin(t *testing.T) {
 				t.Data["r"] = tuple.String(fmt.Sprintf("r%d", i))
 			}
 		}
-		s := `CREATE STREAM box AS SELECT ISTREAM src1.l, src2.r FROM src1, src2 [RANGE 2 TUPLES]`
+		s := `CREATE STREAM box AS SELECT ISTREAM src1.l, src2.r FROM src1 [RANGE 2 TUPLES], src2 [RANGE 2 TUPLES]`
 		plan, err := createDefaultSelectPlan(s, t)
 		So(err, ShouldBeNil)
 
@@ -930,7 +930,7 @@ func TestDefaultSelectExecutionPlanJoin(t *testing.T) {
 				t.Data["r"] = tuple.String(fmt.Sprintf("r%d", i))
 			}
 		}
-		s := `CREATE STREAM box AS SELECT ISTREAM src1.l, src2.r FROM src1, src2 [RANGE 2 TUPLES] ` +
+		s := `CREATE STREAM box AS SELECT ISTREAM src1.l, src2.r FROM src1 [RANGE 2 TUPLES], src2 [RANGE 2 TUPLES] ` +
 			`WHERE src1.int + 1 = src2.int`
 		plan, err := createDefaultSelectPlan(s, t)
 		So(err, ShouldBeNil)
