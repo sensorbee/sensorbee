@@ -172,33 +172,13 @@ func (t *defaultDynamicTopology) AddSink(name string, s Sink, config *DynamicSin
 }
 
 func (t *defaultDynamicTopology) Stop() error {
-	stopped, err := func() (bool, error) {
-		t.stateMutex.Lock()
-		defer t.stateMutex.Unlock()
-		switch t.state.state {
-		case TSRunning, TSPaused:
-			t.state.setWithoutLock(TSStopping)
-			return false, nil
-
-		case TSStopping:
-			t.state.waitWithoutLock(TSStopped)
-			return true, nil
-
-		case TSStopped:
-			return true, nil
-
-		default: // including TSInitialized and TSStarting
-			return false, fmt.Errorf("the dynamic topology has an invalid state: %v", t.state.state)
-		}
-	}()
-	if err != nil {
-		return err
+	t.nodeMutex.Lock()
+	defer t.nodeMutex.Unlock()
+	if stopped, err := t.state.checkAndPrepareForStoppingWithoutLock(false); err != nil {
+		return fmt.Errorf("the dynamic topology has an invalid state: %v", t.state.Get())
 	} else if stopped {
 		return nil
 	}
-
-	t.nodeMutex.Lock()
-	defer t.nodeMutex.Unlock()
 
 	var lastErr error
 	for name, src := range t.sources {
@@ -441,61 +421,22 @@ func (dn *defaultDynamicNode) State() TopologyStateHolder {
 	return dn.state
 }
 
-func (dn *defaultDynamicNode) checkAndPrepareRunState(nodeType string) error {
-	dn.stateMutex.Lock()
-	defer dn.stateMutex.Unlock()
-	switch s := dn.state.getWithoutLock(); s {
-	case TSInitialized:
-		dn.state.setWithoutLock(TSStarting)
-		return nil
-
-	case TSStarting:
-		dn.state.waitWithoutLock(TSRunning)
-		fallthrough
-
-	case TSRunning, TSPaused:
-		return fmt.Errorf("%v '%v' is already running", nodeType, dn.name)
-
-	case TSStopping:
-		dn.state.waitWithoutLock(TSStopped)
-		fallthrough
-
-	case TSStopped:
-		return fmt.Errorf("%v '%v' is already stopped", nodeType, dn.name)
-
-	default:
-		return fmt.Errorf("%v '%v' has an invalid state: %v", nodeType, dn.name, s)
+func (dn *defaultDynamicNode) checkAndPrepareForRunning(nodeType string) error {
+	if st, err := dn.state.checkAndPrepareForRunning(); err != nil {
+		switch st {
+		case TSRunning, TSPaused:
+			return fmt.Errorf("%v '%v' is already running", nodeType, dn.name)
+		case TSStopped:
+			return fmt.Errorf("%v '%v' is already stopped", nodeType, dn.name)
+		default:
+			return fmt.Errorf("%v '%v' has an invalid state: %v", nodeType, dn.name, st)
+		}
 	}
+	return nil
 }
 
 // checkAndPrepareStopState check the current state of the node and returns if
 // the node can be stopped or is already stopped.
-func (dn *defaultDynamicNode) checkAndPrepareStopState(nodeType string) (stopped bool, err error) {
-	dn.stateMutex.Lock()
-	defer dn.stateMutex.Unlock()
-	for {
-		switch s := dn.state.getWithoutLock(); s {
-		case TSInitialized:
-			dn.state.setWithoutLock(TSStopped)
-			return true, nil
-
-		case TSStarting:
-			dn.state.waitWithoutLock(TSRunning)
-			// try again in the next iteration
-
-		case TSRunning, TSPaused:
-			// TODO: set TSStopping here
-			return false, nil
-
-		case TSStopping:
-			dn.state.waitWithoutLock(TSStopped)
-			fallthrough
-
-		case TSStopped:
-			return true, nil
-
-		default:
-			return false, fmt.Errorf("%v '%v' has an invalid state: %v", nodeType, dn.name, s)
-		}
-	}
+func (dn *defaultDynamicNode) checkAndPrepareForStopping(nodeType string) (stopped bool, err error) {
+	return dn.state.checkAndPrepareForStopping(false)
 }

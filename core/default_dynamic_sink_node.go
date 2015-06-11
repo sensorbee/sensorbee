@@ -46,7 +46,7 @@ func (ds *defaultDynamicSinkNode) Input(refname string, config *SinkInputConfig)
 }
 
 func (ds *defaultDynamicSinkNode) run() error {
-	if err := ds.checkAndPrepareRunState("sink"); err != nil {
+	if err := ds.checkAndPrepareForRunning("sink"); err != nil {
 		return err
 	}
 
@@ -67,7 +67,7 @@ func (ds *defaultDynamicSinkNode) Stop() error {
 }
 
 func (ds *defaultDynamicSinkNode) stop() {
-	if stopped, err := ds.checkAndPrepareStopState("sink"); stopped || err != nil {
+	if stopped, err := ds.checkAndPrepareForStopping("sink"); stopped || err != nil {
 		return
 	}
 	ds.state.Set(TSStopping)
