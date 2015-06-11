@@ -290,40 +290,30 @@ func (ps *parseStack) AssembleAlias() {
 
 /* FROM clause */
 
-// AssembleWindowedFrom assumes that the string input[begin:end]
-// holds a number of AliasRelationAST elements followed by a RangeAST, pops all
-// of them and turns them into a WindowedFromAST.
+// AssembleWindowedFrom takes the elements from the stack that
+// correspond to the input[begin:end] string, makes sure they are all
+// AliasWindowedRelationAST elements and wraps a WindowedFromAST struct
+// around them. If there are no such elements, adds an
+// empty WindowedFromAST struct to the stack.
 //
-//  RangeAST
-//  AliasRelationAST
-//  AliasRelationAST
-//  AliasRelationAST
+//  AliasWindowedRelationAST
+//  AliasWindowedRelationAST
 //   =>
-//  WindowedFromAST{FromAST, RangeAST}
+//  WindowedFromAST{[AliasWindowedRelationAST, AliasWindowedRelationAST]}
 func (ps *parseStack) AssembleWindowedFrom(begin int, end int) {
 	if begin == end {
 		// push an empty FROM clause
 		ps.PushComponent(begin, end, WindowedFromAST{})
 	} else {
 		elems := ps.collectElements(begin, end)
-		numElems := len(elems)
-		if numElems == 0 {
-			ps.PushComponent(begin, end, WindowedFromAST{})
-		} else {
-			// convert the last item to a RangeAST (if this does
-			// not work, it is a fundamental parser bug)
-			rangeClause := elems[numElems-1].(RangeAST)
-			// convert the rest to AliasRelationAST structs
-			rels := make([]AliasRelationAST, numElems-1, numElems-1)
-			for i, elem := range elems[:numElems-1] {
-				// (if this conversion fails, this is a fundamental parser bug)
-				e := elem.(AliasRelationAST)
-				rels[i] = e
-			}
-			// push the grouped list wrapped in a FromAST and the RangeAST
-			// struct back to the stack
-			ps.PushComponent(begin, end, WindowedFromAST{FromAST{rels}, rangeClause})
+		rels := make([]AliasWindowedRelationAST, len(elems), len(elems))
+		for i, elem := range elems {
+			// (if this conversion fails, this is a fundamental parser bug)
+			e := elem.(AliasWindowedRelationAST)
+			rels[i] = e
 		}
+		// push the grouped list back
+		ps.PushComponent(begin, end, WindowedFromAST{rels})
 	}
 }
 
@@ -466,6 +456,24 @@ func (ps *parseStack) AssembleAliasRelation() {
 	ps.PushComponent(_rel.begin, _name.end, AliasRelationAST{rel.Name, string(name)})
 }
 
+// AssembleAliasWindowedRelation takes the topmost elements from the stack, assuming
+// they are components of an AS clause, and replaces them by
+// a single AliasWindowedRelationAST element.
+//
+//  Identifier
+//  WindowedRelationAST
+//   =>
+//  AliasWindowedRelationAST{WindowedRelationAST, Identifier}
+func (ps *parseStack) AssembleAliasWindowedRelation() {
+	// pop the components from the stack in reverse order
+	_name, _rel := ps.pop2()
+
+	name := _name.comp.(Identifier)
+	rel := _rel.comp.(WindowedRelationAST)
+
+	ps.PushComponent(_rel.begin, _name.end, AliasWindowedRelationAST{rel, string(name)})
+}
+
 // EnsureAliasRelation takes the top element from the stack. If it is a
 // Relation element, it wraps it into an AliasRelationAST struct; if it
 // is already an AliasRelationAST it just pushes it back. This helps to
@@ -483,6 +491,43 @@ func (ps *parseStack) EnsureAliasRelation() {
 		aliasRel = AliasRelationAST{e.Name, ""}
 	}
 	ps.PushComponent(_elem.begin, _elem.end, aliasRel)
+}
+
+// EnsureAliasWindowedRelation takes the top element from the stack. If it is a
+// WindowedRelationAST element, it wraps it into an AliasWindowedRelationAST struct; if it
+// is already an AliasWindowedRelationAST it just pushes it back. This helps to
+// ensure we only deal with AliasWindowedRelationAST objects in the collection step.
+func (ps *parseStack) EnsureAliasWindowedRelation() {
+	_elem := ps.Pop()
+	elem := _elem.comp
+
+	var aliasRel AliasWindowedRelationAST
+	e, ok := elem.(AliasWindowedRelationAST)
+	if ok {
+		aliasRel = e
+	} else {
+		e := elem.(WindowedRelationAST)
+		aliasRel = AliasWindowedRelationAST{e, ""}
+	}
+	ps.PushComponent(_elem.begin, _elem.end, aliasRel)
+}
+
+// AssembleWindowedRelation takes the topmost elements from the stack, assuming
+// they are components of an AS clause, and replaces them by
+// a single WindowedRelationAST element.
+//
+//  RangeAST
+//  Relation
+//   =>
+//  WindowedRelationAST{Relation, RangeAST}
+func (ps *parseStack) AssembleWindowedRelation() {
+	// pop the components from the stack in reverse order
+	_range, _rel := ps.pop2()
+
+	rangeAst := _range.comp.(RangeAST)
+	rel := _rel.comp.(Relation)
+
+	ps.PushComponent(_rel.begin, _range.end, WindowedRelationAST{rel, rangeAst})
 }
 
 // AssembleSourceSinkSpecs takes the elements from the stack that
