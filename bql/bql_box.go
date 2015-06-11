@@ -26,7 +26,7 @@ func NewBQLBox(stmt *parser.CreateStreamAsSelectStmt, reg udf.FunctionRegistry) 
 
 func (b *bqlBox) Init(ctx *core.Context) error {
 	// create the execution plan
-	analyzedPlan, err := execution.Analyze(b.stmt)
+	analyzedPlan, err := execution.Analyze(*b.stmt)
 	if err != nil {
 		return err
 	}

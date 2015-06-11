@@ -20,7 +20,7 @@ type commonExecutionPlan struct {
 	filter Evaluator
 }
 
-func prepareProjections(projections []interface{}, reg udf.FunctionRegistry) ([]colDesc, error) {
+func prepareProjections(projections []parser.Expression, reg udf.FunctionRegistry) ([]colDesc, error) {
 	output := make([]colDesc, len(projections))
 	for i, proj := range projections {
 		// compute evaluators for each column
@@ -31,8 +31,8 @@ func prepareProjections(projections []interface{}, reg udf.FunctionRegistry) ([]
 		// compute column name
 		colHeader := fmt.Sprintf("col_%v", i+1)
 		switch projType := proj.(type) {
-		case parser.ColumnName:
-			colHeader = projType.Name
+		case parser.RowValue:
+			colHeader = projType.Column
 		case parser.AliasAST:
 			colHeader = projType.Alias
 		case parser.FuncAppAST:
@@ -59,7 +59,7 @@ func prepareProjections(projections []interface{}, reg udf.FunctionRegistry) ([]
 	return output, nil
 }
 
-func prepareFilter(filter interface{}, reg udf.FunctionRegistry) (Evaluator, error) {
+func prepareFilter(filter parser.Expression, reg udf.FunctionRegistry) (Evaluator, error) {
 	if filter != nil {
 		return ExpressionToEvaluator(filter, reg)
 	}

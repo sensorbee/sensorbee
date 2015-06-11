@@ -9,10 +9,10 @@ func TestAssembleExpressions(t *testing.T) {
 	Convey("Given a parseStack", t, func() {
 		ps := parseStack{}
 
-		Convey("When the stack contains only ColumnNames in the given range", func() {
+		Convey("When the stack contains only RowValues in the given range", func() {
 			ps.PushComponent(0, 6, Raw{"PRE"})
-			ps.PushComponent(6, 7, ColumnName{"a"})
-			ps.PushComponent(7, 8, ColumnName{"b"})
+			ps.PushComponent(6, 7, RowValue{"", "a"})
+			ps.PushComponent(7, 8, RowValue{"", "b"})
 			ps.AssembleExpressions(6, 8)
 
 			Convey("Then AssembleExpressions transforms them into one item", func() {
@@ -28,8 +28,8 @@ func TestAssembleExpressions(t *testing.T) {
 					Convey("And it contains the previously pushed data", func() {
 						comp := top.comp.(ExpressionsAST)
 						So(len(comp.Expressions), ShouldEqual, 2)
-						So(comp.Expressions[0], ShouldResemble, ColumnName{"a"})
-						So(comp.Expressions[1], ShouldResemble, ColumnName{"b"})
+						So(comp.Expressions[0], ShouldResemble, RowValue{"", "a"})
+						So(comp.Expressions[1], ShouldResemble, RowValue{"", "b"})
 					})
 				})
 			})
@@ -101,8 +101,8 @@ func TestAssembleExpressions(t *testing.T) {
 				So(s.Projections[0], ShouldHaveSameTypeAs, FuncAppAST{})
 				fa := s.Projections[0].(FuncAppAST)
 				So(len(fa.Expressions), ShouldEqual, 2)
-				So(fa.Expressions[0], ShouldResemble, ColumnName{"a"})
-				So(fa.Expressions[1], ShouldResemble, ColumnName{"b"})
+				So(fa.Expressions[0], ShouldResemble, RowValue{"", "a"})
+				So(fa.Expressions[1], ShouldResemble, RowValue{"", "b"})
 			})
 		})
 	})

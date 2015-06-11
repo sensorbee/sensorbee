@@ -9,10 +9,10 @@ func TestAssembleGrouping(t *testing.T) {
 	Convey("Given a parseStack", t, func() {
 		ps := parseStack{}
 
-		Convey("When the stack contains only ColumnNames in the given range", func() {
+		Convey("When the stack contains only RowValues in the given range", func() {
 			ps.PushComponent(0, 6, Raw{"PRE"})
-			ps.PushComponent(6, 7, ColumnName{"a"})
-			ps.PushComponent(7, 8, ColumnName{"b"})
+			ps.PushComponent(6, 7, RowValue{"", "a"})
+			ps.PushComponent(7, 8, RowValue{"", "b"})
 			ps.AssembleGrouping(6, 8)
 
 			Convey("Then AssembleGrouping transforms them into one item", func() {
@@ -28,8 +28,8 @@ func TestAssembleGrouping(t *testing.T) {
 					Convey("And it contains the previously pushed data", func() {
 						comp := top.comp.(GroupingAST)
 						So(len(comp.GroupList), ShouldEqual, 2)
-						So(comp.GroupList[0], ShouldResemble, ColumnName{"a"})
-						So(comp.GroupList[1], ShouldResemble, ColumnName{"b"})
+						So(comp.GroupList[0], ShouldResemble, RowValue{"", "a"})
+						So(comp.GroupList[1], ShouldResemble, RowValue{"", "b"})
 					})
 				})
 			})
@@ -116,8 +116,8 @@ func TestAssembleGrouping(t *testing.T) {
 				So(top, ShouldHaveSameTypeAs, SelectStmt{})
 				s := top.(SelectStmt)
 				So(len(s.GroupList), ShouldEqual, 2)
-				So(s.GroupList[0], ShouldResemble, ColumnName{"c"})
-				So(s.GroupList[1], ShouldResemble, ColumnName{"d"})
+				So(s.GroupList[0], ShouldResemble, RowValue{"", "c"})
+				So(s.GroupList[1], ShouldResemble, RowValue{"", "d"})
 			})
 		})
 	})
