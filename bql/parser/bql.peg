@@ -90,7 +90,7 @@ InsertIntoSelectStmt <- "INSERT" sp "INTO" sp
 ##### STATEMENT COMPONENTS #####
 ################################
 
-EmitProjections <- Emitter sp '(' Projections ')' {
+EmitProjections <- Emitter sp Projections {
         p.AssembleEmitProjections()
     }
 

@@ -55,7 +55,7 @@ func TestBasicBqlBoxConnectivity(t *testing.T) {
 
 	Convey("Given an ISTREAM/2 SECONDS BQL statement", t, func() {
 		s := "CREATE STREAM box AS SELECT " +
-			"ISTREAM(int, str((int+1) % 3) AS x) FROM source [RANGE 2 SECONDS] WHERE int % 2 = 0"
+			"ISTREAM int, str((int+1) % 3) AS x FROM source [RANGE 2 SECONDS] WHERE int % 2 = 0"
 		t, si, err := setupTopology(s)
 		So(err, ShouldBeNil)
 

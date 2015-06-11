@@ -3285,7 +3285,7 @@ func (p *bqlPeg) Init() {
 			position, tokenIndex, depth = position222, tokenIndex222, depth222
 			return false
 		},
-		/* 8 EmitProjections <- <(Emitter sp '(' Projections ')' Action7)> */
+		/* 8 EmitProjections <- <(Emitter sp Projections Action7)> */
 		func() bool {
 			position244, tokenIndex244, depth244 := position, tokenIndex, depth
 			{
@@ -3297,17 +3297,9 @@ func (p *bqlPeg) Init() {
 				if !_rules[rulesp]() {
 					goto l244
 				}
-				if buffer[position] != rune('(') {
-					goto l244
-				}
-				position++
 				if !_rules[ruleProjections]() {
 					goto l244
 				}
-				if buffer[position] != rune(')') {
-					goto l244
-				}
-				position++
 				if !_rules[ruleAction7]() {
 					goto l244
 				}

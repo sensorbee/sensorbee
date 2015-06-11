@@ -116,7 +116,7 @@ func TestAssembleWindowedFrom(t *testing.T) {
 		p := &bqlPeg{}
 
 		Convey("When selecting without a FROM", func() {
-			p.Buffer = "CREATE STREAM x AS SELECT ISTREAM (a, b)"
+			p.Buffer = "CREATE STREAM x AS SELECT ISTREAM a, b"
 			p.Init()
 
 			Convey("Then the statement should be parsed correctly", func() {
@@ -134,7 +134,7 @@ func TestAssembleWindowedFrom(t *testing.T) {
 		})
 
 		Convey("When selecting with a FROM", func() {
-			p.Buffer = "CREATE STREAM x AS SELECT ISTREAM(a, b) FROM c, d [RANGE 2 SECONDS]"
+			p.Buffer = "CREATE STREAM x AS SELECT ISTREAM a, b FROM c, d [RANGE 2 SECONDS]"
 			p.Init()
 
 			Convey("Then the statement should be parsed correctly", func() {

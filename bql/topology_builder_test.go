@@ -167,7 +167,7 @@ func TestCreateStreamAsSelectStmt(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		Convey("When running CREATE STREAM AS SELECT on an existing stream", func() {
-			err := tb.BQL(`CREATE STREAM t AS SELECT ISTREAM(int) FROM
+			err := tb.BQL(`CREATE STREAM t AS SELECT ISTREAM int FROM
                 s [RANGE 2 SECONDS] WHERE int=2`)
 
 			Convey("Then there should be no error", func() {
@@ -175,7 +175,7 @@ func TestCreateStreamAsSelectStmt(t *testing.T) {
 			})
 
 			Convey("And when running another CREATE STREAM AS SELECT with the same name", func() {
-				err := tb.BQL(`CREATE STREAM t AS SELECT ISTREAM(int) FROM
+				err := tb.BQL(`CREATE STREAM t AS SELECT ISTREAM int FROM
                 s [RANGE 1 TUPLES] WHERE int=1`)
 
 				Convey("Then an error should be returned the second time", func() {
@@ -185,7 +185,7 @@ func TestCreateStreamAsSelectStmt(t *testing.T) {
 			})
 
 			Convey("And when running another CREATE STREAM AS SELECT with a different name", func() {
-				err := tb.BQL(`CREATE STREAM u AS SELECT ISTREAM(int) FROM
+				err := tb.BQL(`CREATE STREAM u AS SELECT ISTREAM int FROM
                 s [RANGE 1 TUPLES] WHERE int=1`)
 
 				Convey("Then there should be no error", func() {
@@ -195,7 +195,7 @@ func TestCreateStreamAsSelectStmt(t *testing.T) {
 		})
 
 		Convey("When running CREATE STREAM AS SELECT on a source name", func() {
-			err := tb.BQL(`CREATE STREAM t AS SELECT ISTREAM(int) FROM
+			err := tb.BQL(`CREATE STREAM t AS SELECT ISTREAM int FROM
                 hoge [RANGE 2 SECONDS] WHERE int=2`)
 
 			Convey("Then an error should be returned", func() {
@@ -205,7 +205,7 @@ func TestCreateStreamAsSelectStmt(t *testing.T) {
 		})
 
 		Convey("When running CREATE STREAM AS SELECT on a non-existing stream", func() {
-			err := tb.BQL(`CREATE STREAM t AS SELECT ISTREAM(int) FROM
+			err := tb.BQL(`CREATE STREAM t AS SELECT ISTREAM int FROM
                 bar [RANGE 2 SECONDS] WHERE int=2`)
 
 			Convey("Then an error should be returned", func() {
@@ -215,7 +215,7 @@ func TestCreateStreamAsSelectStmt(t *testing.T) {
 		})
 
 		Convey("When running CREATE STREAM AS SELECT with input and output name the same", func() {
-			err := tb.BQL(`CREATE STREAM s AS SELECT ISTREAM(int) FROM
+			err := tb.BQL(`CREATE STREAM s AS SELECT ISTREAM int FROM
                 s [RANGE 2 SECONDS] WHERE int=2`)
 
 			Convey("Then an error should be returned", func() {

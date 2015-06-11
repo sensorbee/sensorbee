@@ -37,7 +37,7 @@ func TestFilterIstreamPlan(t *testing.T) {
 	// Select constant
 	Convey("Given a SELECT clause with a constant", t, func() {
 		tuples := getTuples(4)
-		s := `CREATE STREAM box AS SELECT ISTREAM(2) FROM src [RANGE 2 TUPLES]`
+		s := `CREATE STREAM box AS SELECT ISTREAM 2 FROM src [RANGE 2 TUPLES]`
 		plan, refPlan, err := createFilterIstreamPlan(s, t)
 		So(err, ShouldBeNil)
 
@@ -59,7 +59,7 @@ func TestFilterIstreamPlan(t *testing.T) {
 	// Select a column with changing values
 	Convey("Given a SELECT clause with only a column", t, func() {
 		tuples := getTuples(4)
-		s := `CREATE STREAM box AS SELECT ISTREAM(int) FROM src [RANGE 2 TUPLES]`
+		s := `CREATE STREAM box AS SELECT ISTREAM int FROM src [RANGE 2 TUPLES]`
 		plan, refPlan, err := createFilterIstreamPlan(s, t)
 		So(err, ShouldBeNil)
 
@@ -81,7 +81,7 @@ func TestFilterIstreamPlan(t *testing.T) {
 	// Select a non-existing column
 	Convey("Given a SELECT clause with a non-existing column", t, func() {
 		tuples := getTuples(4)
-		s := `CREATE STREAM box AS SELECT ISTREAM(hoge) FROM src [RANGE 2 TUPLES]`
+		s := `CREATE STREAM box AS SELECT ISTREAM hoge FROM src [RANGE 2 TUPLES]`
 		plan, _, err := createFilterIstreamPlan(s, t)
 		So(err, ShouldBeNil)
 
@@ -96,7 +96,7 @@ func TestFilterIstreamPlan(t *testing.T) {
 
 	Convey("Given a SELECT clause with a non-existing column", t, func() {
 		tuples := getTuples(4)
-		s := `CREATE STREAM box AS SELECT ISTREAM(hoge + 1) FROM src [RANGE 2 TUPLES]`
+		s := `CREATE STREAM box AS SELECT ISTREAM hoge + 1 FROM src [RANGE 2 TUPLES]`
 		plan, _, err := createFilterIstreamPlan(s, t)
 		So(err, ShouldBeNil)
 
@@ -112,7 +112,7 @@ func TestFilterIstreamPlan(t *testing.T) {
 	// Select constant and a column with changing values
 	Convey("Given a SELECT clause with a constant and a column", t, func() {
 		tuples := getTuples(4)
-		s := `CREATE STREAM box AS SELECT ISTREAM(2, int) FROM src [RANGE 2 TUPLES]`
+		s := `CREATE STREAM box AS SELECT ISTREAM 2, int FROM src [RANGE 2 TUPLES]`
 		plan, refPlan, err := createFilterIstreamPlan(s, t)
 		So(err, ShouldBeNil)
 
@@ -134,7 +134,7 @@ func TestFilterIstreamPlan(t *testing.T) {
 	// Use alias
 	Convey("Given a SELECT clause with a column alias", t, func() {
 		tuples := getTuples(4)
-		s := `CREATE STREAM box AS SELECT ISTREAM(int-1 AS a, int AS b) FROM src [RANGE 2 TUPLES]`
+		s := `CREATE STREAM box AS SELECT ISTREAM int-1 AS a, int AS b FROM src [RANGE 2 TUPLES]`
 		plan, refPlan, err := createFilterIstreamPlan(s, t)
 		So(err, ShouldBeNil)
 
@@ -156,7 +156,7 @@ func TestFilterIstreamPlan(t *testing.T) {
 	// Use wildcard
 	Convey("Given a SELECT clause with a wildcard", t, func() {
 		tuples := getTuples(4)
-		s := `CREATE STREAM box AS SELECT ISTREAM(*) FROM src [RANGE 2 TUPLES]`
+		s := `CREATE STREAM box AS SELECT ISTREAM * FROM src [RANGE 2 TUPLES]`
 		plan, refPlan, err := createFilterIstreamPlan(s, t)
 		So(err, ShouldBeNil)
 
@@ -177,7 +177,7 @@ func TestFilterIstreamPlan(t *testing.T) {
 
 	Convey("Given a SELECT clause with a wildcard and an overriding column", t, func() {
 		tuples := getTuples(4)
-		s := `CREATE STREAM box AS SELECT ISTREAM(*, (int-1)*2 AS int) FROM src [RANGE 2 TUPLES]`
+		s := `CREATE STREAM box AS SELECT ISTREAM *, (int-1)*2 AS int FROM src [RANGE 2 TUPLES]`
 		plan, refPlan, err := createFilterIstreamPlan(s, t)
 		So(err, ShouldBeNil)
 
@@ -198,7 +198,7 @@ func TestFilterIstreamPlan(t *testing.T) {
 
 	Convey("Given a SELECT clause with a column and an overriding wildcard", t, func() {
 		tuples := getTuples(4)
-		s := `CREATE STREAM box AS SELECT ISTREAM((int-1)*2 AS int, *) FROM src [RANGE 2 TUPLES]`
+		s := `CREATE STREAM box AS SELECT ISTREAM (int-1)*2 AS int, * FROM src [RANGE 2 TUPLES]`
 		plan, refPlan, err := createFilterIstreamPlan(s, t)
 		So(err, ShouldBeNil)
 
@@ -219,7 +219,7 @@ func TestFilterIstreamPlan(t *testing.T) {
 
 	Convey("Given a SELECT clause with an aliased wildcard and an anonymous column", t, func() {
 		tuples := getTuples(4)
-		s := `CREATE STREAM box AS SELECT ISTREAM(* AS x, (int-1)*2) FROM src [RANGE 2 TUPLES]`
+		s := `CREATE STREAM box AS SELECT ISTREAM * AS x, (int-1)*2 FROM src [RANGE 2 TUPLES]`
 		plan, refPlan, err := createFilterIstreamPlan(s, t)
 		So(err, ShouldBeNil)
 
@@ -241,7 +241,7 @@ func TestFilterIstreamPlan(t *testing.T) {
 	// Use a filter
 	Convey("Given a SELECT clause with a column alias", t, func() {
 		tuples := getTuples(4)
-		s := `CREATE STREAM box AS SELECT ISTREAM(int AS b) FROM src [RANGE 2 TUPLES]
+		s := `CREATE STREAM box AS SELECT ISTREAM int AS b FROM src [RANGE 2 TUPLES]
             WHERE int % 2 = 0`
 		plan, refPlan, err := createFilterIstreamPlan(s, t)
 		So(err, ShouldBeNil)
@@ -324,7 +324,7 @@ func TestFilterIstreamPlan(t *testing.T) {
 	// ISTREAM/2 TUPLES
 	Convey("Given an ISTREAM/2 TUPLES statement with a constant", t, func() {
 		tuples := getTuples(4)
-		s := `CREATE STREAM box AS SELECT ISTREAM(2 AS a) FROM src [RANGE 2 TUPLES]`
+		s := `CREATE STREAM box AS SELECT ISTREAM 2 AS a FROM src [RANGE 2 TUPLES]`
 		plan, _, err := createFilterIstreamPlan(s, t)
 		So(err, ShouldBeNil)
 
@@ -350,7 +350,7 @@ func TestFilterIstreamPlan(t *testing.T) {
 
 	Convey("Given an ISTREAM/2 TUPLES statement with a column", t, func() {
 		tuples := getTuples(4)
-		s := `CREATE STREAM box AS SELECT ISTREAM(int AS a) FROM src [RANGE 2 TUPLES]`
+		s := `CREATE STREAM box AS SELECT ISTREAM int AS a FROM src [RANGE 2 TUPLES]`
 		plan, _, err := createFilterIstreamPlan(s, t)
 		So(err, ShouldBeNil)
 
