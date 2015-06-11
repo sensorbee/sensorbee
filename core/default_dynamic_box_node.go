@@ -57,7 +57,7 @@ func (db *defaultDynamicBoxNode) run() error {
 	}()
 	db.state.Set(TSRunning)
 	w := newBoxWriterAdapter(db.box, db.name, db.dsts)
-	return db.srcs.pour(db.topology.ctx, w, 1, nil) // TODO: make parallelism configurable
+	return db.srcs.pour(db.topology.ctx, w, 1) // TODO: make parallelism configurable
 }
 
 func (db *defaultDynamicBoxNode) Stop() error {

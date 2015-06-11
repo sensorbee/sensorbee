@@ -227,7 +227,7 @@ func (t *defaultDynamicTopology) Stop() error {
 
 	var wg sync.WaitGroup
 	for _, b := range t.boxes {
-		b.srcs.enableGracefulStop()
+		b.srcs.stopOnDisconnect()
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
@@ -236,7 +236,7 @@ func (t *defaultDynamicTopology) Stop() error {
 	}
 
 	for _, s := range t.sinks {
-		s.srcs.enableGracefulStop()
+		s.srcs.stopOnDisconnect()
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
@@ -484,6 +484,7 @@ func (dn *defaultDynamicNode) checkAndPrepareStopState(nodeType string) (stopped
 			// try again in the next iteration
 
 		case TSRunning, TSPaused:
+			// TODO: set TSStopping here
 			return false, nil
 
 		case TSStopping:
