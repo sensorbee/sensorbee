@@ -39,7 +39,7 @@ func (db *defaultDynamicBoxNode) Input(refname string, config *BoxInputConfig) e
 }
 
 func (db *defaultDynamicBoxNode) run() error {
-	if err := db.checkAndPrepareRunState("box"); err != nil {
+	if err := db.checkAndPrepareForRunning("box"); err != nil {
 		return err
 	}
 
@@ -66,7 +66,7 @@ func (db *defaultDynamicBoxNode) Stop() error {
 }
 
 func (db *defaultDynamicBoxNode) stop() {
-	if stopped, err := db.checkAndPrepareStopState("box"); stopped || err != nil {
+	if stopped, err := db.checkAndPrepareForStopping("box"); stopped || err != nil {
 		return
 	}
 
