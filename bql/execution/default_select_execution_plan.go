@@ -33,8 +33,7 @@ type defaultSelectExecutionPlan struct {
 // allows to use an defaultSelectExecutionPlan.
 func CanBuildDefaultSelectExecutionPlan(lp *LogicalPlan, reg udf.FunctionRegistry) bool {
 	// TODO check that there are no aggregate functions
-	return len(lp.Relations) == 1 &&
-		len(lp.GroupList) == 0 &&
+	return len(lp.GroupList) == 0 &&
 		lp.Having == nil
 }
 
@@ -201,25 +200,61 @@ func (ep *defaultSelectExecutionPlan) removeOutdatedTuplesFromBuffer(curTupTime 
 // that was stored in ep.curResults before this method was called is
 // moved to ep.prevResults.
 //
+// In case of an error the contents of ep.curResults will still be
+// the same as before the call (so that the next run performs as
+// if no error had happened), but the contents of ep.curResults are
+// undefined.
+//
 // Currently performQueryOnBuffer can only perform SELECT ... WHERE ...
-// queries on a single relation without aggregate functions, GROUP BY,
-// JOIN etc. clauses.
+// queries without aggregate functions, GROUP BY, or HAVING clauses.
 func (ep *defaultSelectExecutionPlan) performQueryOnBuffer() error {
-	if len(ep.buffers) > 1 {
-		return fmt.Errorf("JOIN not implemented")
-	}
-	var buffer []*tuple.Tuple
-	for _, val := range ep.buffers {
-		buffer = val
-	}
 	// reuse the allocated memory
 	output := ep.prevResults[0:0]
 	// remember the previous results
 	ep.prevResults = ep.curResults
-	for _, t := range buffer {
+
+	// we need to make a cross product of the data in all buffers,
+	// combine it to get an input like
+	//  {"streamA": {data}, "streamB": {data}, "streamC": {data}}
+	// and then run filter/projections on each of this items
+
+	dataHolder := tuple.Map{}
+
+	// function to compute cartesian product and do something on each
+	// resulting item
+	var procCartProd func([]string, func(tuple.Map) error) error
+
+	procCartProd = func(remainingKeys []string, processItem func(tuple.Map) error) error {
+		if len(remainingKeys) > 0 {
+			// not all buffers have been visited yet
+			myKey := remainingKeys[0]
+			myBuffer := ep.buffers[myKey]
+			rest := remainingKeys[1:]
+			for _, t := range myBuffer {
+				// add the data of this tuple to dataHolder and recurse
+				dataHolder[myKey] = t.Data[myKey]
+				if err := procCartProd(rest, processItem); err != nil {
+					return err
+				}
+			}
+
+		} else {
+			// all tuples have been visited and we should now have the data
+			// of one cartesian product item in dataHolder
+			if err := processItem(dataHolder); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
+	// function to evaluate filter on the input data and -- if the filter does
+	// not exist or evaluates to true -- compute the projections and store
+	// the result in the `output` slice
+	evalItem := func(data tuple.Map) error {
 		// evaluate filter condition and convert to bool
 		if ep.filter != nil {
-			filterResult, err := ep.filter.Eval(t.Data)
+			filterResult, err := ep.filter.Eval(data)
 			if err != nil {
 				return err
 			}
@@ -229,13 +264,13 @@ func (ep *defaultSelectExecutionPlan) performQueryOnBuffer() error {
 			}
 			// if it evaluated to false, do not further process this tuple
 			if !filterResultBool {
-				continue
+				return nil
 			}
 		}
 		// otherwise, compute all the expressions
 		result := tuple.Map(make(map[string]tuple.Value, len(ep.projections)))
 		for _, proj := range ep.projections {
-			value, err := proj.evaluator.Eval(t.Data)
+			value, err := proj.evaluator.Eval(data)
 			if err != nil {
 				return err
 			}
@@ -244,7 +279,28 @@ func (ep *defaultSelectExecutionPlan) performQueryOnBuffer() error {
 			}
 		}
 		output = append(output, result)
+		return nil
 	}
+
+	allStreams := make([]string, 0, len(ep.buffers))
+	for key := range ep.buffers {
+		allStreams = append(allStreams, key)
+	}
+	if err := procCartProd(allStreams, evalItem); err != nil {
+		// NB. ep.prevResults currently points to an slice with
+		//     results from the previous run. ep.curResults points
+		//     to the same slice. output points to a different slice
+		//     with a different underlying array.
+		//     in the next run, output will be reusing the underlying
+		//     storage of the current ep.prevResults to hold results.
+		//     therefore when we leave this function we must make
+		//     sure that ep.prevResults and ep.curResults have
+		//     different underlying arrays or ISTREAM/DSTREAM will
+		//     return wrong results.
+		ep.prevResults = output
+		return err
+	}
+
 	ep.curResults = output
 	return nil
 }
