@@ -51,6 +51,7 @@ type DynamicSinkConfig struct {
 }
 
 type DynamicNode interface {
+	Type() NodeType
 	Name() string
 	State() TopologyStateHolder
 	Stop() error

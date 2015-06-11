@@ -10,6 +10,10 @@ type defaultDynamicSinkNode struct {
 	sink Sink
 }
 
+func (ds *defaultDynamicSinkNode) Type() NodeType {
+	return NTSink
+}
+
 func (ds *defaultDynamicSinkNode) Name() string {
 	return ds.name
 }
