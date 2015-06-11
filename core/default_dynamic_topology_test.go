@@ -70,6 +70,18 @@ func TestDefaultDynamicTopologySetup(t *testing.T) {
 				So(sn.State().Get(), ShouldEqual, TSStopped)
 			})
 
+			Convey("Then the topology should have it", func() {
+				n, err := t.Source("source1")
+				So(err, ShouldBeNil)
+				So(n, ShouldPointTo, sn)
+			})
+
+			Convey("Then it can be obtained as a node", func() {
+				n, err := t.Node("source1")
+				So(err, ShouldBeNil)
+				So(n, ShouldPointTo, sn)
+			})
+
 			dupNameTests("source1")
 		})
 
@@ -96,6 +108,18 @@ func TestDefaultDynamicTopologySetup(t *testing.T) {
 				So(b.terminateCnt, ShouldEqual, 1)
 			})
 
+			Convey("Then the topology should have it", func() {
+				n, err := t.Box("box1")
+				So(err, ShouldBeNil)
+				So(n, ShouldPointTo, bn)
+			})
+
+			Convey("Then it can be obtained as a node", func() {
+				n, err := t.Node("box1")
+				So(err, ShouldBeNil)
+				So(n, ShouldPointTo, bn)
+			})
+
 			dupNameTests("box1")
 		})
 
@@ -108,12 +132,32 @@ func TestDefaultDynamicTopologySetup(t *testing.T) {
 				So(sn.State().Get(), ShouldEqual, TSRunning)
 			})
 
+			Convey("Then the topology should have it", func() {
+				n, err := t.Sink("sink1")
+				So(err, ShouldBeNil)
+				So(n, ShouldPointTo, sn)
+			})
+
+			Convey("Then it can be obtained as a node", func() {
+				n, err := t.Node("sink1")
+				So(err, ShouldBeNil)
+				So(n, ShouldPointTo, sn)
+			})
+
 			Convey("Then it should be able to stop", func() {
 				So(sn.Stop(), ShouldBeNil)
 				So(sn.State().Get(), ShouldEqual, TSStopped)
 			})
 
 			dupNameTests("sink1")
+		})
+
+		Convey("When getting nonexistent node", func() {
+			_, err := t.Node("source1")
+
+			Convey("Then it shouldn't be found", func() {
+				So(err, ShouldNotBeNil)
+			})
 		})
 	})
 }
@@ -131,7 +175,7 @@ func TestLinearDefaultDynamicTopology(t *testing.T) {
 		t := dt.(*defaultDynamicTopology)
 
 		so := NewTupleIncrementalEmitterSource(freshTuples())
-		_, err := t.AddSource("source", so, nil)
+		son, err := t.AddSource("source", so, nil)
 		So(err, ShouldBeNil)
 
 		b1 := &BlockingForwardBox{cnt: 8}
@@ -166,6 +210,81 @@ func TestLinearDefaultDynamicTopology(t *testing.T) {
 				So(sic.closeCnt, ShouldEqual, 1)
 			})
 		}
+
+		Convey("When getting registered nodes", func() {
+			Convey("Then the topology should return all nodes", func() {
+				ns := t.Nodes()
+				So(len(ns), ShouldEqual, 4)
+				So(ns["source"], ShouldPointTo, son)
+				So(ns["box1"], ShouldPointTo, bn1)
+				So(ns["box2"], ShouldPointTo, bn2)
+				So(ns["sink"], ShouldPointTo, sin)
+			})
+
+			Convey("Then source should be able to be obtained", func() {
+				s, err := t.Source("source")
+				So(err, ShouldBeNil)
+				So(s, ShouldPointTo, son)
+			})
+
+			Convey("Then source should be able to be obtained through Sources", func() {
+				ss := t.Sources()
+				So(len(ss), ShouldEqual, 1)
+				So(ss["source"], ShouldPointTo, son)
+			})
+
+			Convey("Then box1 should be able to be obtained", func() {
+				b, err := t.Box("box1")
+				So(err, ShouldBeNil)
+				So(b, ShouldPointTo, bn1)
+			})
+
+			Convey("Then box2 should be able to be obtained", func() {
+				b, err := t.Box("box2")
+				So(err, ShouldBeNil)
+				So(b, ShouldPointTo, bn2)
+			})
+
+			Convey("Then all boxes should be able to be obtained at once", func() {
+				bs := t.Boxes()
+				So(len(bs), ShouldEqual, 2)
+				So(bs["box1"], ShouldPointTo, bn1)
+				So(bs["box2"], ShouldPointTo, bn2)
+			})
+
+			Convey("Then sink should be able to be obtained", func() {
+				s, err := t.Sink("sink")
+				So(err, ShouldBeNil)
+				So(s, ShouldPointTo, sin)
+			})
+
+			Convey("Then sink should be able to be obtained through Sinks", func() {
+				ss := t.Sinks()
+				So(len(ss), ShouldEqual, 1)
+				So(ss["sink"], ShouldPointTo, sin)
+			})
+
+			Convey("Then source cannot be obtained via wronge methods", func() {
+				_, err := t.Box("source")
+				So(err, ShouldNotBeNil)
+				_, err = t.Sink("source")
+				So(err, ShouldNotBeNil)
+			})
+
+			Convey("Then box1 cannot be obtained via wronge methods", func() {
+				_, err := t.Source("box1")
+				So(err, ShouldNotBeNil)
+				_, err = t.Sink("box1")
+				So(err, ShouldNotBeNil)
+			})
+
+			Convey("Then sink cannot be obtained via wronge methods", func() {
+				_, err := t.Source("sink")
+				So(err, ShouldNotBeNil)
+				_, err = t.Box("sink")
+				So(err, ShouldNotBeNil)
+			})
+		})
 
 		Convey("When generating no tuples and call stop", func() {
 			So(t.Stop(), ShouldBeNil)

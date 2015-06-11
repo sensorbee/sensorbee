@@ -252,6 +252,10 @@ func (t *defaultDynamicTopology) Stop() error {
 	return nil
 }
 
+func (t *defaultDynamicTopology) State() TopologyStateHolder {
+	return t.state
+}
+
 // TODO: Add Remove method to remove a node from the topology
 // TODO: Add method to clean up (possibly indirectly) stopped nodes
 // TODO: Add Node(name), Source(name), Box(name), Sink(name) methods to retrieve specific nodes in the topology
@@ -259,10 +263,6 @@ func (t *defaultDynamicTopology) Stop() error {
 func (t *defaultDynamicTopology) Node(name string) (DynamicNode, error) {
 	t.nodeMutex.RLock()
 	defer t.nodeMutex.RUnlock()
-	return t.nodeWithoutLock(name)
-}
-
-func (t *defaultDynamicTopology) nodeWithoutLock(name string) (DynamicNode, error) {
 	if s, ok := t.sources[name]; ok {
 		return s, nil
 	}
@@ -273,6 +273,83 @@ func (t *defaultDynamicTopology) nodeWithoutLock(name string) (DynamicNode, erro
 		return s, nil
 	}
 	return nil, fmt.Errorf("node '%v' was not found", name)
+}
+
+func (t *defaultDynamicTopology) Nodes() map[string]DynamicNode {
+	t.nodeMutex.RLock()
+	defer t.nodeMutex.RUnlock()
+
+	m := make(map[string]DynamicNode, len(t.sources)+len(t.boxes)+len(t.sinks))
+	for name, s := range t.sources {
+		m[name] = s
+	}
+	for name, b := range t.boxes {
+		m[name] = b
+	}
+	for name, s := range t.sinks {
+		m[name] = s
+	}
+	return m
+}
+
+func (t *defaultDynamicTopology) Source(name string) (DynamicSourceNode, error) {
+	t.nodeMutex.RLock()
+	defer t.nodeMutex.RUnlock()
+	if s, ok := t.sources[name]; ok {
+		return s, nil
+	}
+	return nil, fmt.Errorf("source '%v' was not found", name)
+}
+
+func (t *defaultDynamicTopology) Sources() map[string]DynamicSourceNode {
+	t.nodeMutex.RLock()
+	defer t.nodeMutex.RUnlock()
+
+	m := make(map[string]DynamicSourceNode, len(t.sources))
+	for name, s := range t.sources {
+		m[name] = s
+	}
+	return m
+}
+
+func (t *defaultDynamicTopology) Box(name string) (DynamicBoxNode, error) {
+	t.nodeMutex.RLock()
+	defer t.nodeMutex.RUnlock()
+	if b, ok := t.boxes[name]; ok {
+		return b, nil
+	}
+	return nil, fmt.Errorf("box '%v' was not found", name)
+}
+
+func (t *defaultDynamicTopology) Boxes() map[string]DynamicBoxNode {
+	t.nodeMutex.RLock()
+	defer t.nodeMutex.RUnlock()
+
+	m := make(map[string]DynamicBoxNode, len(t.boxes))
+	for name, b := range t.boxes {
+		m[name] = b
+	}
+	return m
+}
+
+func (t *defaultDynamicTopology) Sink(name string) (DynamicSinkNode, error) {
+	t.nodeMutex.RLock()
+	defer t.nodeMutex.RUnlock()
+	if s, ok := t.sinks[name]; ok {
+		return s, nil
+	}
+	return nil, fmt.Errorf("source '%v' was not found", name)
+}
+
+func (t *defaultDynamicTopology) Sinks() map[string]DynamicSinkNode {
+	t.nodeMutex.RLock()
+	defer t.nodeMutex.RUnlock()
+
+	m := make(map[string]DynamicSinkNode, len(t.sinks))
+	for name, s := range t.sinks {
+		m[name] = s
+	}
+	return m
 }
 
 type dynamicDataSource interface {
