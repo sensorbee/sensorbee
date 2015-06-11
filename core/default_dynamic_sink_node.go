@@ -58,7 +58,7 @@ func (ds *defaultDynamicSinkNode) run() error {
 		}
 	}()
 	ds.state.Set(TSRunning)
-	return ds.srcs.pour(ds.topology.ctx, newTraceWriter(ds.sink, tuple.Input, ds.name), 1, nil)
+	return ds.srcs.pour(ds.topology.ctx, newTraceWriter(ds.sink, tuple.Input, ds.name), 1)
 }
 
 func (ds *defaultDynamicSinkNode) Stop() error {
