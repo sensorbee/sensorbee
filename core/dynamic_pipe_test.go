@@ -103,7 +103,7 @@ func TestDynamicDataSources(t *testing.T) {
 
 			Convey("Then it pouring should fail", func() {
 				si := NewTupleCollectorSink()
-				So(srcs.pour(ctx, si, 1, nil), ShouldNotBeNil)
+				So(srcs.pour(ctx, si, 1), ShouldNotBeNil)
 			})
 		})
 	})
@@ -119,17 +119,14 @@ func TestDynamicDataSources(t *testing.T) {
 			},
 		}
 
-		started := make(chan struct{})
 		stopped := make(chan error, 1)
 		go func() {
-			stopped <- srcs.pour(ctx, si, 4, func() {
-				started <- struct{}{}
-			})
+			stopped <- srcs.pour(ctx, si, 4)
 		}()
 		Reset(func() {
 			srcs.stop(ctx)
 		})
-		<-started
+		srcs.state.Wait(TSRunning)
 
 		Convey("When starting it without any input", func() {
 			Convey("Then it should start pouring", func() {
@@ -180,20 +177,17 @@ func TestDynamicDataSources(t *testing.T) {
 			},
 		}
 
-		started := make(chan struct{})
 		stopped := make(chan error, 1)
 		go func() {
-			stopped <- srcs.pour(ctx, si, 4, func() {
-				started <- struct{}{}
-			})
+			stopped <- srcs.pour(ctx, si, 4)
 		}()
 		Reset(func() {
 			srcs.stop(ctx)
 		})
-		<-started
+		srcs.state.Wait(TSRunning)
 
 		Convey("When starting it again", func() {
-			err := srcs.pour(ctx, si, 4, nil)
+			err := srcs.pour(ctx, si, 4)
 
 			Convey("Then it should fail", func() {
 				So(err, ShouldNotBeNil)
@@ -298,6 +292,7 @@ func TestDynamicDataSources(t *testing.T) {
 
 		Convey("When remove an input after sending a tuple", func() {
 			So(dsts[0].Write(ctx, t), ShouldBeNil)
+			srcs.enableGracefulStop()
 			srcs.remove("test_node_1")
 
 			Convey("Then the input should be closed", func() {
