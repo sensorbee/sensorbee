@@ -31,29 +31,13 @@ type defaultStaticTopology struct {
 }
 
 func (t *defaultStaticTopology) Run(ctx *Context) error {
-	checkState := func() error { // A closure is used to perform defer
-		t.stateMutex.Lock()
-		defer t.stateMutex.Unlock()
-		switch t.state.state {
-		case TSInitialized:
-		case TSStarting:
-			// Immediately returning an error could be confusing for callers,
-			// so wait until the topology becomes at least the running state.
-			t.state.waitWithoutLock(TSRunning)
-
-			// It's natural for Run to return an error when the state isn't
-			// TSInitialized even if it's TSStarting so that only a single
-			// caller will succeed.
-			fallthrough
-
+	if s, err := t.state.checkAndPrepareForRunning(); err != nil {
+		switch s {
+		case TSStopped:
+			return fmt.Errorf("the static topology has already stopped")
 		default:
 			return fmt.Errorf("the static topology has already started")
 		}
-		t.state.setWithoutLock(TSStarting)
-		return nil
-	}
-	if err := checkState(); err != nil {
-		return err
 	}
 
 	// Don't move this defer to the head of the method otherwise calling
@@ -178,41 +162,8 @@ func (t *defaultStaticTopology) Wait(ctx *Context, s TopologyState) (TopologySta
 }
 
 func (t *defaultStaticTopology) Stop(ctx *Context) error {
-	stopped, err := func() (bool, error) {
-		t.stateMutex.Lock()
-		defer t.stateMutex.Unlock()
-		for {
-			switch t.state.state {
-			case TSInitialized:
-				t.state.setWithoutLock(TSStopped)
-				return true, nil
-
-			case TSStarting:
-				t.state.waitWithoutLock(TSRunning)
-				// If somebody else has already stopped the topology,
-				// the state might be different from TSRunning. So, this process
-				// continues to the next iteration.
-
-			case TSRunning:
-				t.state.setWithoutLock(TSStopping)
-				return false, nil
-
-			case TSStopping:
-				// Someone else is trying to stop the topology. This thread
-				// just waits until it's stopped.
-				t.state.waitWithoutLock(TSStopped)
-				return true, nil
-
-			case TSStopped:
-				return true, nil
-
-			default:
-				return false, fmt.Errorf("the static topology has an invalid state: %v", t.state.state)
-			}
-		}
-	}()
-	if err != nil {
-		return err
+	if stopped, err := t.state.checkAndPrepareForStopping(false); err != nil {
+		return fmt.Errorf("the static topology has an invalid state: %v", t.state.Get())
 	} else if stopped {
 		return nil
 	}
@@ -228,7 +179,7 @@ func (t *defaultStaticTopology) Stop(ctx *Context) error {
 		func() {
 			defer func() {
 				if e := recover(); e != nil {
-					ctx.Logger.Log(Error, "Cannot stop source %v due to panic: %v", name, err)
+					ctx.Logger.Log(Error, "Cannot stop source %v due to panic: %v", name, e)
 					errHandler()
 				}
 			}()
@@ -246,7 +197,7 @@ func (t *defaultStaticTopology) Stop(ctx *Context) error {
 	// Once all sources are stopped, the stream will eventually stop.
 	t.stateMutex.Lock()
 	defer t.stateMutex.Unlock()
-	if err == nil && len(stopFailures) > 0 {
+	if len(stopFailures) > 0 {
 		// If some sources couldn't be stopped, t.wait(TSStopped) would block forever.
 		// So, the state must be set TSStopped here although Run is still running,
 		t.state.setWithoutLock(TSStopped)
