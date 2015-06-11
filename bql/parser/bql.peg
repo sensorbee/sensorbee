@@ -90,7 +90,7 @@ InsertIntoSelectStmt <- "INSERT" sp "INTO" sp
 ##### STATEMENT COMPONENTS #####
 ################################
 
-EmitProjections <- Emitter sp '(' Projections ')' {
+EmitProjections <- Emitter sp Projections {
         p.AssembleEmitProjections()
     }
 
@@ -103,7 +103,7 @@ Projections <- < Projection sp (',' sp Projection)* > {
 # to reason about the applicability of * as part of an expression.
 Projection <- AliasExpression / Expression / Wildcard
 
-AliasExpression <- (Expression / Wildcard) sp "AS" sp ColumnName {
+AliasExpression <- (Expression / Wildcard) sp "AS" sp Identifier {
         p.AssembleAlias()
     }
 
@@ -124,7 +124,7 @@ From <- < ("FROM" sp Relations)? > {
         p.AssembleFrom(begin, end)
     }
 
-Relations <- Relation sp (',' sp Relation)*
+Relations <- RelationLike sp (',' sp RelationLike)*
 
 Filter <- < ("WHERE" sp Expression)? > {
         // This is *always* executed, even if there is no
@@ -144,6 +144,14 @@ Having <- < ("HAVING" sp Expression)? > {
         // This is *always* executed, even if there is no
         // HAVING clause present in the statement.
         p.AssembleHaving(begin, end)
+    }
+
+RelationLike <- AliasRelation / Relation {
+        p.EnsureAliasRelation()
+    }
+
+AliasRelation <- Relation sp "AS" sp Identifier {
+        p.AssembleAliasRelation()
     }
 
 SourceSinkSpecs <- < ("WITH" sp SourceSinkParam sp (',' sp SourceSinkParam)*)? > {
@@ -192,7 +200,7 @@ baseExpr <-
     ('(' sp Expression sp ')') /
     BooleanLiteral /
     FuncApp /
-    ColumnName /
+    RowValue /
     Literal
 
 FuncApp <- Function sp '(' sp FuncParams sp ')' {
@@ -229,9 +237,9 @@ Relation <- < ident > {
         p.PushComponent(begin, end, NewRelation(substr))
     }
 
-ColumnName <- < ident > {
+RowValue <- < (ident '.')? ident > {
         substr := string([]rune(buffer)[begin:end])
-        p.PushComponent(begin, end, NewColumnName(substr))
+        p.PushComponent(begin, end, NewRowValue(substr))
     }
 
 NumericLiteral <- < '-'? [0-9]+ > {
@@ -362,6 +370,11 @@ Divide <- < "/" > {
 
 Modulo <- < "%" > {
         p.PushComponent(begin, end, Modulo)
+    }
+
+Identifier <- < ident > {
+        substr := string([]rune(buffer)[begin:end])
+        p.PushComponent(begin, end, Identifier(substr))
     }
 
 ident <- [[a-z]] ([[a-z]] / [0-9] / '_')*

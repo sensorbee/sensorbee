@@ -9,10 +9,10 @@ func TestAssembleProjections(t *testing.T) {
 	Convey("Given a parseStack", t, func() {
 		ps := parseStack{}
 
-		Convey("When the stack contains only ColumnNames in the given range", func() {
+		Convey("When the stack contains only RowValues in the given range", func() {
 			ps.PushComponent(0, 6, Raw{"PRE"})
-			ps.PushComponent(6, 7, ColumnName{"a"})
-			ps.PushComponent(7, 8, ColumnName{"b"})
+			ps.PushComponent(6, 7, RowValue{"", "a"})
+			ps.PushComponent(7, 8, RowValue{"", "b"})
 			ps.AssembleProjections(6, 8)
 
 			Convey("Then AssembleProjections transforms them into one item", func() {
@@ -28,8 +28,8 @@ func TestAssembleProjections(t *testing.T) {
 					Convey("And it contains the previously pushed data", func() {
 						comp := top.comp.(ProjectionsAST)
 						So(len(comp.Projections), ShouldEqual, 2)
-						So(comp.Projections[0], ShouldResemble, ColumnName{"a"})
-						So(comp.Projections[1], ShouldResemble, ColumnName{"b"})
+						So(comp.Projections[0], ShouldResemble, RowValue{"", "a"})
+						So(comp.Projections[1], ShouldResemble, RowValue{"", "b"})
 					})
 				})
 			})
@@ -98,9 +98,9 @@ func TestAssembleProjections(t *testing.T) {
 				So(top, ShouldHaveSameTypeAs, SelectStmt{})
 				s := top.(SelectStmt)
 				So(len(s.Projections), ShouldEqual, 4)
-				So(s.Projections[0], ShouldResemble, ColumnName{"a"})
+				So(s.Projections[0], ShouldResemble, RowValue{"", "a"})
 				So(s.Projections[1], ShouldResemble, Wildcard{})
-				So(s.Projections[2], ShouldResemble, AliasAST{ColumnName{"b"}, "c"})
+				So(s.Projections[2], ShouldResemble, AliasAST{RowValue{"", "b"}, "c"})
 				So(s.Projections[3], ShouldResemble, AliasAST{Wildcard{}, "d"})
 			})
 		})

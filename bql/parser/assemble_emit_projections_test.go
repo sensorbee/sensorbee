@@ -12,8 +12,8 @@ func TestAssembleEmitProjections(t *testing.T) {
 		Convey("When the stack contains two correct items", func() {
 			ps.PushComponent(0, 4, Raw{"PRE"})
 			ps.PushComponent(4, 6, Istream)
-			ps.PushComponent(6, 8, ProjectionsAST{[]interface{}{ColumnName{"a"},
-				ColumnName{"b"}}})
+			ps.PushComponent(6, 8, ProjectionsAST{[]Expression{RowValue{"", "a"},
+				RowValue{"", "b"}}})
 			ps.AssembleEmitProjections()
 
 			Convey("Then AssembleEmitProjections replaces them with a new item", func() {
@@ -30,8 +30,8 @@ func TestAssembleEmitProjections(t *testing.T) {
 						comp := top.comp.(EmitProjectionsAST)
 						So(comp.EmitterType, ShouldEqual, Istream)
 						So(len(comp.Projections), ShouldEqual, 2)
-						So(comp.Projections[0], ShouldResemble, ColumnName{"a"})
-						So(comp.Projections[1], ShouldResemble, ColumnName{"b"})
+						So(comp.Projections[0], ShouldResemble, RowValue{"", "a"})
+						So(comp.Projections[1], ShouldResemble, RowValue{"", "b"})
 					})
 				})
 			})
@@ -56,7 +56,7 @@ func TestAssembleEmitProjections(t *testing.T) {
 		p := &bqlPeg{}
 
 		Convey("When selecting multiple columns", func() {
-			p.Buffer = "CREATE STREAM x AS SELECT ISTREAM(a, b)"
+			p.Buffer = "CREATE STREAM x AS SELECT ISTREAM a, b"
 			p.Init()
 
 			Convey("Then the statement should be parsed correctly", func() {
@@ -71,8 +71,8 @@ func TestAssembleEmitProjections(t *testing.T) {
 				s := top.(CreateStreamAsSelectStmt)
 				So(s.EmitterType, ShouldEqual, Istream)
 				So(len(s.Projections), ShouldEqual, 2)
-				So(s.Projections[0], ShouldResemble, ColumnName{"a"})
-				So(s.Projections[1], ShouldResemble, ColumnName{"b"})
+				So(s.Projections[0], ShouldResemble, RowValue{"", "a"})
+				So(s.Projections[1], ShouldResemble, RowValue{"", "b"})
 			})
 		})
 	})

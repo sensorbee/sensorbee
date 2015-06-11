@@ -9,6 +9,7 @@ import (
 
 type filterIstreamPlan struct {
 	commonExecutionPlan
+	relAlias    string
 	windowSize  int64
 	prevResults []tuple.Map
 	procItems   int64
@@ -43,7 +44,7 @@ func NewFilterIstreamPlan(lp *LogicalPlan, reg udf.FunctionRegistry) (ExecutionP
 	return &filterIstreamPlan{commonExecutionPlan{
 		projections: projs,
 		filter:      filter,
-	}, lp.Value, make([]tuple.Map, 0, lp.Value), 0}, nil
+	}, lp.Relations[0].Alias, lp.Value, make([]tuple.Map, 0, lp.Value), 0}, nil
 }
 
 func (ep *filterIstreamPlan) Process(input *tuple.Tuple) ([]tuple.Map, error) {
@@ -56,6 +57,9 @@ func (ep *filterIstreamPlan) Process(input *tuple.Tuple) ([]tuple.Map, error) {
 	} else {
 		ep.procItems++
 	}
+
+	// nest the data in a one-element map using the alias as the key
+	input.Data = tuple.Map{ep.relAlias: input.Data}
 
 	// evaluate filter condition and convert to bool
 	if ep.filter != nil {

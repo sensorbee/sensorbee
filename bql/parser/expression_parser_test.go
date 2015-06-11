@@ -7,7 +7,7 @@ import (
 )
 
 func TestExpressionParser(t *testing.T) {
-	testCases := map[string][]interface{}{
+	testCases := map[string][]Expression{
 		/// Base Expressions
 		// BooleanLiteral
 		"true":  {BoolLiteral{true}},
@@ -15,14 +15,15 @@ func TestExpressionParser(t *testing.T) {
 		"false": {BoolLiteral{false}},
 		// Function Application
 		"f(a)": {FuncAppAST{FuncName("f"),
-			ExpressionsAST{[]interface{}{ColumnName{"a"}}}}},
+			ExpressionsAST{[]Expression{RowValue{"", "a"}}}}},
 		"f(2.1, 'a')": {FuncAppAST{FuncName("f"),
-			ExpressionsAST{[]interface{}{FloatLiteral{2.1}, StringLiteral{"a"}}}}},
-		// ColumnName
-		"a":         {ColumnName{"a"}},
-		"a, b":      {ColumnName{"a"}, ColumnName{"b"}},
-		"A":         {ColumnName{"A"}},
-		"my_mem_27": {ColumnName{"my_mem_27"}},
+			ExpressionsAST{[]Expression{FloatLiteral{2.1}, StringLiteral{"a"}}}}},
+		// RowValue
+		"a":         {RowValue{"", "a"}},
+		"tab.a":     {RowValue{"tab", "a"}},
+		"a, b":      {RowValue{"", "a"}, RowValue{"", "b"}},
+		"A":         {RowValue{"", "A"}},
+		"my_mem_27": {RowValue{"", "my_mem_27"}},
 		// Wildcard
 		"*": {Wildcard{}},
 		// NumericLiteral
@@ -40,64 +41,64 @@ func TestExpressionParser(t *testing.T) {
 		`'日本語'`:      {StringLiteral{"日本語"}},
 		/// Composed Expressions
 		// OR
-		"a OR 2": {BinaryOpAST{Or, ColumnName{"a"}, NumericLiteral{2}}},
+		"a OR 2": {BinaryOpAST{Or, RowValue{"", "a"}, NumericLiteral{2}}},
 		// AND
-		"a AND 2": {BinaryOpAST{And, ColumnName{"a"}, NumericLiteral{2}}},
+		"a AND 2": {BinaryOpAST{And, RowValue{"", "a"}, NumericLiteral{2}}},
 		// Comparisons
-		"a = 2":  {BinaryOpAST{Equal, ColumnName{"a"}, NumericLiteral{2}}},
-		"a < 2":  {BinaryOpAST{Less, ColumnName{"a"}, NumericLiteral{2}}},
-		"a <= 2": {BinaryOpAST{LessOrEqual, ColumnName{"a"}, NumericLiteral{2}}},
-		"a > 2":  {BinaryOpAST{Greater, ColumnName{"a"}, NumericLiteral{2}}},
-		"a >= 2": {BinaryOpAST{GreaterOrEqual, ColumnName{"a"}, NumericLiteral{2}}},
-		"a != 2": {BinaryOpAST{NotEqual, ColumnName{"a"}, NumericLiteral{2}}},
-		"a <> 2": {BinaryOpAST{NotEqual, ColumnName{"a"}, NumericLiteral{2}}},
+		"a = 2":  {BinaryOpAST{Equal, RowValue{"", "a"}, NumericLiteral{2}}},
+		"a < 2":  {BinaryOpAST{Less, RowValue{"", "a"}, NumericLiteral{2}}},
+		"a <= 2": {BinaryOpAST{LessOrEqual, RowValue{"", "a"}, NumericLiteral{2}}},
+		"a > 2":  {BinaryOpAST{Greater, RowValue{"", "a"}, NumericLiteral{2}}},
+		"a >= 2": {BinaryOpAST{GreaterOrEqual, RowValue{"", "a"}, NumericLiteral{2}}},
+		"a != 2": {BinaryOpAST{NotEqual, RowValue{"", "a"}, NumericLiteral{2}}},
+		"a <> 2": {BinaryOpAST{NotEqual, RowValue{"", "a"}, NumericLiteral{2}}},
 		// Plus/Minus Terms
-		"a + 2": {BinaryOpAST{Plus, ColumnName{"a"}, NumericLiteral{2}}},
-		"a - 2": {BinaryOpAST{Minus, ColumnName{"a"}, NumericLiteral{2}}},
+		"a + 2": {BinaryOpAST{Plus, RowValue{"", "a"}, NumericLiteral{2}}},
+		"a - 2": {BinaryOpAST{Minus, RowValue{"", "a"}, NumericLiteral{2}}},
 		// Product/Division Terms
-		"a * 2": {BinaryOpAST{Multiply, ColumnName{"a"}, NumericLiteral{2}}},
-		"a / 2": {BinaryOpAST{Divide, ColumnName{"a"}, NumericLiteral{2}}},
-		"a % 2": {BinaryOpAST{Modulo, ColumnName{"a"}, NumericLiteral{2}}},
+		"a * 2": {BinaryOpAST{Multiply, RowValue{"", "a"}, NumericLiteral{2}}},
+		"a / 2": {BinaryOpAST{Divide, RowValue{"", "a"}, NumericLiteral{2}}},
+		"a % 2": {BinaryOpAST{Modulo, RowValue{"", "a"}, NumericLiteral{2}}},
 		/// Operator Precedence
 		"a AND b OR 2": {BinaryOpAST{Or,
-			BinaryOpAST{And, ColumnName{"a"}, ColumnName{"b"}},
+			BinaryOpAST{And, RowValue{"", "a"}, RowValue{"", "b"}},
 			NumericLiteral{2}}},
 		"2 OR a AND b": {BinaryOpAST{Or,
 			NumericLiteral{2},
-			BinaryOpAST{And, ColumnName{"a"}, ColumnName{"b"}}}},
+			BinaryOpAST{And, RowValue{"", "a"}, RowValue{"", "b"}}}},
 		"a * b + 2": {BinaryOpAST{Plus,
-			BinaryOpAST{Multiply, ColumnName{"a"}, ColumnName{"b"}},
+			BinaryOpAST{Multiply, RowValue{"", "a"}, RowValue{"", "b"}},
 			NumericLiteral{2}}},
 		"2 - a * b": {BinaryOpAST{Minus,
 			NumericLiteral{2},
-			BinaryOpAST{Multiply, ColumnName{"a"}, ColumnName{"b"}}}},
+			BinaryOpAST{Multiply, RowValue{"", "a"}, RowValue{"", "b"}}}},
 		/// Overriding Operator Precedence
 		"a AND (b OR 2)": {BinaryOpAST{And,
-			ColumnName{"a"},
-			BinaryOpAST{Or, ColumnName{"b"}, NumericLiteral{2}}}},
+			RowValue{"", "a"},
+			BinaryOpAST{Or, RowValue{"", "b"}, NumericLiteral{2}}}},
 		"(2 OR a) AND b": {BinaryOpAST{And,
-			BinaryOpAST{Or, NumericLiteral{2}, ColumnName{"a"}},
-			ColumnName{"b"}}},
+			BinaryOpAST{Or, NumericLiteral{2}, RowValue{"", "a"}},
+			RowValue{"", "b"}}},
 		"a * (b + 2)": {BinaryOpAST{Multiply,
-			ColumnName{"a"},
-			BinaryOpAST{Plus, ColumnName{"b"}, NumericLiteral{2}}}},
+			RowValue{"", "a"},
+			BinaryOpAST{Plus, RowValue{"", "b"}, NumericLiteral{2}}}},
 		"(2 - a) * b": {BinaryOpAST{Multiply,
-			BinaryOpAST{Minus, NumericLiteral{2}, ColumnName{"a"}},
-			ColumnName{"b"}}},
+			BinaryOpAST{Minus, NumericLiteral{2}, RowValue{"", "a"}},
+			RowValue{"", "b"}}},
 		/// Operator Non-Precedence
 		// TODO using more than one "same-level" operator does not work
 		/*
 			"a AND b AND 2": {BinaryOpAST{And,
-				BinaryOpAST{And, ColumnName{"a"}, ColumnName{"b"}},
+				BinaryOpAST{And, RowValue{"","a"}, RowValue{"","b"}},
 				NumericLiteral{2}}},
 			"2 OR a OR b": {BinaryOpAST{Or,
-				BinaryOpAST{Or, NumericLiteral{2}, ColumnName{"a"}},
-				ColumnName{"b"}}},
+				BinaryOpAST{Or, NumericLiteral{2}, RowValue{"","a"}},
+				RowValue{"","b"}}},
 			"a / b * 2": {BinaryOpAST{Multiply,
-				BinaryOpAST{Divide, ColumnName{"a"}, ColumnName{"b"}},
+				BinaryOpAST{Divide, RowValue{"","a"}, RowValue{"","b"}},
 				NumericLiteral{2}}},
 			"a - b + 2": {BinaryOpAST{Plus,
-				BinaryOpAST{Minus, ColumnName{"a"}, ColumnName{"b"}},
+				BinaryOpAST{Minus, RowValue{"","a"}, RowValue{"","b"}},
 				NumericLiteral{2}}},
 		*/
 		/// Complex/Nested Expressions
@@ -105,17 +106,17 @@ func TestExpressionParser(t *testing.T) {
 			BinaryOpAST{Or,
 				BinaryOpAST{Equal,
 					BinaryOpAST{Modulo,
-						BinaryOpAST{Plus, ColumnName{"a"}, NumericLiteral{1}},
+						BinaryOpAST{Plus, RowValue{"", "a"}, NumericLiteral{1}},
 						NumericLiteral{2}},
 					NumericLiteral{0}},
-				BinaryOpAST{Less, ColumnName{"b"}, FloatLiteral{7.1}}},
-			ColumnName{"c"}},
+				BinaryOpAST{Less, RowValue{"", "b"}, FloatLiteral{7.1}}},
+			RowValue{"", "c"}},
 		/// Multiple Columns
-		"a, 3.1, false, -2": {ColumnName{"a"}, FloatLiteral{3.1}, BoolLiteral{false}, NumericLiteral{-2}},
+		"a, 3.1, false, -2": {RowValue{"", "a"}, FloatLiteral{3.1}, BoolLiteral{false}, NumericLiteral{-2}},
 		`'日本語', 13`:         {StringLiteral{"日本語"}, NumericLiteral{13}},
 		"concat(a, 'Pi', 3.1), b": {FuncAppAST{FuncName("concat"), ExpressionsAST{
-			[]interface{}{ColumnName{"a"}, StringLiteral{"Pi"}, FloatLiteral{3.1}}}},
-			ColumnName{"b"}},
+			[]Expression{RowValue{"", "a"}, StringLiteral{"Pi"}, FloatLiteral{3.1}}}},
+			RowValue{"", "b"}},
 	}
 
 	Convey("Given a BQL parser", t, func() {

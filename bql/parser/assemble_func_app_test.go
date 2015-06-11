@@ -12,9 +12,9 @@ func TestAssembleFuncApp(t *testing.T) {
 		Convey("When the stack contains two correct items", func() {
 			ps.PushComponent(0, 6, Raw{"PRE"})
 			ps.PushComponent(6, 7, FuncName("add"))
-			ps.PushComponent(7, 8, ExpressionsAST{[]interface{}{
+			ps.PushComponent(7, 8, ExpressionsAST{[]Expression{
 				NumericLiteral{2},
-				ColumnName{"a"}}})
+				RowValue{"", "a"}}})
 			ps.AssembleFuncApp()
 
 			Convey("Then AssembleFuncApp replaces them with a new item", func() {
@@ -32,7 +32,7 @@ func TestAssembleFuncApp(t *testing.T) {
 						So(comp.Function, ShouldEqual, "add")
 						So(len(comp.Expressions), ShouldEqual, 2)
 						So(comp.Expressions[0], ShouldResemble, NumericLiteral{2})
-						So(comp.Expressions[1], ShouldResemble, ColumnName{"a"})
+						So(comp.Expressions[1], ShouldResemble, RowValue{"", "a"})
 					})
 				})
 			})
