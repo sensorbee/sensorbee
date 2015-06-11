@@ -4,6 +4,7 @@ type DynamicTopology interface {
 	AddSource(name string, s Source, config *DynamicSourceConfig) (DynamicSourceNode, error)
 	AddBox(name string, b Box, config *DynamicBoxConfig) (DynamicBoxNode, error)
 	AddSink(name string, s Sink, config *DynamicSinkConfig) (DynamicSinkNode, error)
+	Remove(name string) error
 
 	Stop() error
 	State() TopologyStateHolder
