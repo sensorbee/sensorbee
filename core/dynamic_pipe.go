@@ -82,11 +82,9 @@ func (s *dynamicPipeSender) close() {
 type dynamicDataSources struct {
 	nodeName string
 
-	// m protects recvs and msgChs.
-	m sync.Mutex
-
-	// wg waits until pour finishes.
-	wg sync.WaitGroup
+	// m protects state, recvs, and msgChs.
+	m     sync.Mutex
+	state *topologyStateHolder
 
 	recvs map[string]*dynamicPipeReceiver
 
@@ -96,10 +94,12 @@ type dynamicDataSources struct {
 }
 
 func newDynamicDataSources(nodeName string) *dynamicDataSources {
-	return &dynamicDataSources{
+	s := &dynamicDataSources{
 		nodeName: nodeName,
 		recvs:    map[string]*dynamicPipeReceiver{},
 	}
+	s.state = newTopologyStateHolder(&s.m)
+	return s
 }
 
 type dynamicDataSourcesMessage struct {
@@ -112,7 +112,8 @@ type dynamicDataSourcesCommand int
 const (
 	ddscAddReceiver dynamicDataSourcesCommand = iota
 	ddscStop
-	ddscEnableGracefulStop
+	ddscToggleGracefulStop
+	ddscStopOnDisconnect
 )
 
 func (s *dynamicDataSources) add(name string, r *dynamicPipeReceiver) error {
@@ -121,7 +122,7 @@ func (s *dynamicDataSources) add(name string, r *dynamicPipeReceiver) error {
 	// actually acquiring Lock.
 	s.m.Lock()
 	defer s.m.Unlock()
-	if s.recvs == nil {
+	if s.state.getWithoutLock() >= TSStopping {
 		return fmt.Errorf("node '%v' already closed its input", s.nodeName)
 	}
 
@@ -129,20 +130,31 @@ func (s *dynamicDataSources) add(name string, r *dynamicPipeReceiver) error {
 		return fmt.Errorf("node '%v' is already receiving tuples from '%v'", s.nodeName, name)
 	}
 	s.recvs[name] = r
-
-	msg := &dynamicDataSourcesMessage{
+	s.sendMessageWithoutLock(&dynamicDataSourcesMessage{
 		cmd: ddscAddReceiver,
 		v:   r,
-	}
+	})
+	return nil
+}
+
+func (s *dynamicDataSources) sendMessage(msg *dynamicDataSourcesMessage) {
+	s.m.Lock()
+	defer s.m.Unlock()
+	s.sendMessageWithoutLock(msg)
+}
+
+func (s *dynamicDataSources) sendMessageWithoutLock(msg *dynamicDataSourcesMessage) {
 	for _, ch := range s.msgChs {
 		ch <- msg
 	}
-	return nil
 }
 
 func (s *dynamicDataSources) remove(name string) {
 	s.m.Lock()
 	defer s.m.Unlock()
+	if s.state.getWithoutLock() >= TSStopping {
+		return
+	}
 	r, ok := s.recvs[name]
 	if !ok {
 		return
@@ -153,14 +165,13 @@ func (s *dynamicDataSources) remove(name string) {
 
 // pour pours out tuples for the target Writer. The target must directly be
 // connected to a Box or a Sink.
-//
-// callback is called after all the goroutine started if it isn't nil.
-func (s *dynamicDataSources) pour(ctx *Context, w Writer, paralellism int, callback func()) error {
+func (s *dynamicDataSources) pour(ctx *Context, w Writer, paralellism int) error {
 	if paralellism == 0 {
 		paralellism = 1
 	}
 
 	var (
+		wg        sync.WaitGroup
 		logOnce   sync.Once
 		threadErr error
 	)
@@ -168,12 +179,26 @@ func (s *dynamicDataSources) pour(ctx *Context, w Writer, paralellism int, callb
 	err := func() error {
 		s.m.Lock()
 		defer s.m.Unlock()
-		if s.recvs == nil {
-			return fmt.Errorf("'%v' already stopped receiving tuples", s.nodeName)
-		}
+		switch st := s.state.getWithoutLock(); st {
+		case TSInitialized:
+			s.state.setWithoutLock(TSStarting)
 
-		if len(s.msgChs) != 0 {
+		case TSStarting:
+			s.state.waitWithoutLock(TSRunning)
+			fallthrough
+
+		case TSRunning, TSPaused:
 			return fmt.Errorf("'%v' already started to receive tuples", s.nodeName)
+
+		case TSStopping:
+			s.state.waitWithoutLock(TSStopping)
+			fallthrough
+
+		case TSStopped:
+			return fmt.Errorf("'%v' already stopped receiving tuples", s.nodeName)
+
+		default:
+			return fmt.Errorf("'%v' has invalid state: %v", s.nodeName, st)
 		}
 
 		genCases := func(msgCh <-chan *dynamicDataSourcesMessage) []reflect.SelectCase {
@@ -203,9 +228,9 @@ func (s *dynamicDataSources) pour(ctx *Context, w Writer, paralellism int, callb
 			msgCh := make(chan *dynamicDataSourcesMessage)
 			s.msgChs = append(s.msgChs, msgCh)
 
-			s.wg.Add(1)
+			wg.Add(1)
 			go func() {
-				defer s.wg.Done()
+				defer wg.Done()
 				if err := s.pouringThread(ctx, w, genCases(msgCh)); err != nil {
 					logOnce.Do(func() {
 						threadErr = err // return only one error
@@ -220,10 +245,24 @@ func (s *dynamicDataSources) pour(ctx *Context, w Writer, paralellism int, callb
 		return err
 	}
 
-	if callback != nil {
-		callback()
+	s.state.Set(TSRunning)
+	wg.Wait()
+
+	s.m.Lock()
+	defer func() {
+		s.state.setWithoutLock(TSStopped)
+		s.m.Unlock()
+	}()
+
+	for _, r := range s.recvs {
+		r.close()
 	}
-	s.wg.Wait()
+	s.recvs = nil
+
+	for _, ch := range s.msgChs {
+		close(ch)
+	}
+	s.msgChs = nil
 	return threadErr
 }
 
@@ -253,11 +292,12 @@ func (s *dynamicDataSources) pouringThread(ctx *Context, w Writer, cs []reflect.
 	}()
 
 	gracefulStopEnabled := false
+	stopOnDisconnect := false
 
 receiveLoop:
 	for {
-		if gracefulStopEnabled && len(cs) == maxControlIndex+1 {
-			// When graceful stop is enabled, this loop breaks if the data
+		if stopOnDisconnect && len(cs) == maxControlIndex+1 {
+			// When stopOnDisconnect is enabled, this loop breaks if the data
 			// source doesn't have any input channel. Otherwise, it keeps
 			// running because a new input could dynamically be added.
 			break
@@ -279,7 +319,7 @@ receiveLoop:
 		case message:
 			msg, ok := v.Interface().(*dynamicDataSourcesMessage)
 			if !ok {
-				ctx.Logger.Log(Info, "Received an invalid control message in dynamicDataSources: %v", v.Interface())
+				ctx.Logger.Log(Warning, "Received an invalid control message in dynamicDataSources: %v", v.Interface())
 				continue
 			}
 
@@ -287,7 +327,7 @@ receiveLoop:
 			case ddscAddReceiver:
 				c, ok := msg.v.(*dynamicPipeReceiver)
 				if !ok {
-					ctx.Logger.Log(Error, "Cannot add a new receiver due to a type error")
+					ctx.Logger.Log(Warning, "Cannot add a new receiver due to a type error")
 					break
 				}
 				cs = append(cs, reflect.SelectCase{
@@ -296,10 +336,16 @@ receiveLoop:
 				})
 
 			case ddscStop:
+				if !gracefulStopEnabled {
+					break receiveLoop
+				}
 				cs[defaultCase].Dir = reflect.SelectDefault // activate the default case
 
-			case ddscEnableGracefulStop:
+			case ddscToggleGracefulStop:
 				gracefulStopEnabled = true
+
+			case ddscStopOnDisconnect:
+				stopOnDisconnect = true
 			}
 
 		case defaultCase:
@@ -327,48 +373,76 @@ receiveLoop:
 			}
 		}
 	}
+
+	// TODO: vacuum all remaining inputs including control messages in pour method
 	return nil
 }
 
-// enableGracefulStop enables graceful stop mode. If the mode is enabled,
-// the suorce automatically stops when it doesn't have any input channel.
+// enableGracefulStop enables graceful stop mode. If the mode is enabled, the
+// suorce automatically stops when it doesn't receive any input after stop is
+// called.
 func (s *dynamicDataSources) enableGracefulStop() {
-	s.m.Lock()
-	defer s.m.Unlock()
-	cmd := &dynamicDataSourcesMessage{
-		cmd: ddscEnableGracefulStop,
-	}
-	for _, mc := range s.msgChs {
-		mc <- cmd
-	}
+	// Perhaps this function should be something like 'toggle', but it wasn't
+	// necessary at the time of this writing.
+	s.sendMessage(&dynamicDataSourcesMessage{
+		cmd: ddscToggleGracefulStop,
+	})
+}
+
+// stopOnDisconnect activates automatic stop when the dynamicDataSources has
+// no receiver.
+func (s *dynamicDataSources) stopOnDisconnect() {
+	s.sendMessage(&dynamicDataSourcesMessage{
+		cmd: ddscStopOnDisconnect,
+	})
 }
 
 // stop stops the source after processing tuples which it currently has.
 func (s *dynamicDataSources) stop(ctx *Context) {
-	func() {
-		s.m.Lock()
-		defer s.m.Unlock()
-		if s.recvs == nil || s.msgChs == nil { // already stopped or not started yet
-			s.recvs = nil // stop the pipe before it starts
-			return
-		}
+	s.m.Lock()
+	defer s.m.Unlock()
 
-		for _, r := range s.recvs {
-			// This eventually closes the channels and remove edges from
-			// data sources.
-			r.close()
-		}
-		s.recvs = nil
+	stopped, err := func() (bool, error) {
+		for {
+			switch st := s.state.getWithoutLock(); st {
+			case TSInitialized:
+				s.state.setWithoutLock(TSStopped)
+				return true, nil
 
-		cmd := &dynamicDataSourcesMessage{
-			cmd: ddscStop,
+			case TSStarting:
+				s.state.waitWithoutLock(TSRunning)
+
+			case TSRunning, TSPaused:
+				s.state.setWithoutLock(TSStopping)
+				return false, nil
+
+			case TSStopping:
+				s.state.waitWithoutLock(TSStopped)
+				fallthrough
+
+			case TSStopped:
+				return true, nil
+
+			default:
+				return false, fmt.Errorf("'%v' has an invalid state: %v", s.nodeName, st)
+			}
 		}
-		for _, mc := range s.msgChs {
-			mc <- cmd
-		}
-		s.msgChs = nil
 	}()
-	s.wg.Wait()
+	if stopped || err != nil {
+		return
+	}
+
+	for _, r := range s.recvs {
+		// This eventually closes the channels and remove edges from
+		// data sources.
+		r.close()
+	}
+	s.recvs = nil
+
+	s.sendMessageWithoutLock(&dynamicDataSourcesMessage{
+		cmd: ddscStop,
+	})
+	s.state.waitWithoutLock(TSStopped)
 }
 
 // dynamicDataDestinations have writers connected to multiple destination nodes and
