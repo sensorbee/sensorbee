@@ -345,6 +345,162 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 		})
 	})
 
+	// Recovery from errors in tuples
+	Convey("Given a SELECT clause with a column that does not exist in one tuple (RSTREAM)", t, func() {
+		tuples := getTuples(6)
+		// remove the selected key from one tuple
+		delete(tuples[1].Data, "int")
+
+		s := `CREATE STREAM box AS SELECT RSTREAM(int) FROM src [RANGE 2 TUPLES]`
+		plan, err := createDefaultSelectPlan(s, t)
+		So(err, ShouldBeNil)
+
+		Convey("When feeding it with tuples", func() {
+			for idx, inTup := range tuples {
+				out, err := plan.Process(inTup)
+
+				if idx == 0 {
+					// In the idx==0 run, the window contains only item 0.
+					// That item is fine, no problem.
+					Convey(fmt.Sprintf("Then those values should appear in %v", idx), func() {
+						So(err, ShouldBeNil)
+						So(len(out), ShouldEqual, 1)
+						So(out[0], ShouldResemble,
+							tuple.Map{"int": tuple.Int(idx + 1)})
+					})
+				} else if idx == 1 || idx == 2 {
+					// In the idx==1 run, the window contains item 0 and item 1,
+					// the latter is broken, therefore the query fails.
+					// In the idx==2 run, the window contains item 1 and item 2,
+					// the latter is broken, therefore the query fails.
+					Convey(fmt.Sprintf("Then there should be an error for a queries in %v", idx), func() {
+						So(err, ShouldNotBeNil)
+					})
+				} else {
+					// In later runs, we have recovered from the error in item 1
+					// and emit one item per run as normal.
+					Convey(fmt.Sprintf("Then those values should appear in %v", idx), func() {
+						So(err, ShouldBeNil)
+						So(len(out), ShouldEqual, 2)
+						So(out[0], ShouldResemble,
+							tuple.Map{"int": tuple.Int(idx)})
+						So(out[1], ShouldResemble,
+							tuple.Map{"int": tuple.Int(idx + 1)})
+					})
+				}
+			}
+
+		})
+	})
+
+	SkipConvey("Given a SELECT clause with a column that does not exist in one tuple (ISTREAM)", t, func() {
+		tuples := getTuples(6)
+		// remove the selected key from one tuple
+		delete(tuples[1].Data, "int")
+
+		s := `CREATE STREAM box AS SELECT ISTREAM(int) FROM src [RANGE 2 TUPLES]`
+		plan, err := createDefaultSelectPlan(s, t)
+		So(err, ShouldBeNil)
+
+		Convey("When feeding it with tuples", func() {
+			for idx, inTup := range tuples {
+				out, err := plan.Process(inTup)
+
+				if idx == 0 {
+					// In the idx==0 run, the window contains only item 0.
+					// That item is fine, no problem.
+					Convey(fmt.Sprintf("Then those values should appear in %v", idx), func() {
+						So(err, ShouldBeNil)
+						So(len(out), ShouldEqual, 1)
+						So(out[0], ShouldResemble,
+							tuple.Map{"int": tuple.Int(idx + 1)})
+					})
+				} else if idx == 1 || idx == 2 {
+					// In the idx==1 run, the window contains item 0 and item 1,
+					// the latter is broken, therefore the query fails.
+					// In the idx==2 run, the window contains item 1 and item 2,
+					// the latter is broken, therefore the query fails.
+					Convey(fmt.Sprintf("Then there should be an error for a queries in %v", idx), func() {
+						So(err, ShouldNotBeNil)
+					})
+				} else if idx == 3 {
+					// In the idx==3 run, the window contains item 2 and item 3.
+					// Both items are fine and have not been emitted before, so
+					// both are emitted now.
+					Convey(fmt.Sprintf("Then those values should appear in %v", idx), func() {
+						So(err, ShouldBeNil)
+						So(len(out), ShouldEqual, 2)
+						So(out[0], ShouldResemble,
+							tuple.Map{"int": tuple.Int(idx)})
+						So(out[1], ShouldResemble,
+							tuple.Map{"int": tuple.Int(idx + 1)})
+					})
+				} else {
+					// In later runs, we have recovered from the error in item 1
+					// and emit one item per run as normal.
+					Convey(fmt.Sprintf("Then those values should appear in %v", idx), func() {
+						So(err, ShouldBeNil)
+						So(len(out), ShouldEqual, 1)
+						So(out[0], ShouldResemble,
+							tuple.Map{"int": tuple.Int(idx + 1)})
+					})
+				}
+			}
+
+		})
+	})
+
+	SkipConvey("Given a SELECT clause with a column that does not exist in one tuple (DSTREAM)", t, func() {
+		tuples := getTuples(6)
+		// remove the selected key from one tuple
+		delete(tuples[1].Data, "int")
+
+		s := `CREATE STREAM box AS SELECT DSTREAM(int) FROM src [RANGE 2 TUPLES]`
+		plan, err := createDefaultSelectPlan(s, t)
+		So(err, ShouldBeNil)
+
+		Convey("When feeding it with tuples", func() {
+			for idx, inTup := range tuples {
+				out, err := plan.Process(inTup)
+
+				if idx == 0 {
+					// In the idx==0 run, the window contains only item 0.
+					Convey(fmt.Sprintf("Then those values should appear in %v", idx), func() {
+						So(err, ShouldBeNil)
+						So(len(out), ShouldEqual, 0)
+					})
+				} else if idx == 1 || idx == 2 {
+					// In the idx==1 run, the window contains item 0 and item 1,
+					// the latter is broken, therefore the query fails.
+					// In the idx==2 run, the window contains item 1 and item 2,
+					// the latter is broken, therefore the query fails.
+					Convey(fmt.Sprintf("Then there should be an error for a queries in %v", idx), func() {
+						So(err, ShouldNotBeNil)
+					})
+				} else if idx == 3 {
+					// In the idx==3 run, the window contains item 2 and item 3.
+					// Both items are fine and so item 0 is emitted.
+					Convey(fmt.Sprintf("Then those values should appear in %v", idx), func() {
+						So(err, ShouldBeNil)
+						So(len(out), ShouldEqual, 1)
+						So(out[0], ShouldResemble,
+							tuple.Map{"int": tuple.Int(1)})
+					})
+				} else {
+					// In later runs, we have recovered from the error in item 1
+					// and emit one item per run as normal.
+					Convey(fmt.Sprintf("Then those values should appear in %v", idx), func() {
+						So(err, ShouldBeNil)
+						So(len(out), ShouldEqual, 1)
+						So(out[0], ShouldResemble,
+							tuple.Map{"int": tuple.Int(idx - 1)})
+					})
+				}
+			}
+
+		})
+	})
+
 	// RSTREAM/2 SECONDS
 	Convey("Given an RSTREAM/2 SECONDS statement with a constant", t, func() {
 		tuples := getTuples(4)
