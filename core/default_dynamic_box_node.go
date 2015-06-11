@@ -7,6 +7,10 @@ type defaultDynamicBoxNode struct {
 	dsts *dynamicDataDestinations
 }
 
+func (db *defaultDynamicBoxNode) Type() NodeType {
+	return NTBox
+}
+
 func (db *defaultDynamicBoxNode) Input(refname string, config *BoxInputConfig) error {
 	s, err := db.topology.dataSource(refname)
 	if err != nil {
@@ -71,6 +75,6 @@ func (db *defaultDynamicBoxNode) stop() {
 	db.state.Wait(TSStopped)
 }
 
-func (ds *defaultDynamicBoxNode) destinations() *dynamicDataDestinations {
-	return ds.dsts
+func (db *defaultDynamicBoxNode) destinations() *dynamicDataDestinations {
+	return db.dsts
 }

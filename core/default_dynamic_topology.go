@@ -256,13 +256,60 @@ func (t *defaultDynamicTopology) State() TopologyStateHolder {
 	return t.state
 }
 
-// TODO: Add Remove method to remove a node from the topology
+func (t *defaultDynamicTopology) Remove(name string) error {
+	n := func() DynamicNode {
+		t.nodeMutex.Lock()
+		defer t.nodeMutex.Unlock()
+
+		n, err := t.nodeWithoutLock(name)
+		if err != nil {
+			return nil // not found
+		}
+		switch n.Type() {
+		case NTSource:
+			delete(t.sources, name)
+		case NTBox:
+			delete(t.boxes, name)
+		case NTSink:
+			delete(t.sinks, name)
+		}
+		return n
+	}()
+	if n == nil {
+		return nil // already removed or doesn't exist
+	}
+
+	return func() (retErr error) {
+		defer func() {
+			if e := recover(); e != nil {
+				if err, ok := e.(error); ok {
+					retErr = err
+				} else {
+					retErr = FatalError(fmt.Errorf("%v '%v' failed to stop with panic: %v", n.Type(), name, e))
+				}
+			}
+
+			if retErr != nil && n.Type() == NTSource {
+				s := n.(*defaultDynamicSourceNode)
+				s.dsts.Close(t.ctx)
+			}
+		}()
+		if err := n.Stop(); err != nil {
+			retErr = err
+		}
+		return
+	}()
+}
+
 // TODO: Add method to clean up (possibly indirectly) stopped nodes
-// TODO: Add Node(name), Source(name), Box(name), Sink(name) methods to retrieve specific nodes in the topology
 
 func (t *defaultDynamicTopology) Node(name string) (DynamicNode, error) {
 	t.nodeMutex.RLock()
 	defer t.nodeMutex.RUnlock()
+	return t.nodeWithoutLock(name)
+}
+
+func (t *defaultDynamicTopology) nodeWithoutLock(name string) (DynamicNode, error) {
 	if s, ok := t.sources[name]; ok {
 		return s, nil
 	}

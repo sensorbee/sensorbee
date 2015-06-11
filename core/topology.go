@@ -5,6 +5,33 @@ import (
 	"sync"
 )
 
+// NodeType represents the type of a node in a topology.
+type NodeType int
+
+const (
+	// NTSource means the node is a Source.
+	NTSource NodeType = iota
+
+	// NTBox means the node is a Box.
+	NTBox
+
+	// NTSink means the node is a Sink.
+	NTSink
+)
+
+func (t NodeType) String() string {
+	switch t {
+	case NTSource:
+		return "source"
+	case NTBox:
+		return "box"
+	case NTSink:
+		return "sink"
+	default:
+		return "unknown"
+	}
+}
+
 // TopologyState represents a status of a topology or a node.
 type TopologyState int
 

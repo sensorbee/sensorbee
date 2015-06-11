@@ -10,6 +10,10 @@ type defaultDynamicSourceNode struct {
 	dsts   *dynamicDataDestinations
 }
 
+func (ds *defaultDynamicSourceNode) Type() NodeType {
+	return NTSource
+}
+
 func (ds *defaultDynamicSourceNode) run() error {
 	if err := ds.checkAndPrepareRunState("source"); err != nil {
 		return err
