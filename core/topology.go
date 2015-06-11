@@ -158,6 +158,103 @@ func (h *topologyStateHolder) waitWithoutLock(s TopologyState) TopologyState {
 	return h.state
 }
 
+// checkAndPrepareForRunning checks the current state to see if it can be run.
+// It returns the current state and an error. Possible errors are:
+//
+//	1. a topology or a node is already running (with TSRunning, TSStopped)
+//	2. a topology or a node is already stopped (with TSStopped)
+//	3. invalid state
+//
+// The state is set to TSStarting when it can be run.
+func (h *topologyStateHolder) checkAndPrepareForRunning() (TopologyState, error) {
+	h.cond.L.Lock()
+	defer h.cond.L.Unlock()
+	return h.checkAndPrepareForRunningWithoutLock()
+}
+
+func (h *topologyStateHolder) checkAndPrepareForRunningWithoutLock() (TopologyState, error) {
+	switch h.state {
+	case TSInitialized:
+		h.setWithoutLock(TSStarting)
+		return h.state, nil
+
+	case TSStarting:
+		// Immediately returning an error could be confusing for callers,
+		// so wait until the topology becomes at least the running state.
+		h.waitWithoutLock(TSRunning)
+
+		// It's natural for running methods to return an error when the state
+		// isn't TSInitialized even if it's TSStarting so that only a single
+		// caller will succeed.
+		fallthrough
+
+	case TSRunning, TSPaused:
+		return h.state, fmt.Errorf("already running")
+
+	case TSStopping:
+		h.waitWithoutLock(TSStopped)
+		fallthrough
+
+	case TSStopped:
+		return h.state, fmt.Errorf("already stopped")
+
+	default:
+		return h.state, fmt.Errorf("invalid state: %v", h.state)
+	}
+}
+
+// checkAndPrepareForStopping check the current state to see if it can be
+// stopped. It returns a bool flag indicating whether a topology or a node
+// is already stopped. When it returns false, the caller can stop the component.
+// It returns an error only when the current state is invalid.
+//
+// The state is set to TSStopped when the current state is TSInitialized.
+// It might be inconvenient for some components. If the component requires
+// termination and cleanup process even if it isn't running, pass true to
+// keepInitialized argument. If keep initialized argument is true, it doesn't
+// change the state from TSInitialized to TSStopped and returns false and a nil
+// error.
+func (h *topologyStateHolder) checkAndPrepareForStopping(keepInitialized bool) (alreadyStopped bool, err error) {
+	h.cond.L.Lock()
+	defer h.cond.L.Unlock()
+	return h.checkAndPrepareForStoppingWithoutLock(keepInitialized)
+}
+
+func (h *topologyStateHolder) checkAndPrepareForStoppingWithoutLock(keepInitialized bool) (bool, error) {
+	for {
+		switch h.state {
+		case TSInitialized:
+			if keepInitialized {
+				return false, nil
+			}
+			h.setWithoutLock(TSStopped)
+			return true, nil
+
+		case TSStarting:
+			h.waitWithoutLock(TSRunning)
+			// If somebody else has already stopped the component, the state
+			// might be different from TSRunning. So, this process continues to
+			// the next iteration.
+
+		case TSRunning, TSPaused:
+			h.setWithoutLock(TSStopping)
+			return false, nil
+
+		case TSStopping:
+			// Someone else is trying to stop the component. This thread just
+			// waits until it's stopped.
+			h.waitWithoutLock(TSStopped)
+			return true, nil
+
+		case TSStopped:
+			return true, nil
+
+		default:
+			return false, fmt.Errorf("invalid state: %v", h.state)
+		}
+	}
+}
+
 // BoxInputConfig has parameters to customize input behavior of a Box on each
 // input pipe.
 type BoxInputConfig struct {

@@ -15,7 +15,7 @@ func (ds *defaultDynamicSourceNode) Type() NodeType {
 }
 
 func (ds *defaultDynamicSourceNode) run() error {
-	if err := ds.checkAndPrepareRunState("source"); err != nil {
+	if err := ds.checkAndPrepareForRunning("source"); err != nil {
 		return err
 	}
 
@@ -30,7 +30,7 @@ func (ds *defaultDynamicSourceNode) run() error {
 }
 
 func (ds *defaultDynamicSourceNode) Stop() error {
-	if stopped, err := ds.checkAndPrepareStopState("source"); err != nil {
+	if stopped, err := ds.checkAndPrepareForStopping("source"); err != nil {
 		return err
 	} else if stopped {
 		return nil
