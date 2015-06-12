@@ -100,13 +100,13 @@ func (ps *parseStack) AssembleSelect() {
 //  FilterAST
 //  WindowedFromAST
 //  EmitProjectionsAST
-//  Relation
+//  StreamIdentifier
 //   =>
-//  CreateStreamAsSelectStmt{Relation, EmitProjectionsAST, WindowedFromAST, FilterAST,
+//  CreateStreamAsSelectStmt{StreamIdentifier, EmitProjectionsAST, WindowedFromAST, FilterAST,
 //    GroupingAST, HavingAST}
 func (ps *parseStack) AssembleCreateStreamAsSelect() {
 	// pop the components from the stack in reverse order
-	_having, _grouping, _filter, _from, _projections, _rel := ps.pop6()
+	_having, _grouping, _filter, _from, _projections, _name := ps.pop6()
 
 	// extract and convert the contained structure
 	// (if this fails, this is a fundamental parser bug => panic ok)
@@ -115,11 +115,11 @@ func (ps *parseStack) AssembleCreateStreamAsSelect() {
 	filter := _filter.comp.(FilterAST)
 	from := _from.comp.(WindowedFromAST)
 	projections := _projections.comp.(EmitProjectionsAST)
-	rel := _rel.comp.(Relation)
+	name := _name.comp.(StreamIdentifier)
 
 	// assemble the SelectStmt and push it back
-	s := CreateStreamAsSelectStmt{rel, projections, from, filter, grouping, having}
-	se := ParsedComponent{_rel.begin, _having.end, s}
+	s := CreateStreamAsSelectStmt{name, projections, from, filter, grouping, having}
+	se := ParsedComponent{_name.begin, _having.end, s}
 	ps.Push(&se)
 }
 
@@ -174,38 +174,38 @@ func (ps *parseStack) AssembleCreateSink() {
 // replaces them by a single CreateStreamFromSourceStmt element.
 //
 //  StreamIdentifier
-//  Relation
+//  StreamIdentifier
 //   =>
-//  CreateStreamFromSourceStmt{Relation, StreamIdentifier}
+//  CreateStreamFromSourceStmt{StreamIdentifier, StreamIdentifier}
 func (ps *parseStack) AssembleCreateStreamFromSource() {
-	_src, _rel := ps.pop2()
+	_src, _name := ps.pop2()
 
 	src := _src.comp.(StreamIdentifier)
-	rel := _rel.comp.(Relation)
+	name := _name.comp.(StreamIdentifier)
 
-	s := CreateStreamFromSourceStmt{rel, src}
-	se := ParsedComponent{_rel.begin, _src.end, s}
+	s := CreateStreamFromSourceStmt{name, src}
+	se := ParsedComponent{_name.begin, _src.end, s}
 	ps.Push(&se)
 }
 
-// AssembleCreateStreamFromSource takes the topmost elements from the stack,
+// AssembleCreateStreamFromSourceExt takes the topmost elements from the stack,
 // assuming they are components of a CREATE STREAM statement, and
 // replaces them by a single CreateStreamFromSourceExtStmt element.
 //
 //  SourceSinkSpecsAST
 //  SourceSinkType
-//  Relation
+//  StreamIdentifier
 //   =>
-//  CreateStreamFromSourceExtStmt{Relation, SourceSinkType, SourceSinkSpecsAST}
+//  CreateStreamFromSourceExtStmt{StreamIdentifier, SourceSinkType, SourceSinkSpecsAST}
 func (ps *parseStack) AssembleCreateStreamFromSourceExt() {
-	_specs, _sourceType, _rel := ps.pop3()
+	_specs, _sourceType, _name := ps.pop3()
 
 	specs := _specs.comp.(SourceSinkSpecsAST)
 	sourceType := _sourceType.comp.(SourceSinkType)
-	rel := _rel.comp.(Relation)
+	name := _name.comp.(StreamIdentifier)
 
-	s := CreateStreamFromSourceExtStmt{rel, sourceType, specs}
-	se := ParsedComponent{_rel.begin, _specs.end, s}
+	s := CreateStreamFromSourceExtStmt{name, sourceType, specs}
+	se := ParsedComponent{_name.begin, _specs.end, s}
 	ps.Push(&se)
 }
 

@@ -40,7 +40,7 @@ SelectStmt <- "SELECT" sp
     }
 
 CreateStreamAsSelectStmt <- "CREATE" sp "STREAM" sp
-                    Relation sp
+                    StreamIdentifier sp
                     "AS" sp "SELECT" sp
                     EmitProjections sp
                     WindowedFrom sp
@@ -66,14 +66,14 @@ CreateSinkStmt <- "CREATE" sp "SINK" sp
     }
 
 CreateStreamFromSourceStmt <- "CREATE" sp "STREAM" sp
-                    Relation sp
+                    StreamIdentifier sp
                     "FROM" sp "SOURCE" sp
                     StreamIdentifier {
         p.AssembleCreateStreamFromSource()
     }
 
 CreateStreamFromSourceExtStmt <- "CREATE" sp "STREAM" sp
-                    Relation sp
+                    StreamIdentifier sp
                     "FROM" sp SourceSinkType sp "SOURCE" sp
                     SourceSinkSpecs {
         p.AssembleCreateStreamFromSourceExt()

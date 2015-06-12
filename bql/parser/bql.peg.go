@@ -1496,7 +1496,7 @@ func (p *bqlPeg) Init() {
 			position, tokenIndex, depth = position10, tokenIndex10, depth10
 			return false
 		},
-		/* 2 CreateStreamAsSelectStmt <- <(('c' / 'C') ('r' / 'R') ('e' / 'E') ('a' / 'A') ('t' / 'T') ('e' / 'E') sp (('s' / 'S') ('t' / 'T') ('r' / 'R') ('e' / 'E') ('a' / 'A') ('m' / 'M')) sp Relation sp (('a' / 'A') ('s' / 'S')) sp (('s' / 'S') ('e' / 'E') ('l' / 'L') ('e' / 'E') ('c' / 'C') ('t' / 'T')) sp EmitProjections sp WindowedFrom sp Filter sp Grouping sp Having sp Action1)> */
+		/* 2 CreateStreamAsSelectStmt <- <(('c' / 'C') ('r' / 'R') ('e' / 'E') ('a' / 'A') ('t' / 'T') ('e' / 'E') sp (('s' / 'S') ('t' / 'T') ('r' / 'R') ('e' / 'E') ('a' / 'A') ('m' / 'M')) sp StreamIdentifier sp (('a' / 'A') ('s' / 'S')) sp (('s' / 'S') ('e' / 'E') ('l' / 'L') ('e' / 'E') ('c' / 'C') ('t' / 'T')) sp EmitProjections sp WindowedFrom sp Filter sp Grouping sp Having sp Action1)> */
 		func() bool {
 			position24, tokenIndex24, depth24 := position, tokenIndex, depth
 			{
@@ -1688,7 +1688,7 @@ func (p *bqlPeg) Init() {
 				if !_rules[rulesp]() {
 					goto l24
 				}
-				if !_rules[ruleRelation]() {
+				if !_rules[ruleStreamIdentifier]() {
 					goto l24
 				}
 				if !_rules[rulesp]() {
@@ -2393,7 +2393,7 @@ func (p *bqlPeg) Init() {
 			position, tokenIndex, depth = position100, tokenIndex100, depth100
 			return false
 		},
-		/* 5 CreateStreamFromSourceStmt <- <(('c' / 'C') ('r' / 'R') ('e' / 'E') ('a' / 'A') ('t' / 'T') ('e' / 'E') sp (('s' / 'S') ('t' / 'T') ('r' / 'R') ('e' / 'E') ('a' / 'A') ('m' / 'M')) sp Relation sp (('f' / 'F') ('r' / 'R') ('o' / 'O') ('m' / 'M')) sp (('s' / 'S') ('o' / 'O') ('u' / 'U') ('r' / 'R') ('c' / 'C') ('e' / 'E')) sp StreamIdentifier Action4)> */
+		/* 5 CreateStreamFromSourceStmt <- <(('c' / 'C') ('r' / 'R') ('e' / 'E') ('a' / 'A') ('t' / 'T') ('e' / 'E') sp (('s' / 'S') ('t' / 'T') ('r' / 'R') ('e' / 'E') ('a' / 'A') ('m' / 'M')) sp StreamIdentifier sp (('f' / 'F') ('r' / 'R') ('o' / 'O') ('m' / 'M')) sp (('s' / 'S') ('o' / 'O') ('u' / 'U') ('r' / 'R') ('c' / 'C') ('e' / 'E')) sp StreamIdentifier Action4)> */
 		func() bool {
 			position130, tokenIndex130, depth130 := position, tokenIndex, depth
 			{
@@ -2585,7 +2585,7 @@ func (p *bqlPeg) Init() {
 				if !_rules[rulesp]() {
 					goto l130
 				}
-				if !_rules[ruleRelation]() {
+				if !_rules[ruleStreamIdentifier]() {
 					goto l130
 				}
 				if !_rules[rulesp]() {
@@ -2761,7 +2761,7 @@ func (p *bqlPeg) Init() {
 			position, tokenIndex, depth = position130, tokenIndex130, depth130
 			return false
 		},
-		/* 6 CreateStreamFromSourceExtStmt <- <(('c' / 'C') ('r' / 'R') ('e' / 'E') ('a' / 'A') ('t' / 'T') ('e' / 'E') sp (('s' / 'S') ('t' / 'T') ('r' / 'R') ('e' / 'E') ('a' / 'A') ('m' / 'M')) sp Relation sp (('f' / 'F') ('r' / 'R') ('o' / 'O') ('m' / 'M')) sp SourceSinkType sp (('s' / 'S') ('o' / 'O') ('u' / 'U') ('r' / 'R') ('c' / 'C') ('e' / 'E')) sp SourceSinkSpecs Action5)> */
+		/* 6 CreateStreamFromSourceExtStmt <- <(('c' / 'C') ('r' / 'R') ('e' / 'E') ('a' / 'A') ('t' / 'T') ('e' / 'E') sp (('s' / 'S') ('t' / 'T') ('r' / 'R') ('e' / 'E') ('a' / 'A') ('m' / 'M')) sp StreamIdentifier sp (('f' / 'F') ('r' / 'R') ('o' / 'O') ('m' / 'M')) sp SourceSinkType sp (('s' / 'S') ('o' / 'O') ('u' / 'U') ('r' / 'R') ('c' / 'C') ('e' / 'E')) sp SourceSinkSpecs Action5)> */
 		func() bool {
 			position176, tokenIndex176, depth176 := position, tokenIndex, depth
 			{
@@ -2953,7 +2953,7 @@ func (p *bqlPeg) Init() {
 				if !_rules[rulesp]() {
 					goto l176
 				}
-				if !_rules[ruleRelation]() {
+				if !_rules[ruleStreamIdentifier]() {
 					goto l176
 				}
 				if !_rules[rulesp]() {

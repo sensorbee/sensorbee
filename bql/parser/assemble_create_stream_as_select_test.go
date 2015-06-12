@@ -9,7 +9,7 @@ func TestAssembleCreateStreamAsSelect(t *testing.T) {
 	Convey("Given a parseStack", t, func() {
 		ps := parseStack{}
 		Convey("When the stack contains the correct CREATE STREAM items", func() {
-			ps.PushComponent(2, 4, Relation{"x"})
+			ps.PushComponent(2, 4, StreamIdentifier("x"))
 			ps.PushComponent(4, 6, Istream)
 			ps.PushComponent(6, 7, RowValue{"", "a"})
 			ps.PushComponent(7, 8, RowValue{"", "b"})
@@ -84,7 +84,7 @@ func TestAssembleCreateStreamAsSelect(t *testing.T) {
 		})
 
 		Convey("When the stack contains a wrong item", func() {
-			ps.PushComponent(2, 4, Relation{"x"})
+			ps.PushComponent(2, 4, StreamIdentifier("x"))
 			ps.PushComponent(4, 6, Istream)
 			ps.PushComponent(6, 7, RowValue{"", "a"})
 			ps.PushComponent(7, 8, RowValue{"", "b"})
