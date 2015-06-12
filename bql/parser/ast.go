@@ -26,7 +26,7 @@ type SelectStmt struct {
 }
 
 type CreateStreamAsSelectStmt struct {
-	Relation
+	Name StreamIdentifier
 	EmitProjectionsAST
 	WindowedFromAST
 	FilterAST
@@ -47,12 +47,12 @@ type CreateSinkStmt struct {
 }
 
 type CreateStreamFromSourceStmt struct {
-	Relation
+	Name   StreamIdentifier
 	Source StreamIdentifier
 }
 
 type CreateStreamFromSourceExtStmt struct {
-	Relation
+	Name StreamIdentifier
 	Type SourceSinkType
 	SourceSinkSpecsAST
 }

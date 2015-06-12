@@ -283,7 +283,7 @@ func TestRelationChecker(t *testing.T) {
 
 		Convey(fmt.Sprintf("Given the AST %+v", selectAst), t, func() {
 			ast := parser.CreateStreamAsSelectStmt{
-				Relation: parser.Relation{"x"},
+				Name: parser.StreamIdentifier("x"),
 				EmitProjectionsAST: parser.EmitProjectionsAST{
 					parser.Istream,
 					selectAst.ProjectionsAST,
@@ -324,7 +324,7 @@ func TestRelationChecker(t *testing.T) {
 				myFrom = selectAst.WindowedFromAST
 			}
 			ast := parser.CreateStreamAsSelectStmt{
-				Relation: parser.Relation{"x"},
+				Name: parser.StreamIdentifier("x"),
 				EmitProjectionsAST: parser.EmitProjectionsAST{
 					parser.Istream,
 					selectAst.ProjectionsAST,
@@ -419,7 +419,7 @@ func TestRelationAliasing(t *testing.T) {
 
 		Convey(fmt.Sprintf("Given the AST %+v", selectAst), t, func() {
 			ast := parser.CreateStreamAsSelectStmt{
-				Relation: parser.Relation{"x"},
+				Name: parser.StreamIdentifier("x"),
 				EmitProjectionsAST: parser.EmitProjectionsAST{
 					parser.Istream,
 					selectAst.ProjectionsAST,
