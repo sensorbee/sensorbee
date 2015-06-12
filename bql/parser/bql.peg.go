@@ -73,7 +73,7 @@ const (
 	ruleRangeUnit
 	ruleTUPLES
 	ruleSECONDS
-	ruleSourceSinkName
+	ruleStreamIdentifier
 	ruleSourceSinkType
 	ruleSourceSinkParamKey
 	ruleSourceSinkParamVal
@@ -224,7 +224,7 @@ var rul3s = [...]string{
 	"RangeUnit",
 	"TUPLES",
 	"SECONDS",
-	"SourceSinkName",
+	"StreamIdentifier",
 	"SourceSinkType",
 	"SourceSinkParamKey",
 	"SourceSinkParamVal",
@@ -1150,7 +1150,7 @@ func (p *bqlPeg) Execute() {
 		case ruleAction45:
 
 			substr := string([]rune(buffer)[begin:end])
-			p.PushComponent(begin, end, SourceSinkName(substr))
+			p.PushComponent(begin, end, StreamIdentifier(substr))
 
 		case ruleAction46:
 
@@ -1861,7 +1861,7 @@ func (p *bqlPeg) Init() {
 			position, tokenIndex, depth = position24, tokenIndex24, depth24
 			return false
 		},
-		/* 3 CreateSourceStmt <- <(('c' / 'C') ('r' / 'R') ('e' / 'E') ('a' / 'A') ('t' / 'T') ('e' / 'E') sp (('s' / 'S') ('o' / 'O') ('u' / 'U') ('r' / 'R') ('c' / 'C') ('e' / 'E')) sp SourceSinkName sp (('t' / 'T') ('y' / 'Y') ('p' / 'P') ('e' / 'E')) sp SourceSinkType sp SourceSinkSpecs Action2)> */
+		/* 3 CreateSourceStmt <- <(('c' / 'C') ('r' / 'R') ('e' / 'E') ('a' / 'A') ('t' / 'T') ('e' / 'E') sp (('s' / 'S') ('o' / 'O') ('u' / 'U') ('r' / 'R') ('c' / 'C') ('e' / 'E')) sp StreamIdentifier sp (('t' / 'T') ('y' / 'Y') ('p' / 'P') ('e' / 'E')) sp SourceSinkType sp SourceSinkSpecs Action2)> */
 		func() bool {
 			position66, tokenIndex66, depth66 := position, tokenIndex, depth
 			{
@@ -2053,7 +2053,7 @@ func (p *bqlPeg) Init() {
 				if !_rules[rulesp]() {
 					goto l66
 				}
-				if !_rules[ruleSourceSinkName]() {
+				if !_rules[ruleStreamIdentifier]() {
 					goto l66
 				}
 				if !_rules[rulesp]() {
@@ -2142,7 +2142,7 @@ func (p *bqlPeg) Init() {
 			position, tokenIndex, depth = position66, tokenIndex66, depth66
 			return false
 		},
-		/* 4 CreateSinkStmt <- <(('c' / 'C') ('r' / 'R') ('e' / 'E') ('a' / 'A') ('t' / 'T') ('e' / 'E') sp (('s' / 'S') ('i' / 'I') ('n' / 'N') ('k' / 'K')) sp SourceSinkName sp (('t' / 'T') ('y' / 'Y') ('p' / 'P') ('e' / 'E')) sp SourceSinkType sp SourceSinkSpecs Action3)> */
+		/* 4 CreateSinkStmt <- <(('c' / 'C') ('r' / 'R') ('e' / 'E') ('a' / 'A') ('t' / 'T') ('e' / 'E') sp (('s' / 'S') ('i' / 'I') ('n' / 'N') ('k' / 'K')) sp StreamIdentifier sp (('t' / 'T') ('y' / 'Y') ('p' / 'P') ('e' / 'E')) sp SourceSinkType sp SourceSinkSpecs Action3)> */
 		func() bool {
 			position100, tokenIndex100, depth100 := position, tokenIndex, depth
 			{
@@ -2304,7 +2304,7 @@ func (p *bqlPeg) Init() {
 				if !_rules[rulesp]() {
 					goto l100
 				}
-				if !_rules[ruleSourceSinkName]() {
+				if !_rules[ruleStreamIdentifier]() {
 					goto l100
 				}
 				if !_rules[rulesp]() {
@@ -2393,7 +2393,7 @@ func (p *bqlPeg) Init() {
 			position, tokenIndex, depth = position100, tokenIndex100, depth100
 			return false
 		},
-		/* 5 CreateStreamFromSourceStmt <- <(('c' / 'C') ('r' / 'R') ('e' / 'E') ('a' / 'A') ('t' / 'T') ('e' / 'E') sp (('s' / 'S') ('t' / 'T') ('r' / 'R') ('e' / 'E') ('a' / 'A') ('m' / 'M')) sp Relation sp (('f' / 'F') ('r' / 'R') ('o' / 'O') ('m' / 'M')) sp (('s' / 'S') ('o' / 'O') ('u' / 'U') ('r' / 'R') ('c' / 'C') ('e' / 'E')) sp SourceSinkName Action4)> */
+		/* 5 CreateStreamFromSourceStmt <- <(('c' / 'C') ('r' / 'R') ('e' / 'E') ('a' / 'A') ('t' / 'T') ('e' / 'E') sp (('s' / 'S') ('t' / 'T') ('r' / 'R') ('e' / 'E') ('a' / 'A') ('m' / 'M')) sp Relation sp (('f' / 'F') ('r' / 'R') ('o' / 'O') ('m' / 'M')) sp (('s' / 'S') ('o' / 'O') ('u' / 'U') ('r' / 'R') ('c' / 'C') ('e' / 'E')) sp StreamIdentifier Action4)> */
 		func() bool {
 			position130, tokenIndex130, depth130 := position, tokenIndex, depth
 			{
@@ -2747,7 +2747,7 @@ func (p *bqlPeg) Init() {
 				if !_rules[rulesp]() {
 					goto l130
 				}
-				if !_rules[ruleSourceSinkName]() {
+				if !_rules[ruleStreamIdentifier]() {
 					goto l130
 				}
 				if !_rules[ruleAction4]() {
@@ -3135,7 +3135,7 @@ func (p *bqlPeg) Init() {
 			position, tokenIndex, depth = position176, tokenIndex176, depth176
 			return false
 		},
-		/* 7 InsertIntoSelectStmt <- <(('i' / 'I') ('n' / 'N') ('s' / 'S') ('e' / 'E') ('r' / 'R') ('t' / 'T') sp (('i' / 'I') ('n' / 'N') ('t' / 'T') ('o' / 'O')) sp SourceSinkName sp SelectStmt Action6)> */
+		/* 7 InsertIntoSelectStmt <- <(('i' / 'I') ('n' / 'N') ('s' / 'S') ('e' / 'E') ('r' / 'R') ('t' / 'T') sp (('i' / 'I') ('n' / 'N') ('t' / 'T') ('o' / 'O')) sp StreamIdentifier sp SelectStmt Action6)> */
 		func() bool {
 			position222, tokenIndex222, depth222 := position, tokenIndex, depth
 			{
@@ -3297,7 +3297,7 @@ func (p *bqlPeg) Init() {
 				if !_rules[rulesp]() {
 					goto l222
 				}
-				if !_rules[ruleSourceSinkName]() {
+				if !_rules[ruleStreamIdentifier]() {
 					goto l222
 				}
 				if !_rules[rulesp]() {
@@ -6503,7 +6503,7 @@ func (p *bqlPeg) Init() {
 			position, tokenIndex, depth = position623, tokenIndex623, depth623
 			return false
 		},
-		/* 59 SourceSinkName <- <(<ident> Action45)> */
+		/* 59 StreamIdentifier <- <(<ident> Action45)> */
 		func() bool {
 			position640, tokenIndex640, depth640 := position, tokenIndex, depth
 			{
@@ -6522,7 +6522,7 @@ func (p *bqlPeg) Init() {
 					goto l640
 				}
 				depth--
-				add(ruleSourceSinkName, position641)
+				add(ruleStreamIdentifier, position641)
 			}
 			return true
 		l640:
@@ -7666,7 +7666,7 @@ func (p *bqlPeg) Init() {
 		},
 		/* 126 Action45 <- <{
 		    substr := string([]rune(buffer)[begin:end])
-		    p.PushComponent(begin, end, SourceSinkName(substr))
+		    p.PushComponent(begin, end, StreamIdentifier(substr))
 		}> */
 		func() bool {
 			{

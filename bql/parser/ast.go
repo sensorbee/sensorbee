@@ -35,20 +35,20 @@ type CreateStreamAsSelectStmt struct {
 }
 
 type CreateSourceStmt struct {
-	Name SourceSinkName
+	Name StreamIdentifier
 	Type SourceSinkType
 	SourceSinkSpecsAST
 }
 
 type CreateSinkStmt struct {
-	Name SourceSinkName
+	Name StreamIdentifier
 	Type SourceSinkType
 	SourceSinkSpecsAST
 }
 
 type CreateStreamFromSourceStmt struct {
 	Relation
-	Source SourceSinkName
+	Source StreamIdentifier
 }
 
 type CreateStreamFromSourceExtStmt struct {
@@ -58,7 +58,7 @@ type CreateStreamFromSourceExtStmt struct {
 }
 
 type InsertIntoSelectStmt struct {
-	Sink SourceSinkName
+	Sink StreamIdentifier
 	SelectStmt
 }
 
@@ -312,7 +312,7 @@ func NewStringLiteral(s string) StringLiteral {
 
 type FuncName string
 
-type SourceSinkName string
+type StreamIdentifier string
 
 type SourceSinkType string
 

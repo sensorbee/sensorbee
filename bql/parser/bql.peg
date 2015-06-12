@@ -52,14 +52,14 @@ CreateStreamAsSelectStmt <- "CREATE" sp "STREAM" sp
     }
 
 CreateSourceStmt <- "CREATE" sp "SOURCE" sp
-                    SourceSinkName sp
+                    StreamIdentifier sp
                     "TYPE" sp SourceSinkType sp
                     SourceSinkSpecs {
         p.AssembleCreateSource()
     }
 
 CreateSinkStmt <- "CREATE" sp "SINK" sp
-                    SourceSinkName sp
+                    StreamIdentifier sp
                     "TYPE" sp SourceSinkType sp
                     SourceSinkSpecs {
         p.AssembleCreateSink()
@@ -68,7 +68,7 @@ CreateSinkStmt <- "CREATE" sp "SINK" sp
 CreateStreamFromSourceStmt <- "CREATE" sp "STREAM" sp
                     Relation sp
                     "FROM" sp "SOURCE" sp
-                    SourceSinkName {
+                    StreamIdentifier {
         p.AssembleCreateStreamFromSource()
     }
 
@@ -80,7 +80,7 @@ CreateStreamFromSourceExtStmt <- "CREATE" sp "STREAM" sp
     }
 
 InsertIntoSelectStmt <- "INSERT" sp "INTO" sp
-                    SourceSinkName sp
+                    StreamIdentifier sp
                     SelectStmt {
         p.AssembleInsertIntoSelect()
     }
@@ -315,9 +315,9 @@ SECONDS <- < "SECONDS" > {
         p.PushComponent(begin, end, Seconds)
     }
 
-SourceSinkName <- < ident > {
+StreamIdentifier <- < ident > {
         substr := string([]rune(buffer)[begin:end])
-        p.PushComponent(begin, end, SourceSinkName(substr))
+        p.PushComponent(begin, end, StreamIdentifier(substr))
     }
 
 SourceSinkType <- < ident > {

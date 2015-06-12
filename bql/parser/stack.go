@@ -129,9 +129,9 @@ func (ps *parseStack) AssembleCreateStreamAsSelect() {
 //
 //  SourceSinkSpecsAST
 //  SourceSinkType
-//  SourceSinkName
+//  StreamIdentifier
 //   =>
-//  CreateSourceStmt{SourceSinkName, SourceSinkType, SourceSinkSpecsAST}
+//  CreateSourceStmt{StreamIdentifier, SourceSinkType, SourceSinkSpecsAST}
 func (ps *parseStack) AssembleCreateSource() {
 	// pop the components from the stack in reverse order
 	_specs, _sourceType, _name := ps.pop3()
@@ -140,7 +140,7 @@ func (ps *parseStack) AssembleCreateSource() {
 	// (if this fails, this is a fundamental parser bug => panic ok)
 	specs := _specs.comp.(SourceSinkSpecsAST)
 	sourceType := _sourceType.comp.(SourceSinkType)
-	name := _name.comp.(SourceSinkName)
+	name := _name.comp.(StreamIdentifier)
 
 	// assemble the CreateSourceStmt and push it back
 	s := CreateSourceStmt{name, sourceType, specs}
@@ -154,15 +154,15 @@ func (ps *parseStack) AssembleCreateSource() {
 //
 //  SourceSinkSpecsAST
 //  SourceSinkType
-//  SourceSinkName
+//  StreamIdentifier
 //   =>
-//  CreateSinkStmt{SourceSinkName, SourceSinkType, SourceSinkSpecsAST}
+//  CreateSinkStmt{StreamIdentifier, SourceSinkType, SourceSinkSpecsAST}
 func (ps *parseStack) AssembleCreateSink() {
 	_specs, _sinkType, _name := ps.pop3()
 
 	specs := _specs.comp.(SourceSinkSpecsAST)
 	sinkType := _sinkType.comp.(SourceSinkType)
-	name := _name.comp.(SourceSinkName)
+	name := _name.comp.(StreamIdentifier)
 
 	s := CreateSinkStmt{name, sinkType, specs}
 	se := ParsedComponent{_name.begin, _specs.end, s}
@@ -173,14 +173,14 @@ func (ps *parseStack) AssembleCreateSink() {
 // assuming they are components of a CREATE STREAM statement, and
 // replaces them by a single CreateStreamFromSourceStmt element.
 //
-//  SourceSinkName
+//  StreamIdentifier
 //  Relation
 //   =>
-//  CreateStreamFromSourceStmt{Relation, SourceSinkName}
+//  CreateStreamFromSourceStmt{Relation, StreamIdentifier}
 func (ps *parseStack) AssembleCreateStreamFromSource() {
 	_src, _rel := ps.pop2()
 
-	src := _src.comp.(SourceSinkName)
+	src := _src.comp.(StreamIdentifier)
 	rel := _rel.comp.(Relation)
 
 	s := CreateStreamFromSourceStmt{rel, src}
@@ -214,14 +214,14 @@ func (ps *parseStack) AssembleCreateStreamFromSourceExt() {
 // replaces them by a single InsertIntoSelectStmt element.
 //
 //  SelectStmt
-//  SourceSinkName
+//  StreamIdentifier
 //   =>
-//  InsertIntoSelectStmt{SourceSinkName, SelectStmt}
+//  InsertIntoSelectStmt{StreamIdentifier, SelectStmt}
 func (ps *parseStack) AssembleInsertIntoSelect() {
 	_selectStmt, _sink := ps.pop2()
 
 	selectStmt := _selectStmt.comp.(SelectStmt)
-	sink := _sink.comp.(SourceSinkName)
+	sink := _sink.comp.(StreamIdentifier)
 
 	s := InsertIntoSelectStmt{sink, selectStmt}
 	se := ParsedComponent{_sink.begin, _selectStmt.end, s}
