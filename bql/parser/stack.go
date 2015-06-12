@@ -69,10 +69,10 @@ func (ps *parseStack) Peek() (value *ParsedComponent) {
 //  HavingAST
 //  GroupingAST
 //  FilterAST
-//  FromAST
+//  WindowedFromAST
 //  ProjectionsAST
 //   =>
-//  SelectStmt{ProjectionsAST, FromAST, FilterAST, GroupingAST, HavingAST}
+//  SelectStmt{ProjectionsAST, WindowedFromAST, FilterAST, GroupingAST, HavingAST}
 func (ps *parseStack) AssembleSelect() {
 	// pop the components from the stack in reverse order
 	_having, _grouping, _filter, _from, _projections := ps.pop5()
@@ -82,7 +82,7 @@ func (ps *parseStack) AssembleSelect() {
 	having := _having.comp.(HavingAST)
 	grouping := _grouping.comp.(GroupingAST)
 	filter := _filter.comp.(FilterAST)
-	from := _from.comp.(FromAST)
+	from := _from.comp.(WindowedFromAST)
 	projections := _projections.comp.(ProjectionsAST)
 
 	// assemble the SelectStmt and push it back
@@ -338,34 +338,6 @@ func (ps *parseStack) AssembleRange() {
 	ps.PushComponent(_num.begin, _unit.end, RangeAST{num, unit})
 }
 
-// AssembleFrom takes the elements from the stack that
-// correspond to the input[begin:end] string, makes sure
-// they are all AliasRelationAST elements and wraps a FromAST struct
-// around them. If there are no such elements, adds an
-// empty FromAST struct to the stack.
-//
-//  AliasRelationAST
-//  AliasRelationAST
-//  AliasRelationAST
-//   =>
-//  FromAST{[AliasRelationAST, AliasRelationAST, AliasRelationAST]}
-func (ps *parseStack) AssembleFrom(begin int, end int) {
-	if begin == end {
-		// push an empty from clause
-		ps.PushComponent(begin, end, FromAST{})
-	} else {
-		elems := ps.collectElements(begin, end)
-		rels := make([]AliasRelationAST, len(elems), len(elems))
-		for i, elem := range elems {
-			// (if this conversion fails, this is a fundamental parser bug)
-			e := elem.(AliasRelationAST)
-			rels[i] = e
-		}
-		// push the grouped list back
-		ps.PushComponent(begin, end, FromAST{rels})
-	}
-}
-
 /* WHERE clause */
 
 // AssembleFilter takes the expression on top of the stack
@@ -438,24 +410,6 @@ func (ps *parseStack) AssembleHaving(begin int, end int) {
 	}
 }
 
-// AssembleAliasRelation takes the topmost elements from the stack, assuming
-// they are components of an AS clause, and replaces them by
-// a single AliasRelationAST element.
-//
-//  Identifier
-//  Relation
-//   =>
-//  AliasRelationAST{Relation, Identifier}
-func (ps *parseStack) AssembleAliasRelation() {
-	// pop the components from the stack in reverse order
-	_name, _rel := ps.pop2()
-
-	name := _name.comp.(Identifier)
-	rel := _rel.comp.(Relation)
-
-	ps.PushComponent(_rel.begin, _name.end, AliasRelationAST{rel.Name, string(name)})
-}
-
 // AssembleAliasWindowedRelation takes the topmost elements from the stack, assuming
 // they are components of an AS clause, and replaces them by
 // a single AliasWindowedRelationAST element.
@@ -472,25 +426,6 @@ func (ps *parseStack) AssembleAliasWindowedRelation() {
 	rel := _rel.comp.(WindowedRelationAST)
 
 	ps.PushComponent(_rel.begin, _name.end, AliasWindowedRelationAST{rel, string(name)})
-}
-
-// EnsureAliasRelation takes the top element from the stack. If it is a
-// Relation element, it wraps it into an AliasRelationAST struct; if it
-// is already an AliasRelationAST it just pushes it back. This helps to
-// ensure we only deal with AliasRelationAST objects in the collection step.
-func (ps *parseStack) EnsureAliasRelation() {
-	_elem := ps.Pop()
-	elem := _elem.comp
-
-	var aliasRel AliasRelationAST
-	e, ok := elem.(AliasRelationAST)
-	if ok {
-		aliasRel = e
-	} else {
-		e := elem.(Relation)
-		aliasRel = AliasRelationAST{e.Name, ""}
-	}
-	ps.PushComponent(_elem.begin, _elem.end, aliasRel)
 }
 
 // EnsureAliasWindowedRelation takes the top element from the stack. If it is a
