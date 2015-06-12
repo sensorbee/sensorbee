@@ -31,7 +31,7 @@ Statement <- (SelectStmt / CreateStreamAsSelectStmt / CreateSourceStmt /
 
 SelectStmt <- "SELECT" sp
               Projections sp
-              From sp
+              DefWindowedFrom sp
               Filter sp
               Grouping sp
               Having sp
@@ -40,7 +40,7 @@ SelectStmt <- "SELECT" sp
     }
 
 CreateStreamAsSelectStmt <- "CREATE" sp "STREAM" sp
-                    Relation sp
+                    StreamIdentifier sp
                     "AS" sp "SELECT" sp
                     EmitProjections sp
                     WindowedFrom sp
@@ -52,35 +52,35 @@ CreateStreamAsSelectStmt <- "CREATE" sp "STREAM" sp
     }
 
 CreateSourceStmt <- "CREATE" sp "SOURCE" sp
-                    SourceSinkName sp
+                    StreamIdentifier sp
                     "TYPE" sp SourceSinkType sp
                     SourceSinkSpecs {
         p.AssembleCreateSource()
     }
 
 CreateSinkStmt <- "CREATE" sp "SINK" sp
-                    SourceSinkName sp
+                    StreamIdentifier sp
                     "TYPE" sp SourceSinkType sp
                     SourceSinkSpecs {
         p.AssembleCreateSink()
     }
 
 CreateStreamFromSourceStmt <- "CREATE" sp "STREAM" sp
-                    Relation sp
+                    StreamIdentifier sp
                     "FROM" sp "SOURCE" sp
-                    SourceSinkName {
+                    StreamIdentifier {
         p.AssembleCreateStreamFromSource()
     }
 
 CreateStreamFromSourceExtStmt <- "CREATE" sp "STREAM" sp
-                    Relation sp
+                    StreamIdentifier sp
                     "FROM" sp SourceSinkType sp "SOURCE" sp
                     SourceSinkSpecs {
         p.AssembleCreateStreamFromSourceExt()
     }
 
 InsertIntoSelectStmt <- "INSERT" sp "INTO" sp
-                    SourceSinkName sp
+                    StreamIdentifier sp
                     SelectStmt {
         p.AssembleInsertIntoSelect()
     }
@@ -107,10 +107,13 @@ AliasExpression <- (Expression / Wildcard) sp "AS" sp Identifier {
         p.AssembleAlias()
     }
 
-WindowedFrom <- < ("FROM" sp Relations sp
-                   '[' sp "RANGE" sp Range sp ']')? > {
+WindowedFrom <- < ("FROM" sp Relations sp)? > {
         // This is *always* executed, even if there is no
         // FROM clause present in the statement.
+        p.AssembleWindowedFrom(begin, end)
+    }
+
+DefWindowedFrom <- < ("FROM" sp DefRelations sp)? > {
         p.AssembleWindowedFrom(begin, end)
     }
 
@@ -118,13 +121,9 @@ Range <- NumericLiteral sp RangeUnit {
         p.AssembleRange()
     }
 
-From <- < ("FROM" sp Relations)? > {
-        // This is *always* executed, even if there is no
-        // FROM clause present in the statement.
-        p.AssembleFrom(begin, end)
-    }
-
 Relations <- RelationLike sp (',' sp RelationLike)*
+
+DefRelations <- DefRelationLike sp (',' sp DefRelationLike)*
 
 Filter <- < ("WHERE" sp Expression)? > {
         // This is *always* executed, even if there is no
@@ -146,12 +145,30 @@ Having <- < ("HAVING" sp Expression)? > {
         p.AssembleHaving(begin, end)
     }
 
-RelationLike <- AliasRelation / Relation {
-        p.EnsureAliasRelation()
+# NB. Other things that are "relation-like" could be sub-selects
+#     or generated tables.
+RelationLike <- AliasedStreamWindow / StreamWindow {
+        p.EnsureAliasedStreamWindow()
     }
 
-AliasRelation <- Relation sp "AS" sp Identifier {
-        p.AssembleAliasRelation()
+DefRelationLike <- DefAliasedStreamWindow / DefStreamWindow {
+        p.EnsureAliasedStreamWindow()
+    }
+
+AliasedStreamWindow <- StreamWindow sp "AS" sp Identifier {
+        p.AssembleAliasedStreamWindow()
+    }
+
+DefAliasedStreamWindow <- DefStreamWindow sp "AS" sp Identifier {
+        p.AssembleAliasedStreamWindow()
+    }
+
+StreamWindow <- Relation sp '[' sp "RANGE" sp Range sp ']' {
+        p.AssembleStreamWindow()
+    }
+
+DefStreamWindow <- Relation (sp '[' sp "RANGE" sp Range sp ']')? {
+        p.AssembleStreamWindow()
     }
 
 SourceSinkSpecs <- < ("WITH" sp SourceSinkParam sp (',' sp SourceSinkParam)*)? > {
@@ -234,7 +251,7 @@ MultDivOp <- Multiply / Divide / Modulo
 
 Relation <- < ident > {
         substr := string([]rune(buffer)[begin:end])
-        p.PushComponent(begin, end, NewRelation(substr))
+        p.PushComponent(begin, end, NewStream(substr))
     }
 
 RowValue <- < (ident '.')? ident > {
@@ -300,9 +317,9 @@ SECONDS <- < "SECONDS" > {
         p.PushComponent(begin, end, Seconds)
     }
 
-SourceSinkName <- < ident > {
+StreamIdentifier <- < ident > {
         substr := string([]rune(buffer)[begin:end])
-        p.PushComponent(begin, end, SourceSinkName(substr))
+        p.PushComponent(begin, end, StreamIdentifier(substr))
     }
 
 SourceSinkType <- < ident > {

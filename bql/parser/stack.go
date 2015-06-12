@@ -69,10 +69,10 @@ func (ps *parseStack) Peek() (value *ParsedComponent) {
 //  HavingAST
 //  GroupingAST
 //  FilterAST
-//  FromAST
+//  WindowedFromAST
 //  ProjectionsAST
 //   =>
-//  SelectStmt{ProjectionsAST, FromAST, FilterAST, GroupingAST, HavingAST}
+//  SelectStmt{ProjectionsAST, WindowedFromAST, FilterAST, GroupingAST, HavingAST}
 func (ps *parseStack) AssembleSelect() {
 	// pop the components from the stack in reverse order
 	_having, _grouping, _filter, _from, _projections := ps.pop5()
@@ -82,7 +82,7 @@ func (ps *parseStack) AssembleSelect() {
 	having := _having.comp.(HavingAST)
 	grouping := _grouping.comp.(GroupingAST)
 	filter := _filter.comp.(FilterAST)
-	from := _from.comp.(FromAST)
+	from := _from.comp.(WindowedFromAST)
 	projections := _projections.comp.(ProjectionsAST)
 
 	// assemble the SelectStmt and push it back
@@ -100,13 +100,13 @@ func (ps *parseStack) AssembleSelect() {
 //  FilterAST
 //  WindowedFromAST
 //  EmitProjectionsAST
-//  Relation
+//  StreamIdentifier
 //   =>
-//  CreateStreamAsSelectStmt{Relation, EmitProjectionsAST, WindowedFromAST, FilterAST,
+//  CreateStreamAsSelectStmt{StreamIdentifier, EmitProjectionsAST, WindowedFromAST, FilterAST,
 //    GroupingAST, HavingAST}
 func (ps *parseStack) AssembleCreateStreamAsSelect() {
 	// pop the components from the stack in reverse order
-	_having, _grouping, _filter, _from, _projections, _rel := ps.pop6()
+	_having, _grouping, _filter, _from, _projections, _name := ps.pop6()
 
 	// extract and convert the contained structure
 	// (if this fails, this is a fundamental parser bug => panic ok)
@@ -115,11 +115,11 @@ func (ps *parseStack) AssembleCreateStreamAsSelect() {
 	filter := _filter.comp.(FilterAST)
 	from := _from.comp.(WindowedFromAST)
 	projections := _projections.comp.(EmitProjectionsAST)
-	rel := _rel.comp.(Relation)
+	name := _name.comp.(StreamIdentifier)
 
 	// assemble the SelectStmt and push it back
-	s := CreateStreamAsSelectStmt{rel, projections, from, filter, grouping, having}
-	se := ParsedComponent{_rel.begin, _having.end, s}
+	s := CreateStreamAsSelectStmt{name, projections, from, filter, grouping, having}
+	se := ParsedComponent{_name.begin, _having.end, s}
 	ps.Push(&se)
 }
 
@@ -129,9 +129,9 @@ func (ps *parseStack) AssembleCreateStreamAsSelect() {
 //
 //  SourceSinkSpecsAST
 //  SourceSinkType
-//  SourceSinkName
+//  StreamIdentifier
 //   =>
-//  CreateSourceStmt{SourceSinkName, SourceSinkType, SourceSinkSpecsAST}
+//  CreateSourceStmt{StreamIdentifier, SourceSinkType, SourceSinkSpecsAST}
 func (ps *parseStack) AssembleCreateSource() {
 	// pop the components from the stack in reverse order
 	_specs, _sourceType, _name := ps.pop3()
@@ -140,7 +140,7 @@ func (ps *parseStack) AssembleCreateSource() {
 	// (if this fails, this is a fundamental parser bug => panic ok)
 	specs := _specs.comp.(SourceSinkSpecsAST)
 	sourceType := _sourceType.comp.(SourceSinkType)
-	name := _name.comp.(SourceSinkName)
+	name := _name.comp.(StreamIdentifier)
 
 	// assemble the CreateSourceStmt and push it back
 	s := CreateSourceStmt{name, sourceType, specs}
@@ -154,15 +154,15 @@ func (ps *parseStack) AssembleCreateSource() {
 //
 //  SourceSinkSpecsAST
 //  SourceSinkType
-//  SourceSinkName
+//  StreamIdentifier
 //   =>
-//  CreateSinkStmt{SourceSinkName, SourceSinkType, SourceSinkSpecsAST}
+//  CreateSinkStmt{StreamIdentifier, SourceSinkType, SourceSinkSpecsAST}
 func (ps *parseStack) AssembleCreateSink() {
 	_specs, _sinkType, _name := ps.pop3()
 
 	specs := _specs.comp.(SourceSinkSpecsAST)
 	sinkType := _sinkType.comp.(SourceSinkType)
-	name := _name.comp.(SourceSinkName)
+	name := _name.comp.(StreamIdentifier)
 
 	s := CreateSinkStmt{name, sinkType, specs}
 	se := ParsedComponent{_name.begin, _specs.end, s}
@@ -173,39 +173,39 @@ func (ps *parseStack) AssembleCreateSink() {
 // assuming they are components of a CREATE STREAM statement, and
 // replaces them by a single CreateStreamFromSourceStmt element.
 //
-//  SourceSinkName
-//  Relation
+//  StreamIdentifier
+//  StreamIdentifier
 //   =>
-//  CreateStreamFromSourceStmt{Relation, SourceSinkName}
+//  CreateStreamFromSourceStmt{StreamIdentifier, StreamIdentifier}
 func (ps *parseStack) AssembleCreateStreamFromSource() {
-	_src, _rel := ps.pop2()
+	_src, _name := ps.pop2()
 
-	src := _src.comp.(SourceSinkName)
-	rel := _rel.comp.(Relation)
+	src := _src.comp.(StreamIdentifier)
+	name := _name.comp.(StreamIdentifier)
 
-	s := CreateStreamFromSourceStmt{rel, src}
-	se := ParsedComponent{_rel.begin, _src.end, s}
+	s := CreateStreamFromSourceStmt{name, src}
+	se := ParsedComponent{_name.begin, _src.end, s}
 	ps.Push(&se)
 }
 
-// AssembleCreateStreamFromSource takes the topmost elements from the stack,
+// AssembleCreateStreamFromSourceExt takes the topmost elements from the stack,
 // assuming they are components of a CREATE STREAM statement, and
 // replaces them by a single CreateStreamFromSourceExtStmt element.
 //
 //  SourceSinkSpecsAST
 //  SourceSinkType
-//  Relation
+//  StreamIdentifier
 //   =>
-//  CreateStreamFromSourceExtStmt{Relation, SourceSinkType, SourceSinkSpecsAST}
+//  CreateStreamFromSourceExtStmt{StreamIdentifier, SourceSinkType, SourceSinkSpecsAST}
 func (ps *parseStack) AssembleCreateStreamFromSourceExt() {
-	_specs, _sourceType, _rel := ps.pop3()
+	_specs, _sourceType, _name := ps.pop3()
 
 	specs := _specs.comp.(SourceSinkSpecsAST)
 	sourceType := _sourceType.comp.(SourceSinkType)
-	rel := _rel.comp.(Relation)
+	name := _name.comp.(StreamIdentifier)
 
-	s := CreateStreamFromSourceExtStmt{rel, sourceType, specs}
-	se := ParsedComponent{_rel.begin, _specs.end, s}
+	s := CreateStreamFromSourceExtStmt{name, sourceType, specs}
+	se := ParsedComponent{_name.begin, _specs.end, s}
 	ps.Push(&se)
 }
 
@@ -214,14 +214,14 @@ func (ps *parseStack) AssembleCreateStreamFromSourceExt() {
 // replaces them by a single InsertIntoSelectStmt element.
 //
 //  SelectStmt
-//  SourceSinkName
+//  StreamIdentifier
 //   =>
-//  InsertIntoSelectStmt{SourceSinkName, SelectStmt}
+//  InsertIntoSelectStmt{StreamIdentifier, SelectStmt}
 func (ps *parseStack) AssembleInsertIntoSelect() {
 	_selectStmt, _sink := ps.pop2()
 
 	selectStmt := _selectStmt.comp.(SelectStmt)
-	sink := _sink.comp.(SourceSinkName)
+	sink := _sink.comp.(StreamIdentifier)
 
 	s := InsertIntoSelectStmt{sink, selectStmt}
 	se := ParsedComponent{_sink.begin, _selectStmt.end, s}
@@ -290,40 +290,30 @@ func (ps *parseStack) AssembleAlias() {
 
 /* FROM clause */
 
-// AssembleWindowedFrom assumes that the string input[begin:end]
-// holds a number of AliasRelationAST elements followed by a RangeAST, pops all
-// of them and turns them into a WindowedFromAST.
+// AssembleWindowedFrom takes the elements from the stack that
+// correspond to the input[begin:end] string, makes sure they are all
+// AliasedStreamWindowAST elements and wraps a WindowedFromAST struct
+// around them. If there are no such elements, adds an
+// empty WindowedFromAST struct to the stack.
 //
-//  RangeAST
-//  AliasRelationAST
-//  AliasRelationAST
-//  AliasRelationAST
+//  AliasedStreamWindowAST
+//  AliasedStreamWindowAST
 //   =>
-//  WindowedFromAST{FromAST, RangeAST}
+//  WindowedFromAST{[AliasedStreamWindowAST, AliasedStreamWindowAST]}
 func (ps *parseStack) AssembleWindowedFrom(begin int, end int) {
 	if begin == end {
 		// push an empty FROM clause
 		ps.PushComponent(begin, end, WindowedFromAST{})
 	} else {
 		elems := ps.collectElements(begin, end)
-		numElems := len(elems)
-		if numElems == 0 {
-			ps.PushComponent(begin, end, WindowedFromAST{})
-		} else {
-			// convert the last item to a RangeAST (if this does
-			// not work, it is a fundamental parser bug)
-			rangeClause := elems[numElems-1].(RangeAST)
-			// convert the rest to AliasRelationAST structs
-			rels := make([]AliasRelationAST, numElems-1, numElems-1)
-			for i, elem := range elems[:numElems-1] {
-				// (if this conversion fails, this is a fundamental parser bug)
-				e := elem.(AliasRelationAST)
-				rels[i] = e
-			}
-			// push the grouped list wrapped in a FromAST and the RangeAST
-			// struct back to the stack
-			ps.PushComponent(begin, end, WindowedFromAST{FromAST{rels}, rangeClause})
+		rels := make([]AliasedStreamWindowAST, len(elems), len(elems))
+		for i, elem := range elems {
+			// (if this conversion fails, this is a fundamental parser bug)
+			e := elem.(AliasedStreamWindowAST)
+			rels[i] = e
 		}
+		// push the grouped list back
+		ps.PushComponent(begin, end, WindowedFromAST{rels})
 	}
 }
 
@@ -346,34 +336,6 @@ func (ps *parseStack) AssembleRange() {
 
 	// assemble the RangeAST and push it back
 	ps.PushComponent(_num.begin, _unit.end, RangeAST{num, unit})
-}
-
-// AssembleFrom takes the elements from the stack that
-// correspond to the input[begin:end] string, makes sure
-// they are all AliasRelationAST elements and wraps a FromAST struct
-// around them. If there are no such elements, adds an
-// empty FromAST struct to the stack.
-//
-//  AliasRelationAST
-//  AliasRelationAST
-//  AliasRelationAST
-//   =>
-//  FromAST{[AliasRelationAST, AliasRelationAST, AliasRelationAST]}
-func (ps *parseStack) AssembleFrom(begin int, end int) {
-	if begin == end {
-		// push an empty from clause
-		ps.PushComponent(begin, end, FromAST{})
-	} else {
-		elems := ps.collectElements(begin, end)
-		rels := make([]AliasRelationAST, len(elems), len(elems))
-		for i, elem := range elems {
-			// (if this conversion fails, this is a fundamental parser bug)
-			e := elem.(AliasRelationAST)
-			rels[i] = e
-		}
-		// push the grouped list back
-		ps.PushComponent(begin, end, FromAST{rels})
-	}
 }
 
 /* WHERE clause */
@@ -448,41 +410,77 @@ func (ps *parseStack) AssembleHaving(begin int, end int) {
 	}
 }
 
-// AssembleAliasRelation takes the topmost elements from the stack, assuming
+// AssembleAliasedStreamWindow takes the topmost elements from the stack, assuming
 // they are components of an AS clause, and replaces them by
-// a single AliasRelationAST element.
+// a single AliasedStreamWindowAST element.
 //
 //  Identifier
-//  Relation
+//  StreamWindowAST
 //   =>
-//  AliasRelationAST{Relation, Identifier}
-func (ps *parseStack) AssembleAliasRelation() {
+//  AliasedStreamWindowAST{StreamWindowAST, Identifier}
+func (ps *parseStack) AssembleAliasedStreamWindow() {
 	// pop the components from the stack in reverse order
 	_name, _rel := ps.pop2()
 
 	name := _name.comp.(Identifier)
-	rel := _rel.comp.(Relation)
+	rel := _rel.comp.(StreamWindowAST)
 
-	ps.PushComponent(_rel.begin, _name.end, AliasRelationAST{rel.Name, string(name)})
+	ps.PushComponent(_rel.begin, _name.end, AliasedStreamWindowAST{rel, string(name)})
 }
 
-// EnsureAliasRelation takes the top element from the stack. If it is a
-// Relation element, it wraps it into an AliasRelationAST struct; if it
-// is already an AliasRelationAST it just pushes it back. This helps to
-// ensure we only deal with AliasRelationAST objects in the collection step.
-func (ps *parseStack) EnsureAliasRelation() {
+// EnsureAliasedStreamWindow takes the top element from the stack. If it is a
+// StreamWindowAST element, it wraps it into an AliasedStreamWindowAST struct; if it
+// is already an AliasedStreamWindowAST it just pushes it back. This helps to
+// ensure we only deal with AliasedStreamWindowAST objects in the collection step.
+func (ps *parseStack) EnsureAliasedStreamWindow() {
 	_elem := ps.Pop()
 	elem := _elem.comp
 
-	var aliasRel AliasRelationAST
-	e, ok := elem.(AliasRelationAST)
+	var aliasRel AliasedStreamWindowAST
+	e, ok := elem.(AliasedStreamWindowAST)
 	if ok {
 		aliasRel = e
 	} else {
-		e := elem.(Relation)
-		aliasRel = AliasRelationAST{e.Name, ""}
+		e := elem.(StreamWindowAST)
+		aliasRel = AliasedStreamWindowAST{e, ""}
 	}
 	ps.PushComponent(_elem.begin, _elem.end, aliasRel)
+}
+
+// AssembleStreamWindow takes the topmost elements from the stack, assuming
+// they are components of an AS clause, and replaces them by
+// a single StreamWindowAST element. If there is no RangeAST element present,
+// a RangeAST with RangeUnit Unspecified is created.
+//
+//  RangeAST
+//  Stream
+//   =>
+//  StreamWindowAST{Stream, RangeAST}
+// or
+//  Stream
+//   =>
+//  StreamWindowAST{Stream, RangeAST}
+func (ps *parseStack) AssembleStreamWindow() {
+	// pop the components from the stack in reverse order
+	_rangeOrRel := ps.Pop()
+	_rel := _rangeOrRel
+	_range := _rangeOrRel
+
+	var rangeAst RangeAST
+
+	// check if we have a Stream or a Range
+	rel, ok := _rangeOrRel.comp.(Stream)
+	if ok {
+		// there was (only) a Stream, no Range, so set the "no range" info
+		rangeAst = RangeAST{NumericLiteral{0}, Unspecified}
+	} else {
+		// there was no Stream, so it was a Range
+		rangeAst = _rangeOrRel.comp.(RangeAST)
+		_rel = ps.Pop()
+		rel = _rel.comp.(Stream)
+	}
+
+	ps.PushComponent(_rel.begin, _range.end, StreamWindowAST{rel, rangeAst})
 }
 
 // AssembleSourceSinkSpecs takes the elements from the stack that

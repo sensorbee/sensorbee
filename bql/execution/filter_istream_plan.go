@@ -18,12 +18,15 @@ type filterIstreamPlan struct {
 // CanBuildFilterIstreamPlan checks whether the given statement
 // allows to use a filterIstreamPlan.
 func CanBuildFilterIstreamPlan(lp *LogicalPlan, reg udf.FunctionRegistry) bool {
+	if len(lp.Relations) != 1 {
+		return false
+	}
+	rangeUnit := lp.Relations[0].Unit
 	// TODO check that there are no aggregate functions
-	return len(lp.Relations) == 1 &&
-		len(lp.GroupList) == 0 &&
+	return len(lp.GroupList) == 0 &&
 		lp.Having == nil &&
 		lp.EmitterType == parser.Istream &&
-		lp.Unit == parser.Tuples
+		rangeUnit == parser.Tuples
 }
 
 // filterIstreamPlan is a fast and simple plan for the case where the
@@ -41,10 +44,11 @@ func NewFilterIstreamPlan(lp *LogicalPlan, reg udf.FunctionRegistry) (ExecutionP
 	if err != nil {
 		return nil, err
 	}
+	rangeValue := lp.Relations[0].Value
 	return &filterIstreamPlan{commonExecutionPlan{
 		projections: projs,
 		filter:      filter,
-	}, lp.Relations[0].Alias, lp.Value, make([]tuple.Map, 0, lp.Value), 0}, nil
+	}, lp.Relations[0].Alias, rangeValue, make([]tuple.Map, 0, rangeValue), 0}, nil
 }
 
 func (ep *filterIstreamPlan) Process(input *tuple.Tuple) ([]tuple.Map, error) {

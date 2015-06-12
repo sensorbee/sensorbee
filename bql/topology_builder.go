@@ -75,7 +75,7 @@ func (tb *TopologyBuilder) processStmt(_stmt interface{}) error {
 		refSrcName := string(stmt.Source) + "-src"
 		// if the referenced source does not exist, `decl`
 		// will have an error
-		decl := tb.stb.AddBox(stmt.Name, b).Input(refSrcName)
+		decl := tb.stb.AddBox(string(stmt.Name), b).Input(refSrcName)
 		return decl.Err()
 
 	case parser.CreateStreamFromSourceExtStmt:
@@ -91,14 +91,14 @@ func (tb *TopologyBuilder) processStmt(_stmt interface{}) error {
 			if err != nil {
 				return err
 			}
-			decl := tb.stb.AddSource(stmt.Name, source)
+			decl := tb.stb.AddSource(string(stmt.Name), source)
 			return decl.Err()
 		}
 		return fmt.Errorf("unknown source type: %s", stmt.Type)
 
 	case parser.CreateStreamAsSelectStmt:
 		// insert a bqlBox that executes the SELECT statement
-		outName := stmt.Name
+		outName := string(stmt.Name)
 		box := NewBQLBox(&stmt, tb.Reg)
 		// add all the referenced relations as named inputs
 		decl := tb.stb.AddBox(outName, box)
@@ -143,12 +143,22 @@ func (tb *TopologyBuilder) processStmt(_stmt interface{}) error {
 		//   FROM c [RANGE 1 TUPLES] WHERE d
 		//  + a connection (random_string -> sink)
 		tmpName := fmt.Sprintf("tmp-%v", rand.Int())
-		tmpRel := parser.Relation{tmpName}
+		newRels := make([]parser.AliasedStreamWindowAST, len(stmt.Relations))
+		for i, from := range stmt.Relations {
+			if from.Unit != parser.Unspecified {
+				err := fmt.Errorf("you cannot use a RANGE clause with an INSERT INTO " +
+					"statement at the moment")
+				return err
+			} else {
+				newRels[i] = from
+				newRels[i].RangeAST = parser.RangeAST{
+					parser.NumericLiteral{1}, parser.Tuples}
+			}
+		}
 		tmpStmt := parser.CreateStreamAsSelectStmt{
-			tmpRel,
+			parser.StreamIdentifier(tmpName),
 			parser.EmitProjectionsAST{parser.Istream, stmt.ProjectionsAST},
-			parser.WindowedFromAST{stmt.FromAST,
-				parser.RangeAST{parser.NumericLiteral{1}, parser.Tuples}},
+			parser.WindowedFromAST{newRels},
 			stmt.FilterAST,
 			stmt.GroupingAST,
 			stmt.HavingAST,

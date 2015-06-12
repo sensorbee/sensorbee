@@ -19,14 +19,14 @@ type Expression interface {
 
 type SelectStmt struct {
 	ProjectionsAST
-	FromAST
+	WindowedFromAST
 	FilterAST
 	GroupingAST
 	HavingAST
 }
 
 type CreateStreamAsSelectStmt struct {
-	Relation
+	Name StreamIdentifier
 	EmitProjectionsAST
 	WindowedFromAST
 	FilterAST
@@ -35,30 +35,30 @@ type CreateStreamAsSelectStmt struct {
 }
 
 type CreateSourceStmt struct {
-	Name SourceSinkName
+	Name StreamIdentifier
 	Type SourceSinkType
 	SourceSinkSpecsAST
 }
 
 type CreateSinkStmt struct {
-	Name SourceSinkName
+	Name StreamIdentifier
 	Type SourceSinkType
 	SourceSinkSpecsAST
 }
 
 type CreateStreamFromSourceStmt struct {
-	Relation
-	Source SourceSinkName
+	Name   StreamIdentifier
+	Source StreamIdentifier
 }
 
 type CreateStreamFromSourceExtStmt struct {
-	Relation
+	Name StreamIdentifier
 	Type SourceSinkType
 	SourceSinkSpecsAST
 }
 
 type InsertIntoSelectStmt struct {
-	Sink SourceSinkName
+	Sink StreamIdentifier
 	SelectStmt
 }
 
@@ -85,17 +85,22 @@ func (a AliasAST) RenameReferencedRelation(from, to string) Expression {
 }
 
 type WindowedFromAST struct {
-	FromAST
+	Relations []AliasedStreamWindowAST
+}
+
+type AliasedStreamWindowAST struct {
+	StreamWindowAST
+	Alias string
+}
+
+type StreamWindowAST struct {
+	Stream
 	RangeAST
 }
 
 type RangeAST struct {
 	NumericLiteral
 	Unit RangeUnit
-}
-
-type FromAST struct {
-	Relations []AliasRelationAST
 }
 
 type FilterAST struct {
@@ -108,11 +113,6 @@ type GroupingAST struct {
 
 type HavingAST struct {
 	Having Expression
-}
-
-type AliasRelationAST struct {
-	Name  string
-	Alias string
 }
 
 type SourceSinkSpecsAST struct {
@@ -177,12 +177,12 @@ type ExpressionsAST struct {
 // because we cannot use curly brackets for Expr{...} style
 // initialization in the .peg file.
 
-type Relation struct {
+type Stream struct {
 	Name string
 }
 
-func NewRelation(s string) Relation {
-	return Relation{s}
+func NewStream(s string) Stream {
+	return Stream{s}
 }
 
 type Wildcard struct {
@@ -312,7 +312,7 @@ func NewStringLiteral(s string) StringLiteral {
 
 type FuncName string
 
-type SourceSinkName string
+type StreamIdentifier string
 
 type SourceSinkType string
 
@@ -331,7 +331,8 @@ const (
 type RangeUnit int
 
 const (
-	Tuples RangeUnit = iota
+	Unspecified RangeUnit = iota
+	Tuples
 	Seconds
 )
 
