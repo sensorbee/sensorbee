@@ -43,11 +43,10 @@ func NewDefaultDynamicTopology(ctx *Context, name string) DynamicTopology {
 	return t
 }
 
-// AddSource adds a source to the topology. It will asynchronously call source's
-// GenerateStream and returns after the source started running. GenerateStream
-// could be called lazily to avoid unnecessary computation. GenerateStream and
-// Stop might also be called when this method returns an error. The caller must
-// not call GenerateStream or Stop of the source.
+func (t *defaultDynamicTopology) Context() *Context {
+	return t.ctx
+}
+
 func (t *defaultDynamicTopology) AddSource(name string, s Source, config *DynamicSourceConfig) (DynamicSourceNode, error) {
 	// TODO: validate the name
 

@@ -65,6 +65,14 @@ func (db *defaultDynamicBoxNode) Stop() error {
 	return nil
 }
 
+func (db *defaultDynamicBoxNode) EnableGracefulStop() {
+	db.srcs.enableGracefulStop()
+}
+
+func (db *defaultDynamicBoxNode) StopOnDisconnect() {
+	db.srcs.stopOnDisconnect()
+}
+
 func (db *defaultDynamicBoxNode) stop() {
 	if stopped, err := db.checkAndPrepareForStopping("box"); stopped || err != nil {
 		return

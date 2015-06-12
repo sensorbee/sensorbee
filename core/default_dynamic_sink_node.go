@@ -66,6 +66,14 @@ func (ds *defaultDynamicSinkNode) Stop() error {
 	return nil
 }
 
+func (ds *defaultDynamicSinkNode) EnableGracefulStop() {
+	ds.srcs.enableGracefulStop()
+}
+
+func (ds *defaultDynamicSinkNode) StopOnDisconnect() {
+	ds.srcs.stopOnDisconnect()
+}
+
 func (ds *defaultDynamicSinkNode) stop() {
 	if stopped, err := ds.checkAndPrepareForStopping("sink"); stopped || err != nil {
 		return
