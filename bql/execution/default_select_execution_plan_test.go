@@ -875,7 +875,7 @@ func TestDefaultSelectExecutionPlanJoin(t *testing.T) {
 				out, err := plan.Process(inTup)
 				So(err, ShouldBeNil)
 
-				Convey(fmt.Sprintf("Then that constant should appear in %v", idx), func() {
+				Convey(fmt.Sprintf("Then joined values should appear in %v", idx), func() {
 					if idx == 0 {
 						So(len(out), ShouldEqual, 0)
 					} else if idx == 1 {
@@ -918,6 +918,110 @@ func TestDefaultSelectExecutionPlanJoin(t *testing.T) {
 		})
 	})
 
+	Convey("Given a JOIN selecting from left and right with different ranges", t, func() {
+		tuples := getTuples(8)
+		// rearrange the tuples
+		for i, t := range tuples {
+			if i%2 == 0 {
+				t.InputName = "src1"
+				t.Data["l"] = tuple.String(fmt.Sprintf("l%d", i))
+			} else {
+				t.InputName = "src2"
+				t.Data["r"] = tuple.String(fmt.Sprintf("r%d", i))
+			}
+		}
+		s := `CREATE STREAM box AS SELECT RSTREAM src1.l, src2.r FROM src1 [RANGE 1 TUPLES], src2 [RANGE 5 SECONDS]`
+		plan, err := createDefaultSelectPlan(s, t)
+		So(err, ShouldBeNil)
+
+		Convey("When feeding it with tuples", func() {
+			for idx, inTup := range tuples {
+				out, err := plan.Process(inTup)
+				So(err, ShouldBeNil)
+
+				Convey(fmt.Sprintf("Then joined values should appear in %v", idx), func() {
+					if idx == 0 { // l0
+						So(len(out), ShouldEqual, 0)
+					} else if idx == 1 { // r1
+						So(len(out), ShouldEqual, 1)
+						So(out[0], ShouldResemble, tuple.Map{
+							"l": tuple.String("l0"),
+							"r": tuple.String("r1"),
+						})
+					} else if idx == 2 { // l2
+						So(len(out), ShouldEqual, 1)
+						So(out[0], ShouldResemble, tuple.Map{
+							"l": tuple.String("l2"),
+							"r": tuple.String("r1"),
+						})
+					} else if idx == 3 { // r3
+						So(len(out), ShouldEqual, 2)
+						So(out[0], ShouldResemble, tuple.Map{
+							"l": tuple.String("l2"),
+							"r": tuple.String("r1"),
+						})
+						So(out[1], ShouldResemble, tuple.Map{
+							"l": tuple.String("l2"),
+							"r": tuple.String("r3"),
+						})
+					} else if idx == 4 { // l4
+						So(len(out), ShouldEqual, 2)
+						So(out[0], ShouldResemble, tuple.Map{
+							"l": tuple.String("l4"),
+							"r": tuple.String("r1"),
+						})
+						So(out[1], ShouldResemble, tuple.Map{
+							"l": tuple.String("l4"),
+							"r": tuple.String("r3"),
+						})
+					} else if idx == 5 { // r5
+						So(len(out), ShouldEqual, 3)
+						So(out[0], ShouldResemble, tuple.Map{
+							"l": tuple.String("l4"),
+							"r": tuple.String("r1"),
+						})
+						So(out[1], ShouldResemble, tuple.Map{
+							"l": tuple.String("l4"),
+							"r": tuple.String("r3"),
+						})
+						So(out[2], ShouldResemble, tuple.Map{
+							"l": tuple.String("l4"),
+							"r": tuple.String("r5"),
+						})
+					} else if idx == 6 { // l6
+						So(len(out), ShouldEqual, 3)
+						So(out[0], ShouldResemble, tuple.Map{
+							"l": tuple.String("l6"),
+							"r": tuple.String("r1"),
+						})
+						So(out[1], ShouldResemble, tuple.Map{
+							"l": tuple.String("l6"),
+							"r": tuple.String("r3"),
+						})
+						So(out[2], ShouldResemble, tuple.Map{
+							"l": tuple.String("l6"),
+							"r": tuple.String("r5"),
+						})
+					} else if idx == 7 { // r7
+						So(len(out), ShouldEqual, 3)
+						So(out[0], ShouldResemble, tuple.Map{
+							"l": tuple.String("l6"),
+							"r": tuple.String("r3"),
+						})
+						So(out[1], ShouldResemble, tuple.Map{
+							"l": tuple.String("l6"),
+							"r": tuple.String("r5"),
+						})
+						So(out[2], ShouldResemble, tuple.Map{
+							"l": tuple.String("l6"),
+							"r": tuple.String("r7"),
+						})
+					}
+				})
+			}
+		})
+	})
+
 	Convey("Given a JOIN selecting from left and right with a join condition", t, func() {
 		tuples := getTuples(8)
 		// rearrange the tuples
@@ -940,7 +1044,7 @@ func TestDefaultSelectExecutionPlanJoin(t *testing.T) {
 				out, err := plan.Process(inTup)
 				So(err, ShouldBeNil)
 
-				Convey(fmt.Sprintf("Then that constant should appear in %v", idx), func() {
+				Convey(fmt.Sprintf("Then joined values should appear in %v", idx), func() {
 					if idx == 0 {
 						So(len(out), ShouldEqual, 0)
 					} else if idx == 1 {
