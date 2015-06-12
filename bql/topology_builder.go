@@ -143,22 +143,22 @@ func (tb *TopologyBuilder) processStmt(_stmt interface{}) error {
 		//   FROM c [RANGE 1 TUPLES] WHERE d
 		//  + a connection (random_string -> sink)
 		tmpName := fmt.Sprintf("tmp-%v", rand.Int())
-		fromClause := make([]parser.AliasedStreamWindowAST, len(stmt.Relations))
+		newRels := make([]parser.AliasedStreamWindowAST, len(stmt.Relations))
 		for i, from := range stmt.Relations {
 			if from.Unit != parser.Unspecified {
 				err := fmt.Errorf("you cannot use a RANGE clause with an INSERT INTO " +
 					"statement at the moment")
 				return err
 			} else {
-				fromClause[i] = from
-				fromClause[i].RangeAST = parser.RangeAST{
+				newRels[i] = from
+				newRels[i].RangeAST = parser.RangeAST{
 					parser.NumericLiteral{1}, parser.Tuples}
 			}
 		}
 		tmpStmt := parser.CreateStreamAsSelectStmt{
 			parser.StreamIdentifier(tmpName),
 			parser.EmitProjectionsAST{parser.Istream, stmt.ProjectionsAST},
-			stmt.WindowedFromAST,
+			parser.WindowedFromAST{newRels},
 			stmt.FilterAST,
 			stmt.GroupingAST,
 			stmt.HavingAST,
