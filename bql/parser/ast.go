@@ -19,7 +19,7 @@ type Expression interface {
 
 type SelectStmt struct {
 	ProjectionsAST
-	FromAST
+	WindowedFromAST
 	FilterAST
 	GroupingAST
 	HavingAST
@@ -103,22 +103,6 @@ type RangeAST struct {
 	Unit RangeUnit
 }
 
-type FromAST struct {
-	Relations []AliasRelationAST
-}
-
-func (f FromAST) ToWindowedFrom(size int64, unit RangeUnit) WindowedFromAST {
-	output := make([]AliasWindowedRelationAST, len(f.Relations))
-	for i, rel := range f.Relations {
-		output[i] = AliasWindowedRelationAST{
-			WindowedRelationAST{Relation{rel.Name},
-				RangeAST{NumericLiteral{size}, unit}},
-			rel.Alias,
-		}
-	}
-	return WindowedFromAST{output}
-}
-
 type FilterAST struct {
 	Filter Expression
 }
@@ -129,11 +113,6 @@ type GroupingAST struct {
 
 type HavingAST struct {
 	Having Expression
-}
-
-type AliasRelationAST struct {
-	Name  string
-	Alias string
 }
 
 type SourceSinkSpecsAST struct {

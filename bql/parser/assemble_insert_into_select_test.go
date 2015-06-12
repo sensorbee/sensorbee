@@ -13,11 +13,11 @@ func TestAssembleInsertIntoSelect(t *testing.T) {
 			ps.PushComponent(6, 7, RowValue{"", "a"})
 			ps.PushComponent(7, 8, RowValue{"", "b"})
 			ps.AssembleProjections(6, 8)
-			ps.PushComponent(12, 13, Relation{"c"})
-			ps.EnsureAliasRelation()
-			ps.PushComponent(13, 14, Relation{"d"})
-			ps.EnsureAliasRelation()
-			ps.AssembleFrom(12, 14)
+			ps.PushComponent(12, 13, WindowedRelationAST{Relation{"c"}, RangeAST{NumericLiteral{3}, Tuples}})
+			ps.EnsureAliasWindowedRelation()
+			ps.PushComponent(13, 14, WindowedRelationAST{Relation{"d"}, RangeAST{NumericLiteral{2}, Seconds}})
+			ps.EnsureAliasWindowedRelation()
+			ps.AssembleWindowedFrom(12, 14)
 			ps.PushComponent(14, 15, RowValue{"", "e"})
 			ps.AssembleFilter(14, 15)
 			ps.PushComponent(15, 16, RowValue{"", "f"})
@@ -70,11 +70,11 @@ func TestAssembleInsertIntoSelect(t *testing.T) {
 			ps.PushComponent(6, 7, RowValue{"", "a"})
 			ps.PushComponent(7, 8, RowValue{"", "b"})
 			ps.AssembleProjections(6, 8)
-			ps.PushComponent(12, 13, Relation{"c"})
-			ps.EnsureAliasRelation()
-			ps.PushComponent(13, 14, Relation{"d"})
-			ps.EnsureAliasRelation()
-			ps.AssembleFrom(12, 14)
+			ps.PushComponent(12, 13, WindowedRelationAST{Relation{"c"}, RangeAST{NumericLiteral{3}, Tuples}})
+			ps.EnsureAliasWindowedRelation()
+			ps.PushComponent(13, 14, WindowedRelationAST{Relation{"d"}, RangeAST{NumericLiteral{2}, Seconds}})
+			ps.EnsureAliasWindowedRelation()
+			ps.AssembleWindowedFrom(12, 14)
 			ps.PushComponent(14, 15, RowValue{"", "e"})
 			ps.AssembleFilter(14, 15)
 			ps.PushComponent(15, 16, RowValue{"", "f"})
@@ -92,7 +92,7 @@ func TestAssembleInsertIntoSelect(t *testing.T) {
 		p := &bqlPeg{}
 
 		Convey("When doing a full INSERT INTO SELECT", func() {
-			p.Buffer = "INSERT INTO x SELECT '日本語', b FROM c, d WHERE e GROUP BY f, g HAVING h"
+			p.Buffer = "INSERT INTO x SELECT '日本語', b FROM c [RANGE 3 TUPLES], d [RANGE 2 SECONDS] WHERE e GROUP BY f, g HAVING h"
 			p.Init()
 
 			Convey("Then the statement should be parsed correctly", func() {

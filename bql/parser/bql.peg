@@ -31,7 +31,7 @@ Statement <- (SelectStmt / CreateStreamAsSelectStmt / CreateSourceStmt /
 
 SelectStmt <- "SELECT" sp
               Projections sp
-              From sp
+              WindowedFrom sp
               Filter sp
               Grouping sp
               Having sp
@@ -117,14 +117,6 @@ Range <- NumericLiteral sp RangeUnit {
         p.AssembleRange()
     }
 
-From <- < ("FROM" sp Relations)? > {
-        // This is *always* executed, even if there is no
-        // FROM clause present in the statement.
-        p.AssembleFrom(begin, end)
-    }
-
-Relations <- RelationLike sp (',' sp RelationLike)*
-
 WindowedRelations <- WindowedRelationLike sp (',' sp WindowedRelationLike)*
 
 Filter <- < ("WHERE" sp Expression)? > {
@@ -147,16 +139,8 @@ Having <- < ("HAVING" sp Expression)? > {
         p.AssembleHaving(begin, end)
     }
 
-RelationLike <- AliasRelation / Relation {
-        p.EnsureAliasRelation()
-    }
-
 WindowedRelationLike <- AliasWindowedRelation / WindowedRelation {
         p.EnsureAliasWindowedRelation()
-    }
-
-AliasRelation <- Relation sp "AS" sp Identifier {
-        p.AssembleAliasRelation()
     }
 
 AliasWindowedRelation <- WindowedRelation sp "AS" sp Identifier {

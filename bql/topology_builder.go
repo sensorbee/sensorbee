@@ -147,7 +147,7 @@ func (tb *TopologyBuilder) processStmt(_stmt interface{}) error {
 		tmpStmt := parser.CreateStreamAsSelectStmt{
 			tmpRel,
 			parser.EmitProjectionsAST{parser.Istream, stmt.ProjectionsAST},
-			stmt.FromAST.ToWindowedFrom(1, parser.Tuples),
+			stmt.WindowedFromAST,
 			stmt.FilterAST,
 			stmt.GroupingAST,
 			stmt.HavingAST,
