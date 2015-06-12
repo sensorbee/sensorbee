@@ -80,8 +80,8 @@ func Analyze(s parser.CreateStreamAsSelectStmt) (*LogicalPlan, error) {
 // does not yet have one (given by the user). It will also detect if
 // there is a conflict between aliases.
 func makeRelationAliases(s *parser.CreateStreamAsSelectStmt) error {
-	relNames := make(map[string]parser.AliasRelationAST, len(s.Relations))
-	newRels := make([]parser.AliasRelationAST, len(s.Relations))
+	relNames := make(map[string]parser.AliasedStreamWindowAST, len(s.Relations))
+	newRels := make([]parser.AliasedStreamWindowAST, len(s.Relations))
 	for i, aliasedRel := range s.Relations {
 		// if the relation does not yet have an internal alias, use
 		// the relation name itself

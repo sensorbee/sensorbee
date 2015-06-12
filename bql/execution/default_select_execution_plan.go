@@ -11,22 +11,25 @@ import (
 
 type defaultSelectExecutionPlan struct {
 	commonExecutionPlan
-	// Window information (extracted from LogicalPlan):
-	windowSize int64
-	windowType parser.RangeUnit
-	emitter    parser.Emitter
+	emitter parser.Emitter
 	// store name->alias mapping
-	relations []parser.AliasRelationAST
+	relations []parser.AliasedStreamWindowAST
 	// buffers holds data of a single stream window, keyed by the
 	// alias (!) of the respective input stream. It will be
 	// updated (appended and possibly truncated) whenever
 	// Process() is called with a new tuple.
-	buffers map[string][]*tuple.Tuple
+	buffers map[string]*inputBuffer
 	// curResults holds results of a query over the buffer.
 	curResults []tuple.Map
 	// prevResults holds results of a query over the buffer
 	// in the previous execution run.
 	prevResults []tuple.Map
+}
+
+type inputBuffer struct {
+	tuples     []*tuple.Tuple
+	windowSize int64
+	windowType parser.RangeUnit
 }
 
 // CanBuildDefaultSelectExecutionPlan checks whether the given statement
@@ -57,25 +60,30 @@ func NewDefaultSelectExecutionPlan(lp *LogicalPlan, reg udf.FunctionRegistry) (E
 	if err != nil {
 		return nil, err
 	}
+	// for compatibility with the old syntax, take the last RANGE
+	// specification as valid for all buffers
+
 	// initialize buffers (one per declared input relation)
-	buffers := make(map[string][]*tuple.Tuple, len(lp.Relations))
+	buffers := make(map[string]*inputBuffer, len(lp.Relations))
 	for _, rel := range lp.Relations {
-		var buffer []*tuple.Tuple
-		if lp.Unit == parser.Tuples {
+		var tuples []*tuple.Tuple
+		rangeValue := rel.Value
+		rangeUnit := rel.Unit
+		if rangeUnit == parser.Tuples {
 			// we already know the required capacity of this buffer
 			// if we work with absolute numbers
-			buffer = make([]*tuple.Tuple, 0, lp.Value+1)
+			tuples = make([]*tuple.Tuple, 0, rangeValue+1)
 		}
 		// the alias of the relation is the key of the buffer
-		buffers[rel.Alias] = buffer
+		buffers[rel.Alias] = &inputBuffer{
+			tuples, rangeValue, rangeUnit,
+		}
 	}
 	return &defaultSelectExecutionPlan{
 		commonExecutionPlan: commonExecutionPlan{
 			projections: projs,
 			filter:      filter,
 		},
-		windowSize:  lp.Value,
-		windowType:  lp.Unit,
 		emitter:     lp.EmitterType,
 		relations:   lp.Relations,
 		buffers:     buffers,
@@ -145,7 +153,8 @@ func (ep *defaultSelectExecutionPlan) addTupleToBuffer(t *tuple.Tuple) error {
 			// nest the data in a one-element map using the alias as the key
 			editTuple.Data = tuple.Map{rel.Alias: editTuple.Data}
 			// TODO maybe a slice is not the best implementation for a queue?
-			ep.buffers[rel.Alias] = append(ep.buffers[rel.Alias], editTuple)
+			bufferPtr := ep.buffers[rel.Alias]
+			bufferPtr.tuples = append(bufferPtr.tuples, editTuple)
 		}
 	}
 
@@ -156,39 +165,29 @@ func (ep *defaultSelectExecutionPlan) addTupleToBuffer(t *tuple.Tuple) error {
 // lie outside the current window as per the statement's window
 // specification.
 func (ep *defaultSelectExecutionPlan) removeOutdatedTuplesFromBuffer(curTupTime time.Time) error {
-	if ep.windowType == parser.Tuples {
-		// loop over all buffers and truncate them to ep.windowSize items
-		// (do not change ep.buffers while iterating)
-		newBufs := make(map[string][]*tuple.Tuple, len(ep.buffers))
-		for inputName, buffer := range ep.buffers {
-			curBufSize := int64(len(buffer))
-			if curBufSize > ep.windowSize {
+	for _, buffer := range ep.buffers {
+		curBufSize := int64(len(buffer.tuples))
+		if buffer.windowType == parser.Tuples { // tuple-based window
+			if curBufSize > buffer.windowSize {
 				// we just need to take the last `windowSize` items:
 				// {a, b, c, d} => {b, c, d}
-				newBufs[inputName] = buffer[curBufSize-ep.windowSize : curBufSize]
-			} else {
-				newBufs[inputName] = buffer
+				buffer.tuples = buffer.tuples[curBufSize-buffer.windowSize : curBufSize]
 			}
-		}
-		ep.buffers = newBufs
 
-	} else if ep.windowType == parser.Seconds {
-		// we need to remove all items older than `windowSize` seconds,
-		// compared to the current tuple
-		newBufs := make(map[string][]*tuple.Tuple, len(ep.buffers))
-		for inputName, buffer := range ep.buffers {
-			curBufSize := int64(len(buffer))
+		} else if buffer.windowType == parser.Seconds { // time-based window
 			// copy all "sufficiently new" tuples to new buffer
+			// TODO avoid the reallocation here
 			newBuf := make([]*tuple.Tuple, 0, curBufSize)
-			for _, tup := range buffer {
+			for _, tup := range buffer.tuples {
 				dur := curTupTime.Sub(tup.Timestamp)
-				if dur.Seconds() <= float64(ep.windowSize) {
+				if dur.Seconds() <= float64(buffer.windowSize) {
 					newBuf = append(newBuf, tup)
 				}
 			}
-			newBufs[inputName] = newBuf
+			buffer.tuples = newBuf
+		} else {
+			return fmt.Errorf("unknown window type: %+v", *buffer)
 		}
-		ep.buffers = newBufs
 	}
 
 	return nil
@@ -228,7 +227,7 @@ func (ep *defaultSelectExecutionPlan) performQueryOnBuffer() error {
 		if len(remainingKeys) > 0 {
 			// not all buffers have been visited yet
 			myKey := remainingKeys[0]
-			myBuffer := ep.buffers[myKey]
+			myBuffer := ep.buffers[myKey].tuples
 			rest := remainingKeys[1:]
 			for _, t := range myBuffer {
 				// add the data of this tuple to dataHolder and recurse
