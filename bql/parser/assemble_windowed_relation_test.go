@@ -5,28 +5,28 @@ import (
 	"testing"
 )
 
-func TestAssembleWindowedRelation(t *testing.T) {
+func TestAssembleStreamWindow(t *testing.T) {
 	Convey("Given a parseStack", t, func() {
 		ps := parseStack{}
 
 		Convey("When the stack contains two correct items", func() {
 			ps.PushComponent(0, 6, Raw{"PRE"})
-			ps.PushComponent(6, 8, Relation{"a"})
+			ps.PushComponent(6, 8, Stream{"a"})
 			ps.PushComponent(8, 10, RangeAST{NumericLiteral{2}, Seconds})
-			ps.AssembleWindowedRelation()
+			ps.AssembleStreamWindow()
 
-			Convey("Then AssembleWindowedRelation transforms them into one item", func() {
+			Convey("Then AssembleStreamWindow transforms them into one item", func() {
 				So(ps.Len(), ShouldEqual, 2)
 
-				Convey("And that item is a WindowedRelationAST", func() {
+				Convey("And that item is a StreamWindowAST", func() {
 					top := ps.Peek()
 					So(top, ShouldNotBeNil)
 					So(top.begin, ShouldEqual, 6)
 					So(top.end, ShouldEqual, 10)
-					So(top.comp, ShouldHaveSameTypeAs, WindowedRelationAST{})
+					So(top.comp, ShouldHaveSameTypeAs, StreamWindowAST{})
 
 					Convey("And it contains the previously pushed data", func() {
-						comp := top.comp.(WindowedRelationAST)
+						comp := top.comp.(StreamWindowAST)
 						So(comp.Name, ShouldEqual, "a")
 						So(comp.Value, ShouldEqual, 2)
 						So(comp.Unit, ShouldEqual, Seconds)
@@ -37,21 +37,21 @@ func TestAssembleWindowedRelation(t *testing.T) {
 
 		Convey("When the stack contains one correct item", func() {
 			ps.PushComponent(0, 6, Raw{"PRE"})
-			ps.PushComponent(6, 8, Relation{"a"})
-			ps.AssembleWindowedRelation()
+			ps.PushComponent(6, 8, Stream{"a"})
+			ps.AssembleStreamWindow()
 
-			Convey("Then AssembleWindowedRelation transforms them into one item", func() {
+			Convey("Then AssembleStreamWindow transforms them into one item", func() {
 				So(ps.Len(), ShouldEqual, 2)
 
-				Convey("And that item is a WindowedRelationAST", func() {
+				Convey("And that item is a StreamWindowAST", func() {
 					top := ps.Peek()
 					So(top, ShouldNotBeNil)
 					So(top.begin, ShouldEqual, 6)
 					So(top.end, ShouldEqual, 8)
-					So(top.comp, ShouldHaveSameTypeAs, WindowedRelationAST{})
+					So(top.comp, ShouldHaveSameTypeAs, StreamWindowAST{})
 
 					Convey("And it contains the previously pushed data", func() {
-						comp := top.comp.(WindowedRelationAST)
+						comp := top.comp.(StreamWindowAST)
 						So(comp.Name, ShouldEqual, "a")
 						So(comp.Value, ShouldEqual, 0)
 						So(comp.Unit, ShouldEqual, Unspecified)
@@ -63,14 +63,14 @@ func TestAssembleWindowedRelation(t *testing.T) {
 		Convey("When the stack contains a wrong item", func() {
 			ps.PushComponent(0, 6, Raw{"PRE"})
 
-			Convey("Then AssembleWindowedRelation panics", func() {
-				So(ps.AssembleWindowedRelation, ShouldPanic)
+			Convey("Then AssembleStreamWindow panics", func() {
+				So(ps.AssembleStreamWindow, ShouldPanic)
 			})
 		})
 
 		Convey("When the stack is empty", func() {
-			Convey("Then AssembleWindowedRelation panics", func() {
-				So(ps.AssembleWindowedRelation, ShouldPanic)
+			Convey("Then AssembleStreamWindow panics", func() {
+				So(ps.AssembleStreamWindow, ShouldPanic)
 			})
 		})
 	})

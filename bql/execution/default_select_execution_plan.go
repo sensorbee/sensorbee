@@ -16,7 +16,7 @@ type defaultSelectExecutionPlan struct {
 	windowType parser.RangeUnit
 	emitter    parser.Emitter
 	// store name->alias mapping
-	relations []parser.AliasWindowedRelationAST
+	relations []parser.AliasedStreamWindowAST
 	// buffers holds data of a single stream window, keyed by the
 	// alias (!) of the respective input stream. It will be
 	// updated (appended and possibly truncated) whenever

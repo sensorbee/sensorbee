@@ -16,13 +16,13 @@ type analyzeTest struct {
 func TestRelationChecker(t *testing.T) {
 	r := parser.RangeAST{parser.NumericLiteral{2}, parser.Tuples}
 	singleFrom := parser.WindowedFromAST{
-		[]parser.AliasWindowedRelationAST{
-			{parser.WindowedRelationAST{parser.Relation{"t"}, r}, ""},
+		[]parser.AliasedStreamWindowAST{
+			{parser.StreamWindowAST{parser.Stream{"t"}, r}, ""},
 		},
 	}
 	singleFromAlias := parser.WindowedFromAST{
-		[]parser.AliasWindowedRelationAST{
-			{parser.WindowedRelationAST{parser.Relation{"s"}, r}, "t"},
+		[]parser.AliasedStreamWindowAST{
+			{parser.StreamWindowAST{parser.Stream{"s"}, r}, "t"},
 		},
 	}
 	two := parser.NumericLiteral{2}
@@ -363,52 +363,52 @@ func TestRelationAliasing(t *testing.T) {
 		{&parser.SelectStmt{
 			ProjectionsAST: proj,
 			WindowedFromAST: parser.WindowedFromAST{
-				[]parser.AliasWindowedRelationAST{
-					{parser.WindowedRelationAST{parser.Relation{"a"}, r}, ""},
+				[]parser.AliasedStreamWindowAST{
+					{parser.StreamWindowAST{parser.Stream{"a"}, r}, ""},
 				}},
 		}, ""},
 		// SELECT 2 FROM a AS b         -> OK
 		{&parser.SelectStmt{
 			ProjectionsAST: proj,
 			WindowedFromAST: parser.WindowedFromAST{
-				[]parser.AliasWindowedRelationAST{
-					{parser.WindowedRelationAST{parser.Relation{"a"}, r}, "b"},
+				[]parser.AliasedStreamWindowAST{
+					{parser.StreamWindowAST{parser.Stream{"a"}, r}, "b"},
 				}},
 		}, ""},
 		// SELECT 2 FROM a AS b, a      -> OK
 		{&parser.SelectStmt{
 			ProjectionsAST: proj,
 			WindowedFromAST: parser.WindowedFromAST{
-				[]parser.AliasWindowedRelationAST{
-					{parser.WindowedRelationAST{parser.Relation{"a"}, r}, "b"},
-					{parser.WindowedRelationAST{parser.Relation{"a"}, r}, ""},
+				[]parser.AliasedStreamWindowAST{
+					{parser.StreamWindowAST{parser.Stream{"a"}, r}, "b"},
+					{parser.StreamWindowAST{parser.Stream{"a"}, r}, ""},
 				}},
 		}, ""},
 		// SELECT 2 FROM a AS b, c AS a -> OK
 		{&parser.SelectStmt{
 			ProjectionsAST: proj,
 			WindowedFromAST: parser.WindowedFromAST{
-				[]parser.AliasWindowedRelationAST{
-					{parser.WindowedRelationAST{parser.Relation{"a"}, r}, "b"},
-					{parser.WindowedRelationAST{parser.Relation{"c"}, r}, "a"},
+				[]parser.AliasedStreamWindowAST{
+					{parser.StreamWindowAST{parser.Stream{"a"}, r}, "b"},
+					{parser.StreamWindowAST{parser.Stream{"c"}, r}, "a"},
 				}},
 		}, ""},
 		// SELECT 2 FROM a, a           -> NG
 		{&parser.SelectStmt{
 			ProjectionsAST: proj,
 			WindowedFromAST: parser.WindowedFromAST{
-				[]parser.AliasWindowedRelationAST{
-					{parser.WindowedRelationAST{parser.Relation{"a"}, r}, ""},
-					{parser.WindowedRelationAST{parser.Relation{"a"}, r}, ""},
+				[]parser.AliasedStreamWindowAST{
+					{parser.StreamWindowAST{parser.Stream{"a"}, r}, ""},
+					{parser.StreamWindowAST{parser.Stream{"a"}, r}, ""},
 				}},
 		}, "cannot use relations"},
 		// SELECT 2 FROM a, b AS a      -> NG
 		{&parser.SelectStmt{
 			ProjectionsAST: proj,
 			WindowedFromAST: parser.WindowedFromAST{
-				[]parser.AliasWindowedRelationAST{
-					{parser.WindowedRelationAST{parser.Relation{"a"}, r}, ""},
-					{parser.WindowedRelationAST{parser.Relation{"b"}, r}, "a"},
+				[]parser.AliasedStreamWindowAST{
+					{parser.StreamWindowAST{parser.Stream{"a"}, r}, ""},
+					{parser.StreamWindowAST{parser.Stream{"b"}, r}, "a"},
 				}},
 		}, "cannot use relations"},
 	}

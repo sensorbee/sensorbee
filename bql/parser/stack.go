@@ -292,24 +292,24 @@ func (ps *parseStack) AssembleAlias() {
 
 // AssembleWindowedFrom takes the elements from the stack that
 // correspond to the input[begin:end] string, makes sure they are all
-// AliasWindowedRelationAST elements and wraps a WindowedFromAST struct
+// AliasedStreamWindowAST elements and wraps a WindowedFromAST struct
 // around them. If there are no such elements, adds an
 // empty WindowedFromAST struct to the stack.
 //
-//  AliasWindowedRelationAST
-//  AliasWindowedRelationAST
+//  AliasedStreamWindowAST
+//  AliasedStreamWindowAST
 //   =>
-//  WindowedFromAST{[AliasWindowedRelationAST, AliasWindowedRelationAST]}
+//  WindowedFromAST{[AliasedStreamWindowAST, AliasedStreamWindowAST]}
 func (ps *parseStack) AssembleWindowedFrom(begin int, end int) {
 	if begin == end {
 		// push an empty FROM clause
 		ps.PushComponent(begin, end, WindowedFromAST{})
 	} else {
 		elems := ps.collectElements(begin, end)
-		rels := make([]AliasWindowedRelationAST, len(elems), len(elems))
+		rels := make([]AliasedStreamWindowAST, len(elems), len(elems))
 		for i, elem := range elems {
 			// (if this conversion fails, this is a fundamental parser bug)
-			e := elem.(AliasWindowedRelationAST)
+			e := elem.(AliasedStreamWindowAST)
 			rels[i] = e
 		}
 		// push the grouped list back
@@ -410,57 +410,57 @@ func (ps *parseStack) AssembleHaving(begin int, end int) {
 	}
 }
 
-// AssembleAliasWindowedRelation takes the topmost elements from the stack, assuming
+// AssembleAliasedStreamWindow takes the topmost elements from the stack, assuming
 // they are components of an AS clause, and replaces them by
-// a single AliasWindowedRelationAST element.
+// a single AliasedStreamWindowAST element.
 //
 //  Identifier
-//  WindowedRelationAST
+//  StreamWindowAST
 //   =>
-//  AliasWindowedRelationAST{WindowedRelationAST, Identifier}
-func (ps *parseStack) AssembleAliasWindowedRelation() {
+//  AliasedStreamWindowAST{StreamWindowAST, Identifier}
+func (ps *parseStack) AssembleAliasedStreamWindow() {
 	// pop the components from the stack in reverse order
 	_name, _rel := ps.pop2()
 
 	name := _name.comp.(Identifier)
-	rel := _rel.comp.(WindowedRelationAST)
+	rel := _rel.comp.(StreamWindowAST)
 
-	ps.PushComponent(_rel.begin, _name.end, AliasWindowedRelationAST{rel, string(name)})
+	ps.PushComponent(_rel.begin, _name.end, AliasedStreamWindowAST{rel, string(name)})
 }
 
-// EnsureAliasWindowedRelation takes the top element from the stack. If it is a
-// WindowedRelationAST element, it wraps it into an AliasWindowedRelationAST struct; if it
-// is already an AliasWindowedRelationAST it just pushes it back. This helps to
-// ensure we only deal with AliasWindowedRelationAST objects in the collection step.
-func (ps *parseStack) EnsureAliasWindowedRelation() {
+// EnsureAliasedStreamWindow takes the top element from the stack. If it is a
+// StreamWindowAST element, it wraps it into an AliasedStreamWindowAST struct; if it
+// is already an AliasedStreamWindowAST it just pushes it back. This helps to
+// ensure we only deal with AliasedStreamWindowAST objects in the collection step.
+func (ps *parseStack) EnsureAliasedStreamWindow() {
 	_elem := ps.Pop()
 	elem := _elem.comp
 
-	var aliasRel AliasWindowedRelationAST
-	e, ok := elem.(AliasWindowedRelationAST)
+	var aliasRel AliasedStreamWindowAST
+	e, ok := elem.(AliasedStreamWindowAST)
 	if ok {
 		aliasRel = e
 	} else {
-		e := elem.(WindowedRelationAST)
-		aliasRel = AliasWindowedRelationAST{e, ""}
+		e := elem.(StreamWindowAST)
+		aliasRel = AliasedStreamWindowAST{e, ""}
 	}
 	ps.PushComponent(_elem.begin, _elem.end, aliasRel)
 }
 
-// AssembleWindowedRelation takes the topmost elements from the stack, assuming
+// AssembleStreamWindow takes the topmost elements from the stack, assuming
 // they are components of an AS clause, and replaces them by
-// a single WindowedRelationAST element. If there is no RangeAST element present,
+// a single StreamWindowAST element. If there is no RangeAST element present,
 // a RangeAST with RangeUnit Unspecified is created.
 //
 //  RangeAST
-//  Relation
+//  Stream
 //   =>
-//  WindowedRelationAST{Relation, RangeAST}
+//  StreamWindowAST{Stream, RangeAST}
 // or
-//  Relation
+//  Stream
 //   =>
-//  WindowedRelationAST{Relation, RangeAST}
-func (ps *parseStack) AssembleWindowedRelation() {
+//  StreamWindowAST{Stream, RangeAST}
+func (ps *parseStack) AssembleStreamWindow() {
 	// pop the components from the stack in reverse order
 	_rangeOrRel := ps.Pop()
 	_rel := _rangeOrRel
@@ -468,19 +468,19 @@ func (ps *parseStack) AssembleWindowedRelation() {
 
 	var rangeAst RangeAST
 
-	// check if we have a Relation or a Range
-	rel, ok := _rangeOrRel.comp.(Relation)
+	// check if we have a Stream or a Range
+	rel, ok := _rangeOrRel.comp.(Stream)
 	if ok {
-		// there was (only) a Relation, no Range, so set the "no range" info
+		// there was (only) a Stream, no Range, so set the "no range" info
 		rangeAst = RangeAST{NumericLiteral{0}, Unspecified}
 	} else {
-		// there was no Relation, so it was a Range
+		// there was no Stream, so it was a Range
 		rangeAst = _rangeOrRel.comp.(RangeAST)
 		_rel = ps.Pop()
-		rel = _rel.comp.(Relation)
+		rel = _rel.comp.(Stream)
 	}
 
-	ps.PushComponent(_rel.begin, _range.end, WindowedRelationAST{rel, rangeAst})
+	ps.PushComponent(_rel.begin, _range.end, StreamWindowAST{rel, rangeAst})
 }
 
 // AssembleSourceSinkSpecs takes the elements from the stack that
