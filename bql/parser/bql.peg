@@ -107,13 +107,13 @@ AliasExpression <- (Expression / Wildcard) sp "AS" sp Identifier {
         p.AssembleAlias()
     }
 
-WindowedFrom <- < ("FROM" sp WindowedRelations sp)? > {
+WindowedFrom <- < ("FROM" sp Relations sp)? > {
         // This is *always* executed, even if there is no
         // FROM clause present in the statement.
         p.AssembleWindowedFrom(begin, end)
     }
 
-DefWindowedFrom <- < ("FROM" sp DefWindowedRelations sp)? > {
+DefWindowedFrom <- < ("FROM" sp DefRelations sp)? > {
         p.AssembleWindowedFrom(begin, end)
     }
 
@@ -121,9 +121,9 @@ Range <- NumericLiteral sp RangeUnit {
         p.AssembleRange()
     }
 
-WindowedRelations <- WindowedRelationLike sp (',' sp WindowedRelationLike)*
+Relations <- RelationLike sp (',' sp RelationLike)*
 
-DefWindowedRelations <- DefWindowedRelationLike sp (',' sp DefWindowedRelationLike)*
+DefRelations <- DefRelationLike sp (',' sp DefRelationLike)*
 
 Filter <- < ("WHERE" sp Expression)? > {
         // This is *always* executed, even if there is no
@@ -145,28 +145,30 @@ Having <- < ("HAVING" sp Expression)? > {
         p.AssembleHaving(begin, end)
     }
 
-WindowedRelationLike <- AliasWindowedRelation / WindowedRelation {
-        p.EnsureAliasWindowedRelation()
+# NB. Other things that are "relation-like" could be sub-selects
+#     or generated tables.
+RelationLike <- AliasedStreamWindow / StreamWindow {
+        p.EnsureAliasedStreamWindow()
     }
 
-DefWindowedRelationLike <- DefAliasWindowedRelation / DefWindowedRelation {
-        p.EnsureAliasWindowedRelation()
+DefRelationLike <- DefAliasedStreamWindow / DefStreamWindow {
+        p.EnsureAliasedStreamWindow()
     }
 
-AliasWindowedRelation <- WindowedRelation sp "AS" sp Identifier {
-        p.AssembleAliasWindowedRelation()
+AliasedStreamWindow <- StreamWindow sp "AS" sp Identifier {
+        p.AssembleAliasedStreamWindow()
     }
 
-DefAliasWindowedRelation <- DefWindowedRelation sp "AS" sp Identifier {
-        p.AssembleAliasWindowedRelation()
+DefAliasedStreamWindow <- DefStreamWindow sp "AS" sp Identifier {
+        p.AssembleAliasedStreamWindow()
     }
 
-WindowedRelation <- Relation sp '[' sp "RANGE" sp Range sp ']' {
-        p.AssembleWindowedRelation()
+StreamWindow <- Relation sp '[' sp "RANGE" sp Range sp ']' {
+        p.AssembleStreamWindow()
     }
 
-DefWindowedRelation <- Relation (sp '[' sp "RANGE" sp Range sp ']')? {
-        p.AssembleWindowedRelation()
+DefStreamWindow <- Relation (sp '[' sp "RANGE" sp Range sp ']')? {
+        p.AssembleStreamWindow()
     }
 
 SourceSinkSpecs <- < ("WITH" sp SourceSinkParam sp (',' sp SourceSinkParam)*)? > {
@@ -249,7 +251,7 @@ MultDivOp <- Multiply / Divide / Modulo
 
 Relation <- < ident > {
         substr := string([]rune(buffer)[begin:end])
-        p.PushComponent(begin, end, NewRelation(substr))
+        p.PushComponent(begin, end, NewStream(substr))
     }
 
 RowValue <- < (ident '.')? ident > {

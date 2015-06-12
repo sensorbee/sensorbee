@@ -85,16 +85,16 @@ func (a AliasAST) RenameReferencedRelation(from, to string) Expression {
 }
 
 type WindowedFromAST struct {
-	Relations []AliasWindowedRelationAST
+	Relations []AliasedStreamWindowAST
 }
 
-type AliasWindowedRelationAST struct {
-	WindowedRelationAST
+type AliasedStreamWindowAST struct {
+	StreamWindowAST
 	Alias string
 }
 
-type WindowedRelationAST struct {
-	Relation
+type StreamWindowAST struct {
+	Stream
 	RangeAST
 }
 
@@ -177,12 +177,12 @@ type ExpressionsAST struct {
 // because we cannot use curly brackets for Expr{...} style
 // initialization in the .peg file.
 
-type Relation struct {
+type Stream struct {
 	Name string
 }
 
-func NewRelation(s string) Relation {
-	return Relation{s}
+func NewStream(s string) Stream {
+	return Stream{s}
 }
 
 type Wildcard struct {

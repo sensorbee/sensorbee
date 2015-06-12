@@ -29,18 +29,18 @@ const (
 	ruleWindowedFrom
 	ruleDefWindowedFrom
 	ruleRange
-	ruleWindowedRelations
-	ruleDefWindowedRelations
+	ruleRelations
+	ruleDefRelations
 	ruleFilter
 	ruleGrouping
 	ruleGroupList
 	ruleHaving
-	ruleWindowedRelationLike
-	ruleDefWindowedRelationLike
-	ruleAliasWindowedRelation
-	ruleDefAliasWindowedRelation
-	ruleWindowedRelation
-	ruleDefWindowedRelation
+	ruleRelationLike
+	ruleDefRelationLike
+	ruleAliasedStreamWindow
+	ruleDefAliasedStreamWindow
+	ruleStreamWindow
+	ruleDefStreamWindow
 	ruleSourceSinkSpecs
 	ruleSourceSinkParam
 	ruleExpression
@@ -180,18 +180,18 @@ var rul3s = [...]string{
 	"WindowedFrom",
 	"DefWindowedFrom",
 	"Range",
-	"WindowedRelations",
-	"DefWindowedRelations",
+	"Relations",
+	"DefRelations",
 	"Filter",
 	"Grouping",
 	"GroupList",
 	"Having",
-	"WindowedRelationLike",
-	"DefWindowedRelationLike",
-	"AliasWindowedRelation",
-	"DefAliasWindowedRelation",
-	"WindowedRelation",
-	"DefWindowedRelation",
+	"RelationLike",
+	"DefRelationLike",
+	"AliasedStreamWindow",
+	"DefAliasedStreamWindow",
+	"StreamWindow",
+	"DefStreamWindow",
 	"SourceSinkSpecs",
 	"SourceSinkParam",
 	"Expression",
@@ -1027,27 +1027,27 @@ func (p *bqlPeg) Execute() {
 
 		case ruleAction16:
 
-			p.EnsureAliasWindowedRelation()
+			p.EnsureAliasedStreamWindow()
 
 		case ruleAction17:
 
-			p.EnsureAliasWindowedRelation()
+			p.EnsureAliasedStreamWindow()
 
 		case ruleAction18:
 
-			p.AssembleAliasWindowedRelation()
+			p.AssembleAliasedStreamWindow()
 
 		case ruleAction19:
 
-			p.AssembleAliasWindowedRelation()
+			p.AssembleAliasedStreamWindow()
 
 		case ruleAction20:
 
-			p.AssembleWindowedRelation()
+			p.AssembleStreamWindow()
 
 		case ruleAction21:
 
-			p.AssembleWindowedRelation()
+			p.AssembleStreamWindow()
 
 		case ruleAction22:
 
@@ -1088,7 +1088,7 @@ func (p *bqlPeg) Execute() {
 		case ruleAction31:
 
 			substr := string([]rune(buffer)[begin:end])
-			p.PushComponent(begin, end, NewRelation(substr))
+			p.PushComponent(begin, end, NewStream(substr))
 
 		case ruleAction32:
 
@@ -3491,7 +3491,7 @@ func (p *bqlPeg) Init() {
 			position, tokenIndex, depth = position256, tokenIndex256, depth256
 			return false
 		},
-		/* 12 WindowedFrom <- <(<(('f' / 'F') ('r' / 'R') ('o' / 'O') ('m' / 'M') sp WindowedRelations sp)?> Action10)> */
+		/* 12 WindowedFrom <- <(<(('f' / 'F') ('r' / 'R') ('o' / 'O') ('m' / 'M') sp Relations sp)?> Action10)> */
 		func() bool {
 			position264, tokenIndex264, depth264 := position, tokenIndex, depth
 			{
@@ -3565,7 +3565,7 @@ func (p *bqlPeg) Init() {
 						if !_rules[rulesp]() {
 							goto l267
 						}
-						if !_rules[ruleWindowedRelations]() {
+						if !_rules[ruleRelations]() {
 							goto l267
 						}
 						if !_rules[rulesp]() {
@@ -3590,7 +3590,7 @@ func (p *bqlPeg) Init() {
 			position, tokenIndex, depth = position264, tokenIndex264, depth264
 			return false
 		},
-		/* 13 DefWindowedFrom <- <(<(('f' / 'F') ('r' / 'R') ('o' / 'O') ('m' / 'M') sp DefWindowedRelations sp)?> Action11)> */
+		/* 13 DefWindowedFrom <- <(<(('f' / 'F') ('r' / 'R') ('o' / 'O') ('m' / 'M') sp DefRelations sp)?> Action11)> */
 		func() bool {
 			position277, tokenIndex277, depth277 := position, tokenIndex, depth
 			{
@@ -3664,7 +3664,7 @@ func (p *bqlPeg) Init() {
 						if !_rules[rulesp]() {
 							goto l280
 						}
-						if !_rules[ruleDefWindowedRelations]() {
+						if !_rules[ruleDefRelations]() {
 							goto l280
 						}
 						if !_rules[rulesp]() {
@@ -3715,13 +3715,13 @@ func (p *bqlPeg) Init() {
 			position, tokenIndex, depth = position290, tokenIndex290, depth290
 			return false
 		},
-		/* 15 WindowedRelations <- <(WindowedRelationLike sp (',' sp WindowedRelationLike)*)> */
+		/* 15 Relations <- <(RelationLike sp (',' sp RelationLike)*)> */
 		func() bool {
 			position292, tokenIndex292, depth292 := position, tokenIndex, depth
 			{
 				position293 := position
 				depth++
-				if !_rules[ruleWindowedRelationLike]() {
+				if !_rules[ruleRelationLike]() {
 					goto l292
 				}
 				if !_rules[rulesp]() {
@@ -3737,7 +3737,7 @@ func (p *bqlPeg) Init() {
 					if !_rules[rulesp]() {
 						goto l295
 					}
-					if !_rules[ruleWindowedRelationLike]() {
+					if !_rules[ruleRelationLike]() {
 						goto l295
 					}
 					goto l294
@@ -3745,20 +3745,20 @@ func (p *bqlPeg) Init() {
 					position, tokenIndex, depth = position295, tokenIndex295, depth295
 				}
 				depth--
-				add(ruleWindowedRelations, position293)
+				add(ruleRelations, position293)
 			}
 			return true
 		l292:
 			position, tokenIndex, depth = position292, tokenIndex292, depth292
 			return false
 		},
-		/* 16 DefWindowedRelations <- <(DefWindowedRelationLike sp (',' sp DefWindowedRelationLike)*)> */
+		/* 16 DefRelations <- <(DefRelationLike sp (',' sp DefRelationLike)*)> */
 		func() bool {
 			position296, tokenIndex296, depth296 := position, tokenIndex, depth
 			{
 				position297 := position
 				depth++
-				if !_rules[ruleDefWindowedRelationLike]() {
+				if !_rules[ruleDefRelationLike]() {
 					goto l296
 				}
 				if !_rules[rulesp]() {
@@ -3774,7 +3774,7 @@ func (p *bqlPeg) Init() {
 					if !_rules[rulesp]() {
 						goto l299
 					}
-					if !_rules[ruleDefWindowedRelationLike]() {
+					if !_rules[ruleDefRelationLike]() {
 						goto l299
 					}
 					goto l298
@@ -3782,7 +3782,7 @@ func (p *bqlPeg) Init() {
 					position, tokenIndex, depth = position299, tokenIndex299, depth299
 				}
 				depth--
-				add(ruleDefWindowedRelations, position297)
+				add(ruleDefRelations, position297)
 			}
 			return true
 		l296:
@@ -4207,7 +4207,7 @@ func (p *bqlPeg) Init() {
 			position, tokenIndex, depth = position338, tokenIndex338, depth338
 			return false
 		},
-		/* 21 WindowedRelationLike <- <(AliasWindowedRelation / (WindowedRelation Action16))> */
+		/* 21 RelationLike <- <(AliasedStreamWindow / (StreamWindow Action16))> */
 		func() bool {
 			position355, tokenIndex355, depth355 := position, tokenIndex, depth
 			{
@@ -4215,13 +4215,13 @@ func (p *bqlPeg) Init() {
 				depth++
 				{
 					position357, tokenIndex357, depth357 := position, tokenIndex, depth
-					if !_rules[ruleAliasWindowedRelation]() {
+					if !_rules[ruleAliasedStreamWindow]() {
 						goto l358
 					}
 					goto l357
 				l358:
 					position, tokenIndex, depth = position357, tokenIndex357, depth357
-					if !_rules[ruleWindowedRelation]() {
+					if !_rules[ruleStreamWindow]() {
 						goto l355
 					}
 					if !_rules[ruleAction16]() {
@@ -4230,14 +4230,14 @@ func (p *bqlPeg) Init() {
 				}
 			l357:
 				depth--
-				add(ruleWindowedRelationLike, position356)
+				add(ruleRelationLike, position356)
 			}
 			return true
 		l355:
 			position, tokenIndex, depth = position355, tokenIndex355, depth355
 			return false
 		},
-		/* 22 DefWindowedRelationLike <- <(DefAliasWindowedRelation / (DefWindowedRelation Action17))> */
+		/* 22 DefRelationLike <- <(DefAliasedStreamWindow / (DefStreamWindow Action17))> */
 		func() bool {
 			position359, tokenIndex359, depth359 := position, tokenIndex, depth
 			{
@@ -4245,13 +4245,13 @@ func (p *bqlPeg) Init() {
 				depth++
 				{
 					position361, tokenIndex361, depth361 := position, tokenIndex, depth
-					if !_rules[ruleDefAliasWindowedRelation]() {
+					if !_rules[ruleDefAliasedStreamWindow]() {
 						goto l362
 					}
 					goto l361
 				l362:
 					position, tokenIndex, depth = position361, tokenIndex361, depth361
-					if !_rules[ruleDefWindowedRelation]() {
+					if !_rules[ruleDefStreamWindow]() {
 						goto l359
 					}
 					if !_rules[ruleAction17]() {
@@ -4260,20 +4260,20 @@ func (p *bqlPeg) Init() {
 				}
 			l361:
 				depth--
-				add(ruleDefWindowedRelationLike, position360)
+				add(ruleDefRelationLike, position360)
 			}
 			return true
 		l359:
 			position, tokenIndex, depth = position359, tokenIndex359, depth359
 			return false
 		},
-		/* 23 AliasWindowedRelation <- <(WindowedRelation sp (('a' / 'A') ('s' / 'S')) sp Identifier Action18)> */
+		/* 23 AliasedStreamWindow <- <(StreamWindow sp (('a' / 'A') ('s' / 'S')) sp Identifier Action18)> */
 		func() bool {
 			position363, tokenIndex363, depth363 := position, tokenIndex, depth
 			{
 				position364 := position
 				depth++
-				if !_rules[ruleWindowedRelation]() {
+				if !_rules[ruleStreamWindow]() {
 					goto l363
 				}
 				if !_rules[rulesp]() {
@@ -4319,20 +4319,20 @@ func (p *bqlPeg) Init() {
 					goto l363
 				}
 				depth--
-				add(ruleAliasWindowedRelation, position364)
+				add(ruleAliasedStreamWindow, position364)
 			}
 			return true
 		l363:
 			position, tokenIndex, depth = position363, tokenIndex363, depth363
 			return false
 		},
-		/* 24 DefAliasWindowedRelation <- <(DefWindowedRelation sp (('a' / 'A') ('s' / 'S')) sp Identifier Action19)> */
+		/* 24 DefAliasedStreamWindow <- <(DefStreamWindow sp (('a' / 'A') ('s' / 'S')) sp Identifier Action19)> */
 		func() bool {
 			position369, tokenIndex369, depth369 := position, tokenIndex, depth
 			{
 				position370 := position
 				depth++
-				if !_rules[ruleDefWindowedRelation]() {
+				if !_rules[ruleDefStreamWindow]() {
 					goto l369
 				}
 				if !_rules[rulesp]() {
@@ -4378,14 +4378,14 @@ func (p *bqlPeg) Init() {
 					goto l369
 				}
 				depth--
-				add(ruleDefAliasWindowedRelation, position370)
+				add(ruleDefAliasedStreamWindow, position370)
 			}
 			return true
 		l369:
 			position, tokenIndex, depth = position369, tokenIndex369, depth369
 			return false
 		},
-		/* 25 WindowedRelation <- <(Relation sp '[' sp (('r' / 'R') ('a' / 'A') ('n' / 'N') ('g' / 'G') ('e' / 'E')) sp Range sp ']' Action20)> */
+		/* 25 StreamWindow <- <(Relation sp '[' sp (('r' / 'R') ('a' / 'A') ('n' / 'N') ('g' / 'G') ('e' / 'E')) sp Range sp ']' Action20)> */
 		func() bool {
 			position375, tokenIndex375, depth375 := position, tokenIndex, depth
 			{
@@ -4496,14 +4496,14 @@ func (p *bqlPeg) Init() {
 					goto l375
 				}
 				depth--
-				add(ruleWindowedRelation, position376)
+				add(ruleStreamWindow, position376)
 			}
 			return true
 		l375:
 			position, tokenIndex, depth = position375, tokenIndex375, depth375
 			return false
 		},
-		/* 26 DefWindowedRelation <- <(Relation (sp '[' sp (('r' / 'R') ('a' / 'A') ('n' / 'N') ('g' / 'G') ('e' / 'E')) sp Range sp ']')? Action21)> */
+		/* 26 DefStreamWindow <- <(Relation (sp '[' sp (('r' / 'R') ('a' / 'A') ('n' / 'N') ('g' / 'G') ('e' / 'E')) sp Range sp ']')? Action21)> */
 		func() bool {
 			position387, tokenIndex387, depth387 := position, tokenIndex, depth
 			{
@@ -4621,7 +4621,7 @@ func (p *bqlPeg) Init() {
 					goto l387
 				}
 				depth--
-				add(ruleDefWindowedRelation, position388)
+				add(ruleDefStreamWindow, position388)
 			}
 			return true
 		l387:
@@ -7398,7 +7398,7 @@ func (p *bqlPeg) Init() {
 			return true
 		},
 		/* 97 Action16 <- <{
-		    p.EnsureAliasWindowedRelation()
+		    p.EnsureAliasedStreamWindow()
 		}> */
 		func() bool {
 			{
@@ -7407,7 +7407,7 @@ func (p *bqlPeg) Init() {
 			return true
 		},
 		/* 98 Action17 <- <{
-		    p.EnsureAliasWindowedRelation()
+		    p.EnsureAliasedStreamWindow()
 		}> */
 		func() bool {
 			{
@@ -7416,7 +7416,7 @@ func (p *bqlPeg) Init() {
 			return true
 		},
 		/* 99 Action18 <- <{
-		    p.AssembleAliasWindowedRelation()
+		    p.AssembleAliasedStreamWindow()
 		}> */
 		func() bool {
 			{
@@ -7425,7 +7425,7 @@ func (p *bqlPeg) Init() {
 			return true
 		},
 		/* 100 Action19 <- <{
-		    p.AssembleAliasWindowedRelation()
+		    p.AssembleAliasedStreamWindow()
 		}> */
 		func() bool {
 			{
@@ -7434,7 +7434,7 @@ func (p *bqlPeg) Init() {
 			return true
 		},
 		/* 101 Action20 <- <{
-		    p.AssembleWindowedRelation()
+		    p.AssembleStreamWindow()
 		}> */
 		func() bool {
 			{
@@ -7443,7 +7443,7 @@ func (p *bqlPeg) Init() {
 			return true
 		},
 		/* 102 Action21 <- <{
-		    p.AssembleWindowedRelation()
+		    p.AssembleStreamWindow()
 		}> */
 		func() bool {
 			{
@@ -7534,7 +7534,7 @@ func (p *bqlPeg) Init() {
 		},
 		/* 112 Action31 <- <{
 		    substr := string([]rune(buffer)[begin:end])
-		    p.PushComponent(begin, end, NewRelation(substr))
+		    p.PushComponent(begin, end, NewStream(substr))
 		}> */
 		func() bool {
 			{

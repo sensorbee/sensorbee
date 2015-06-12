@@ -9,13 +9,13 @@ func TestAssembleWindowedFrom(t *testing.T) {
 	Convey("Given a parseStack", t, func() {
 		ps := parseStack{}
 
-		Convey("When the stack contains only AliasWindowedRelations in the given range", func() {
+		Convey("When the stack contains only AliasedStreamWindows in the given range", func() {
 			ps.PushComponent(0, 6, Raw{"PRE"})
-			ps.PushComponent(6, 8, AliasWindowedRelationAST{
-				WindowedRelationAST{Relation{"a"}, RangeAST{NumericLiteral{3}, Tuples}}, "",
+			ps.PushComponent(6, 8, AliasedStreamWindowAST{
+				StreamWindowAST{Stream{"a"}, RangeAST{NumericLiteral{3}, Tuples}}, "",
 			})
-			ps.PushComponent(8, 10, AliasWindowedRelationAST{
-				WindowedRelationAST{Relation{"b"}, RangeAST{NumericLiteral{2}, Seconds}}, "",
+			ps.PushComponent(8, 10, AliasedStreamWindowAST{
+				StreamWindowAST{Stream{"b"}, RangeAST{NumericLiteral{2}, Seconds}}, "",
 			})
 			ps.AssembleWindowedFrom(6, 10)
 
@@ -89,7 +89,7 @@ func TestAssembleWindowedFrom(t *testing.T) {
 			})
 		})
 
-		Convey("When the stack contains non-AliasWindowedRelations in the given range", func() {
+		Convey("When the stack contains non-AliasedStreamWindows in the given range", func() {
 			ps.PushComponent(0, 6, Raw{"PRE"})
 			f := func() {
 				ps.AssembleWindowedFrom(0, 8)
