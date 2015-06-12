@@ -31,8 +31,14 @@ type dynamicPipeReceiver struct {
 // the channel. Instead, it sends a signal to the sender so that sender can
 // close the channel.
 func (r *dynamicPipeReceiver) close() {
-	// Close the sender because close(r.in) isn't safe.
-	r.sender.close()
+	// Close the sender because close(r.in) isn't safe. This method uses a
+	// goroutine because it might be dead-locked when the channel is full.
+	// In that case dynamicPipeSender.Write blocks at s.out <- t having RLock.
+	// Then, calling sender.close() is blocked until someone reads a tuple
+	// from r.in.
+	go func() {
+		r.sender.close()
+	}()
 }
 
 type dynamicPipeSender struct {
@@ -126,6 +132,9 @@ func (s *dynamicDataSources) add(name string, r *dynamicPipeReceiver) error {
 		return fmt.Errorf("node '%v' already closed its input", s.nodeName)
 	}
 
+	// It's safe even if pouringThread panics while executing this method
+	// because pour method will drain all channels in s.recvs. So, the sender
+	// won't block even if pouringThread doesn't receive the new pipe receiver.
 	if _, ok := s.recvs[name]; ok {
 		return fmt.Errorf("node '%v' is already receiving tuples from '%v'", s.nodeName, name)
 	}
@@ -155,6 +164,12 @@ func (s *dynamicDataSources) remove(name string) {
 	if s.state.getWithoutLock() >= TSStopping {
 		return
 	}
+
+	// Removing receiver here can result in a dead-lock when pouringThread
+	// panics while the channel of receiver is full. In that case, there's no
+	// reader who reads a tuple and unblock the sender. To avoid this problem,
+	// pouringThread returns all input channels it had at the time the failure
+	// occurred and pour method will read tuples from those channels.
 	r, ok := s.recvs[name]
 	if !ok {
 		return
@@ -171,34 +186,25 @@ func (s *dynamicDataSources) pour(ctx *Context, w Writer, paralellism int) error
 	}
 
 	var (
-		wg        sync.WaitGroup
-		logOnce   sync.Once
-		threadErr error
+		wg            sync.WaitGroup
+		logOnce       sync.Once
+		collectInputs sync.Once
+		inputs        []reflect.SelectCase
+		threadErr     error
 	)
 
 	err := func() error {
 		s.m.Lock()
 		defer s.m.Unlock()
-		switch st := s.state.getWithoutLock(); st {
-		case TSInitialized:
-			s.state.setWithoutLock(TSStarting)
-
-		case TSStarting:
-			s.state.waitWithoutLock(TSRunning)
-			fallthrough
-
-		case TSRunning, TSPaused:
-			return fmt.Errorf("'%v' already started to receive tuples", s.nodeName)
-
-		case TSStopping:
-			s.state.waitWithoutLock(TSStopping)
-			fallthrough
-
-		case TSStopped:
-			return fmt.Errorf("'%v' already stopped receiving tuples", s.nodeName)
-
-		default:
-			return fmt.Errorf("'%v' has invalid state: %v", s.nodeName, st)
+		if st, err := s.state.checkAndPrepareForRunningWithoutLock(); err != nil {
+			switch st {
+			case TSRunning, TSPaused:
+				return fmt.Errorf("'%v' already started to receive tuples", s.nodeName)
+			case TSStopped:
+				return fmt.Errorf("'%v' already stopped receiving tuples", s.nodeName)
+			default:
+				return fmt.Errorf("'%v' has invalid state: %v", s.nodeName, st)
+			}
 		}
 
 		genCases := func(msgCh <-chan *dynamicDataSourcesMessage) []reflect.SelectCase {
@@ -231,7 +237,28 @@ func (s *dynamicDataSources) pour(ctx *Context, w Writer, paralellism int) error
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				if err := s.pouringThread(ctx, w, genCases(msgCh)); err != nil {
+				ins, err := s.pouringThread(ctx, w, genCases(msgCh))
+				collectInputs.Do(func() {
+					// It's sufficient to collect input only once. The only
+					// problem which might happen is that ins has old receivers.
+					// However, they will simply be removed when calling
+					// reflect.Select. There might be a case that only one
+					// pouringThread has a newly added receiver but it isn't
+					// assigned to inputs. To solve that problem, pour method
+					// also reads tuples from s.recvs.
+					//
+					// In addition, when pouringThread panics while remove
+					// method is called, s.recvs might not have receivers
+					// which pour method should read tuples. However, inputs
+					// returned from pouringThread has them. If the returned
+					// inputs doesn't have them, that means they were already
+					// removed successfully.
+					//
+					// In conclusion, by combining s.recvs and inputs, all
+					// inputs can be drained and no sender will be blocked.
+					inputs = ins
+				})
+				if err != nil {
 					logOnce.Do(func() {
 						threadErr = err // return only one error
 						ctx.Logger.Log(Error, "'%v' stopped with a fatal error: %v", s.nodeName, err)
@@ -254,10 +281,29 @@ func (s *dynamicDataSources) pour(ctx *Context, w Writer, paralellism int) error
 		s.m.Unlock()
 	}()
 
+	drainTargets := make([]reflect.SelectCase, 0, len(s.recvs)+len(inputs))
+	drainTargets = append(drainTargets, inputs...)
 	for _, r := range s.recvs {
+		drainTargets = append(drainTargets, reflect.SelectCase{
+			Dir:  reflect.SelectRecv,
+			Chan: reflect.ValueOf(r.in),
+		})
 		r.close()
 	}
 	s.recvs = nil
+
+	go func() {
+		// drainTargets might have duplicated channels but it doesn't cause
+		// a problem.
+		for len(drainTargets) != 0 {
+			i, _, ok := reflect.Select(drainTargets)
+			if ok {
+				continue
+			}
+			drainTargets[i] = drainTargets[len(drainTargets)-1]
+			drainTargets = drainTargets[:len(drainTargets)-1]
+		}
+	}()
 
 	for _, ch := range s.msgChs {
 		close(ch)
@@ -266,7 +312,7 @@ func (s *dynamicDataSources) pour(ctx *Context, w Writer, paralellism int) error
 	return threadErr
 }
 
-func (s *dynamicDataSources) pouringThread(ctx *Context, w Writer, cs []reflect.SelectCase) (retErr error) {
+func (s *dynamicDataSources) pouringThread(ctx *Context, w Writer, cs []reflect.SelectCase) (inputs []reflect.SelectCase, retErr error) {
 	const (
 		message = iota
 		defaultCase
@@ -275,8 +321,6 @@ func (s *dynamicDataSources) pouringThread(ctx *Context, w Writer, cs []reflect.
 		// control this method.
 		maxControlIndex = defaultCase
 	)
-
-	// TODO: currently defaultDynamicTopology.Stop deadlocks when a box panics. Fix it later.
 
 	defer func() {
 		if e := recover(); e != nil {
@@ -289,6 +333,25 @@ func (s *dynamicDataSources) pouringThread(ctx *Context, w Writer, cs []reflect.
 				retErr = fmt.Errorf("'%v' got an unknown error through panic: %v", s.nodeName, e)
 			}
 		}
+
+		if len(cs) > maxControlIndex+1 {
+			// Return all inputs this method still has. pour method will read
+			// tuples from those input channels so that senders don't block.
+			inputs = cs[maxControlIndex+1:]
+		}
+
+		// drain channels specific to pouringThread
+		go func() {
+			cs = cs[:1] // exclude defaultCase
+			for len(cs) != 0 {
+				i, _, ok := reflect.Select(cs)
+				if ok {
+					continue
+				}
+				cs[i] = cs[len(cs)-1]
+				cs = cs[:len(cs)-1]
+			}
+		}()
 	}()
 
 	gracefulStopEnabled := false
@@ -306,12 +369,13 @@ receiveLoop:
 		i, v, ok := reflect.Select(cs) // all cases are receive direction
 		if !ok && i != defaultCase {
 			if i <= maxControlIndex {
-				return FatalError(fmt.Errorf("a controlling channel (%v) of '%v' has been closed", i, s.nodeName))
+				retErr = FatalError(fmt.Errorf("a controlling channel (%v) of '%v' has been closed", i, s.nodeName))
+				return
 			}
 
 			// remove the closed channel by swapping it with the last element.
 			cs[i], cs[len(cs)-1] = cs[len(cs)-1], cs[i]
-			cs = cs[0 : len(cs)-1]
+			cs = cs[:len(cs)-1]
 			continue
 		}
 
@@ -363,7 +427,8 @@ receiveLoop:
 			switch {
 			case IsFatalError(err):
 				// logging is done by pour method
-				return err
+				retErr = err
+				return
 
 			case IsTemporaryError(err):
 				// TODO: retry
@@ -373,9 +438,7 @@ receiveLoop:
 			}
 		}
 	}
-
-	// TODO: vacuum all remaining inputs including control messages in pour method
-	return nil
+	return // return values will be set by the defered function.
 }
 
 // enableGracefulStop enables graceful stop mode. If the mode is enabled, the
@@ -401,34 +464,7 @@ func (s *dynamicDataSources) stopOnDisconnect() {
 func (s *dynamicDataSources) stop(ctx *Context) {
 	s.m.Lock()
 	defer s.m.Unlock()
-
-	stopped, err := func() (bool, error) {
-		for {
-			switch st := s.state.getWithoutLock(); st {
-			case TSInitialized:
-				s.state.setWithoutLock(TSStopped)
-				return true, nil
-
-			case TSStarting:
-				s.state.waitWithoutLock(TSRunning)
-
-			case TSRunning, TSPaused:
-				s.state.setWithoutLock(TSStopping)
-				return false, nil
-
-			case TSStopping:
-				s.state.waitWithoutLock(TSStopped)
-				fallthrough
-
-			case TSStopped:
-				return true, nil
-
-			default:
-				return false, fmt.Errorf("'%v' has an invalid state: %v", s.nodeName, st)
-			}
-		}
-	}()
-	if stopped || err != nil {
+	if stopped, err := s.state.checkAndPrepareForStoppingWithoutLock(false); stopped || err != nil {
 		return
 	}
 
