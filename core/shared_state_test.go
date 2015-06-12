@@ -4,6 +4,7 @@ import (
 	"fmt"
 	. "github.com/smartystreets/goconvey/convey"
 	"pfi/sensorbee/sensorbee/core/tuple"
+	"sync/atomic"
 	"testing"
 )
 
@@ -211,6 +212,108 @@ func TestDefaultSharedStateRegistry(t *testing.T) {
 
 			Convey("Then the returned state should be nil", func() {
 				So(s, ShouldBeNil)
+			})
+		})
+	})
+}
+
+type countingSharedState struct {
+	cnt int32
+}
+
+func (c *countingSharedState) TypeName() string {
+	return "counter"
+}
+
+func (c *countingSharedState) Init(ctx *Context) error {
+	return nil
+}
+
+func (c *countingSharedState) Write(ctx *Context, t *tuple.Tuple) error {
+	i, _ := tuple.ToInt(t.Data["n"])
+	atomic.AddInt32(&c.cnt, int32(i))
+	return nil
+}
+
+func (c *countingSharedState) Terminate(ctx *Context) error {
+	return nil
+}
+
+func TestSharedStateInStaticTopology(t *testing.T) {
+	Convey("Given a static topology and a state", t, func() {
+		// Run this test with parallelism 1
+		config := Configuration{TupleTraceEnabled: 1}
+		ctx := newTestContext(config)
+		counter := &countingSharedState{}
+		So(ctx.SharedStates.Add(ctx, "test_counter", counter), ShouldBeNil)
+
+		tb := NewDefaultStaticTopologyBuilder()
+
+		ts := []*tuple.Tuple{}
+		for i := 0; i < 4; i++ {
+			ts = append(ts, &tuple.Tuple{
+				Data: tuple.Map{
+					"n": tuple.Int(i + 1),
+				},
+			})
+		}
+		so := NewTupleEmitterSource(ts)
+		So(tb.AddSource("source", so).Err(), ShouldBeNil)
+
+		b1 := BoxFunc(func(ctx *Context, t *tuple.Tuple, w Writer) error {
+			s, err := ctx.GetSharedState("test_counter")
+			if err != nil {
+				return err
+			}
+			s.Write(ctx, t)
+			return w.Write(ctx, t)
+		})
+		So(tb.AddBox("box1", b1).Input("source").Err(), ShouldBeNil)
+
+		b2 := BoxFunc(func(ctx *Context, t *tuple.Tuple, w Writer) error {
+			s, err := ctx.GetSharedState("test_counter")
+			if err != nil {
+				return err
+			}
+			if s.TypeName() != "counter" {
+				return fmt.Errorf("unsupported state type: %v", s.TypeName())
+			}
+			c, ok := s.(*countingSharedState)
+			if !ok {
+				return fmt.Errorf("cannot convert a state to a counter")
+			}
+
+			t.Data["cur_cnt"] = tuple.Int(atomic.LoadInt32(&c.cnt))
+			return w.Write(ctx, t)
+		})
+		So(tb.AddBox("box2", b2).Input("box1").Err(), ShouldBeNil)
+
+		si := NewTupleCollectorSink()
+		sic := &sinkCloseChecker{s: si}
+		So(tb.AddSink("sink", sic).Input("box2").Err(), ShouldBeNil)
+
+		ti, err := tb.Build()
+		So(err, ShouldBeNil)
+
+		t := ti.(*defaultStaticTopology)
+		go func() {
+			t.Run(ctx)
+		}()
+		Reset(func() {
+			t.Stop(ctx)
+		})
+		t.state.Wait(TSRunning)
+		si.Wait(4)
+
+		Convey("When running a topology with boxes refering to the state", func() {
+			Convey("Then each tuple has correct counters", func() {
+				for i, t := range si.Tuples {
+					So(t.Data["cur_cnt"], ShouldBeGreaterThanOrEqualTo, (i+1)*(i+2)/2)
+				}
+			})
+
+			Convey("Then the cnt should be 10", func() {
+				So(counter.cnt, ShouldEqual, 10)
 			})
 		})
 	})

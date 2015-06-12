@@ -10,8 +10,9 @@ import (
 // processing starts according to specific application needs
 // (e.g., central log collection) and passed in to StaticTopology.Run().
 type Context struct {
-	Logger LogManager
-	Config Configuration
+	Logger       LogManager
+	Config       Configuration
+	SharedStates SharedStateRegistry
 }
 
 // IsTupleTraceEnabled can get from Context Configuration, whether the topology
@@ -31,6 +32,11 @@ func (c *Context) SetTupleTraceEnabled(b bool) {
 		i = 1
 	}
 	atomic.StoreInt32(&c.Config.TupleTraceEnabled, i)
+}
+
+// GetSharedState returns a state registered to this Context.
+func (c *Context) GetSharedState(name string) (SharedState, error) {
+	return c.SharedStates.Get(c, name)
 }
 
 // LogLevel represents severity of an event being logged.
