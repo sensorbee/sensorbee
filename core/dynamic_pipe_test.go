@@ -27,6 +27,11 @@ func BenchmarkDynamicPipe(b *testing.B) {
 	})
 }
 
+func drainReceiver(r *dynamicPipeReceiver) {
+	for _ = range r.in {
+	}
+}
+
 func TestDynamicPipe(t *testing.T) {
 	config := Configuration{TupleTraceEnabled: 1}
 	ctx := newTestContext(config)
@@ -75,6 +80,7 @@ func TestDynamicPipe(t *testing.T) {
 
 		Convey("When closing the pipe via the receiver", func() {
 			r.close()
+			go drainReceiver(r)
 
 			Convey("Then the sender should eventually be unable to write anymore tuple", func() {
 				var err error
@@ -198,6 +204,7 @@ func TestDynamicDataSources(t *testing.T) {
 			for i := 0; i < 5; i++ {
 				So(dsts[0].Write(ctx, t), ShouldBeNil)
 			}
+			srcs.enableGracefulStop()
 			srcs.stop(ctx)
 			So(<-stopped, ShouldBeNil)
 
@@ -295,8 +302,14 @@ func TestDynamicDataSources(t *testing.T) {
 			srcs.enableGracefulStop()
 			srcs.remove("test_node_1")
 
-			Convey("Then the input should be closed", func() {
-				So(dsts[0].Write(ctx, t), ShouldPointTo, errPipeClosed)
+			Convey("Then the input should eventually be closed", func() {
+				for {
+					err := dsts[0].Write(ctx, t)
+					if err != nil {
+						So(err, ShouldPointTo, errPipeClosed)
+						break
+					}
+				}
 			})
 
 			Convey("Then the sink should receive it", func() {
@@ -389,6 +402,7 @@ func TestDynamicDataDestinations(t *testing.T) {
 
 		Convey("When one destination is closed by the receiver side", func() {
 			recvs[0].close()
+			drainReceiver(recvs[0])
 			Reset(func() {
 				dsts.Close(ctx)
 			})
