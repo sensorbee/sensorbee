@@ -449,18 +449,36 @@ func (ps *parseStack) EnsureAliasWindowedRelation() {
 
 // AssembleWindowedRelation takes the topmost elements from the stack, assuming
 // they are components of an AS clause, and replaces them by
-// a single WindowedRelationAST element.
+// a single WindowedRelationAST element. If there is no RangeAST element present,
+// a RangeAST with RangeUnit Unspecified is created.
 //
 //  RangeAST
 //  Relation
 //   =>
 //  WindowedRelationAST{Relation, RangeAST}
+// or
+//  Relation
+//   =>
+//  WindowedRelationAST{Relation, RangeAST}
 func (ps *parseStack) AssembleWindowedRelation() {
 	// pop the components from the stack in reverse order
-	_range, _rel := ps.pop2()
+	_rangeOrRel := ps.Pop()
+	_rel := _rangeOrRel
+	_range := _rangeOrRel
 
-	rangeAst := _range.comp.(RangeAST)
-	rel := _rel.comp.(Relation)
+	var rangeAst RangeAST
+
+	// check if we have a Relation or a Range
+	rel, ok := _rangeOrRel.comp.(Relation)
+	if ok {
+		// there was (only) a Relation, no Range, so set the "no range" info
+		rangeAst = RangeAST{NumericLiteral{0}, Unspecified}
+	} else {
+		// there was no Relation, so it was a Range
+		rangeAst = _rangeOrRel.comp.(RangeAST)
+		_rel = ps.Pop()
+		rel = _rel.comp.(Relation)
+	}
 
 	ps.PushComponent(_rel.begin, _range.end, WindowedRelationAST{rel, rangeAst})
 }

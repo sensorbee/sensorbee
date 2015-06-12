@@ -331,7 +331,8 @@ const (
 type RangeUnit int
 
 const (
-	Tuples RangeUnit = iota
+	Unspecified RangeUnit = iota
+	Tuples
 	Seconds
 )
 

@@ -35,6 +35,31 @@ func TestAssembleWindowedRelation(t *testing.T) {
 			})
 		})
 
+		Convey("When the stack contains one correct item", func() {
+			ps.PushComponent(0, 6, Raw{"PRE"})
+			ps.PushComponent(6, 8, Relation{"a"})
+			ps.AssembleWindowedRelation()
+
+			Convey("Then AssembleWindowedRelation transforms them into one item", func() {
+				So(ps.Len(), ShouldEqual, 2)
+
+				Convey("And that item is a WindowedRelationAST", func() {
+					top := ps.Peek()
+					So(top, ShouldNotBeNil)
+					So(top.begin, ShouldEqual, 6)
+					So(top.end, ShouldEqual, 8)
+					So(top.comp, ShouldHaveSameTypeAs, WindowedRelationAST{})
+
+					Convey("And it contains the previously pushed data", func() {
+						comp := top.comp.(WindowedRelationAST)
+						So(comp.Name, ShouldEqual, "a")
+						So(comp.Value, ShouldEqual, 0)
+						So(comp.Unit, ShouldEqual, Unspecified)
+					})
+				})
+			})
+		})
+
 		Convey("When the stack contains a wrong item", func() {
 			ps.PushComponent(0, 6, Raw{"PRE"})
 

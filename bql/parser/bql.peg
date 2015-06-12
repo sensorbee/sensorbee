@@ -31,7 +31,7 @@ Statement <- (SelectStmt / CreateStreamAsSelectStmt / CreateSourceStmt /
 
 SelectStmt <- "SELECT" sp
               Projections sp
-              WindowedFrom sp
+              DefWindowedFrom sp
               Filter sp
               Grouping sp
               Having sp
@@ -113,11 +113,17 @@ WindowedFrom <- < ("FROM" sp WindowedRelations sp)? > {
         p.AssembleWindowedFrom(begin, end)
     }
 
+DefWindowedFrom <- < ("FROM" sp DefWindowedRelations sp)? > {
+        p.AssembleWindowedFrom(begin, end)
+    }
+
 Range <- NumericLiteral sp RangeUnit {
         p.AssembleRange()
     }
 
 WindowedRelations <- WindowedRelationLike sp (',' sp WindowedRelationLike)*
+
+DefWindowedRelations <- DefWindowedRelationLike sp (',' sp DefWindowedRelationLike)*
 
 Filter <- < ("WHERE" sp Expression)? > {
         // This is *always* executed, even if there is no
@@ -143,11 +149,23 @@ WindowedRelationLike <- AliasWindowedRelation / WindowedRelation {
         p.EnsureAliasWindowedRelation()
     }
 
+DefWindowedRelationLike <- DefAliasWindowedRelation / DefWindowedRelation {
+        p.EnsureAliasWindowedRelation()
+    }
+
 AliasWindowedRelation <- WindowedRelation sp "AS" sp Identifier {
         p.AssembleAliasWindowedRelation()
     }
 
+DefAliasWindowedRelation <- DefWindowedRelation sp "AS" sp Identifier {
+        p.AssembleAliasWindowedRelation()
+    }
+
 WindowedRelation <- Relation sp '[' sp "RANGE" sp Range sp ']' {
+        p.AssembleWindowedRelation()
+    }
+
+DefWindowedRelation <- Relation (sp '[' sp "RANGE" sp Range sp ']')? {
         p.AssembleWindowedRelation()
     }
 
