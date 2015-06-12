@@ -8,11 +8,14 @@ import (
 	"strings"
 )
 
+type eval func(string) (requestType, string, cmdInputStatusType)
+
 // App is the application server of SensorBee.
 type App struct {
 	historyFn            string
 	executeExternalFiles *string
-	commandMap           map[string](func(string) (bool, error))
+	uri                  string
+	commandMap           map[string]eval
 }
 
 // SetUpCommands set up application. Commands are initialized with it.
@@ -20,7 +23,7 @@ func SetUpCommands(commands []Command) App {
 	app := App{
 		historyFn:            "/tmp/.sensorbee_liner_history",
 		executeExternalFiles: flag.String("file", "", "execute BQL commands from external files"),
-		commandMap:           map[string](func(string) (bool, error)){},
+		commandMap:           map[string]eval{},
 	}
 	if len(commands) == 0 {
 		return app
@@ -29,7 +32,7 @@ func SetUpCommands(commands []Command) App {
 	for _, cmd := range commands {
 		cmd.Init()
 		for _, v := range cmd.Name() {
-			app.commandMap[v] = cmd.Execute
+			app.commandMap[v] = cmd.Eval
 		}
 	}
 	return app
@@ -52,12 +55,14 @@ func (a *App) prompt(line *liner.State) {
 
 		in := strings.ToLower(strings.Split(input, " ")[0])
 		if cmd, ok := a.commandMap[in]; ok {
-			isComplete, err := cmd(input)
-			if err != nil {
-				fmt.Fprintln(os.Stderr, err)
-			}
-			if !isComplete {
-				continuous(line, cmd)
+			reqType, uri, status := cmd(input)
+			switch status {
+			case invalidCMD:
+				fmt.Fprintf(os.Stderr, "input command is invalid: %v\n", input)
+			case continuousCMD:
+				a.continues(line, cmd)
+			case preparedCMD:
+				request(reqType, a.uri+uri)
 			}
 		} else {
 			fmt.Fprintf(os.Stdout, "not found the command: %v\n", in)
@@ -66,7 +71,7 @@ func (a *App) prompt(line *liner.State) {
 	a.prompt(line)
 }
 
-func continuous(line *liner.State, cmd func(string) (bool, error)) {
+func (a *App) continues(line *liner.State, cmd eval) {
 	input, err := line.Prompt(promptLineContinue)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -75,21 +80,22 @@ func continuous(line *liner.State, cmd func(string) (bool, error)) {
 
 	if input != "" {
 		line.AppendHistory(input)
-		isComplete, err := cmd(input)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
+		reqType, uri, status := cmd(input)
+		switch status {
+		case invalidCMD:
+			fmt.Fprintf(os.Stderr, "input command is invalid: %v\n", input)
 			return
-		}
-		if isComplete {
+		case preparedCMD:
+			request(reqType, a.uri+uri)
 			return
 		}
 	}
-	continuous(line, cmd)
+	a.continues(line, cmd)
 }
 
 // Run begins SensorBee command line tool to management SensorBee
 // and execute BQL/UDF/UDTF statements.
-func (a *App) Run() {
+func (a *App) Run(uri string) {
 	// set local value. For example, when stated with "-file=hoge.bql",
 	// `executeExternalFile` will set "hoge.bql"
 	flag.Parse()
@@ -108,6 +114,7 @@ func (a *App) Run() {
 	}
 
 	fmt.Fprintln(os.Stdout, appRunMsg)
+	a.uri = uri
 	a.prompt(line)
 
 	if f, err := os.Create(a.historyFn); err != nil {
@@ -119,7 +126,7 @@ func (a *App) Run() {
 }
 
 const (
-	appRunMsg          = "SensorBee is started..."
+	appRunMsg          = "SensorBee client tool is started!"
 	promptLineStart    = ">>> "
 	promptLineContinue = "... "
 )
