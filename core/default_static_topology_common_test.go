@@ -7,8 +7,9 @@ import (
 
 func newTestContext(config Configuration) *Context {
 	return &Context{
-		Logger: NewConsolePrintLogger(),
-		Config: config,
+		Logger:       NewConsolePrintLogger(),
+		Config:       config,
+		SharedStates: NewDefaultSharedStateRegistry(),
 	}
 }
 
