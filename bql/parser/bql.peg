@@ -257,7 +257,8 @@ Stream <- < ident > {
         p.PushComponent(begin, end, NewStream(substr))
     }
 
-RowValue <- < (ident '.')? ident > {
+# TODO we must allow for valid JSON paths right of the ":" below
+RowValue <- < (ident ':')? [[a-z]] ([[a-z]] / [0-9] / '_' / '.')* > {
         substr := string([]rune(buffer)[begin:end])
         p.PushComponent(begin, end, NewRowValue(substr))
     }
