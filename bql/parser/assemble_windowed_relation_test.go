@@ -12,7 +12,7 @@ func TestAssembleStreamWindow(t *testing.T) {
 		Convey("When the stack contains two correct items", func() {
 			ps.PushComponent(0, 6, Raw{"PRE"})
 			ps.PushComponent(6, 8, Stream{"a"})
-			ps.PushComponent(8, 10, RangeAST{NumericLiteral{2}, Seconds})
+			ps.PushComponent(8, 10, IntervalAST{NumericLiteral{2}, Seconds})
 			ps.AssembleStreamWindow()
 
 			Convey("Then AssembleStreamWindow transforms them into one item", func() {

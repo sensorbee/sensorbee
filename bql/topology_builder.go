@@ -29,11 +29,18 @@ func NewTopologyBuilder() *TopologyBuilder {
 
 func (tb *TopologyBuilder) BQL(s string) error {
 	p := parser.NewBQLParser()
-	_stmt, err := p.ParseStmt(s)
+	// execute all parsed statements
+	_stmts, err := p.ParseStmts(s)
 	if err != nil {
 		return err
 	}
-	return tb.processStmt(_stmt)
+	for _, _stmt := range _stmts {
+		err := tb.processStmt(_stmt)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (tb *TopologyBuilder) Build() (core.StaticTopology, error) {
@@ -151,13 +158,14 @@ func (tb *TopologyBuilder) processStmt(_stmt interface{}) error {
 				return err
 			} else {
 				newRels[i] = from
-				newRels[i].RangeAST = parser.RangeAST{
+				newRels[i].IntervalAST = parser.IntervalAST{
 					parser.NumericLiteral{1}, parser.Tuples}
 			}
 		}
 		tmpStmt := parser.CreateStreamAsSelectStmt{
 			parser.StreamIdentifier(tmpName),
-			parser.EmitProjectionsAST{parser.Istream, stmt.ProjectionsAST},
+			parser.EmitterAST{parser.Istream},
+			stmt.ProjectionsAST,
 			parser.WindowedFromAST{newRels},
 			stmt.FilterAST,
 			stmt.GroupingAST,

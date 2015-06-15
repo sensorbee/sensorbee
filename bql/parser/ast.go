@@ -27,7 +27,8 @@ type SelectStmt struct {
 
 type CreateStreamAsSelectStmt struct {
 	Name StreamIdentifier
-	EmitProjectionsAST
+	EmitterAST
+	ProjectionsAST
 	WindowedFromAST
 	FilterAST
 	GroupingAST
@@ -62,9 +63,8 @@ type InsertIntoSelectStmt struct {
 	SelectStmt
 }
 
-type EmitProjectionsAST struct {
+type EmitterAST struct {
 	EmitterType Emitter
-	ProjectionsAST
 }
 
 type ProjectionsAST struct {
@@ -95,12 +95,12 @@ type AliasedStreamWindowAST struct {
 
 type StreamWindowAST struct {
 	Stream
-	RangeAST
+	IntervalAST
 }
 
-type RangeAST struct {
+type IntervalAST struct {
 	NumericLiteral
-	Unit RangeUnit
+	Unit IntervalUnit
 }
 
 type FilterAST struct {
@@ -328,10 +328,10 @@ const (
 	Rstream
 )
 
-type RangeUnit int
+type IntervalUnit int
 
 const (
-	Unspecified RangeUnit = iota
+	Unspecified IntervalUnit = iota
 	Tuples
 	Seconds
 )
