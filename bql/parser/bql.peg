@@ -25,9 +25,11 @@ type bqlPeg Peg {
 ##### MAIN STATEMENTS #####
 ###########################
 
+Statements <- sp ((Statement eq ';' .*) / Statement) !.
+
 Statement <- (SelectStmt / CreateStreamAsSelectStmt / CreateSourceStmt /
              CreateStreamFromSourceStmt / CreateStreamFromSourceExtStmt /
-             CreateSinkStmt / InsertIntoSelectStmt) !.
+             CreateSinkStmt / InsertIntoSelectStmt)
 
 SelectStmt <- "SELECT" sp
               Projections sp
@@ -42,7 +44,8 @@ SelectStmt <- "SELECT" sp
 CreateStreamAsSelectStmt <- "CREATE" sp "STREAM" sp
                     StreamIdentifier sp
                     "AS" sp "SELECT" sp
-                    EmitProjections sp
+                    Emitter sp
+                    Projections sp
                     WindowedFrom sp
                     Filter sp
                     Grouping sp
@@ -90,8 +93,8 @@ InsertIntoSelectStmt <- "INSERT" sp "INTO" sp
 ##### STATEMENT COMPONENTS #####
 ################################
 
-EmitProjections <- Emitter sp Projections {
-        p.AssembleEmitProjections()
+Emitter <- (ISTREAM / DSTREAM / RSTREAM) {
+        p.AssembleEmitter()
     }
 
 Projections <- < Projection sp (',' sp Projection)* > {
@@ -117,8 +120,8 @@ DefWindowedFrom <- < ("FROM" sp DefRelations sp)? > {
         p.AssembleWindowedFrom(begin, end)
     }
 
-Range <- NumericLiteral sp RangeUnit {
-        p.AssembleRange()
+Interval <- NumericLiteral sp IntervalUnit {
+        p.AssembleInterval()
     }
 
 Relations <- RelationLike sp (',' sp RelationLike)*
@@ -163,11 +166,11 @@ DefAliasedStreamWindow <- DefStreamWindow sp "AS" sp Identifier {
         p.AssembleAliasedStreamWindow()
     }
 
-StreamWindow <- Relation sp '[' sp "RANGE" sp Range sp ']' {
+StreamWindow <- Stream sp '[' sp "RANGE" sp Interval sp ']' {
         p.AssembleStreamWindow()
     }
 
-DefStreamWindow <- Relation (sp '[' sp "RANGE" sp Range sp ']')? {
+DefStreamWindow <- Stream (sp '[' sp "RANGE" sp Interval sp ']')? {
         p.AssembleStreamWindow()
     }
 
@@ -249,7 +252,7 @@ MultDivOp <- Multiply / Divide / Modulo
 # `buffer[begin:end]` does only match the actual match for
 # ASCII strings and in general we have to use `string([]rune[begin:end])`.
 
-Relation <- < ident > {
+Stream <- < ident > {
         substr := string([]rune(buffer)[begin:end])
         p.PushComponent(begin, end, NewStream(substr))
     }
@@ -293,8 +296,6 @@ StringLiteral <- < ['] ("''" / !"'" .)* ['] > {
         p.PushComponent(begin, end, NewStringLiteral(substr))
     }
 
-Emitter <- ISTREAM / DSTREAM / RSTREAM
-
 ISTREAM <- < "ISTREAM" > {
         p.PushComponent(begin, end, Istream)
     }
@@ -307,7 +308,7 @@ RSTREAM <- < "RSTREAM" > {
         p.PushComponent(begin, end, Rstream)
     }
 
-RangeUnit <- TUPLES / SECONDS
+IntervalUnit <- TUPLES / SECONDS
 
 TUPLES <- < "TUPLES" > {
         p.PushComponent(begin, end, Tuples)

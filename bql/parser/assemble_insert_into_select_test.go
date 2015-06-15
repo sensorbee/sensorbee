@@ -8,14 +8,14 @@ import (
 func TestAssembleInsertIntoSelect(t *testing.T) {
 	Convey("Given a parseStack", t, func() {
 		ps := parseStack{}
-		Convey("When the stack contains the correct SELECT items with a Range specification", func() {
+		Convey("When the stack contains the correct SELECT items with a Interval specification", func() {
 			ps.PushComponent(4, 6, StreamIdentifier("x"))
 			ps.PushComponent(6, 7, RowValue{"", "a"})
 			ps.PushComponent(7, 8, RowValue{"", "b"})
 			ps.AssembleProjections(6, 8)
-			ps.PushComponent(12, 13, StreamWindowAST{Stream{"c"}, RangeAST{NumericLiteral{3}, Tuples}})
+			ps.PushComponent(12, 13, StreamWindowAST{Stream{"c"}, IntervalAST{NumericLiteral{3}, Tuples}})
 			ps.EnsureAliasedStreamWindow()
-			ps.PushComponent(13, 14, StreamWindowAST{Stream{"d"}, RangeAST{NumericLiteral{2}, Seconds}})
+			ps.PushComponent(13, 14, StreamWindowAST{Stream{"d"}, IntervalAST{NumericLiteral{2}, Seconds}})
 			ps.EnsureAliasedStreamWindow()
 			ps.AssembleWindowedFrom(12, 14)
 			ps.PushComponent(14, 15, RowValue{"", "e"})
@@ -62,7 +62,7 @@ func TestAssembleInsertIntoSelect(t *testing.T) {
 				})
 			})
 		})
-		Convey("When the stack contains the correct SELECT items without a Range specification", func() {
+		Convey("When the stack contains the correct SELECT items without a Interval specification", func() {
 			ps.PushComponent(4, 6, StreamIdentifier("x"))
 			ps.PushComponent(6, 7, RowValue{"", "a"})
 			ps.PushComponent(7, 8, RowValue{"", "b"})
@@ -130,9 +130,9 @@ func TestAssembleInsertIntoSelect(t *testing.T) {
 			ps.PushComponent(6, 7, RowValue{"", "a"})
 			ps.PushComponent(7, 8, RowValue{"", "b"})
 			ps.AssembleProjections(6, 8)
-			ps.PushComponent(12, 13, StreamWindowAST{Stream{"c"}, RangeAST{NumericLiteral{3}, Tuples}})
+			ps.PushComponent(12, 13, StreamWindowAST{Stream{"c"}, IntervalAST{NumericLiteral{3}, Tuples}})
 			ps.EnsureAliasedStreamWindow()
-			ps.PushComponent(13, 14, StreamWindowAST{Stream{"d"}, RangeAST{NumericLiteral{2}, Seconds}})
+			ps.PushComponent(13, 14, StreamWindowAST{Stream{"d"}, IntervalAST{NumericLiteral{2}, Seconds}})
 			ps.EnsureAliasedStreamWindow()
 			ps.AssembleWindowedFrom(12, 14)
 			ps.PushComponent(14, 15, RowValue{"", "e"})

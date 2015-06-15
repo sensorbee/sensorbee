@@ -106,7 +106,7 @@ func (ps *parseStack) AssembleSelect() {
 //    GroupingAST, HavingAST}
 func (ps *parseStack) AssembleCreateStreamAsSelect() {
 	// pop the components from the stack in reverse order
-	_having, _grouping, _filter, _from, _projections, _name := ps.pop6()
+	_having, _grouping, _filter, _from, _projections, _emitter, _name := ps.pop7()
 
 	// extract and convert the contained structure
 	// (if this fails, this is a fundamental parser bug => panic ok)
@@ -114,11 +114,12 @@ func (ps *parseStack) AssembleCreateStreamAsSelect() {
 	grouping := _grouping.comp.(GroupingAST)
 	filter := _filter.comp.(FilterAST)
 	from := _from.comp.(WindowedFromAST)
-	projections := _projections.comp.(EmitProjectionsAST)
+	projections := _projections.comp.(ProjectionsAST)
+	emitter := _emitter.comp.(EmitterAST)
 	name := _name.comp.(StreamIdentifier)
 
 	// assemble the SelectStmt and push it back
-	s := CreateStreamAsSelectStmt{name, projections, from, filter, grouping, having}
+	s := CreateStreamAsSelectStmt{name, emitter, projections, from, filter, grouping, having}
 	se := ParsedComponent{_name.begin, _having.end, s}
 	ps.Push(&se)
 }
@@ -230,25 +231,23 @@ func (ps *parseStack) AssembleInsertIntoSelect() {
 
 /* Projections/Columns */
 
-// AssembleEmitProjections takes the topmost elements from the
-// stack, assuming they are part of a SELECT clause in a CREATE STREAM
-// statement and replaces them by a single EmitProjectionsAST element.
+// AssembleEmitter takes the topmost elements from the stack, assuming
+// they are components of a emitter clause, and replaces them by
+// a single EmitterAST element.
 //
-//  ProjectionsAST
 //  Emitter
 //   =>
-//  EmitProjectionsAST{Emitter, ProjectionsAST}
-func (ps *parseStack) AssembleEmitProjections() {
+//  EmitterAST{Emitter}
+func (ps *parseStack) AssembleEmitter() {
 	// pop the components from the stack in reverse order
-	_projections, _emitter := ps.pop2()
+	_emitter := ps.Pop()
 
 	// extract and convert the contained structure
-	projections := _projections.comp.(ProjectionsAST)
+	// (if this fails, this is a fundamental parser bug => panic ok)
 	emitter := _emitter.comp.(Emitter)
 
-	// assemble the EmitProjectionsAST and push it back
-	ep := EmitProjectionsAST{emitter, projections}
-	ps.PushComponent(_emitter.begin, _projections.end, ep)
+	// assemble the EmitterAST and push it back
+	ps.PushComponent(_emitter.begin, _emitter.end, EmitterAST{emitter})
 }
 
 // AssembleProjections takes the elements from the stack that
@@ -317,25 +316,25 @@ func (ps *parseStack) AssembleWindowedFrom(begin int, end int) {
 	}
 }
 
-// AssembleRange takes the topmost elements from the stack, assuming
+// AssembleInterval takes the topmost elements from the stack, assuming
 // they are components of a RANGE clause, and replaces them by
-// a single RangeAST element.
+// a single IntervalAST element.
 //
-//  RangeUnit
+//  IntervalUnit
 //  NumericLiteral
 //   =>
-//  RangeAST{NumericLiteral, RangeUnit}
-func (ps *parseStack) AssembleRange() {
+//  IntervalAST{NumericLiteral, IntervalUnit}
+func (ps *parseStack) AssembleInterval() {
 	// pop the components from the stack in reverse order
 	_unit, _num := ps.pop2()
 
 	// extract and convert the contained structure
 	// (if this fails, this is a fundamental parser bug => panic ok)
-	unit := _unit.comp.(RangeUnit)
+	unit := _unit.comp.(IntervalUnit)
 	num := _num.comp.(NumericLiteral)
 
-	// assemble the RangeAST and push it back
-	ps.PushComponent(_num.begin, _unit.end, RangeAST{num, unit})
+	// assemble the IntervalAST and push it back
+	ps.PushComponent(_num.begin, _unit.end, IntervalAST{num, unit})
 }
 
 /* WHERE clause */
@@ -377,7 +376,10 @@ func (ps *parseStack) AssembleFilter(begin int, end int) {
 //  GroupingAST{[Any, Any, Any]}
 func (ps *parseStack) AssembleGrouping(begin int, end int) {
 	elems := ps.collectElements(begin, end)
-	exprs := make([]Expression, len(elems))
+	var exprs []Expression
+	if len(elems) > 0 {
+		exprs = make([]Expression, len(elems))
+	}
 	for i := range elems {
 		exprs[i] = elems[i].(Expression)
 	}
@@ -449,33 +451,33 @@ func (ps *parseStack) EnsureAliasedStreamWindow() {
 
 // AssembleStreamWindow takes the topmost elements from the stack, assuming
 // they are components of an AS clause, and replaces them by
-// a single StreamWindowAST element. If there is no RangeAST element present,
-// a RangeAST with RangeUnit Unspecified is created.
+// a single StreamWindowAST element. If there is no IntervalAST element present,
+// a IntervalAST with IntervalUnit Unspecified is created.
 //
-//  RangeAST
+//  IntervalAST
 //  Stream
 //   =>
-//  StreamWindowAST{Stream, RangeAST}
+//  StreamWindowAST{Stream, IntervalAST}
 // or
 //  Stream
 //   =>
-//  StreamWindowAST{Stream, RangeAST}
+//  StreamWindowAST{Stream, IntervalAST}
 func (ps *parseStack) AssembleStreamWindow() {
 	// pop the components from the stack in reverse order
 	_rangeOrRel := ps.Pop()
 	_rel := _rangeOrRel
 	_range := _rangeOrRel
 
-	var rangeAst RangeAST
+	var rangeAst IntervalAST
 
-	// check if we have a Stream or a Range
+	// check if we have a Stream or a Interval
 	rel, ok := _rangeOrRel.comp.(Stream)
 	if ok {
-		// there was (only) a Stream, no Range, so set the "no range" info
-		rangeAst = RangeAST{NumericLiteral{0}, Unspecified}
+		// there was (only) a Stream, no Interval, so set the "no range" info
+		rangeAst = IntervalAST{NumericLiteral{0}, Unspecified}
 	} else {
-		// there was no Stream, so it was a Range
-		rangeAst = _rangeOrRel.comp.(RangeAST)
+		// there was no Stream, so it was a Interval
+		rangeAst = _rangeOrRel.comp.(IntervalAST)
 		_rel = ps.Pop()
 		rel = _rel.comp.(Stream)
 	}
