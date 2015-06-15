@@ -128,7 +128,7 @@ func TestExpressionParser(t *testing.T) {
 
 			Convey(fmt.Sprintf("When parsing %s", input), func() {
 				stmt := "SELECT " + input
-				result, err := p.ParseStmt(stmt)
+				result, rest, err := p.ParseStmt(stmt)
 
 				Convey(fmt.Sprintf("Then the result should be %v", expected), func() {
 					if expected == nil {
@@ -139,6 +139,8 @@ func TestExpressionParser(t *testing.T) {
 						// check we got a proper SELECT statement
 						So(result, ShouldHaveSameTypeAs, SelectStmt{})
 						selectStmt := result.(SelectStmt)
+						// check the statement was parsed completely
+						So(rest, ShouldEqual, "")
 						// compare it against our expectation
 						actual := selectStmt.Projections
 						So(len(actual), ShouldEqual, len(expected))

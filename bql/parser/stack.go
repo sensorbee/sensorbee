@@ -376,7 +376,10 @@ func (ps *parseStack) AssembleFilter(begin int, end int) {
 //  GroupingAST{[Any, Any, Any]}
 func (ps *parseStack) AssembleGrouping(begin int, end int) {
 	elems := ps.collectElements(begin, end)
-	exprs := make([]Expression, len(elems))
+	var exprs []Expression
+	if len(elems) > 0 {
+		exprs = make([]Expression, len(elems))
+	}
 	for i := range elems {
 		exprs[i] = elems[i].(Expression)
 	}
