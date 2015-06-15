@@ -319,3 +319,41 @@ func TestInsertIntoSelectStmt(t *testing.T) {
 		})
 	})
 }
+
+func TestMultipleStatements(t *testing.T) {
+	Convey("Given an empty BQL TopologyBuilder", t, func() {
+		tb := bql.NewTopologyBuilder()
+
+		Convey("When issuing multiple commands in a good order", func() {
+			stmts := `
+			CREATE STREAM source FROM dummy SOURCE WITH num=4;
+			CREATE STREAM box AS SELECT
+			  ISTREAM int, str((int+1) % 3) AS x FROM source
+			  [RANGE 2 SECONDS] WHERE int % 2 = 0;
+			CREATE SINK snk TYPE collector;
+			INSERT INTO snk SELECT * FROM box;
+			`
+			err := tb.BQL(stmts)
+
+			Convey("Then setup should succeed", func() {
+				So(err, ShouldBeNil)
+			})
+		})
+
+		Convey("When issuing multiple commands in a bad order", func() {
+			stmts := `
+			CREATE STREAM source FROM dummy SOURCE WITH num=4;
+			CREATE STREAM box AS SELECT
+			  ISTREAM int, str((int+1) % 3) AS x FROM source
+			  [RANGE 2 SECONDS] WHERE int % 2 = 0;
+			INSERT INTO snk SELECT * FROM box;
+			CREATE SINK snk TYPE collector;
+			`
+			err := tb.BQL(stmts)
+
+			Convey("Then setup should fail", func() {
+				So(err, ShouldNotBeNil)
+			})
+		})
+	})
+}
