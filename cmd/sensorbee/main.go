@@ -3,10 +3,12 @@ package main
 import (
 	"github.com/codegangsta/cli"
 	"os"
+	"pfi/sensorbee/sensorbee/client"
+	"pfi/sensorbee/sensorbee/server"
 	"time"
 )
 
-type CommandGenerator func() cli.Command
+type commandGenerator func() cli.Command
 
 func init() {
 	// TODO
@@ -14,8 +16,9 @@ func init() {
 }
 
 func main() {
-	app := setUpApp([]CommandGenerator{
-		SetUpRunCommand,
+	app := setUpApp([]commandGenerator{
+		server.SetUpRunCommand,
+		client.SetUpCMDLineToolCommand,
 	})
 
 	if err := app.Run(os.Args); err != nil {
@@ -23,17 +26,17 @@ func main() {
 	}
 }
 
-func setUpApp(cmds []CommandGenerator) *cli.App {
+func setUpApp(cmds []commandGenerator) *cli.App {
 	app := cli.NewApp()
-	app.Name = "sensorbeeserver"
-	app.Usage = "SenserBee server process"
-	app.Version = "0.0.1" // TODO get dynmic
+	app.Name = "sensorbee"
+	app.Usage = "SenserBee"
+	app.Version = "0.0.1" // TODO get dynamic, will be get from external file
 	app.Flags = []cli.Flag{
-		cli.StringFlag{
+		cli.StringFlag{ // TODO get configuration from external file
 			Name:   "config, c",
 			Value:  "/etc/sersorbee/sensorbee.config",
 			Usage:  "path to the config file",
-			EnvVar: "HAWK_CONFIG",
+			EnvVar: "SENSORBEE_CONFIG",
 		},
 	}
 	app.Before = appBeforeHook
