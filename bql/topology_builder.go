@@ -29,12 +29,18 @@ func NewTopologyBuilder() *TopologyBuilder {
 
 func (tb *TopologyBuilder) BQL(s string) error {
 	p := parser.NewBQLParser()
-	// TODO this executes just the first statement, but it should execute all
-	_stmt, _, err := p.ParseStmt(s)
+	// execute all parsed statements
+	_stmts, err := p.ParseStmts(s)
 	if err != nil {
 		return err
 	}
-	return tb.processStmt(_stmt)
+	for _, _stmt := range _stmts {
+		err := tb.processStmt(_stmt)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (tb *TopologyBuilder) Build() (core.StaticTopology, error) {
