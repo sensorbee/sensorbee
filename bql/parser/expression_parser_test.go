@@ -20,7 +20,7 @@ func TestExpressionParser(t *testing.T) {
 			ExpressionsAST{[]Expression{FloatLiteral{2.1}, StringLiteral{"a"}}}}},
 		// RowValue
 		"a":         {RowValue{"", "a"}},
-		"tab.a":     {RowValue{"tab", "a"}},
+		"tab:a":     {RowValue{"tab", "a"}},
 		"a, b":      {RowValue{"", "a"}, RowValue{"", "b"}},
 		"A":         {RowValue{"", "A"}},
 		"my_mem_27": {RowValue{"", "my_mem_27"}},
