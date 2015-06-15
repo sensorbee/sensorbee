@@ -42,7 +42,8 @@ SelectStmt <- "SELECT" sp
 CreateStreamAsSelectStmt <- "CREATE" sp "STREAM" sp
                     StreamIdentifier sp
                     "AS" sp "SELECT" sp
-                    EmitProjections sp
+                    Emitter sp
+                    Projections sp
                     WindowedFrom sp
                     Filter sp
                     Grouping sp
@@ -90,8 +91,8 @@ InsertIntoSelectStmt <- "INSERT" sp "INTO" sp
 ##### STATEMENT COMPONENTS #####
 ################################
 
-EmitProjections <- Emitter sp Projections {
-        p.AssembleEmitProjections()
+Emitter <- (ISTREAM / DSTREAM / RSTREAM) {
+        p.AssembleEmitter()
     }
 
 Projections <- < Projection sp (',' sp Projection)* > {
@@ -292,8 +293,6 @@ StringLiteral <- < ['] ("''" / !"'" .)* ['] > {
         substr := string([]rune(buffer)[begin:end])
         p.PushComponent(begin, end, NewStringLiteral(substr))
     }
-
-Emitter <- ISTREAM / DSTREAM / RSTREAM
 
 ISTREAM <- < "ISTREAM" > {
         p.PushComponent(begin, end, Istream)
