@@ -201,12 +201,12 @@ func validateReferences(s *parser.CreateStreamAsSelectStmt) error {
 			}
 			if !found {
 				prettyRels := make([]string, 0, len(s.Relations))
-				for rel := range s.Relations {
-					prettyRels = append(prettyRels, fmt.Sprintf("'%s'", rel))
+				for _, rel_ := range s.Relations {
+					prettyRels = append(prettyRels, fmt.Sprintf("'%s'", rel_.Alias))
 				}
 				prettyRelsStr := strings.Join(prettyRels, ", ")
 				err := fmt.Errorf("cannot reference relation '%s' "+
-					"when using input relations %s", rel, prettyRelsStr)
+					"when using input relations %v", rel, prettyRelsStr)
 				return err
 			}
 		}
