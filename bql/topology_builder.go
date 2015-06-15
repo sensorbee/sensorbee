@@ -151,7 +151,7 @@ func (tb *TopologyBuilder) processStmt(_stmt interface{}) error {
 				return err
 			} else {
 				newRels[i] = from
-				newRels[i].RangeAST = parser.RangeAST{
+				newRels[i].IntervalAST = parser.IntervalAST{
 					parser.NumericLiteral{1}, parser.Tuples}
 			}
 		}

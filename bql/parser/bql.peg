@@ -117,8 +117,8 @@ DefWindowedFrom <- < ("FROM" sp DefRelations sp)? > {
         p.AssembleWindowedFrom(begin, end)
     }
 
-Range <- NumericLiteral sp RangeUnit {
-        p.AssembleRange()
+Interval <- NumericLiteral sp IntervalUnit {
+        p.AssembleInterval()
     }
 
 Relations <- RelationLike sp (',' sp RelationLike)*
@@ -163,11 +163,11 @@ DefAliasedStreamWindow <- DefStreamWindow sp "AS" sp Identifier {
         p.AssembleAliasedStreamWindow()
     }
 
-StreamWindow <- Stream sp '[' sp "RANGE" sp Range sp ']' {
+StreamWindow <- Stream sp '[' sp "RANGE" sp Interval sp ']' {
         p.AssembleStreamWindow()
     }
 
-DefStreamWindow <- Stream (sp '[' sp "RANGE" sp Range sp ']')? {
+DefStreamWindow <- Stream (sp '[' sp "RANGE" sp Interval sp ']')? {
         p.AssembleStreamWindow()
     }
 
@@ -307,7 +307,7 @@ RSTREAM <- < "RSTREAM" > {
         p.PushComponent(begin, end, Rstream)
     }
 
-RangeUnit <- TUPLES / SECONDS
+IntervalUnit <- TUPLES / SECONDS
 
 TUPLES <- < "TUPLES" > {
         p.PushComponent(begin, end, Tuples)

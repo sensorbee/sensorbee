@@ -28,7 +28,7 @@ const (
 	ruleAliasExpression
 	ruleWindowedFrom
 	ruleDefWindowedFrom
-	ruleRange
+	ruleInterval
 	ruleRelations
 	ruleDefRelations
 	ruleFilter
@@ -70,7 +70,7 @@ const (
 	ruleISTREAM
 	ruleDSTREAM
 	ruleRSTREAM
-	ruleRangeUnit
+	ruleIntervalUnit
 	ruleTUPLES
 	ruleSECONDS
 	ruleStreamIdentifier
@@ -179,7 +179,7 @@ var rul3s = [...]string{
 	"AliasExpression",
 	"WindowedFrom",
 	"DefWindowedFrom",
-	"Range",
+	"Interval",
 	"Relations",
 	"DefRelations",
 	"Filter",
@@ -221,7 +221,7 @@ var rul3s = [...]string{
 	"ISTREAM",
 	"DSTREAM",
 	"RSTREAM",
-	"RangeUnit",
+	"IntervalUnit",
 	"TUPLES",
 	"SECONDS",
 	"StreamIdentifier",
@@ -1005,7 +1005,7 @@ func (p *bqlPeg) Execute() {
 
 		case ruleAction12:
 
-			p.AssembleRange()
+			p.AssembleInterval()
 
 		case ruleAction13:
 
@@ -3689,7 +3689,7 @@ func (p *bqlPeg) Init() {
 			position, tokenIndex, depth = position277, tokenIndex277, depth277
 			return false
 		},
-		/* 14 Range <- <(NumericLiteral sp RangeUnit Action12)> */
+		/* 14 Interval <- <(NumericLiteral sp IntervalUnit Action12)> */
 		func() bool {
 			position290, tokenIndex290, depth290 := position, tokenIndex, depth
 			{
@@ -3701,14 +3701,14 @@ func (p *bqlPeg) Init() {
 				if !_rules[rulesp]() {
 					goto l290
 				}
-				if !_rules[ruleRangeUnit]() {
+				if !_rules[ruleIntervalUnit]() {
 					goto l290
 				}
 				if !_rules[ruleAction12]() {
 					goto l290
 				}
 				depth--
-				add(ruleRange, position291)
+				add(ruleInterval, position291)
 			}
 			return true
 		l290:
@@ -4385,7 +4385,7 @@ func (p *bqlPeg) Init() {
 			position, tokenIndex, depth = position369, tokenIndex369, depth369
 			return false
 		},
-		/* 25 StreamWindow <- <(Stream sp '[' sp (('r' / 'R') ('a' / 'A') ('n' / 'N') ('g' / 'G') ('e' / 'E')) sp Range sp ']' Action20)> */
+		/* 25 StreamWindow <- <(Stream sp '[' sp (('r' / 'R') ('a' / 'A') ('n' / 'N') ('g' / 'G') ('e' / 'E')) sp Interval sp ']' Action20)> */
 		func() bool {
 			position375, tokenIndex375, depth375 := position, tokenIndex, depth
 			{
@@ -4482,7 +4482,7 @@ func (p *bqlPeg) Init() {
 				if !_rules[rulesp]() {
 					goto l375
 				}
-				if !_rules[ruleRange]() {
+				if !_rules[ruleInterval]() {
 					goto l375
 				}
 				if !_rules[rulesp]() {
@@ -4503,7 +4503,7 @@ func (p *bqlPeg) Init() {
 			position, tokenIndex, depth = position375, tokenIndex375, depth375
 			return false
 		},
-		/* 26 DefStreamWindow <- <(Stream (sp '[' sp (('r' / 'R') ('a' / 'A') ('n' / 'N') ('g' / 'G') ('e' / 'E')) sp Range sp ']')? Action21)> */
+		/* 26 DefStreamWindow <- <(Stream (sp '[' sp (('r' / 'R') ('a' / 'A') ('n' / 'N') ('g' / 'G') ('e' / 'E')) sp Interval sp ']')? Action21)> */
 		func() bool {
 			position387, tokenIndex387, depth387 := position, tokenIndex, depth
 			{
@@ -4602,7 +4602,7 @@ func (p *bqlPeg) Init() {
 					if !_rules[rulesp]() {
 						goto l389
 					}
-					if !_rules[ruleRange]() {
+					if !_rules[ruleInterval]() {
 						goto l389
 					}
 					if !_rules[rulesp]() {
@@ -6235,7 +6235,7 @@ func (p *bqlPeg) Init() {
 			position, tokenIndex, depth = position587, tokenIndex587, depth587
 			return false
 		},
-		/* 56 RangeUnit <- <(TUPLES / SECONDS)> */
+		/* 56 IntervalUnit <- <(TUPLES / SECONDS)> */
 		func() bool {
 			position604, tokenIndex604, depth604 := position, tokenIndex, depth
 			{
@@ -6255,7 +6255,7 @@ func (p *bqlPeg) Init() {
 				}
 			l606:
 				depth--
-				add(ruleRangeUnit, position605)
+				add(ruleIntervalUnit, position605)
 			}
 			return true
 		l604:
@@ -7356,7 +7356,7 @@ func (p *bqlPeg) Init() {
 			return true
 		},
 		/* 93 Action12 <- <{
-		    p.AssembleRange()
+		    p.AssembleInterval()
 		}> */
 		func() bool {
 			{
