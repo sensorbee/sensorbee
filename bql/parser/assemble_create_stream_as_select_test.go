@@ -11,12 +11,12 @@ func TestAssembleCreateStreamAsSelect(t *testing.T) {
 		Convey("When the stack contains the correct CREATE STREAM items", func() {
 			ps.PushComponent(2, 4, StreamIdentifier("x"))
 			ps.PushComponent(4, 6, Istream)
+			ps.AssembleEmitter()
 			ps.PushComponent(6, 7, RowValue{"", "a"})
 			ps.PushComponent(7, 8, RowValue{"", "b"})
 			ps.PushComponent(8, 9, Identifier("y"))
 			ps.AssembleAlias()
 			ps.AssembleProjections(6, 9)
-			ps.AssembleEmitProjections()
 			ps.PushComponent(12, 13, Stream{"c"})
 			ps.PushComponent(13, 14, IntervalAST{NumericLiteral{3}, Tuples})
 			ps.AssembleStreamWindow()

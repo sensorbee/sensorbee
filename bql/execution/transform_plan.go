@@ -21,7 +21,8 @@ in three phases:
 */
 
 type LogicalPlan struct {
-	parser.EmitProjectionsAST
+	parser.EmitterAST
+	parser.ProjectionsAST
 	parser.WindowedFromAST
 	parser.FilterAST
 	parser.GroupingAST
@@ -68,7 +69,8 @@ func Analyze(s parser.CreateStreamAsSelectStmt) (*LogicalPlan, error) {
 	}
 
 	return &LogicalPlan{
-		s.EmitProjectionsAST,
+		s.EmitterAST,
+		s.ProjectionsAST,
 		s.WindowedFromAST,
 		s.FilterAST,
 		s.GroupingAST,

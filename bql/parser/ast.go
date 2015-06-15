@@ -27,7 +27,8 @@ type SelectStmt struct {
 
 type CreateStreamAsSelectStmt struct {
 	Name StreamIdentifier
-	EmitProjectionsAST
+	EmitterAST
+	ProjectionsAST
 	WindowedFromAST
 	FilterAST
 	GroupingAST
@@ -62,9 +63,8 @@ type InsertIntoSelectStmt struct {
 	SelectStmt
 }
 
-type EmitProjectionsAST struct {
+type EmitterAST struct {
 	EmitterType Emitter
-	ProjectionsAST
 }
 
 type ProjectionsAST struct {
