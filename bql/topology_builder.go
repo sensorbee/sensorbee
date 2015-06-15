@@ -29,7 +29,8 @@ func NewTopologyBuilder() *TopologyBuilder {
 
 func (tb *TopologyBuilder) BQL(s string) error {
 	p := parser.NewBQLParser()
-	_stmt, err := p.ParseStmt(s)
+	// TODO this executes just the first statement, but it should execute all
+	_stmt, _, err := p.ParseStmt(s)
 	if err != nil {
 		return err
 	}

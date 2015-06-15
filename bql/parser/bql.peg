@@ -25,9 +25,11 @@ type bqlPeg Peg {
 ##### MAIN STATEMENTS #####
 ###########################
 
+Statements <- sp ((Statement eq ';' .*) / Statement) !.
+
 Statement <- (SelectStmt / CreateStreamAsSelectStmt / CreateSourceStmt /
              CreateStreamFromSourceStmt / CreateStreamFromSourceExtStmt /
-             CreateSinkStmt / InsertIntoSelectStmt) !.
+             CreateSinkStmt / InsertIntoSelectStmt)
 
 SelectStmt <- "SELECT" sp
               Projections sp
