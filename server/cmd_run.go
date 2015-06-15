@@ -1,4 +1,4 @@
-package main
+package server
 
 import (
 	"fmt"
@@ -6,20 +6,34 @@ import (
 	"github.com/gocraft/web"
 	"net/http"
 	"os"
-	"pfi/sensorbee/sensorbee/app/controller/api"
+	"pfi/sensorbee/sensorbee/server/api"
+	"strconv"
 	"strings"
 	"sync"
 )
 
+// SetUpRunCommand sets up SensorBee's HTTP server.
+// The URL or port ID is set with server configuration file,
+// or command line arguments.
 func SetUpRunCommand() cli.Command {
-	return cli.Command{
+	cmd := cli.Command{
 		Name:        "run",
 		Usage:       "run the server",
 		Description: "run command starts a new server process",
 		Action:      RunRun,
 	}
+	cmd.Flags = []cli.Flag{
+		cli.StringFlag{
+			Name:   "port",
+			Value:  "8090",
+			Usage:  "server port number",
+			EnvVar: "PORT",
+		},
+	}
+	return cmd
 }
 
+// RunRun HTTP server.
 func RunRun(c *cli.Context) {
 
 	defer func() {
@@ -45,9 +59,14 @@ func RunRun(c *cli.Context) {
 		})
 
 	handler := func(rw http.ResponseWriter, r *http.Request) {
-		if strings.HasPrefix(r.URL.Path, "/api") {
+		if strings.HasPrefix(r.URL.Path, "/api/") {
 			root.ServeHTTP(rw, r)
 		}
+	}
+
+	port, err := strconv.Atoi(c.String("port"))
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "Cannot get port number:", err)
 	}
 
 	mutex := &sync.Mutex{}
@@ -57,7 +76,7 @@ func RunRun(c *cli.Context) {
 	mutex.Lock()
 	defer mutex.Unlock()
 
-	ports := []int{8090} // TODO do need to have several port??
+	ports := []int{port} // TODO do need to have several port??
 	for _, p := range ports {
 		p := p // create a copy of the loop variable for the closure below
 
