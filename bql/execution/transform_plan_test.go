@@ -14,7 +14,7 @@ type analyzeTest struct {
 }
 
 func TestRelationChecker(t *testing.T) {
-	r := parser.RangeAST{parser.NumericLiteral{2}, parser.Tuples}
+	r := parser.IntervalAST{parser.NumericLiteral{2}, parser.Tuples}
 	singleFrom := parser.WindowedFromAST{
 		[]parser.AliasedStreamWindowAST{
 			{parser.StreamWindowAST{parser.Stream{"t"}, r}, ""},
@@ -354,7 +354,7 @@ func TestRelationChecker(t *testing.T) {
 }
 
 func TestRelationAliasing(t *testing.T) {
-	r := parser.RangeAST{parser.NumericLiteral{2}, parser.Tuples}
+	r := parser.IntervalAST{parser.NumericLiteral{2}, parser.Tuples}
 	two := parser.NumericLiteral{2}
 	proj := parser.ProjectionsAST{[]parser.Expression{two}}
 

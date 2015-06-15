@@ -95,12 +95,12 @@ type AliasedStreamWindowAST struct {
 
 type StreamWindowAST struct {
 	Stream
-	RangeAST
+	IntervalAST
 }
 
-type RangeAST struct {
+type IntervalAST struct {
 	NumericLiteral
-	Unit RangeUnit
+	Unit IntervalUnit
 }
 
 type FilterAST struct {
@@ -328,10 +328,10 @@ const (
 	Rstream
 )
 
-type RangeUnit int
+type IntervalUnit int
 
 const (
-	Unspecified RangeUnit = iota
+	Unspecified IntervalUnit = iota
 	Tuples
 	Seconds
 )

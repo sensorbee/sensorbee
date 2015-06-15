@@ -29,7 +29,7 @@ type defaultSelectExecutionPlan struct {
 type inputBuffer struct {
 	tuples     []*tuple.Tuple
 	windowSize int64
-	windowType parser.RangeUnit
+	windowType parser.IntervalUnit
 }
 
 // CanBuildDefaultSelectExecutionPlan checks whether the given statement
