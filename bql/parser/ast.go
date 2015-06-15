@@ -217,7 +217,10 @@ func (rv RowValue) RenameReferencedRelation(from, to string) Expression {
 }
 
 func NewRowValue(s string) RowValue {
-	components := strings.SplitN(s, ".", 2)
+	// TODO when we support full JSONPath this must become more
+	//      sophisticated in order to deal, for example, with:
+	//        `SELECT elem["foo:bar"] FROM mystream`
+	components := strings.SplitN(s, ":", 2)
 	if len(components) == 1 {
 		// just "col"
 		return RowValue{"", components[0]}
