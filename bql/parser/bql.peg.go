@@ -56,7 +56,7 @@ const (
 	ruleComparisonOp
 	rulePlusMinusOp
 	ruleMultDivOp
-	ruleRelation
+	ruleStream
 	ruleRowValue
 	ruleNumericLiteral
 	ruleFloatLiteral
@@ -207,7 +207,7 @@ var rul3s = [...]string{
 	"ComparisonOp",
 	"PlusMinusOp",
 	"MultDivOp",
-	"Relation",
+	"Stream",
 	"RowValue",
 	"NumericLiteral",
 	"FloatLiteral",
@@ -4385,13 +4385,13 @@ func (p *bqlPeg) Init() {
 			position, tokenIndex, depth = position369, tokenIndex369, depth369
 			return false
 		},
-		/* 25 StreamWindow <- <(Relation sp '[' sp (('r' / 'R') ('a' / 'A') ('n' / 'N') ('g' / 'G') ('e' / 'E')) sp Range sp ']' Action20)> */
+		/* 25 StreamWindow <- <(Stream sp '[' sp (('r' / 'R') ('a' / 'A') ('n' / 'N') ('g' / 'G') ('e' / 'E')) sp Range sp ']' Action20)> */
 		func() bool {
 			position375, tokenIndex375, depth375 := position, tokenIndex, depth
 			{
 				position376 := position
 				depth++
-				if !_rules[ruleRelation]() {
+				if !_rules[ruleStream]() {
 					goto l375
 				}
 				if !_rules[rulesp]() {
@@ -4503,13 +4503,13 @@ func (p *bqlPeg) Init() {
 			position, tokenIndex, depth = position375, tokenIndex375, depth375
 			return false
 		},
-		/* 26 DefStreamWindow <- <(Relation (sp '[' sp (('r' / 'R') ('a' / 'A') ('n' / 'N') ('g' / 'G') ('e' / 'E')) sp Range sp ']')? Action21)> */
+		/* 26 DefStreamWindow <- <(Stream (sp '[' sp (('r' / 'R') ('a' / 'A') ('n' / 'N') ('g' / 'G') ('e' / 'E')) sp Range sp ']')? Action21)> */
 		func() bool {
 			position387, tokenIndex387, depth387 := position, tokenIndex, depth
 			{
 				position388 := position
 				depth++
-				if !_rules[ruleRelation]() {
+				if !_rules[ruleStream]() {
 					goto l387
 				}
 				{
@@ -5308,7 +5308,7 @@ func (p *bqlPeg) Init() {
 			position, tokenIndex, depth = position477, tokenIndex477, depth477
 			return false
 		},
-		/* 42 Relation <- <(<ident> Action31)> */
+		/* 42 Stream <- <(<ident> Action31)> */
 		func() bool {
 			position482, tokenIndex482, depth482 := position, tokenIndex, depth
 			{
@@ -5327,7 +5327,7 @@ func (p *bqlPeg) Init() {
 					goto l482
 				}
 				depth--
-				add(ruleRelation, position483)
+				add(ruleStream, position483)
 			}
 			return true
 		l482:

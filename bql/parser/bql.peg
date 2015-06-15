@@ -163,11 +163,11 @@ DefAliasedStreamWindow <- DefStreamWindow sp "AS" sp Identifier {
         p.AssembleAliasedStreamWindow()
     }
 
-StreamWindow <- Relation sp '[' sp "RANGE" sp Range sp ']' {
+StreamWindow <- Stream sp '[' sp "RANGE" sp Range sp ']' {
         p.AssembleStreamWindow()
     }
 
-DefStreamWindow <- Relation (sp '[' sp "RANGE" sp Range sp ']')? {
+DefStreamWindow <- Stream (sp '[' sp "RANGE" sp Range sp ']')? {
         p.AssembleStreamWindow()
     }
 
@@ -249,7 +249,7 @@ MultDivOp <- Multiply / Divide / Modulo
 # `buffer[begin:end]` does only match the actual match for
 # ASCII strings and in general we have to use `string([]rune[begin:end])`.
 
-Relation <- < ident > {
+Stream <- < ident > {
         substr := string([]rune(buffer)[begin:end])
         p.PushComponent(begin, end, NewStream(substr))
     }
