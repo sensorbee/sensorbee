@@ -8,14 +8,12 @@ import (
 	"strings"
 )
 
-type eval func(string) (requestType, string, cmdInputStatusType)
-
 // App is the application server of SensorBee.
 type App struct {
 	historyFn            string
 	executeExternalFiles *string
 	uri                  string
-	commandMap           map[string]eval
+	commandMap           map[string]Command
 }
 
 // SetUpCommands set up application. Commands are initialized with it.
@@ -23,7 +21,7 @@ func SetUpCommands(commands []Command) App {
 	app := App{
 		historyFn:            "/tmp/.sensorbee_liner_history",
 		executeExternalFiles: flag.String("file", "", "execute BQL commands from external files"),
-		commandMap:           map[string]eval{},
+		commandMap:           map[string]Command{},
 	}
 	if len(commands) == 0 {
 		return app
@@ -32,7 +30,7 @@ func SetUpCommands(commands []Command) App {
 	for _, cmd := range commands {
 		cmd.Init()
 		for _, v := range cmd.Name() {
-			app.commandMap[v] = cmd.Eval
+			app.commandMap[v] = cmd
 		}
 	}
 	return app
@@ -55,13 +53,14 @@ func (a *App) prompt(line *liner.State) {
 
 		in := strings.ToLower(strings.Split(input, " ")[0])
 		if cmd, ok := a.commandMap[in]; ok {
-			reqType, uri, status := cmd(input)
+			status, err := cmd.Input(input)
 			switch status {
 			case invalidCMD:
-				fmt.Fprintf(os.Stderr, "input command is invalid: %v\n", input)
+				fmt.Fprintf(os.Stderr, "input command is invalid: %v\n", err)
 			case continuousCMD:
 				a.continues(line, cmd)
 			case preparedCMD:
+				reqType, uri, _ := cmd.Eval()
 				request(reqType, a.uri+uri)
 			}
 		} else {
@@ -71,7 +70,7 @@ func (a *App) prompt(line *liner.State) {
 	a.prompt(line)
 }
 
-func (a *App) continues(line *liner.State, cmd eval) {
+func (a *App) continues(line *liner.State, cmd Command) {
 	input, err := line.Prompt(promptLineContinue)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -80,12 +79,13 @@ func (a *App) continues(line *liner.State, cmd eval) {
 
 	if input != "" {
 		line.AppendHistory(input)
-		reqType, uri, status := cmd(input)
+		status, err := cmd.Input(input)
 		switch status {
 		case invalidCMD:
-			fmt.Fprintf(os.Stderr, "input command is invalid: %v\n", input)
+			fmt.Fprintf(os.Stderr, "input command is invalid: %v\n", err)
 			return
 		case preparedCMD:
+			reqType, uri, _ := cmd.Eval()
 			request(reqType, a.uri+uri)
 			return
 		}

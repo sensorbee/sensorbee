@@ -1,5 +1,9 @@
 package cmd
 
+import (
+	"net/url"
+)
+
 type cmdInputStatusType int
 
 const (
@@ -19,7 +23,11 @@ type Command interface {
 	// Name returns the names of the command. Users can execute the command
 	// function by inputting these names.
 	Name() []string
-	// Eval resolve input command to convert URL. Returns cmdInputStatus that
-	// result of resolving the input command.
-	Eval(input string) (requestType, string, cmdInputStatusType)
+	// Input commands to buffer. If commands are completed, returns that
+	// cmdInputStatusType is preparedCMD, and commands are on the way,
+	// returns that cmdInputStatusType is continuousCMD.
+	// Returns error when the input commands are invalid.
+	Input(input string) (cmdInputStatusType, error)
+	// Eval resolve input command to convert URL and requestType.
+	Eval() (requestType, string, url.Values)
 }

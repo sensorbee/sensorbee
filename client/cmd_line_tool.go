@@ -5,12 +5,6 @@ import (
 	"pfi/sensorbee/sensorbee/client/cmd"
 )
 
-type REQType int
-
-const (
-	REQ_URL = "http://localhost:8090/api" // TODO from flag.Parse()
-)
-
 func SetUpCMDLineToolCommand() cli.Command {
 	cmd := cli.Command{
 		Name:        "cmd",
@@ -18,11 +12,27 @@ func SetUpCMDLineToolCommand() cli.Command {
 		Description: "cmd command launch command line tool",
 		Action:      Launch,
 	}
+	cmd.Flags = []cli.Flag{
+		cli.StringFlag{
+			Name:   "uri",
+			Value:  "http://localhost:8090/api/v1",
+			Usage:  "target URI to launch",
+			EnvVar: "URI",
+		},
+		cli.StringFlag{
+			Name:   "version,v",
+			Value:  "v1",
+			Usage:  "SenserBee API version",
+			EnvVar: "VERSION",
+		},
+	}
 	return cmd
 }
 
 // Launch SensorBee's command line client tool.
 func Launch(c *cli.Context) {
-	app := cmd.SetUpCommands(cmd.NewBQLCommands())
-	app.Run(REQ_URL)
+	uri := c.String("uri")
+
+	app := cmd.SetUpCommands(cmd.NewTopologiesCommands())
+	app.Run(uri)
 }
