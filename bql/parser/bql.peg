@@ -120,7 +120,13 @@ DefWindowedFrom <- < ("FROM" sp DefRelations sp)? > {
         p.AssembleWindowedFrom(begin, end)
     }
 
-Interval <- NumericLiteral sp IntervalUnit {
+Interval <- TimeInterval / TuplesInterval
+
+TimeInterval <- NumericLiteral sp SECONDS {
+        p.AssembleInterval()
+    }
+
+TuplesInterval <- NumericLiteral sp TUPLES {
         p.AssembleInterval()
     }
 
@@ -308,8 +314,6 @@ DSTREAM <- < "DSTREAM" > {
 RSTREAM <- < "RSTREAM" > {
         p.PushComponent(begin, end, Rstream)
     }
-
-IntervalUnit <- TUPLES / SECONDS
 
 TUPLES <- < "TUPLES" > {
         p.PushComponent(begin, end, Tuples)
