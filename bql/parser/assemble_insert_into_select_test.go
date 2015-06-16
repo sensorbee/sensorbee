@@ -9,7 +9,9 @@ func TestAssembleInsertIntoSelect(t *testing.T) {
 	Convey("Given a parseStack", t, func() {
 		ps := parseStack{}
 		Convey("When the stack contains the correct SELECT items with a Interval specification", func() {
-			ps.PushComponent(4, 6, StreamIdentifier("x"))
+			ps.PushComponent(4, 5, StreamIdentifier("x"))
+			ps.PushComponent(5, 6, Istream)
+			ps.AssembleEmitter(6, 6)
 			ps.PushComponent(6, 7, RowValue{"", "a"})
 			ps.PushComponent(7, 8, RowValue{"", "b"})
 			ps.AssembleProjections(6, 8)
@@ -41,6 +43,7 @@ func TestAssembleInsertIntoSelect(t *testing.T) {
 					Convey("And it contains the previously pushed data", func() {
 						comp := top.comp.(InsertIntoSelectStmt)
 						So(comp.Sink, ShouldEqual, "x")
+						So(comp.EmitterType, ShouldEqual, Istream)
 						So(len(comp.Projections), ShouldEqual, 2)
 						So(comp.Projections[0], ShouldResemble, RowValue{"", "a"})
 						So(comp.Projections[1], ShouldResemble, RowValue{"", "b"})
@@ -63,7 +66,9 @@ func TestAssembleInsertIntoSelect(t *testing.T) {
 			})
 		})
 		Convey("When the stack contains the correct SELECT items without a Interval specification", func() {
-			ps.PushComponent(4, 6, StreamIdentifier("x"))
+			ps.PushComponent(4, 5, StreamIdentifier("x"))
+			ps.PushComponent(5, 6, Istream)
+			ps.AssembleEmitter(6, 6)
 			ps.PushComponent(6, 7, RowValue{"", "a"})
 			ps.PushComponent(7, 8, RowValue{"", "b"})
 			ps.AssembleProjections(6, 8)
@@ -97,6 +102,8 @@ func TestAssembleInsertIntoSelect(t *testing.T) {
 					Convey("And it contains the previously pushed data", func() {
 						comp := top.comp.(InsertIntoSelectStmt)
 						So(comp.Sink, ShouldEqual, "x")
+						So(comp.EmitterType, ShouldEqual, Istream)
+						So(len(comp.Projections), ShouldEqual, 2)
 						So(len(comp.Projections), ShouldEqual, 2)
 						So(comp.Projections[0], ShouldResemble, RowValue{"", "a"})
 						So(comp.Projections[1], ShouldResemble, RowValue{"", "b"})
@@ -126,7 +133,9 @@ func TestAssembleInsertIntoSelect(t *testing.T) {
 		})
 
 		Convey("When the stack contains a wrong item", func() {
-			ps.PushComponent(4, 6, StreamIdentifier("x"))
+			ps.PushComponent(4, 5, StreamIdentifier("x"))
+			ps.PushComponent(5, 6, Istream)
+			ps.AssembleEmitter(6, 6)
 			ps.PushComponent(6, 7, RowValue{"", "a"})
 			ps.PushComponent(7, 8, RowValue{"", "b"})
 			ps.AssembleProjections(6, 8)
@@ -154,7 +163,7 @@ func TestAssembleInsertIntoSelect(t *testing.T) {
 		Convey("When doing a full INSERT INTO SELECT", func() {
 			// the statement below does not make sense, it is just used to test
 			// whether we accept optional RANGE clauses correctly
-			p.Buffer = "INSERT INTO x SELECT '日本語', b FROM c [RANGE 3 TUPLES], d WHERE e GROUP BY f, g HAVING h"
+			p.Buffer = "INSERT INTO x SELECT ISTREAM '日本語', b FROM c [RANGE 3 TUPLES], d WHERE e GROUP BY f, g HAVING h"
 			p.Init()
 
 			Convey("Then the statement should be parsed correctly", func() {
@@ -169,6 +178,7 @@ func TestAssembleInsertIntoSelect(t *testing.T) {
 				comp := top.(InsertIntoSelectStmt)
 
 				So(comp.Sink, ShouldEqual, "x")
+				So(comp.EmitterType, ShouldEqual, Istream)
 				So(len(comp.Projections), ShouldEqual, 2)
 				So(comp.Projections[0], ShouldResemble, StringLiteral{"日本語"})
 				So(comp.Projections[1], ShouldResemble, RowValue{"", "b"})

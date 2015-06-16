@@ -9,6 +9,8 @@ func TestAssembleSelect(t *testing.T) {
 	Convey("Given a parseStack", t, func() {
 		ps := parseStack{}
 		Convey("When the stack contains the correct SELECT items", func() {
+			ps.PushComponent(4, 6, Istream)
+			ps.AssembleEmitter(6, 6)
 			ps.PushComponent(6, 7, RowValue{"", "a"})
 			ps.PushComponent(7, 8, RowValue{"", "b"})
 			ps.AssembleProjections(6, 8)
@@ -46,6 +48,7 @@ func TestAssembleSelect(t *testing.T) {
 
 					Convey("And it contains the previously pushed data", func() {
 						comp := top.comp.(SelectStmt)
+						So(comp.EmitterType, ShouldEqual, Istream)
 						So(len(comp.Projections), ShouldEqual, 2)
 						So(comp.Projections[0], ShouldResemble, RowValue{"", "a"})
 						So(comp.Projections[1], ShouldResemble, RowValue{"", "b"})
@@ -77,6 +80,8 @@ func TestAssembleSelect(t *testing.T) {
 		})
 
 		Convey("When the stack contains a wrong item", func() {
+			ps.PushComponent(4, 6, Istream)
+			ps.AssembleEmitter(6, 6)
 			ps.PushComponent(6, 7, RowValue{"", "a"})
 			ps.PushComponent(7, 8, RowValue{"", "b"})
 			ps.AssembleProjections(6, 8)
@@ -110,7 +115,7 @@ func TestAssembleSelect(t *testing.T) {
 		p := &bqlPeg{}
 
 		Convey("When doing a full SELECT", func() {
-			p.Buffer = "SELECT '日本語', b FROM c [RANGE 3 TUPLES], d [RANGE 2 SECONDS] AS x WHERE e GROUP BY f, g HAVING h"
+			p.Buffer = "SELECT ISTREAM '日本語', b FROM c [RANGE 3 TUPLES], d [RANGE 2 SECONDS] AS x WHERE e GROUP BY f, g HAVING h"
 			p.Init()
 
 			Convey("Then the statement should be parsed correctly", func() {
@@ -124,6 +129,7 @@ func TestAssembleSelect(t *testing.T) {
 				So(top, ShouldHaveSameTypeAs, SelectStmt{})
 				comp := top.(SelectStmt)
 
+				So(comp.EmitterType, ShouldEqual, Istream)
 				So(len(comp.Projections), ShouldEqual, 2)
 				So(comp.Projections[0], ShouldResemble, StringLiteral{"日本語"})
 				So(comp.Projections[1], ShouldResemble, RowValue{"", "b"})

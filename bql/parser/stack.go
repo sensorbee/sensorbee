@@ -66,16 +66,29 @@ func (ps *parseStack) Peek() (value *ParsedComponent) {
 // they are components of a SELECT statement, and replaces them by
 // a single SelectStmt element.
 //
+//  [EmitterAST]
 //  HavingAST
 //  GroupingAST
 //  FilterAST
 //  WindowedFromAST
 //  ProjectionsAST
 //   =>
-//  SelectStmt{ProjectionsAST, WindowedFromAST, FilterAST, GroupingAST, HavingAST}
+//  SelectStmt{EmitterAST, ProjectionsAST, WindowedFromAST, FilterAST, GroupingAST, HavingAST}
 func (ps *parseStack) AssembleSelect() {
 	// pop the components from the stack in reverse order
 	_having, _grouping, _filter, _from, _projections := ps.pop5()
+	// declare a default emitter
+	_emitter := &ParsedComponent{_projections.begin, _projections.begin,
+		EmitterAST{Rstream, []StreamEmitIntervalAST{
+			{IntervalAST{NumericLiteral{1}, Tuples}, Stream{"*"}},
+		}},
+	}
+	// override the emitter if there is one on top of the stack
+	if _elem := ps.Peek(); _elem != nil {
+		if _, ok := _elem.comp.(EmitterAST); ok {
+			_emitter = ps.Pop()
+		}
+	}
 
 	// extract and convert the contained structure
 	// (if this fails, this is a fundamental parser bug => panic ok)
@@ -84,9 +97,10 @@ func (ps *parseStack) AssembleSelect() {
 	filter := _filter.comp.(FilterAST)
 	from := _from.comp.(WindowedFromAST)
 	projections := _projections.comp.(ProjectionsAST)
+	emitter := _emitter.comp.(EmitterAST)
 
 	// assemble the SelectStmt and push it back
-	s := SelectStmt{projections, from, filter, grouping, having}
+	s := SelectStmt{emitter, projections, from, filter, grouping, having}
 	se := ParsedComponent{_projections.begin, _having.end, s}
 	ps.Push(&se)
 }

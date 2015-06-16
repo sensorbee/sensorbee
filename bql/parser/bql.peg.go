@@ -1192,7 +1192,7 @@ func (p *bqlPeg) Init() {
 			position, tokenIndex, depth = position7, tokenIndex7, depth7
 			return false
 		},
-		/* 2 SelectStmt <- <(('s' / 'S') ('e' / 'E') ('l' / 'L') ('e' / 'E') ('c' / 'C') ('t' / 'T') sp Projections sp DefWindowedFrom sp Filter sp Grouping sp Having sp Action0)> */
+		/* 2 SelectStmt <- <(('s' / 'S') ('e' / 'E') ('l' / 'L') ('e' / 'E') ('c' / 'C') ('t' / 'T') sp Emitter sp Projections sp DefWindowedFrom sp Filter sp Grouping sp Having sp Action0)> */
 		func() bool {
 			position16, tokenIndex16, depth16 := position, tokenIndex, depth
 			{
@@ -1288,6 +1288,12 @@ func (p *bqlPeg) Init() {
 					position++
 				}
 			l28:
+				if !_rules[rulesp]() {
+					goto l16
+				}
+				if !_rules[ruleEmitter]() {
+					goto l16
+				}
 				if !_rules[rulesp]() {
 					goto l16
 				}
