@@ -152,7 +152,7 @@ func (tb *TopologyBuilder) processStmt(_stmt interface{}) error {
 		tmpName := fmt.Sprintf("tmp-%v", rand.Int())
 		newRels := make([]parser.AliasedStreamWindowAST, len(stmt.Relations))
 		for i, from := range stmt.Relations {
-			if from.Unit != parser.Unspecified {
+			if from.Unit != parser.UnspecifiedIntervalUnit {
 				err := fmt.Errorf("you cannot use a RANGE clause with an INSERT INTO " +
 					"statement at the moment")
 				return err
@@ -162,9 +162,14 @@ func (tb *TopologyBuilder) processStmt(_stmt interface{}) error {
 					parser.NumericLiteral{1}, parser.Tuples}
 			}
 		}
+		if stmt.EmitterType != parser.UnspecifiedEmitter {
+			err := fmt.Errorf("you cannot use a %s clause with an INSERT INTO "+
+				"statement at the moment", stmt.EmitterType)
+			return err
+		}
 		tmpStmt := parser.CreateStreamAsSelectStmt{
 			parser.StreamIdentifier(tmpName),
-			parser.EmitterAST{parser.Istream},
+			parser.EmitterAST{parser.Rstream, nil},
 			stmt.ProjectionsAST,
 			parser.WindowedFromAST{newRels},
 			stmt.FilterAST,

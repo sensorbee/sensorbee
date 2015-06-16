@@ -18,6 +18,7 @@ type Expression interface {
 // Combined Structures (all with *AST)
 
 type SelectStmt struct {
+	EmitterAST
 	ProjectionsAST
 	WindowedFromAST
 	FilterAST
@@ -64,7 +65,13 @@ type InsertIntoSelectStmt struct {
 }
 
 type EmitterAST struct {
-	EmitterType Emitter
+	EmitterType   Emitter
+	EmitIntervals []StreamEmitIntervalAST
+}
+
+type StreamEmitIntervalAST struct {
+	IntervalAST
+	Stream
 }
 
 type ProjectionsAST struct {
@@ -326,23 +333,49 @@ type SourceSinkParamVal string
 type Emitter int
 
 const (
-	Istream Emitter = iota
+	UnspecifiedEmitter Emitter = iota
+	Istream
 	Dstream
 	Rstream
 )
 
+func (e Emitter) String() string {
+	s := "UNSPECIFIED"
+	switch e {
+	case Istream:
+		s = "ISTREAM"
+	case Dstream:
+		s = "DSTREAM"
+	case Rstream:
+		s = "RSTREAM"
+	}
+	return s
+}
+
 type IntervalUnit int
 
 const (
-	Unspecified IntervalUnit = iota
+	UnspecifiedIntervalUnit IntervalUnit = iota
 	Tuples
 	Seconds
 )
 
+func (i IntervalUnit) String() string {
+	s := "UNSPECIFIED"
+	switch i {
+	case Tuples:
+		s = "TUPLES"
+	case Seconds:
+		s = "SECONDS"
+	}
+	return s
+}
+
 type Operator int
 
 const (
-	Or Operator = iota
+	UnknownOperator Operator = iota
+	Or
 	And
 	Equal
 	Less
@@ -356,5 +389,38 @@ const (
 	Divide
 	Modulo
 )
+
+func (o Operator) String() string {
+	s := "UnknownOperator"
+	switch o {
+	case Or:
+		s = "OR"
+	case And:
+		s = "AND"
+	case Equal:
+		s = "="
+	case Less:
+		s = "<"
+	case LessOrEqual:
+		s = "<="
+	case Greater:
+		s = ">"
+	case GreaterOrEqual:
+		s = ">="
+	case NotEqual:
+		s = "!="
+	case Plus:
+		s = "+"
+	case Minus:
+		s = "-"
+	case Multiply:
+		s = "*"
+	case Divide:
+		s = "/"
+	case Modulo:
+		s = "%"
+	}
+	return s
+}
 
 type Identifier string
