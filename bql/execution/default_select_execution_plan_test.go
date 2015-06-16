@@ -344,7 +344,9 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 
 		})
 	})
+}
 
+func TestDefaultSelectExecutionPlanEmitters(t *testing.T) {
 	// Recovery from errors in tuples
 	Convey("Given a SELECT clause with a column that does not exist in one tuple (RSTREAM)", t, func() {
 		tuples := getTuples(6)
@@ -501,8 +503,8 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 		})
 	})
 
-	// RSTREAM/2 SECONDS
-	Convey("Given an RSTREAM/2 SECONDS statement with a constant", t, func() {
+	// RSTREAM/2 SECONDS window
+	Convey("Given an RSTREAM emitter selecting a constant and a 2 SECONDS window", t, func() {
 		tuples := getTuples(4)
 		s := `CREATE STREAM box AS SELECT RSTREAM 2 AS a FROM src [RANGE 2 SECONDS]`
 		plan, err := createDefaultSelectPlan(s, t)
@@ -536,7 +538,7 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 		})
 	})
 
-	Convey("Given an RSTREAM/2 SECONDS statement with a column", t, func() {
+	Convey("Given an RSTREAM emitter selecting a column and a 2 SECONDS window", t, func() {
 		tuples := getTuples(4)
 		s := `CREATE STREAM box AS SELECT RSTREAM int AS a FROM src [RANGE 2 SECONDS]`
 		plan, err := createDefaultSelectPlan(s, t)
@@ -570,8 +572,8 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 		})
 	})
 
-	// RSTREAM/2 TUPLES
-	Convey("Given an RSTREAM/2 SECONDS statement with a constant", t, func() {
+	// RSTREAM/2 TUPLES window
+	Convey("Given an RSTREAM emitter selecting a constant and a 2 SECONDS window", t, func() {
 		tuples := getTuples(4)
 		s := `CREATE STREAM box AS SELECT RSTREAM 2 AS a FROM src [RANGE 2 TUPLES]`
 		plan, err := createDefaultSelectPlan(s, t)
@@ -603,7 +605,7 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 		})
 	})
 
-	Convey("Given an RSTREAM/2 SECONDS statement with a column", t, func() {
+	Convey("Given an RSTREAM emitter selecting a column and a 2 SECONDS window", t, func() {
 		tuples := getTuples(4)
 		s := `CREATE STREAM box AS SELECT RSTREAM int AS a FROM src [RANGE 2 TUPLES]`
 		plan, err := createDefaultSelectPlan(s, t)
@@ -635,8 +637,8 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 		})
 	})
 
-	// ISTREAM/2 SECONDS
-	Convey("Given an ISTREAM/2 SECONDS statement with a constant", t, func() {
+	// ISTREAM/2 SECONDS window
+	Convey("Given an ISTREAM emitter selecting a constant and a 2 SECONDS window", t, func() {
 		tuples := getTuples(4)
 		s := `CREATE STREAM box AS SELECT ISTREAM 2 AS a FROM src [RANGE 2 SECONDS]`
 		plan, err := createDefaultSelectPlan(s, t)
@@ -662,7 +664,7 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 		})
 	})
 
-	Convey("Given an ISTREAM/2 SECONDS statement with a column", t, func() {
+	Convey("Given an ISTREAM emitter selecting a column and a 2 SECONDS window", t, func() {
 		tuples := getTuples(4)
 		s := `CREATE STREAM box AS SELECT ISTREAM int AS a FROM src [RANGE 2 SECONDS]`
 		plan, err := createDefaultSelectPlan(s, t)
@@ -691,8 +693,8 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 		})
 	})
 
-	// ISTREAM/2 TUPLES
-	Convey("Given an ISTREAM/2 TUPLES statement with a constant", t, func() {
+	// ISTREAM/2 TUPLES window
+	Convey("Given an ISTREAM emitter selecting a constant and a 2 TUPLES window", t, func() {
 		tuples := getTuples(4)
 		s := `CREATE STREAM box AS SELECT ISTREAM 2 AS a FROM src [RANGE 2 TUPLES]`
 		plan, err := createDefaultSelectPlan(s, t)
@@ -718,7 +720,7 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 		})
 	})
 
-	Convey("Given an ISTREAM/2 TUPLES statement with a column", t, func() {
+	Convey("Given an ISTREAM emitter selecting a column and a 2 TUPLES window", t, func() {
 		tuples := getTuples(4)
 		s := `CREATE STREAM box AS SELECT ISTREAM int AS a FROM src [RANGE 2 TUPLES]`
 		plan, err := createDefaultSelectPlan(s, t)
@@ -747,8 +749,8 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 		})
 	})
 
-	// DSTREAM/2 SECONDS
-	Convey("Given a DSTREAM/2 SECONDS statement with a constant", t, func() {
+	// DSTREAM/2 SECONDS window
+	Convey("Given a DSTREAM emitter selecting a constant and a 2 SECONDS window", t, func() {
 		tuples := getTuples(4)
 		s := `CREATE STREAM box AS SELECT DSTREAM 2 AS a FROM src [RANGE 2 SECONDS]`
 		plan, err := createDefaultSelectPlan(s, t)
@@ -773,7 +775,7 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 		})
 	})
 
-	Convey("Given a DSTREAM/2 SECONDS statement with a column", t, func() {
+	Convey("Given a DSTREAM emitter selecting a column and a 2 SECONDS window", t, func() {
 		tuples := getTuples(4)
 		s := `CREATE STREAM box AS SELECT DSTREAM int AS a FROM src [RANGE 2 SECONDS]`
 		plan, err := createDefaultSelectPlan(s, t)
@@ -799,8 +801,8 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 		})
 	})
 
-	// DSTREAM/2 TUPLES
-	Convey("Given a DSTREAM/2 TUPLES statement with a constant", t, func() {
+	// DSTREAM/2 TUPLES window
+	Convey("Given a DSTREAM emitter selecting a constant and a 2 TUPLES window", t, func() {
 		tuples := getTuples(4)
 		s := `CREATE STREAM box AS SELECT DSTREAM 2 AS a FROM src [RANGE 2 TUPLES]`
 		plan, err := createDefaultSelectPlan(s, t)
@@ -825,7 +827,7 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 		})
 	})
 
-	Convey("Given a DSTREAM/2 TUPLES statement with a column", t, func() {
+	Convey("Given a DSTREAM emitter selecting a column and a 2 TUPLES window", t, func() {
 		tuples := getTuples(4)
 		s := `CREATE STREAM box AS SELECT DSTREAM int AS a FROM src [RANGE 2 TUPLES]`
 		plan, err := createDefaultSelectPlan(s, t)
