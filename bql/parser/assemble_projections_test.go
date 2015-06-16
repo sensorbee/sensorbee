@@ -84,7 +84,7 @@ func TestAssembleProjections(t *testing.T) {
 		p := &bqlPeg{}
 
 		Convey("When selecting multiple columns", func() {
-			p.Buffer = "SELECT a, *, b AS c, * AS d"
+			p.Buffer = "SELECT ISTREAM a, *, b AS c, * AS d"
 			p.Init()
 
 			Convey("Then the statement should be parsed correctly", func() {

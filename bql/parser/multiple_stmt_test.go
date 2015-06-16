@@ -12,56 +12,77 @@ func TestMultipleStmtParser(t *testing.T) {
 		"   ": []interface{}{},
 		" ; ": nil,
 		// single statement
-		"SELECT a": []interface{}{
-			SelectStmt{ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "a"}}}},
+		"SELECT RSTREAM a": []interface{}{
+			SelectStmt{EmitterAST: EmitterAST{Rstream, nil},
+				ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "a"}}}},
 		},
 		// single statement, terminated with semicolon
-		"SELECT a;": []interface{}{
-			SelectStmt{ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "a"}}}},
+		"SELECT RSTREAM a;": []interface{}{
+			SelectStmt{EmitterAST: EmitterAST{Rstream, nil},
+				ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "a"}}}},
 		},
 		// single statement, terminated with semicolon and some spaces
-		"SELECT a ; ": []interface{}{
-			SelectStmt{ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "a"}}}},
+		"SELECT RSTREAM a ; ": []interface{}{
+			SelectStmt{EmitterAST: EmitterAST{Rstream, nil},
+				ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "a"}}}},
 		},
 		// single statement starting with a space
-		"  SELECT a ;": []interface{}{
-			SelectStmt{ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "a"}}}},
+		"  SELECT RSTREAM a ;": []interface{}{
+			SelectStmt{EmitterAST: EmitterAST{Rstream, nil},
+				ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "a"}}}},
 		},
 		// two statements with various space separations
-		"SELECT a;SELECT b": []interface{}{
-			SelectStmt{ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "a"}}}},
-			SelectStmt{ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "b"}}}},
+		"SELECT RSTREAM a;SELECT RSTREAM b": []interface{}{
+			SelectStmt{EmitterAST: EmitterAST{Rstream, nil},
+				ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "a"}}}},
+			SelectStmt{EmitterAST: EmitterAST{Rstream, nil},
+				ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "b"}}}},
 		},
-		"SELECT a ;SELECT b": []interface{}{
-			SelectStmt{ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "a"}}}},
-			SelectStmt{ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "b"}}}},
+		"SELECT RSTREAM a ;SELECT RSTREAM b": []interface{}{
+			SelectStmt{EmitterAST: EmitterAST{Rstream, nil},
+				ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "a"}}}},
+			SelectStmt{EmitterAST: EmitterAST{Rstream, nil},
+				ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "b"}}}},
 		},
-		"SELECT a; SELECT b": []interface{}{
-			SelectStmt{ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "a"}}}},
-			SelectStmt{ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "b"}}}},
+		"SELECT RSTREAM a; SELECT RSTREAM b": []interface{}{
+			SelectStmt{EmitterAST: EmitterAST{Rstream, nil},
+				ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "a"}}}},
+			SelectStmt{EmitterAST: EmitterAST{Rstream, nil},
+				ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "b"}}}},
 		},
-		"SELECT a ; SELECT b": []interface{}{
-			SelectStmt{ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "a"}}}},
-			SelectStmt{ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "b"}}}},
+		"SELECT RSTREAM a ; SELECT RSTREAM b": []interface{}{
+			SelectStmt{EmitterAST: EmitterAST{Rstream, nil},
+				ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "a"}}}},
+			SelectStmt{EmitterAST: EmitterAST{Rstream, nil},
+				ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "b"}}}},
 		},
 		// three statements
-		"SELECT a ; SELECT b; SELECT c": []interface{}{
-			SelectStmt{ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "a"}}}},
-			SelectStmt{ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "b"}}}},
-			SelectStmt{ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "c"}}}},
+		"SELECT RSTREAM a ; SELECT RSTREAM b; SELECT RSTREAM c": []interface{}{
+			SelectStmt{EmitterAST: EmitterAST{Rstream, nil},
+				ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "a"}}}},
+			SelectStmt{EmitterAST: EmitterAST{Rstream, nil},
+				ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "b"}}}},
+			SelectStmt{EmitterAST: EmitterAST{Rstream, nil},
+				ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "c"}}}},
 		},
 		// using semi-colons within the statements
-		"SELECT a ; SELECT b; SELECT c, ';'": []interface{}{
-			SelectStmt{ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "a"}}}},
-			SelectStmt{ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "b"}}}},
-			SelectStmt{ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "c"},
-				StringLiteral{";"}}}},
+		"SELECT RSTREAM a ; SELECT RSTREAM b; SELECT RSTREAM c, ';'": []interface{}{
+			SelectStmt{EmitterAST: EmitterAST{Rstream, nil},
+				ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "a"}}}},
+			SelectStmt{EmitterAST: EmitterAST{Rstream, nil},
+				ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "b"}}}},
+			SelectStmt{EmitterAST: EmitterAST{Rstream, nil},
+				ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "c"},
+					StringLiteral{";"}}}},
 		},
-		"SELECT a;SELECT c, ';';SELECT b;": []interface{}{
-			SelectStmt{ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "a"}}}},
-			SelectStmt{ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "c"},
-				StringLiteral{";"}}}},
-			SelectStmt{ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "b"}}}},
+		"SELECT RSTREAM a;SELECT RSTREAM c, ';';SELECT RSTREAM b;": []interface{}{
+			SelectStmt{EmitterAST: EmitterAST{Rstream, nil},
+				ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "a"}}}},
+			SelectStmt{EmitterAST: EmitterAST{Rstream, nil},
+				ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "c"},
+					StringLiteral{";"}}}},
+			SelectStmt{EmitterAST: EmitterAST{Rstream, nil},
+				ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "b"}}}},
 		},
 	}
 
@@ -95,23 +116,23 @@ func TestMultipleStmtParser(t *testing.T) {
 func TestSingleStmtParser(t *testing.T) {
 	testCases := map[string]string{
 		// single statement
-		"SELECT a": "",
+		"SELECT RSTREAM a": "",
 		// single statement, terminated with semicolon
-		"SELECT a;": "",
+		"SELECT RSTREAM a;": "",
 		// single statement, terminated with semicolon and some spaces
-		"SELECT a ; ": "",
+		"SELECT RSTREAM a ; ": "",
 		// single statement starting with a space
-		"  SELECT a ;": "",
+		"  SELECT RSTREAM a ;": "",
 		// two statements with various space separations
-		"SELECT a;SELECT b":   "SELECT b",
-		"SELECT a ;SELECT b":  "SELECT b",
-		"SELECT a; SELECT b":  "SELECT b",
-		"SELECT a ; SELECT b": "SELECT b",
+		"SELECT RSTREAM a;SELECT RSTREAM b":   "SELECT RSTREAM b",
+		"SELECT RSTREAM a ;SELECT RSTREAM b":  "SELECT RSTREAM b",
+		"SELECT RSTREAM a; SELECT RSTREAM b":  "SELECT RSTREAM b",
+		"SELECT RSTREAM a ; SELECT RSTREAM b": "SELECT RSTREAM b",
 		// three statements
-		"SELECT a ; SELECT b; SELECT c": "SELECT b; SELECT c",
+		"SELECT RSTREAM a ; SELECT RSTREAM b; SELECT RSTREAM c": "SELECT RSTREAM b; SELECT RSTREAM c",
 		// using semi-colons within the statements
-		"SELECT a ; SELECT b; SELECT c, ';'": "SELECT b; SELECT c, ';'",
-		"SELECT a;SELECT c, ';';SELECT b;":   "SELECT c, ';';SELECT b;",
+		"SELECT RSTREAM a ; SELECT RSTREAM b; SELECT RSTREAM c, ';'": "SELECT RSTREAM b; SELECT RSTREAM c, ';'",
+		"SELECT RSTREAM a;SELECT RSTREAM c, ';';SELECT RSTREAM b;":   "SELECT RSTREAM c, ';';SELECT RSTREAM b;",
 	}
 
 	Convey("Given a BQL parser", t, func() {

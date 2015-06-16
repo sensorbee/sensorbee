@@ -18,6 +18,7 @@ type Expression interface {
 // Combined Structures (all with *AST)
 
 type SelectStmt struct {
+	EmitterAST
 	ProjectionsAST
 	WindowedFromAST
 	FilterAST
