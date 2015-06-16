@@ -344,7 +344,9 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 
 		})
 	})
+}
 
+func TestDefaultSelectExecutionPlanEmitters(t *testing.T) {
 	// Recovery from errors in tuples
 	Convey("Given a SELECT clause with a column that does not exist in one tuple (RSTREAM)", t, func() {
 		tuples := getTuples(6)
@@ -501,8 +503,8 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 		})
 	})
 
-	// RSTREAM/2 SECONDS
-	Convey("Given an RSTREAM/2 SECONDS statement with a constant", t, func() {
+	// RSTREAM/2 SECONDS window
+	Convey("Given an RSTREAM emitter selecting a constant and a 2 SECONDS window", t, func() {
 		tuples := getTuples(4)
 		s := `CREATE STREAM box AS SELECT RSTREAM 2 AS a FROM src [RANGE 2 SECONDS]`
 		plan, err := createDefaultSelectPlan(s, t)
@@ -536,7 +538,7 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 		})
 	})
 
-	Convey("Given an RSTREAM/2 SECONDS statement with a column", t, func() {
+	Convey("Given an RSTREAM emitter selecting a column and a 2 SECONDS window", t, func() {
 		tuples := getTuples(4)
 		s := `CREATE STREAM box AS SELECT RSTREAM int AS a FROM src [RANGE 2 SECONDS]`
 		plan, err := createDefaultSelectPlan(s, t)
@@ -570,8 +572,8 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 		})
 	})
 
-	// RSTREAM/2 TUPLES
-	Convey("Given an RSTREAM/2 SECONDS statement with a constant", t, func() {
+	// RSTREAM/2 TUPLES window
+	Convey("Given an RSTREAM emitter selecting a constant and a 2 SECONDS window", t, func() {
 		tuples := getTuples(4)
 		s := `CREATE STREAM box AS SELECT RSTREAM 2 AS a FROM src [RANGE 2 TUPLES]`
 		plan, err := createDefaultSelectPlan(s, t)
@@ -603,7 +605,7 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 		})
 	})
 
-	Convey("Given an RSTREAM/2 SECONDS statement with a column", t, func() {
+	Convey("Given an RSTREAM emitter selecting a column and a 2 SECONDS window", t, func() {
 		tuples := getTuples(4)
 		s := `CREATE STREAM box AS SELECT RSTREAM int AS a FROM src [RANGE 2 TUPLES]`
 		plan, err := createDefaultSelectPlan(s, t)
@@ -635,8 +637,8 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 		})
 	})
 
-	// ISTREAM/2 SECONDS
-	Convey("Given an ISTREAM/2 SECONDS statement with a constant", t, func() {
+	// ISTREAM/2 SECONDS window
+	Convey("Given an ISTREAM emitter selecting a constant and a 2 SECONDS window", t, func() {
 		tuples := getTuples(4)
 		s := `CREATE STREAM box AS SELECT ISTREAM 2 AS a FROM src [RANGE 2 SECONDS]`
 		plan, err := createDefaultSelectPlan(s, t)
@@ -662,7 +664,7 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 		})
 	})
 
-	Convey("Given an ISTREAM/2 SECONDS statement with a column", t, func() {
+	Convey("Given an ISTREAM emitter selecting a column and a 2 SECONDS window", t, func() {
 		tuples := getTuples(4)
 		s := `CREATE STREAM box AS SELECT ISTREAM int AS a FROM src [RANGE 2 SECONDS]`
 		plan, err := createDefaultSelectPlan(s, t)
@@ -691,8 +693,8 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 		})
 	})
 
-	// ISTREAM/2 TUPLES
-	Convey("Given an ISTREAM/2 TUPLES statement with a constant", t, func() {
+	// ISTREAM/2 TUPLES window
+	Convey("Given an ISTREAM emitter selecting a constant and a 2 TUPLES window", t, func() {
 		tuples := getTuples(4)
 		s := `CREATE STREAM box AS SELECT ISTREAM 2 AS a FROM src [RANGE 2 TUPLES]`
 		plan, err := createDefaultSelectPlan(s, t)
@@ -718,7 +720,7 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 		})
 	})
 
-	Convey("Given an ISTREAM/2 TUPLES statement with a column", t, func() {
+	Convey("Given an ISTREAM emitter selecting a column and a 2 TUPLES window", t, func() {
 		tuples := getTuples(4)
 		s := `CREATE STREAM box AS SELECT ISTREAM int AS a FROM src [RANGE 2 TUPLES]`
 		plan, err := createDefaultSelectPlan(s, t)
@@ -747,8 +749,8 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 		})
 	})
 
-	// DSTREAM/2 SECONDS
-	Convey("Given a DSTREAM/2 SECONDS statement with a constant", t, func() {
+	// DSTREAM/2 SECONDS window
+	Convey("Given a DSTREAM emitter selecting a constant and a 2 SECONDS window", t, func() {
 		tuples := getTuples(4)
 		s := `CREATE STREAM box AS SELECT DSTREAM 2 AS a FROM src [RANGE 2 SECONDS]`
 		plan, err := createDefaultSelectPlan(s, t)
@@ -773,7 +775,7 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 		})
 	})
 
-	Convey("Given a DSTREAM/2 SECONDS statement with a column", t, func() {
+	Convey("Given a DSTREAM emitter selecting a column and a 2 SECONDS window", t, func() {
 		tuples := getTuples(4)
 		s := `CREATE STREAM box AS SELECT DSTREAM int AS a FROM src [RANGE 2 SECONDS]`
 		plan, err := createDefaultSelectPlan(s, t)
@@ -799,8 +801,8 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 		})
 	})
 
-	// DSTREAM/2 TUPLES
-	Convey("Given a DSTREAM/2 TUPLES statement with a constant", t, func() {
+	// DSTREAM/2 TUPLES window
+	Convey("Given a DSTREAM emitter selecting a constant and a 2 TUPLES window", t, func() {
 		tuples := getTuples(4)
 		s := `CREATE STREAM box AS SELECT DSTREAM 2 AS a FROM src [RANGE 2 TUPLES]`
 		plan, err := createDefaultSelectPlan(s, t)
@@ -825,7 +827,7 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 		})
 	})
 
-	Convey("Given a DSTREAM/2 TUPLES statement with a column", t, func() {
+	Convey("Given a DSTREAM emitter selecting a column and a 2 TUPLES window", t, func() {
 		tuples := getTuples(4)
 		s := `CREATE STREAM box AS SELECT DSTREAM int AS a FROM src [RANGE 2 TUPLES]`
 		plan, err := createDefaultSelectPlan(s, t)
@@ -849,6 +851,574 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 				So(output[3][0], ShouldResemble, tuple.Map{"a": tuple.Int(2)})
 			})
 
+		})
+	})
+
+	// Varying emitter intervals
+
+	// RSTREAM [EVERY k TUPLES]/2 SECONDS window
+	Convey("Given an RSTREAM emitter selecting a constant and a 2 SECONDS window", t, func() {
+		tuples := getTuples(6)
+		s := `CREATE STREAM box AS SELECT RSTREAM [EVERY 2 TUPLES] 2 AS a FROM src [RANGE 2 SECONDS]`
+		plan, err := createDefaultSelectPlan(s, t)
+		So(err, ShouldBeNil)
+
+		Convey("When feeding it with tuples", func() {
+			output := [][]tuple.Map{}
+			for _, inTup := range tuples {
+				out, err := plan.Process(inTup)
+				So(err, ShouldBeNil)
+				output = append(output, out)
+			}
+
+			Convey("Then the whole state should be emitted", func() {
+				So(len(output), ShouldEqual, 6)
+				So(len(output[0]), ShouldEqual, 0) // skip
+				So(len(output[1]), ShouldEqual, 2)
+				So(output[1][0], ShouldResemble, tuple.Map{"a": tuple.Int(2)})
+				So(output[1][1], ShouldResemble, tuple.Map{"a": tuple.Int(2)})
+				So(len(output[2]), ShouldEqual, 0) // skip
+				So(len(output[3]), ShouldEqual, 3)
+				So(output[3][0], ShouldResemble, tuple.Map{"a": tuple.Int(2)})
+				So(output[3][1], ShouldResemble, tuple.Map{"a": tuple.Int(2)})
+				So(output[3][2], ShouldResemble, tuple.Map{"a": tuple.Int(2)})
+				So(len(output[4]), ShouldEqual, 0) // skip
+				So(len(output[5]), ShouldEqual, 3)
+				So(output[5][0], ShouldResemble, tuple.Map{"a": tuple.Int(2)})
+				So(output[5][1], ShouldResemble, tuple.Map{"a": tuple.Int(2)})
+				So(output[5][2], ShouldResemble, tuple.Map{"a": tuple.Int(2)})
+			})
+
+		})
+	})
+
+	Convey("Given an RSTREAM emitter selecting a column and a 2 SECONDS window", t, func() {
+		tuples := getTuples(6)
+		s := `CREATE STREAM box AS SELECT RSTREAM [EVERY 2 TUPLES] int AS a FROM src [RANGE 2 SECONDS]`
+		plan, err := createDefaultSelectPlan(s, t)
+		So(err, ShouldBeNil)
+
+		Convey("When feeding it with tuples", func() {
+			output := [][]tuple.Map{}
+			for _, inTup := range tuples {
+				out, err := plan.Process(inTup)
+				So(err, ShouldBeNil)
+				output = append(output, out)
+			}
+
+			Convey("Then the whole state should be emitted", func() {
+				So(len(output), ShouldEqual, 6)
+				So(len(output[0]), ShouldEqual, 0) // skip
+				So(len(output[1]), ShouldEqual, 2)
+				So(output[1][0], ShouldResemble, tuple.Map{"a": tuple.Int(1)})
+				So(output[1][1], ShouldResemble, tuple.Map{"a": tuple.Int(2)})
+				So(len(output[2]), ShouldEqual, 0) // skip
+				So(len(output[3]), ShouldEqual, 3)
+				So(output[3][0], ShouldResemble, tuple.Map{"a": tuple.Int(2)})
+				So(output[3][1], ShouldResemble, tuple.Map{"a": tuple.Int(3)})
+				So(output[3][2], ShouldResemble, tuple.Map{"a": tuple.Int(4)})
+				So(len(output[4]), ShouldEqual, 0) // skip
+				So(len(output[5]), ShouldEqual, 3)
+				So(output[5][0], ShouldResemble, tuple.Map{"a": tuple.Int(4)})
+				So(output[5][1], ShouldResemble, tuple.Map{"a": tuple.Int(5)})
+				So(output[5][2], ShouldResemble, tuple.Map{"a": tuple.Int(6)})
+			})
+		})
+	})
+
+	Convey("Given an RSTREAM emitter selecting a column and a 2 SECONDS window", t, func() {
+		tuples := getTuples(6)
+		s := `CREATE STREAM box AS SELECT RSTREAM [EVERY 3 TUPLES] int AS a FROM src [RANGE 2 SECONDS]`
+		plan, err := createDefaultSelectPlan(s, t)
+		So(err, ShouldBeNil)
+
+		Convey("When feeding it with tuples", func() {
+			output := [][]tuple.Map{}
+			for _, inTup := range tuples {
+				out, err := plan.Process(inTup)
+				So(err, ShouldBeNil)
+				output = append(output, out)
+			}
+
+			Convey("Then the whole state should be emitted", func() {
+				So(len(output), ShouldEqual, 6)
+				So(len(output[0]), ShouldEqual, 0) // skip
+				So(len(output[1]), ShouldEqual, 0) // skip
+				So(len(output[2]), ShouldEqual, 3)
+				So(output[2][0], ShouldResemble, tuple.Map{"a": tuple.Int(1)})
+				So(output[2][1], ShouldResemble, tuple.Map{"a": tuple.Int(2)})
+				So(output[2][2], ShouldResemble, tuple.Map{"a": tuple.Int(3)})
+				So(len(output[3]), ShouldEqual, 0) // skip
+				So(len(output[4]), ShouldEqual, 0) // skip
+				So(len(output[5]), ShouldEqual, 3)
+				So(output[5][0], ShouldResemble, tuple.Map{"a": tuple.Int(4)})
+				So(output[5][1], ShouldResemble, tuple.Map{"a": tuple.Int(5)})
+				So(output[5][2], ShouldResemble, tuple.Map{"a": tuple.Int(6)})
+			})
+		})
+	})
+
+	// RSTREAM [EVERY k TUPLES]/2 TUPLES window
+	Convey("Given an RSTREAM emitter selecting a constant and a 2 SECONDS window", t, func() {
+		tuples := getTuples(4)
+		s := `CREATE STREAM box AS SELECT RSTREAM [EVERY 2 TUPLES] 2 AS a FROM src [RANGE 2 TUPLES]`
+		plan, err := createDefaultSelectPlan(s, t)
+		So(err, ShouldBeNil)
+
+		Convey("When feeding it with tuples", func() {
+			output := [][]tuple.Map{}
+			for _, inTup := range tuples {
+				out, err := plan.Process(inTup)
+				So(err, ShouldBeNil)
+				output = append(output, out)
+			}
+
+			Convey("Then the whole state should be emitted", func() {
+				So(len(output), ShouldEqual, 4)
+				So(len(output[0]), ShouldEqual, 0) // skip
+				So(len(output[1]), ShouldEqual, 2)
+				So(output[1][0], ShouldResemble, tuple.Map{"a": tuple.Int(2)})
+				So(output[1][1], ShouldResemble, tuple.Map{"a": tuple.Int(2)})
+				So(len(output[2]), ShouldEqual, 0) // skip
+				So(len(output[3]), ShouldEqual, 2)
+				So(output[3][0], ShouldResemble, tuple.Map{"a": tuple.Int(2)})
+				So(output[3][1], ShouldResemble, tuple.Map{"a": tuple.Int(2)})
+			})
+
+		})
+	})
+
+	Convey("Given an RSTREAM emitter selecting a column and a 2 SECONDS window", t, func() {
+		tuples := getTuples(4)
+		s := `CREATE STREAM box AS SELECT RSTREAM [EVERY 2 TUPLES] int AS a FROM src [RANGE 2 TUPLES]`
+		plan, err := createDefaultSelectPlan(s, t)
+		So(err, ShouldBeNil)
+
+		Convey("When feeding it with tuples", func() {
+			output := [][]tuple.Map{}
+			for _, inTup := range tuples {
+				out, err := plan.Process(inTup)
+				So(err, ShouldBeNil)
+				output = append(output, out)
+			}
+
+			Convey("Then the whole window state should be emitted", func() {
+				So(len(output), ShouldEqual, 4)
+				So(len(output[0]), ShouldEqual, 0) // skip
+				So(len(output[1]), ShouldEqual, 2)
+				So(output[1][0], ShouldResemble, tuple.Map{"a": tuple.Int(1)})
+				So(output[1][1], ShouldResemble, tuple.Map{"a": tuple.Int(2)})
+				So(len(output[2]), ShouldEqual, 0) // skip
+				So(len(output[3]), ShouldEqual, 2)
+				So(output[3][0], ShouldResemble, tuple.Map{"a": tuple.Int(3)})
+				So(output[3][1], ShouldResemble, tuple.Map{"a": tuple.Int(4)})
+			})
+
+		})
+	})
+
+	Convey("Given an RSTREAM emitter selecting a column and a 2 SECONDS window", t, func() {
+		tuples := getTuples(6)
+		s := `CREATE STREAM box AS SELECT RSTREAM [EVERY 3 TUPLES] int AS a FROM src [RANGE 2 TUPLES]`
+		plan, err := createDefaultSelectPlan(s, t)
+		So(err, ShouldBeNil)
+
+		Convey("When feeding it with tuples", func() {
+			output := [][]tuple.Map{}
+			for _, inTup := range tuples {
+				out, err := plan.Process(inTup)
+				So(err, ShouldBeNil)
+				output = append(output, out)
+			}
+
+			Convey("Then the whole window state should be emitted", func() {
+				So(len(output), ShouldEqual, 6)
+				So(len(output[0]), ShouldEqual, 0) // skip
+				So(len(output[1]), ShouldEqual, 0) // skip
+				So(len(output[2]), ShouldEqual, 2)
+				So(output[2][0], ShouldResemble, tuple.Map{"a": tuple.Int(2)})
+				So(output[2][1], ShouldResemble, tuple.Map{"a": tuple.Int(3)})
+				So(len(output[3]), ShouldEqual, 0) // skip
+				So(len(output[4]), ShouldEqual, 0) // skip
+				So(len(output[5]), ShouldEqual, 2)
+				So(output[5][0], ShouldResemble, tuple.Map{"a": tuple.Int(5)})
+				So(output[5][1], ShouldResemble, tuple.Map{"a": tuple.Int(6)})
+			})
+
+		})
+	})
+
+	// ISTREAM [EVERY k TUPLES]/2 SECONDS window
+	Convey("Given an ISTREAM emitter selecting a constant and a 2 SECONDS window", t, func() {
+		tuples := getTuples(6)
+		s := `CREATE STREAM box AS SELECT ISTREAM [EVERY 2 TUPLES] 2 AS a FROM src [RANGE 2 SECONDS]`
+		plan, err := createDefaultSelectPlan(s, t)
+		So(err, ShouldBeNil)
+
+		Convey("When feeding it with tuples", func() {
+			output := [][]tuple.Map{}
+			for _, inTup := range tuples {
+				out, err := plan.Process(inTup)
+				So(err, ShouldBeNil)
+				output = append(output, out)
+			}
+
+			Convey("Then new items in state should be emitted", func() {
+				So(len(output), ShouldEqual, 6)
+				So(len(output[0]), ShouldEqual, 0) // skip
+				So(len(output[1]), ShouldEqual, 2)
+				So(output[1][0], ShouldResemble, tuple.Map{"a": tuple.Int(2)})
+				So(output[1][1], ShouldResemble, tuple.Map{"a": tuple.Int(2)})
+				So(len(output[2]), ShouldEqual, 0) // skip
+				So(len(output[3]), ShouldEqual, 0)
+				So(len(output[4]), ShouldEqual, 0) // skip
+				So(len(output[5]), ShouldEqual, 0)
+			})
+
+		})
+	})
+
+	Convey("Given an ISTREAM emitter selecting a column and a 2 SECONDS window", t, func() {
+		tuples := getTuples(6)
+		s := `CREATE STREAM box AS SELECT ISTREAM [EVERY 2 TUPLES] int AS a FROM src [RANGE 2 SECONDS]`
+		plan, err := createDefaultSelectPlan(s, t)
+		So(err, ShouldBeNil)
+
+		Convey("When feeding it with tuples", func() {
+			output := [][]tuple.Map{}
+			for _, inTup := range tuples {
+				out, err := plan.Process(inTup)
+				So(err, ShouldBeNil)
+				output = append(output, out)
+			}
+
+			Convey("Then new items in state should be emitted", func() {
+				So(len(output), ShouldEqual, 6)
+				So(len(output[0]), ShouldEqual, 0) // skip
+				So(len(output[1]), ShouldEqual, 2)
+				So(output[1][0], ShouldResemble, tuple.Map{"a": tuple.Int(1)})
+				So(output[1][1], ShouldResemble, tuple.Map{"a": tuple.Int(2)})
+				So(len(output[2]), ShouldEqual, 0) // skip
+				So(len(output[3]), ShouldEqual, 2)
+				So(output[3][0], ShouldResemble, tuple.Map{"a": tuple.Int(3)})
+				So(output[3][1], ShouldResemble, tuple.Map{"a": tuple.Int(4)})
+				So(len(output[4]), ShouldEqual, 0) // skip
+				So(len(output[5]), ShouldEqual, 2)
+				So(output[5][0], ShouldResemble, tuple.Map{"a": tuple.Int(5)})
+				So(output[5][1], ShouldResemble, tuple.Map{"a": tuple.Int(6)})
+			})
+
+		})
+	})
+
+	Convey("Given an ISTREAM emitter selecting a column and a 2 SECONDS window", t, func() {
+		tuples := getTuples(6)
+		s := `CREATE STREAM box AS SELECT ISTREAM [EVERY 3 TUPLES] int AS a FROM src [RANGE 2 SECONDS]`
+		plan, err := createDefaultSelectPlan(s, t)
+		So(err, ShouldBeNil)
+
+		Convey("When feeding it with tuples", func() {
+			output := [][]tuple.Map{}
+			for _, inTup := range tuples {
+				out, err := plan.Process(inTup)
+				So(err, ShouldBeNil)
+				output = append(output, out)
+			}
+
+			Convey("Then new items in state should be emitted", func() {
+				So(len(output), ShouldEqual, 6)
+				So(len(output[0]), ShouldEqual, 0) // skip
+				So(len(output[1]), ShouldEqual, 0) // skip
+				So(len(output[2]), ShouldEqual, 3)
+				So(output[2][0], ShouldResemble, tuple.Map{"a": tuple.Int(1)})
+				So(output[2][1], ShouldResemble, tuple.Map{"a": tuple.Int(2)})
+				So(output[2][2], ShouldResemble, tuple.Map{"a": tuple.Int(3)})
+				So(len(output[3]), ShouldEqual, 0) // skip
+				So(len(output[4]), ShouldEqual, 0) // skip
+				So(len(output[5]), ShouldEqual, 3)
+				So(output[5][0], ShouldResemble, tuple.Map{"a": tuple.Int(4)})
+				So(output[5][1], ShouldResemble, tuple.Map{"a": tuple.Int(5)})
+				So(output[5][2], ShouldResemble, tuple.Map{"a": tuple.Int(6)})
+			})
+
+		})
+	})
+
+	// ISTREAM [EVERY k TUPLES]/2 TUPLES window
+	Convey("Given an ISTREAM emitter selecting a constant and a 2 TUPLES window", t, func() {
+		tuples := getTuples(6)
+		s := `CREATE STREAM box AS SELECT ISTREAM [EVERY 2 TUPLES] 2 AS a FROM src [RANGE 2 TUPLES]`
+		plan, err := createDefaultSelectPlan(s, t)
+		So(err, ShouldBeNil)
+
+		Convey("When feeding it with tuples", func() {
+			output := [][]tuple.Map{}
+			for _, inTup := range tuples {
+				out, err := plan.Process(inTup)
+				So(err, ShouldBeNil)
+				output = append(output, out)
+			}
+
+			Convey("Then new items in state should be emitted", func() {
+				So(len(output), ShouldEqual, 6)
+				So(len(output[0]), ShouldEqual, 0) // skip
+				So(len(output[1]), ShouldEqual, 2)
+				So(output[1][0], ShouldResemble, tuple.Map{"a": tuple.Int(2)})
+				So(output[1][1], ShouldResemble, tuple.Map{"a": tuple.Int(2)})
+				So(len(output[2]), ShouldEqual, 0) // skip
+				So(len(output[3]), ShouldEqual, 0)
+				So(len(output[4]), ShouldEqual, 0) // skip
+				So(len(output[5]), ShouldEqual, 0)
+			})
+
+		})
+	})
+
+	Convey("Given an ISTREAM emitter selecting a column and a 2 TUPLES window", t, func() {
+		tuples := getTuples(6)
+		s := `CREATE STREAM box AS SELECT ISTREAM [EVERY 2 TUPLES] int AS a FROM src [RANGE 2 TUPLES]`
+		plan, err := createDefaultSelectPlan(s, t)
+		So(err, ShouldBeNil)
+
+		Convey("When feeding it with tuples", func() {
+			output := [][]tuple.Map{}
+			for _, inTup := range tuples {
+				out, err := plan.Process(inTup)
+				So(err, ShouldBeNil)
+				output = append(output, out)
+			}
+
+			Convey("Then new items in state should be emitted", func() {
+				So(len(output), ShouldEqual, 6)
+				So(len(output[0]), ShouldEqual, 0) // skip
+				So(len(output[1]), ShouldEqual, 2)
+				So(output[1][0], ShouldResemble, tuple.Map{"a": tuple.Int(1)})
+				So(output[1][1], ShouldResemble, tuple.Map{"a": tuple.Int(2)})
+				So(len(output[2]), ShouldEqual, 0) // skip
+				So(len(output[3]), ShouldEqual, 2)
+				So(output[3][0], ShouldResemble, tuple.Map{"a": tuple.Int(3)})
+				So(output[3][1], ShouldResemble, tuple.Map{"a": tuple.Int(4)})
+				So(len(output[4]), ShouldEqual, 0) // skip
+				So(len(output[5]), ShouldEqual, 2)
+				So(output[5][0], ShouldResemble, tuple.Map{"a": tuple.Int(5)})
+				So(output[5][1], ShouldResemble, tuple.Map{"a": tuple.Int(6)})
+			})
+		})
+	})
+
+	Convey("Given an ISTREAM emitter selecting a column and a 2 TUPLES window", t, func() {
+		tuples := getTuples(6)
+		s := `CREATE STREAM box AS SELECT ISTREAM [EVERY 3 TUPLES] int AS a FROM src [RANGE 2 TUPLES]`
+		plan, err := createDefaultSelectPlan(s, t)
+		So(err, ShouldBeNil)
+
+		Convey("When feeding it with tuples", func() {
+			output := [][]tuple.Map{}
+			for _, inTup := range tuples {
+				out, err := plan.Process(inTup)
+				So(err, ShouldBeNil)
+				output = append(output, out)
+			}
+
+			Convey("Then new items in state should be emitted", func() {
+				So(len(output), ShouldEqual, 6)
+				So(len(output[0]), ShouldEqual, 0) // skip
+				So(len(output[1]), ShouldEqual, 0) // skip
+				So(len(output[2]), ShouldEqual, 2)
+				So(output[2][0], ShouldResemble, tuple.Map{"a": tuple.Int(2)})
+				So(output[2][1], ShouldResemble, tuple.Map{"a": tuple.Int(3)})
+				So(len(output[3]), ShouldEqual, 0) // skip
+				So(len(output[4]), ShouldEqual, 0) // skip
+				So(len(output[5]), ShouldEqual, 2)
+				So(output[5][0], ShouldResemble, tuple.Map{"a": tuple.Int(5)})
+				So(output[5][1], ShouldResemble, tuple.Map{"a": tuple.Int(6)})
+			})
+
+		})
+	})
+
+	// DSTREAM [EVERY k TUPLES]/2 SECONDS window
+	Convey("Given a DSTREAM emitter selecting a constant and a 2 SECONDS window", t, func() {
+		tuples := getTuples(6)
+		s := `CREATE STREAM box AS SELECT DSTREAM [EVERY 2 TUPLES] 2 AS a FROM src [RANGE 2 SECONDS]`
+		plan, err := createDefaultSelectPlan(s, t)
+		So(err, ShouldBeNil)
+
+		Convey("When feeding it with tuples", func() {
+			output := [][]tuple.Map{}
+			for _, inTup := range tuples {
+				out, err := plan.Process(inTup)
+				So(err, ShouldBeNil)
+				output = append(output, out)
+			}
+
+			Convey("Then items dropped from state should be emitted", func() {
+				So(len(output), ShouldEqual, 6)
+				So(len(output[0]), ShouldEqual, 0) // skip
+				So(len(output[1]), ShouldEqual, 0)
+				So(len(output[2]), ShouldEqual, 0) // skip
+				So(len(output[3]), ShouldEqual, 0)
+				So(len(output[4]), ShouldEqual, 0) // skip
+				So(len(output[5]), ShouldEqual, 0)
+			})
+
+		})
+	})
+
+	Convey("Given a DSTREAM emitter selecting a column and a 2 SECONDS window", t, func() {
+		tuples := getTuples(6)
+		s := `CREATE STREAM box AS SELECT DSTREAM [EVERY 2 TUPLES] int AS a FROM src [RANGE 2 SECONDS]`
+		plan, err := createDefaultSelectPlan(s, t)
+		So(err, ShouldBeNil)
+
+		Convey("When feeding it with tuples", func() {
+			output := [][]tuple.Map{}
+			for _, inTup := range tuples {
+				out, err := plan.Process(inTup)
+				So(err, ShouldBeNil)
+				output = append(output, out)
+			}
+
+			Convey("Then items dropped from state should be emitted", func() {
+				So(len(output), ShouldEqual, 6)
+				So(len(output[0]), ShouldEqual, 0) // skip
+				So(len(output[1]), ShouldEqual, 0)
+				So(len(output[2]), ShouldEqual, 0) // skip
+				So(len(output[3]), ShouldEqual, 1)
+				So(output[3][0], ShouldResemble, tuple.Map{"a": tuple.Int(1)})
+				So(len(output[4]), ShouldEqual, 0) // skip
+				So(len(output[5]), ShouldEqual, 2)
+				So(output[5][0], ShouldResemble, tuple.Map{"a": tuple.Int(2)})
+				So(output[5][1], ShouldResemble, tuple.Map{"a": tuple.Int(3)})
+			})
+
+		})
+	})
+
+	Convey("Given a DSTREAM emitter selecting a column and a 2 SECONDS window", t, func() {
+		tuples := getTuples(8)
+		s := `CREATE STREAM box AS SELECT DSTREAM [EVERY 3 TUPLES] int AS a FROM src [RANGE 2 SECONDS]`
+		plan, err := createDefaultSelectPlan(s, t)
+		So(err, ShouldBeNil)
+
+		Convey("When feeding it with tuples", func() {
+			output := [][]tuple.Map{}
+			for _, inTup := range tuples {
+				out, err := plan.Process(inTup)
+				So(err, ShouldBeNil)
+				output = append(output, out)
+			}
+
+			Convey("Then items dropped from state should be emitted", func() {
+				So(len(output), ShouldEqual, 8)
+				So(len(output[0]), ShouldEqual, 0) // skip
+				So(len(output[1]), ShouldEqual, 0) // skip
+				So(len(output[2]), ShouldEqual, 0)
+				So(len(output[3]), ShouldEqual, 0) // skip
+				So(len(output[4]), ShouldEqual, 0) // skip
+				So(len(output[5]), ShouldEqual, 3)
+				So(output[5][0], ShouldResemble, tuple.Map{"a": tuple.Int(1)})
+				So(output[5][1], ShouldResemble, tuple.Map{"a": tuple.Int(2)})
+				So(output[5][2], ShouldResemble, tuple.Map{"a": tuple.Int(3)})
+				So(len(output[6]), ShouldEqual, 0) // skip
+				So(len(output[7]), ShouldEqual, 0) // skip
+			})
+
+		})
+	})
+
+	// DSTREAM [EVERY k TUPLES]/2 TUPLES window
+	Convey("Given a DSTREAM emitter selecting a constant and a 2 TUPLES window", t, func() {
+		tuples := getTuples(8)
+		s := `CREATE STREAM box AS SELECT DSTREAM [EVERY 2 TUPLES] 2 AS a FROM src [RANGE 2 TUPLES]`
+		plan, err := createDefaultSelectPlan(s, t)
+		So(err, ShouldBeNil)
+
+		Convey("When feeding it with tuples", func() {
+			output := [][]tuple.Map{}
+			for _, inTup := range tuples {
+				out, err := plan.Process(inTup)
+				So(err, ShouldBeNil)
+				output = append(output, out)
+			}
+
+			Convey("Then items dropped from state should be emitted", func() {
+				So(len(output), ShouldEqual, 8)
+				So(len(output[0]), ShouldEqual, 0)
+				So(len(output[1]), ShouldEqual, 0)
+				So(len(output[2]), ShouldEqual, 0)
+				So(len(output[3]), ShouldEqual, 0)
+				So(len(output[4]), ShouldEqual, 0)
+				So(len(output[5]), ShouldEqual, 0)
+				So(len(output[6]), ShouldEqual, 0)
+				So(len(output[7]), ShouldEqual, 0)
+			})
+
+		})
+	})
+
+	Convey("Given a DSTREAM emitter selecting a column and a 2 TUPLES window", t, func() {
+		tuples := getTuples(8)
+		s := `CREATE STREAM box AS SELECT DSTREAM [EVERY 2 TUPLES] int AS a FROM src [RANGE 2 TUPLES]`
+		plan, err := createDefaultSelectPlan(s, t)
+		So(err, ShouldBeNil)
+
+		Convey("When feeding it with tuples", func() {
+			output := [][]tuple.Map{}
+			for _, inTup := range tuples {
+				out, err := plan.Process(inTup)
+				So(err, ShouldBeNil)
+				output = append(output, out)
+			}
+
+			Convey("Then items dropped from state should be emitted", func() {
+				So(len(output), ShouldEqual, 8)
+				So(len(output[0]), ShouldEqual, 0) // skip
+				So(len(output[1]), ShouldEqual, 0)
+				So(len(output[2]), ShouldEqual, 0) // skip
+				So(len(output[3]), ShouldEqual, 2)
+				So(output[3][0], ShouldResemble, tuple.Map{"a": tuple.Int(1)})
+				So(output[3][1], ShouldResemble, tuple.Map{"a": tuple.Int(2)})
+				So(len(output[4]), ShouldEqual, 0) // skip
+				So(len(output[5]), ShouldEqual, 2)
+				So(output[5][0], ShouldResemble, tuple.Map{"a": tuple.Int(3)})
+				So(output[5][1], ShouldResemble, tuple.Map{"a": tuple.Int(4)})
+				So(len(output[6]), ShouldEqual, 0) // skip
+				So(len(output[7]), ShouldEqual, 2)
+				So(output[7][0], ShouldResemble, tuple.Map{"a": tuple.Int(5)})
+				So(output[7][1], ShouldResemble, tuple.Map{"a": tuple.Int(6)})
+			})
+
+		})
+	})
+
+	Convey("Given a DSTREAM emitter selecting a column and a 2 TUPLES window", t, func() {
+		tuples := getTuples(8)
+		s := `CREATE STREAM box AS SELECT DSTREAM [EVERY 3 TUPLES] int AS a FROM src [RANGE 2 TUPLES]`
+		plan, err := createDefaultSelectPlan(s, t)
+		So(err, ShouldBeNil)
+
+		Convey("When feeding it with tuples", func() {
+			output := [][]tuple.Map{}
+			for _, inTup := range tuples {
+				out, err := plan.Process(inTup)
+				So(err, ShouldBeNil)
+				output = append(output, out)
+			}
+
+			Convey("Then items dropped from state should be emitted", func() {
+				So(len(output), ShouldEqual, 8)
+				So(len(output[0]), ShouldEqual, 0) // skip
+				So(len(output[1]), ShouldEqual, 0) // skip
+				So(len(output[2]), ShouldEqual, 0)
+				So(len(output[3]), ShouldEqual, 0) // skip
+				So(len(output[4]), ShouldEqual, 0) // skip
+				So(len(output[5]), ShouldEqual, 2)
+				So(output[5][0], ShouldResemble, tuple.Map{"a": tuple.Int(2)})
+				So(output[5][1], ShouldResemble, tuple.Map{"a": tuple.Int(3)})
+				So(len(output[6]), ShouldEqual, 0) // skip
+				So(len(output[7]), ShouldEqual, 0) // skip
+			})
 		})
 	})
 }
@@ -1019,6 +1589,292 @@ func TestDefaultSelectExecutionPlanJoin(t *testing.T) {
 					}
 				})
 			}
+		})
+	})
+
+	Convey("Given a JOIN selecting from left and right with different RSTREAM emitters and ranges", t, func() {
+		tuples := getTuples(12)
+		// rearrange the tuples
+		for i, t := range tuples {
+			if i%2 == 0 {
+				t.InputName = "src1"
+				t.Data["a"] = tuple.Int(i/2 + 1)
+			} else {
+				t.InputName = "src2"
+				t.Data["b"] = tuple.Int(i/2 + 1)
+			}
+		}
+		s := `CREATE STREAM box AS SELECT
+		RSTREAM [EVERY 2 TUPLES IN src1, 3 TUPLES IN src2]
+			x:a AS l, y:b AS r
+		FROM src1 [RANGE 3 TUPLES] AS x, src2 [RANGE 2 TUPLES] AS y`
+
+		plan, err := createDefaultSelectPlan(s, t)
+		So(err, ShouldBeNil)
+
+		Convey("When feeding it with tuples", func() {
+			output := [][]tuple.Map{}
+			for _, inTup := range tuples {
+				out, err := plan.Process(inTup)
+				So(err, ShouldBeNil)
+				output = append(output, out)
+			}
+
+			Convey("Then joined values should appear", func() {
+				So(len(output), ShouldEqual, 12)
+				So(len(output[0]), ShouldEqual, 0) // skip
+				So(len(output[1]), ShouldEqual, 0) // skip
+				So(len(output[2]), ShouldEqual, 2)
+				So(output[2], ShouldResemble, []tuple.Map{
+					{"l": tuple.Int(1), "r": tuple.Int(1)},
+					{"l": tuple.Int(2), "r": tuple.Int(1)},
+				})
+				So(len(output[3]), ShouldEqual, 0) // skip
+				So(len(output[4]), ShouldEqual, 0) // skip
+				So(len(output[5]), ShouldEqual, 6)
+				So(output[5], ShouldResemble, []tuple.Map{
+					{"l": tuple.Int(1), "r": tuple.Int(2)},
+					{"l": tuple.Int(1), "r": tuple.Int(3)},
+					{"l": tuple.Int(2), "r": tuple.Int(2)},
+					{"l": tuple.Int(2), "r": tuple.Int(3)},
+					{"l": tuple.Int(3), "r": tuple.Int(2)},
+					{"l": tuple.Int(3), "r": tuple.Int(3)},
+				})
+				So(len(output[6]), ShouldEqual, 6)
+				So(output[6], ShouldResemble, []tuple.Map{
+					{"l": tuple.Int(2), "r": tuple.Int(2)},
+					{"l": tuple.Int(2), "r": tuple.Int(3)},
+					{"l": tuple.Int(3), "r": tuple.Int(2)},
+					{"l": tuple.Int(3), "r": tuple.Int(3)},
+					{"l": tuple.Int(4), "r": tuple.Int(2)},
+					{"l": tuple.Int(4), "r": tuple.Int(3)},
+				})
+				So(len(output[7]), ShouldEqual, 0) // skip
+				So(len(output[8]), ShouldEqual, 0) // skip
+				So(len(output[9]), ShouldEqual, 0) // skip
+				So(len(output[10]), ShouldEqual, 6)
+				So(output[10], ShouldResemble, []tuple.Map{
+					{"l": tuple.Int(4), "r": tuple.Int(4)},
+					{"l": tuple.Int(4), "r": tuple.Int(5)},
+					{"l": tuple.Int(5), "r": tuple.Int(4)},
+					{"l": tuple.Int(5), "r": tuple.Int(5)},
+					{"l": tuple.Int(6), "r": tuple.Int(4)},
+					{"l": tuple.Int(6), "r": tuple.Int(5)},
+				})
+				So(len(output[11]), ShouldEqual, 6)
+				So(output[11], ShouldResemble, []tuple.Map{
+					{"l": tuple.Int(4), "r": tuple.Int(5)},
+					{"l": tuple.Int(4), "r": tuple.Int(6)},
+					{"l": tuple.Int(5), "r": tuple.Int(5)},
+					{"l": tuple.Int(5), "r": tuple.Int(6)},
+					{"l": tuple.Int(6), "r": tuple.Int(5)},
+					{"l": tuple.Int(6), "r": tuple.Int(6)},
+				})
+			})
+		})
+	})
+
+	Convey("Given a JOIN selecting from left and right with different RSTREAM emitters and ranges", t, func() {
+		tuples := getTuples(12)
+		// rearrange the tuples
+		for i, t := range tuples {
+			if i%2 == 0 {
+				t.InputName = "src1"
+				t.Data["a"] = tuple.Int(i/2 + 1)
+			} else {
+				t.InputName = "src2"
+				t.Data["b"] = tuple.Int(i/2 + 1)
+			}
+		}
+		s := `CREATE STREAM box AS SELECT
+		RSTREAM [EVERY 3 TUPLES IN src2]
+			x:a AS l, y:b AS r
+		FROM src1 [RANGE 3 TUPLES] AS x, src2 [RANGE 2 TUPLES] AS y`
+
+		plan, err := createDefaultSelectPlan(s, t)
+		So(err, ShouldBeNil)
+
+		Convey("When feeding it with tuples", func() {
+			output := [][]tuple.Map{}
+			for _, inTup := range tuples {
+				out, err := plan.Process(inTup)
+				So(err, ShouldBeNil)
+				output = append(output, out)
+			}
+
+			Convey("Then joined values should appear", func() {
+				So(len(output), ShouldEqual, 12)
+				So(len(output[0]), ShouldEqual, 0) // skip
+				So(len(output[1]), ShouldEqual, 0) // skip
+				So(len(output[2]), ShouldEqual, 0) // skip
+				So(len(output[3]), ShouldEqual, 0) // skip
+				So(len(output[4]), ShouldEqual, 0) // skip
+				So(len(output[5]), ShouldEqual, 6)
+				So(output[5], ShouldResemble, []tuple.Map{
+					{"l": tuple.Int(1), "r": tuple.Int(2)},
+					{"l": tuple.Int(1), "r": tuple.Int(3)},
+					{"l": tuple.Int(2), "r": tuple.Int(2)},
+					{"l": tuple.Int(2), "r": tuple.Int(3)},
+					{"l": tuple.Int(3), "r": tuple.Int(2)},
+					{"l": tuple.Int(3), "r": tuple.Int(3)},
+				})
+				So(len(output[6]), ShouldEqual, 0)  // skip
+				So(len(output[7]), ShouldEqual, 0)  // skip
+				So(len(output[8]), ShouldEqual, 0)  // skip
+				So(len(output[9]), ShouldEqual, 0)  // skip
+				So(len(output[10]), ShouldEqual, 0) // skip
+				So(len(output[11]), ShouldEqual, 6)
+				So(output[11], ShouldResemble, []tuple.Map{
+					{"l": tuple.Int(4), "r": tuple.Int(5)},
+					{"l": tuple.Int(4), "r": tuple.Int(6)},
+					{"l": tuple.Int(5), "r": tuple.Int(5)},
+					{"l": tuple.Int(5), "r": tuple.Int(6)},
+					{"l": tuple.Int(6), "r": tuple.Int(5)},
+					{"l": tuple.Int(6), "r": tuple.Int(6)},
+				})
+			})
+		})
+	})
+
+	Convey("Given a JOIN selecting from left and right with different ISTREAM emitters and ranges", t, func() {
+		tuples := getTuples(12)
+		// rearrange the tuples
+		for i, t := range tuples {
+			if i%2 == 0 {
+				t.InputName = "src1"
+				t.Data["a"] = tuple.Int(i/2 + 1)
+			} else {
+				t.InputName = "src2"
+				t.Data["b"] = tuple.Int(i/2 + 1)
+			}
+		}
+		s := `CREATE STREAM box AS SELECT
+		ISTREAM [EVERY 2 TUPLES IN src1, 3 TUPLES IN src2]
+			x:a AS l, y:b AS r
+		FROM src1 [RANGE 3 TUPLES] AS x, src2 [RANGE 2 TUPLES] AS y`
+
+		plan, err := createDefaultSelectPlan(s, t)
+		So(err, ShouldBeNil)
+
+		Convey("When feeding it with tuples", func() {
+			output := [][]tuple.Map{}
+			for _, inTup := range tuples {
+				out, err := plan.Process(inTup)
+				So(err, ShouldBeNil)
+				output = append(output, out)
+			}
+
+			Convey("Then joined values should appear", func() {
+				So(len(output), ShouldEqual, 12)
+				So(len(output[0]), ShouldEqual, 0) // skip
+				So(len(output[1]), ShouldEqual, 0) // skip
+				So(len(output[2]), ShouldEqual, 2)
+				So(output[2], ShouldResemble, []tuple.Map{
+					{"l": tuple.Int(1), "r": tuple.Int(1)},
+					{"l": tuple.Int(2), "r": tuple.Int(1)},
+				})
+				So(len(output[3]), ShouldEqual, 0) // skip
+				So(len(output[4]), ShouldEqual, 0) // skip
+				So(len(output[5]), ShouldEqual, 6)
+				So(output[5], ShouldResemble, []tuple.Map{
+					{"l": tuple.Int(1), "r": tuple.Int(2)},
+					{"l": tuple.Int(1), "r": tuple.Int(3)},
+					{"l": tuple.Int(2), "r": tuple.Int(2)},
+					{"l": tuple.Int(2), "r": tuple.Int(3)},
+					{"l": tuple.Int(3), "r": tuple.Int(2)},
+					{"l": tuple.Int(3), "r": tuple.Int(3)},
+				})
+				So(len(output[6]), ShouldEqual, 2)
+				So(output[6], ShouldResemble, []tuple.Map{
+					{"l": tuple.Int(4), "r": tuple.Int(2)},
+					{"l": tuple.Int(4), "r": tuple.Int(3)},
+				})
+				So(len(output[7]), ShouldEqual, 0) // skip
+				So(len(output[8]), ShouldEqual, 0) // skip
+				So(len(output[9]), ShouldEqual, 0) // skip
+				So(len(output[10]), ShouldEqual, 6)
+				So(output[10], ShouldResemble, []tuple.Map{
+					{"l": tuple.Int(4), "r": tuple.Int(4)},
+					{"l": tuple.Int(4), "r": tuple.Int(5)},
+					{"l": tuple.Int(5), "r": tuple.Int(4)},
+					{"l": tuple.Int(5), "r": tuple.Int(5)},
+					{"l": tuple.Int(6), "r": tuple.Int(4)},
+					{"l": tuple.Int(6), "r": tuple.Int(5)},
+				})
+				So(len(output[11]), ShouldEqual, 3)
+				So(output[11], ShouldResemble, []tuple.Map{
+					{"l": tuple.Int(4), "r": tuple.Int(6)},
+					{"l": tuple.Int(5), "r": tuple.Int(6)},
+					{"l": tuple.Int(6), "r": tuple.Int(6)},
+				})
+			})
+		})
+	})
+
+	Convey("Given a JOIN selecting from left and right with different DSTREAM emitters and ranges", t, func() {
+		tuples := getTuples(12)
+		// rearrange the tuples
+		for i, t := range tuples {
+			if i%2 == 0 {
+				t.InputName = "src1"
+				t.Data["a"] = tuple.Int(i/2 + 1)
+			} else {
+				t.InputName = "src2"
+				t.Data["b"] = tuple.Int(i/2 + 1)
+			}
+		}
+		s := `CREATE STREAM box AS SELECT
+		DSTREAM [EVERY 2 TUPLES IN src1, 3 TUPLES IN src2]
+			x:a AS l, y:b AS r
+		FROM src1 [RANGE 3 TUPLES] AS x, src2 [RANGE 2 TUPLES] AS y`
+
+		plan, err := createDefaultSelectPlan(s, t)
+		So(err, ShouldBeNil)
+
+		Convey("When feeding it with tuples", func() {
+			output := [][]tuple.Map{}
+			for _, inTup := range tuples {
+				out, err := plan.Process(inTup)
+				So(err, ShouldBeNil)
+				output = append(output, out)
+			}
+
+			Convey("Then joined values should appear", func() {
+				So(len(output), ShouldEqual, 12)
+				So(len(output[0]), ShouldEqual, 0) // skip
+				So(len(output[1]), ShouldEqual, 0) // skip
+				So(len(output[2]), ShouldEqual, 0)
+				So(len(output[3]), ShouldEqual, 0) // skip
+				So(len(output[4]), ShouldEqual, 0) // skip
+				So(len(output[5]), ShouldEqual, 2)
+				So(output[5], ShouldResemble, []tuple.Map{
+					{"l": tuple.Int(1), "r": tuple.Int(1)},
+					{"l": tuple.Int(2), "r": tuple.Int(1)},
+				})
+				So(len(output[6]), ShouldEqual, 2)
+				So(output[6], ShouldResemble, []tuple.Map{
+					{"l": tuple.Int(1), "r": tuple.Int(2)},
+					{"l": tuple.Int(1), "r": tuple.Int(3)},
+				})
+				So(len(output[7]), ShouldEqual, 0) // skip
+				So(len(output[8]), ShouldEqual, 0) // skip
+				So(len(output[9]), ShouldEqual, 0) // skip
+				So(len(output[10]), ShouldEqual, 6)
+				So(output[10], ShouldResemble, []tuple.Map{
+					{"l": tuple.Int(2), "r": tuple.Int(2)},
+					{"l": tuple.Int(2), "r": tuple.Int(3)},
+					{"l": tuple.Int(3), "r": tuple.Int(2)},
+					{"l": tuple.Int(3), "r": tuple.Int(3)},
+					{"l": tuple.Int(4), "r": tuple.Int(2)},
+					{"l": tuple.Int(4), "r": tuple.Int(3)},
+				})
+				So(len(output[11]), ShouldEqual, 3)
+				So(output[11], ShouldResemble, []tuple.Map{
+					{"l": tuple.Int(4), "r": tuple.Int(4)},
+					{"l": tuple.Int(5), "r": tuple.Int(4)},
+					{"l": tuple.Int(6), "r": tuple.Int(4)},
+				})
+			})
 		})
 	})
 

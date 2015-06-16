@@ -11,7 +11,9 @@ import (
 
 type defaultSelectExecutionPlan struct {
 	commonExecutionPlan
-	emitter parser.Emitter
+	emitterType  parser.Emitter
+	emitterRules map[string]parser.IntervalAST
+	emitCounters map[string]int64
 	// store name->alias mapping
 	relations []parser.AliasedStreamWindowAST
 	// buffers holds data of a single stream window, keyed by the
@@ -79,16 +81,33 @@ func NewDefaultSelectExecutionPlan(lp *LogicalPlan, reg udf.FunctionRegistry) (E
 			tuples, rangeValue, rangeUnit,
 		}
 	}
+	emitterRules := make(map[string]parser.IntervalAST, len(lp.EmitIntervals))
+	emitCounters := make(map[string]int64, len(lp.EmitIntervals))
+	if len(lp.EmitIntervals) == 0 {
+		// set the default if not `EVERY ...` was given
+		emitterRules["*"] = parser.IntervalAST{parser.NumericLiteral{1}, parser.Tuples}
+		emitCounters["*"] = 0
+	}
+	for _, emitRule := range lp.EmitIntervals {
+		// TODO implement time-based emitter as well
+		if emitRule.Unit == parser.Seconds {
+			return nil, fmt.Errorf("time-based emitter not implemented")
+		}
+		emitterRules[emitRule.Name] = emitRule.IntervalAST
+		emitCounters["*"] = 0
+	}
 	return &defaultSelectExecutionPlan{
 		commonExecutionPlan: commonExecutionPlan{
 			projections: projs,
 			filter:      filter,
 		},
-		emitter:     lp.EmitterType,
-		relations:   lp.Relations,
-		buffers:     buffers,
-		curResults:  []tuple.Map{},
-		prevResults: []tuple.Map{},
+		emitterType:  lp.EmitterType,
+		emitterRules: emitterRules,
+		emitCounters: emitCounters,
+		relations:    lp.Relations,
+		buffers:      buffers,
+		curResults:   []tuple.Map{},
+		prevResults:  []tuple.Map{},
 	}, nil
 }
 
@@ -102,17 +121,20 @@ func (ep *defaultSelectExecutionPlan) Process(input *tuple.Tuple) ([]tuple.Map, 
 		return nil, err
 	}
 
-	// relation-to-relation:
-	// performs a SELECT query on buffer and writes result
-	// to temporary table
-	if err := ep.performQueryOnBuffer(); err != nil {
-		return nil, err
-	}
+	if ep.shouldEmitNow(input) {
+		// relation-to-relation:
+		// performs a SELECT query on buffer and writes result
+		// to temporary table
+		if err := ep.performQueryOnBuffer(); err != nil {
+			return nil, err
+		}
 
-	// relation-to-stream:
-	// compute new/old/all result data and return it
-	// TODO use an iterator/generator pattern instead
-	return ep.computeResultTuples()
+		// relation-to-stream:
+		// compute new/old/all result data and return it
+		// TODO use an iterator/generator pattern instead
+		return ep.computeResultTuples()
+	}
+	return nil, nil
 }
 
 // addTupleToBuffer appends the received tuple to all internal buffers that
@@ -191,6 +213,38 @@ func (ep *defaultSelectExecutionPlan) removeOutdatedTuplesFromBuffer(curTupTime 
 	}
 
 	return nil
+}
+
+// shouldEmitNow returns true if the input tuple should trigger
+// computation of output values.
+func (ep *defaultSelectExecutionPlan) shouldEmitNow(t *tuple.Tuple) bool {
+	// first check if we have a stream-independent rule
+	// (e.g., `RSTREAM` or `RSTREAM [EVERY 2 TUPLES]`)
+	if interval, ok := ep.emitterRules["*"]; ok {
+		counter := ep.emitCounters["*"]
+		nextCounter := counter + 1
+		if nextCounter%interval.Value == 0 {
+			ep.emitCounters["*"] = 0
+			return true
+		}
+		ep.emitCounters["*"] = nextCounter
+		return false
+	}
+	// if there was no such rule, check if there is a
+	// rule for the input stream the tuple came from
+	if interval, ok := ep.emitterRules[t.InputName]; ok {
+		counter := ep.emitCounters[t.InputName]
+		nextCounter := counter + 1
+		if nextCounter%interval.Value == 0 {
+			ep.emitCounters[t.InputName] = 0
+			return true
+		}
+		ep.emitCounters[t.InputName] = nextCounter
+		return false
+	}
+	// there is no general rule and no rule for the input
+	// stream of the tuple, so don't do anything
+	return false
 }
 
 // performQueryOnBuffer executes a SELECT query on the data of the tuples
@@ -315,12 +369,12 @@ func (ep *defaultSelectExecutionPlan) performQueryOnBuffer() error {
 func (ep *defaultSelectExecutionPlan) computeResultTuples() ([]tuple.Map, error) {
 	// TODO turn this into an iterator/generator pattern
 	var output []tuple.Map
-	if ep.emitter == parser.Rstream {
+	if ep.emitterType == parser.Rstream {
 		// emit all tuples
 		for _, res := range ep.curResults {
 			output = append(output, res)
 		}
-	} else if ep.emitter == parser.Istream {
+	} else if ep.emitterType == parser.Istream {
 		// emit only new tuples
 		for _, res := range ep.curResults {
 			// check if this tuple is already present in the previous results
@@ -340,7 +394,7 @@ func (ep *defaultSelectExecutionPlan) computeResultTuples() ([]tuple.Map, error)
 			// if we arrive here, `res` is not contained in prevResults
 			output = append(output, res)
 		}
-	} else if ep.emitter == parser.Dstream {
+	} else if ep.emitterType == parser.Dstream {
 		// emit only old tuples
 		for _, prevRes := range ep.prevResults {
 			// check if this tuple is present in the current results
@@ -361,6 +415,8 @@ func (ep *defaultSelectExecutionPlan) computeResultTuples() ([]tuple.Map, error)
 			// if we arrive here, `prevRes` is not contained in curResults
 			output = append(output, prevRes)
 		}
+	} else {
+		return nil, fmt.Errorf("emitter type '%s' not implemented", ep.emitterType)
 	}
 	return output, nil
 }
