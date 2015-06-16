@@ -25,7 +25,7 @@ type bqlPeg Peg {
 ##### MAIN STATEMENTS #####
 ###########################
 
-Statements <- sp ((Statement eq ';' .*) / Statement) !.
+Statements <- sp ((Statement sp ';' .*) / Statement) !.
 
 Statement <- (SelectStmt / CreateStreamAsSelectStmt / CreateSourceStmt /
              CreateStreamFromSourceStmt / CreateStreamFromSourceExtStmt /
