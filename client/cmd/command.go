@@ -25,5 +25,5 @@ type Command interface {
 	// Returns error when the input commands are invalid.
 	Input(input string) (cmdInputStatusType, error)
 	// Eval resolve input command to convert URL and requestType.
-	Eval() (requestType, string, interface{})
+	Eval() (RequestType, string, interface{})
 }

@@ -10,23 +10,26 @@ import (
 	"time"
 )
 
-type requestType int
+type RequestType int
 
 const (
-	getRequst requestType = iota
-	postRequest
-	putRequest
+	GetRequest RequestType = iota
+	PostRequest
+	PutRequest
+	DeleteRequest
 	otherRequest
 )
 
-func (r requestType) String() string {
+func (r RequestType) String() string {
 	switch r {
-	case getRequst:
+	case GetRequest:
 		return "GET"
-	case postRequest:
+	case PostRequest:
 		return "POST"
-	case putRequest:
+	case PutRequest:
 		return "PUT"
+	case DeleteRequest:
+		return "DELETE"
 	case otherRequest:
 		return "OTHER"
 	default:
@@ -34,56 +37,62 @@ func (r requestType) String() string {
 	}
 }
 
-func request(reqType requestType, uri string, bodyJSON interface{}) {
+func Request(reqType RequestType, uri string, bodyJSON interface{}) []byte {
 	if reqType == otherRequest {
-		return
+		return []byte{}
 	}
 
-	client := &http.Client{
-		Timeout: time.Duration(10 * time.Second),
+	req, err := CreateRequest(reqType, uri, bodyJSON)
+	if err != nil {
+		fmt.Println(err)
+		return []byte{}
 	}
+
 	fmt.Println("URI: " + uri)
-	rawRequest(reqType, client, uri, bodyJSON)
+	return rawRequest(req)
 }
 
-func rawRequest(reqType requestType, client *http.Client, uri string,
-	bodyJSON interface{}) {
+func CreateRequest(reqType RequestType, uri string, bodyJSON interface{}) (*http.Request, error) {
 	var body io.Reader
 	if bodyJSON == nil {
 		body = nil
 	} else {
 		bd, err := json.Marshal(bodyJSON)
 		if err != nil {
-			fmt.Println(err)
-			return
+			return nil, err
 		}
 		body = bytes.NewReader(bd)
 	}
 
 	req, err := http.NewRequest(reqType.String(), uri, body)
 	if err != nil {
-		fmt.Println(err)
-		return
+		return nil, err
 	}
-
 	req.Header.Add("Content-Type", "application/json")
+	return req, nil
+}
 
+func rawRequest(req *http.Request) []byte {
+	client := &http.Client{
+		Timeout: time.Duration(10 * time.Second),
+	}
 	resp, err := client.Do(req)
 	if err != nil {
 		fmt.Println(err)
-		return
+		return []byte{}
 	}
 	defer resp.Body.Close()
 
-	execute(resp)
+	return execute(resp)
 }
 
-func execute(resp *http.Response) {
+func execute(resp *http.Response) []byte {
 	// get response body // TODO get JSON
 	b, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		fmt.Println(err)
-		return
+		return []byte{}
 	}
-	fmt.Println(string(b))
+	fmt.Println(string(b)) // for debug
+	return b
 }

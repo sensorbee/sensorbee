@@ -45,8 +45,8 @@ func (t *topologiesCmd) Input(input string) (cmdInputStatusType, error) {
 	return preparedCMD, nil
 }
 
-func (t *topologiesCmd) Eval() (requestType, string, interface{}) {
-	return getRequst, t.uri, nil
+func (t *topologiesCmd) Eval() (RequestType, string, interface{}) {
+	return GetRequest, t.uri, nil
 }
 
 type changeTopologyCmd struct {
@@ -71,7 +71,7 @@ func (ct *changeTopologyCmd) Input(input string) (cmdInputStatusType, error) {
 	return preparedCMD, nil
 }
 
-func (ct *changeTopologyCmd) Eval() (requestType, string, interface{}) {
+func (ct *changeTopologyCmd) Eval() (RequestType, string, interface{}) {
 	currentTopology.name = ct.name
 	return otherRequest, "", nil
 }
@@ -104,8 +104,8 @@ func (t *topologyCmd) Input(input string) (cmdInputStatusType, error) {
 	return preparedCMD, nil
 }
 
-func (t *topologyCmd) Eval() (requestType, string, interface{}) {
-	return getRequst, t.uri, nil
+func (t *topologyCmd) Eval() (RequestType, string, interface{}) {
+	return GetRequest, t.uri, nil
 }
 
 type topologyStopCmd struct {
@@ -127,11 +127,11 @@ func (be *topologyStopCmd) Input(input string) (cmdInputStatusType, error) {
 }
 
 // Eval operates topology stop.
-func (be *topologyStopCmd) Eval() (requestType, string, interface{}) {
+func (be *topologyStopCmd) Eval() (RequestType, string, interface{}) {
 	uri := topologiesHeader + "/" + currentTopology.name
 	m := map[string]interface{}{}
 	m["state"] = "stop"
-	return putRequest, uri, &m
+	return PutRequest, uri, &m
 }
 
 type bqlCmd struct {
@@ -162,7 +162,7 @@ func (b *bqlCmd) Input(input string) (cmdInputStatusType, error) {
 }
 
 // Eval resolves input command to BQL statement
-func (b *bqlCmd) Eval() (requestType, string, interface{}) {
+func (b *bqlCmd) Eval() (RequestType, string, interface{}) {
 	// flush buffer and get complete statement
 	stmt := strings.Replace(b.buffer, "\n", " ", -1)
 	stmt = stmt[:len(stmt)-1]
@@ -173,5 +173,5 @@ func (b *bqlCmd) Eval() (requestType, string, interface{}) {
 	uri := topologiesHeader + "/" + currentTopology.name + "/queries"
 	m := map[string]interface{}{}
 	m["queries"] = stmt
-	return postRequest, uri, &m
+	return PostRequest, uri, &m
 }

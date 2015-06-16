@@ -13,9 +13,9 @@ func SetUpAPIRouter(prefix string, router *web.Router) {
 }
 
 func SetUpAPIRouterWithCustomRoute(prefix string, router *web.Router, route func(prefix string, r *web.Router)) {
-	root := router.Subrouter(APIContext{}, "/api/v1") // TODO need to set version like hawk??
+	root := router.Subrouter(APIContext{}, "/api/v1")
 
-	SetUpBQLRouter(prefix, root)
+	SetUpTopologiesRouter(prefix, root)
 
 	if route != nil {
 		route(prefix, root)
