@@ -108,7 +108,7 @@ func TestAssembleSelect(t *testing.T) {
 
 					Convey("And it contains the previously pushed data", func() {
 						comp := top.comp.(SelectStmt)
-						So(comp.EmitterType, ShouldEqual, Rstream)
+						So(comp.EmitterType, ShouldEqual, UnspecifiedEmitter)
 						So(len(comp.Projections), ShouldEqual, 2)
 						So(comp.Projections[0], ShouldResemble, RowValue{"", "a"})
 						So(comp.Projections[1], ShouldResemble, RowValue{"", "b"})
@@ -247,8 +247,8 @@ func TestAssembleSelect(t *testing.T) {
 				So(comp.GroupList[1], ShouldResemble, RowValue{"", "g"})
 				So(comp.Having, ShouldResemble, RowValue{"", "h"})
 
-				Convey("And the emitter should be set to RSTREAM", func() {
-					So(comp.EmitterType, ShouldEqual, Rstream)
+				Convey("And the emitter should be set to UNSPECIFIED", func() {
+					So(comp.EmitterType, ShouldEqual, UnspecifiedEmitter)
 				})
 			})
 		})
