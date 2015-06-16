@@ -1,10 +1,13 @@
 package api
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/gocraft/web"
+	"io/ioutil"
 	"pfi/sensorbee/sensorbee/bql"
 	"pfi/sensorbee/sensorbee/core"
+	"strconv"
 )
 
 var (
@@ -15,17 +18,30 @@ var (
 
 type TopologiesContext struct {
 	*APIContext
-	name string
+	name   string
+	nodeId int64
 }
 
 func SetUpBQLRouter(prefix string, router *web.Router) {
 	root := router.Subrouter(TopologiesContext{}, "/topologies")
 	root.Middleware((*TopologiesContext).extractName)
+	root.Middleware((*TopologiesContext).extractNodeId)
 	// TODO validation (root can validate with regex like "\w+")
 	root.Get("/", (*TopologiesContext).Index)
 	root.Get(`/:name`, (*TopologiesContext).Show)
 	root.Put(`/:name`, (*TopologiesContext).Update)
 	root.Post(`/:name/queries`, (*TopologiesContext).Queries)
+
+	// node controller TODO separate to another file
+	root.Get(`/:name/sources/:id`, (*TopologiesContext).ShowSources)
+	root.Get(`/:name/streams/:id`, (*TopologiesContext).ShowStreams)
+	root.Get(`/:name/sinks/:id`, (*TopologiesContext).ShowSinks)
+	root.Put(`/:name/sources/:id`, (*TopologiesContext).UpdateSources)
+	root.Put(`/:name/streams/:id`, (*TopologiesContext).UpdateStreams)
+	root.Put(`/:name/sinks/:id`, (*TopologiesContext).UpdateSinks)
+	root.Delete(`/:name/sources/:id`, (*TopologiesContext).DeleteSources)
+	root.Delete(`/:name/streams/:id`, (*TopologiesContext).DeleteStreams)
+	root.Delete(`/:name/sinks/:id`, (*TopologiesContext).DeleteSinks)
 }
 
 func (tc *TopologiesContext) extractStringFromPath(key string, target *string) error {
@@ -40,6 +56,27 @@ func (tc *TopologiesContext) extractStringFromPath(key string, target *string) e
 
 func (tc *TopologiesContext) extractName(rw web.ResponseWriter, req *web.Request, next web.NextMiddlewareFunc) {
 	if err := tc.extractStringFromPath("name", &tc.name); err != nil {
+		return
+	}
+	next(rw, req)
+}
+
+func (tc *TopologiesContext) extractIntFromPath(key string, target *int64) error {
+	i, ok := tc.request.PathParams[key]
+	if !ok {
+		return nil
+	}
+
+	id, err := strconv.ParseInt(i, 10, 64)
+	if err != nil {
+		return nil
+	}
+	*target = id
+	return nil
+}
+
+func (tc *TopologiesContext) extractNodeId(rw web.ResponseWriter, req *web.Request, next web.NextMiddlewareFunc) {
+	if err := tc.extractIntFromPath("id", &tc.nodeId); err != nil {
 		return
 	}
 	next(rw, req)
@@ -83,24 +120,38 @@ func (tc *TopologiesContext) Update(rw web.ResponseWriter, req *web.Request) {
 		return
 	}
 
-	s, ok := tc.request.PathParams["state"]
-	if !ok {
+	// TODO should use ParseJSONFromRequestBoty (util.go)
+	b, err := ioutil.ReadAll(req.Body)
+	if err != nil {
 		tc.RenderJSON(&map[string]interface{}{
 			"name":   tc.name,
-			"status": "cannot get updating operation",
+			"status": err.Error(),
+		})
+		return
+	}
+	m := map[string]interface{}{}
+	err = json.Unmarshal(b, &m)
+	if err != nil {
+		tc.RenderJSON(&map[string]interface{}{
+			"name":       tc.name,
+			"query byte": string(b),
+			"status":     err.Error(),
 		})
 		return
 	}
 
+	state, ok := m["state"].(string)
+	if !ok {
+		state = ""
+	}
 	ctx := topologyContextMap[tc.name]
-	var err error
-	switch s {
+	switch state {
 	case "stop":
 		err = tp.Stop(&ctx)
 	case "pause":
 	case "resume":
 	default:
-		err = fmt.Errorf("cannot update the state: %v", s)
+		err = fmt.Errorf("cannot update the state: %v", state)
 	}
 	if err != nil {
 		tc.RenderJSON(&map[string]interface{}{
@@ -110,17 +161,36 @@ func (tc *TopologiesContext) Update(rw web.ResponseWriter, req *web.Request) {
 	} else {
 		tc.RenderJSON(&map[string]interface{}{
 			"name":  tc.name,
-			"state": s,
+			"state": state,
 		})
 	}
 }
 
 func (tc *TopologiesContext) Queries(rw web.ResponseWriter, req *web.Request) {
-	queries, ok := tc.request.PathParams["queries"]
-	if !ok {
+	// TODO should use ParseJSONFromRequestBoty (util.go)
+	b, err := ioutil.ReadAll(req.Body)
+	if err != nil {
 		tc.RenderJSON(&map[string]interface{}{
 			"name":   tc.name,
-			"status": "cannot support to execute empty query",
+			"status": err.Error(),
+		})
+		return
+	}
+	m := map[string]interface{}{}
+	err = json.Unmarshal(b, &m)
+	if err != nil {
+		tc.RenderJSON(&map[string]interface{}{
+			"name":       tc.name,
+			"query byte": string(b),
+			"status":     err.Error(),
+		})
+		return
+	}
+	queries, ok := m["queries"].(string)
+	if !ok || queries == "" {
+		tc.RenderJSON(&map[string]interface{}{
+			"name":   tc.name,
+			"status": "not support to execute empty query",
 		})
 		return
 	}
@@ -149,7 +219,7 @@ func (tc *TopologiesContext) Queries(rw web.ResponseWriter, req *web.Request) {
 		ctx = topologyContextMap[tc.name]
 	}
 
-	err := tb.BQL(queries)
+	err = tb.BQL(queries)
 	if err != nil {
 		tc.RenderJSON(&map[string]interface{}{
 			"name":   tc.name,
@@ -180,4 +250,76 @@ func (tc *TopologiesContext) Queries(rw web.ResponseWriter, req *web.Request) {
 			"queries": queries,
 		})
 	}
+}
+
+func (tc *TopologiesContext) ShowSources(rw web.ResponseWriter, req *web.Request) {
+	tc.RenderJSON(&map[string]interface{}{
+		"name":    tc.name,
+		"node id": tc.nodeId,
+		"status":  "under the construction",
+	})
+}
+
+func (tc *TopologiesContext) ShowStreams(rw web.ResponseWriter, req *web.Request) {
+	tc.RenderJSON(&map[string]interface{}{
+		"name":    tc.name,
+		"node id": tc.nodeId,
+		"status":  "under the construction",
+	})
+}
+
+func (tc *TopologiesContext) ShowSinks(rw web.ResponseWriter, req *web.Request) {
+	tc.RenderJSON(&map[string]interface{}{
+		"name":    tc.name,
+		"node id": tc.nodeId,
+		"status":  "under the construction",
+	})
+}
+
+func (tc *TopologiesContext) UpdateSources(rw web.ResponseWriter, req *web.Request) {
+	tc.RenderJSON(&map[string]interface{}{
+		"name":    tc.name,
+		"node id": tc.nodeId,
+		"status":  "under the construction",
+	})
+}
+
+func (tc *TopologiesContext) UpdateStreams(rw web.ResponseWriter, req *web.Request) {
+	tc.RenderJSON(&map[string]interface{}{
+		"name":    tc.name,
+		"node id": tc.nodeId,
+		"status":  "under the construction",
+	})
+}
+
+func (tc *TopologiesContext) UpdateSinks(rw web.ResponseWriter, req *web.Request) {
+	tc.RenderJSON(&map[string]interface{}{
+		"name":    tc.name,
+		"node id": tc.nodeId,
+		"status":  "under the construction",
+	})
+}
+
+func (tc *TopologiesContext) DeleteSources(rw web.ResponseWriter, req *web.Request) {
+	tc.RenderJSON(&map[string]interface{}{
+		"name":    tc.name,
+		"node id": tc.nodeId,
+		"status":  "under the construction",
+	})
+}
+
+func (tc *TopologiesContext) DeleteStreams(rw web.ResponseWriter, req *web.Request) {
+	tc.RenderJSON(&map[string]interface{}{
+		"name":    tc.name,
+		"node id": tc.nodeId,
+		"status":  "under the construction",
+	})
+}
+
+func (tc *TopologiesContext) DeleteSinks(rw web.ResponseWriter, req *web.Request) {
+	tc.RenderJSON(&map[string]interface{}{
+		"name":    tc.name,
+		"node id": tc.nodeId,
+		"status":  "under the construction",
+	})
 }

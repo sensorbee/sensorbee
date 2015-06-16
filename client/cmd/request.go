@@ -1,11 +1,12 @@
 package cmd
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
-	"net/url"
-	"strings"
 	"time"
 )
 
@@ -14,54 +15,58 @@ type requestType int
 const (
 	getRequst requestType = iota
 	postRequest
+	putRequest
 	otherRequest
 )
 
-func request(reqType requestType, uri string) {
+func (r requestType) String() string {
+	switch r {
+	case getRequst:
+		return "GET"
+	case postRequest:
+		return "POST"
+	case putRequest:
+		return "PUT"
+	case otherRequest:
+		return "OTHER"
+	default:
+		return "unknown"
+	}
+}
+
+func request(reqType requestType, uri string, bodyJSON interface{}) {
 	if reqType == otherRequest {
 		return
 	}
-	values := url.Values{} // value is not need because use gocraft/web package
 
 	client := &http.Client{
 		Timeout: time.Duration(10 * time.Second),
 	}
 	fmt.Println("URI: " + uri)
-	switch reqType {
-	case getRequst:
-		get(client, values, uri)
-	case postRequest:
-		post(client, values, uri)
-	}
+	rawRequest(reqType, client, uri, bodyJSON)
 }
 
-func get(client *http.Client, values url.Values, uri string) {
-	req, err := http.NewRequest("GET", uri, nil)
+func rawRequest(reqType requestType, client *http.Client, uri string,
+	bodyJSON interface{}) {
+	var body io.Reader
+	if bodyJSON == nil {
+		body = nil
+	} else {
+		bd, err := json.Marshal(bodyJSON)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		body = bytes.NewReader(bd)
+	}
+
+	req, err := http.NewRequest(reqType.String(), uri, body)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 
-	req.URL.RawQuery = values.Encode()
-
-	resp, err := client.Do(req)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	defer resp.Body.Close()
-
-	execute(resp)
-}
-
-func post(client *http.Client, values url.Values, uri string) {
-	req, err := http.NewRequest("POST", uri, strings.NewReader(values.Encode()))
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-
-	req.Header.Add("Content-Type", "application/x-www-form-rulencoded")
+	req.Header.Add("Content-Type", "application/json")
 
 	resp, err := client.Do(req)
 	if err != nil {
