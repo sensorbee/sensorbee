@@ -79,9 +79,7 @@ func (ps *parseStack) AssembleSelect() {
 	_having, _grouping, _filter, _from, _projections := ps.pop5()
 	// declare a default emitter
 	_emitter := &ParsedComponent{_projections.begin, _projections.begin,
-		EmitterAST{Rstream, []StreamEmitIntervalAST{
-			{IntervalAST{NumericLiteral{1}, Tuples}, Stream{"*"}},
-		}},
+		EmitterAST{Rstream, nil},
 	}
 	// override the emitter if there is one on top of the stack
 	if _elem := ps.Peek(); _elem != nil {
@@ -101,7 +99,7 @@ func (ps *parseStack) AssembleSelect() {
 
 	// assemble the SelectStmt and push it back
 	s := SelectStmt{emitter, projections, from, filter, grouping, having}
-	se := ParsedComponent{_projections.begin, _having.end, s}
+	se := ParsedComponent{_emitter.begin, _having.end, s}
 	ps.Push(&se)
 }
 
