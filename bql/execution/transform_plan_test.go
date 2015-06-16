@@ -277,14 +277,86 @@ func TestRelationChecker(t *testing.T) {
 		}, "cannot refer to input relation 't' from HAVING clause"},
 	}
 
-	for _, testCase := range testCases {
+	emitterTestCases := []analyzeTest{
+		// SELECT ISTREAM                                      a FROM t -> OK
+		{&parser.SelectStmt{
+			EmitterAST:      parser.EmitterAST{parser.Istream, nil},
+			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{a}},
+			WindowedFromAST: singleFrom,
+		}, ""},
+		// SELECT ISTREAM [EVERY 2 SECONDS]                    a FROM t -> OK
+		{&parser.SelectStmt{
+			EmitterAST: parser.EmitterAST{parser.Istream, []parser.StreamEmitIntervalAST{
+				{parser.IntervalAST{parser.NumericLiteral{2}, parser.Seconds}, parser.Stream{"*"}},
+			}},
+			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{a}},
+			WindowedFromAST: singleFrom,
+		}, ""},
+		// SELECT ISTREAM [EVERY 2 TUPLES]                     a FROM t -> OK
+		{&parser.SelectStmt{
+			EmitterAST: parser.EmitterAST{parser.Istream, []parser.StreamEmitIntervalAST{
+				{parser.IntervalAST{parser.NumericLiteral{2}, parser.Tuples}, parser.Stream{"*"}},
+			}},
+			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{a}},
+			WindowedFromAST: singleFrom,
+		}, ""},
+		// SELECT ISTREAM [EVERY 2 TUPLES IN t]                a FROM t -> OK
+		{&parser.SelectStmt{
+			EmitterAST: parser.EmitterAST{parser.Istream, []parser.StreamEmitIntervalAST{
+				{parser.IntervalAST{parser.NumericLiteral{2}, parser.Tuples}, parser.Stream{"t"}},
+			}},
+			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{a}},
+			WindowedFromAST: singleFrom,
+		}, ""},
+		// SELECT ISTREAM [EVERY 2 TUPLES IN x]                a FROM t -> NG
+		{&parser.SelectStmt{
+			EmitterAST: parser.EmitterAST{parser.Istream, []parser.StreamEmitIntervalAST{
+				{parser.IntervalAST{parser.NumericLiteral{2}, parser.Tuples}, parser.Stream{"x"}},
+			}},
+			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{a}},
+			WindowedFromAST: singleFrom,
+		}, "the stream 'x' referenced in the ISTREAM clause is unknown"},
+		// SELECT ISTREAM [EVERY 2 TUPLES IN x]             FROM t AS x -> NG
+		{&parser.SelectStmt{
+			EmitterAST: parser.EmitterAST{parser.Istream, []parser.StreamEmitIntervalAST{
+				{parser.IntervalAST{parser.NumericLiteral{2}, parser.Tuples}, parser.Stream{"x"}},
+			}},
+			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{a}},
+			WindowedFromAST: singleFrom,
+		}, "the stream 'x' referenced in the ISTREAM clause is unknown"},
+		// SELECT ISTREAM [EVERY 2 TUPLES IN t, 3 TUPLES in x] a FROM t -> NG
+		{&parser.SelectStmt{
+			EmitterAST: parser.EmitterAST{parser.Istream, []parser.StreamEmitIntervalAST{
+				{parser.IntervalAST{parser.NumericLiteral{2}, parser.Tuples}, parser.Stream{"x"}},
+			}},
+			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{a}},
+			WindowedFromAST: singleFrom,
+		}, "the stream 'x' referenced in the ISTREAM clause is unknown"},
+		// SELECT ISTREAM [EVERY 2 TUPLES IN t, 3 TUPLES in t] a FROM t -> NG
+		{&parser.SelectStmt{
+			EmitterAST: parser.EmitterAST{parser.Istream, []parser.StreamEmitIntervalAST{
+				{parser.IntervalAST{parser.NumericLiteral{2}, parser.Tuples}, parser.Stream{"t"}},
+				{parser.IntervalAST{parser.NumericLiteral{2}, parser.Tuples}, parser.Stream{"t"}},
+			}},
+			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{a}},
+			WindowedFromAST: singleFrom,
+		}, "the stream 't' referenced in the ISTREAM clause is used more than once"},
+	}
+
+	allTestCases := append(emitterTestCases, testCases...)
+
+	for _, testCase := range allTestCases {
 		testCase := testCase
 		selectAst := testCase.input
 
 		Convey(fmt.Sprintf("Given the AST %+v", selectAst), t, func() {
+			emitter := parser.EmitterAST{parser.Istream, nil}
+			if selectAst.EmitterType != parser.UnspecifiedEmitter {
+				emitter = selectAst.EmitterAST
+			}
 			ast := parser.CreateStreamAsSelectStmt{
 				Name:            parser.StreamIdentifier("x"),
-				EmitterAST:      parser.EmitterAST{parser.Istream, nil},
+				EmitterAST:      emitter,
 				ProjectionsAST:  selectAst.ProjectionsAST,
 				WindowedFromAST: selectAst.WindowedFromAST,
 				FilterAST:       selectAst.FilterAST,
