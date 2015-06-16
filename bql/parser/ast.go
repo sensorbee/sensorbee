@@ -333,10 +333,24 @@ type SourceSinkParamVal string
 type Emitter int
 
 const (
-	Istream Emitter = iota
+	UnspecifiedEmitter Emitter = iota
+	Istream
 	Dstream
 	Rstream
 )
+
+func (e Emitter) String() string {
+	s := "UNSPECIFIED"
+	switch e {
+	case Istream:
+		s = "ISTREAM"
+	case Dstream:
+		s = "DSTREAM"
+	case Rstream:
+		s = "RSTREAM"
+	}
+	return s
+}
 
 type IntervalUnit int
 
