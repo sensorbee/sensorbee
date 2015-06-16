@@ -488,14 +488,18 @@ type dynamicDataDestinations struct {
 	// destinations (i.e. the name of a Source or a Box).
 	nodeName string
 	rwm      sync.RWMutex
+	cond     *sync.Cond
 	dsts     map[string]*dynamicPipeSender
+	paused   bool
 }
 
 func newDynamicDataDestinations(nodeName string) *dynamicDataDestinations {
-	return &dynamicDataDestinations{
+	d := &dynamicDataDestinations{
 		nodeName: nodeName,
 		dsts:     map[string]*dynamicPipeSender{},
 	}
+	d.cond = sync.NewCond(&d.rwm)
+	return d
 }
 
 func (d *dynamicDataDestinations) add(name string, s *dynamicPipeSender) error {
@@ -532,6 +536,24 @@ func (d *dynamicDataDestinations) Write(ctx *Context, t *tuple.Tuple) error {
 		}
 	}()
 
+	// RLock will be acquired again by the end of the loop.
+	for d.paused {
+		d.rwm.RUnlock()
+
+		// assuming d.cond.Wait doesn't panic.
+		d.rwm.Lock()
+		for d.paused {
+			d.cond.Wait()
+		}
+		d.rwm.Unlock()
+
+		// Because paused can be changed in this Unlock -> RLock interval,
+		// its value has to be checked again in the next iteration.
+
+		d.rwm.RLock()
+	}
+	// It's safe even if Close method is called while waiting in the loop above.
+
 	needsCopy := len(d.dsts) > 1
 	var closed []string
 	for name, dst := range d.dsts {
@@ -564,6 +586,26 @@ func (d *dynamicDataDestinations) Write(ctx *Context, t *tuple.Tuple) error {
 	return nil
 }
 
+func (d *dynamicDataDestinations) pause() {
+	d.rwm.Lock()
+	defer d.rwm.Unlock()
+	d.setPaused(true)
+}
+
+func (d *dynamicDataDestinations) resume() {
+	d.rwm.Lock()
+	defer d.rwm.Unlock()
+	d.setPaused(false)
+}
+
+func (d *dynamicDataDestinations) setPaused(p bool) {
+	if d.paused == p {
+		return
+	}
+	d.paused = p
+	d.cond.Broadcast()
+}
+
 func (d *dynamicDataDestinations) Close(ctx *Context) error {
 	d.rwm.Lock()
 	defer d.rwm.Unlock()
@@ -571,5 +613,6 @@ func (d *dynamicDataDestinations) Close(ctx *Context) error {
 		dst.close()
 	}
 	d.dsts = nil
+	d.setPaused(false)
 	return nil
 }
