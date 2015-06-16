@@ -22,7 +22,7 @@ type TopologiesContext struct {
 	nodeId int64
 }
 
-func SetUpBQLRouter(prefix string, router *web.Router) {
+func SetUpTopologiesRouter(prefix string, router *web.Router) {
 	root := router.Subrouter(TopologiesContext{}, "/topologies")
 	root.Middleware((*TopologiesContext).extractName)
 	root.Middleware((*TopologiesContext).extractNodeId)

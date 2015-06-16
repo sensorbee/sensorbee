@@ -61,7 +61,7 @@ func (a *App) prompt(line *liner.State) {
 				a.continues(line, cmd)
 			case preparedCMD:
 				reqType, uri, bodyJSON := cmd.Eval()
-				request(reqType, a.uri+uri, bodyJSON)
+				Request(reqType, a.uri+uri, bodyJSON)
 			}
 		} else {
 			fmt.Fprintf(os.Stdout, "not found the command: %v\n", in)
@@ -86,7 +86,7 @@ func (a *App) continues(line *liner.State, cmd Command) {
 			return
 		case preparedCMD:
 			reqType, uri, bodyJSON := cmd.Eval()
-			request(reqType, a.uri+uri, bodyJSON)
+			Request(reqType, a.uri+uri, bodyJSON)
 			return
 		}
 	}
