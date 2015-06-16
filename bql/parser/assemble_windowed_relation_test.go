@@ -54,7 +54,7 @@ func TestAssembleStreamWindow(t *testing.T) {
 						comp := top.comp.(StreamWindowAST)
 						So(comp.Name, ShouldEqual, "a")
 						So(comp.Value, ShouldEqual, 0)
-						So(comp.Unit, ShouldEqual, Unspecified)
+						So(comp.Unit, ShouldEqual, UnspecifiedIntervalUnit)
 					})
 				})
 			})
