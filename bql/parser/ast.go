@@ -355,15 +355,27 @@ func (e Emitter) String() string {
 type IntervalUnit int
 
 const (
-	Unspecified IntervalUnit = iota
+	UnspecifiedIntervalUnit IntervalUnit = iota
 	Tuples
 	Seconds
 )
 
+func (i IntervalUnit) String() string {
+	s := "UNSPECIFIED"
+	switch i {
+	case Tuples:
+		s = "TUPLES"
+	case Seconds:
+		s = "SECONDS"
+	}
+	return s
+}
+
 type Operator int
 
 const (
-	Or Operator = iota
+	UnknownOperator Operator = iota
+	Or
 	And
 	Equal
 	Less
@@ -377,5 +389,38 @@ const (
 	Divide
 	Modulo
 )
+
+func (o Operator) String() string {
+	s := "UnknownOperator"
+	switch o {
+	case Or:
+		s = "OR"
+	case And:
+		s = "AND"
+	case Equal:
+		s = "="
+	case Less:
+		s = "<"
+	case LessOrEqual:
+		s = "<="
+	case Greater:
+		s = ">"
+	case GreaterOrEqual:
+		s = ">="
+	case NotEqual:
+		s = "!="
+	case Plus:
+		s = "+"
+	case Minus:
+		s = "-"
+	case Multiply:
+		s = "*"
+	case Divide:
+		s = "/"
+	case Modulo:
+		s = "%"
+	}
+	return s
+}
 
 type Identifier string

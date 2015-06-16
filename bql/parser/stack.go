@@ -494,7 +494,7 @@ func (ps *parseStack) EnsureAliasedStreamWindow() {
 // AssembleStreamWindow takes the topmost elements from the stack, assuming
 // they are components of an AS clause, and replaces them by
 // a single StreamWindowAST element. If there is no IntervalAST element present,
-// a IntervalAST with IntervalUnit Unspecified is created.
+// a IntervalAST with IntervalUnit UnspecifiedIntervalUnit is created.
 //
 //  IntervalAST
 //  Stream
@@ -516,7 +516,7 @@ func (ps *parseStack) AssembleStreamWindow() {
 	rel, ok := _rangeOrRel.comp.(Stream)
 	if ok {
 		// there was (only) a Stream, no Interval, so set the "no range" info
-		rangeAst = IntervalAST{NumericLiteral{0}, Unspecified}
+		rangeAst = IntervalAST{NumericLiteral{0}, UnspecifiedIntervalUnit}
 	} else {
 		// there was no Stream, so it was a Interval
 		rangeAst = _rangeOrRel.comp.(IntervalAST)

@@ -152,7 +152,7 @@ func (tb *TopologyBuilder) processStmt(_stmt interface{}) error {
 		tmpName := fmt.Sprintf("tmp-%v", rand.Int())
 		newRels := make([]parser.AliasedStreamWindowAST, len(stmt.Relations))
 		for i, from := range stmt.Relations {
-			if from.Unit != parser.Unspecified {
+			if from.Unit != parser.UnspecifiedIntervalUnit {
 				err := fmt.Errorf("you cannot use a RANGE clause with an INSERT INTO " +
 					"statement at the moment")
 				return err
