@@ -127,7 +127,7 @@ func TestExpressionParser(t *testing.T) {
 			input, expected := input, expected
 
 			Convey(fmt.Sprintf("When parsing %s", input), func() {
-				stmt := "SELECT RSTREAM " + input
+				stmt := "SELECT " + input
 				result, rest, err := p.ParseStmt(stmt)
 
 				Convey(fmt.Sprintf("Then the result should be %v", expected), func() {

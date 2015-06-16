@@ -197,5 +197,43 @@ func TestAssembleInsertIntoSelect(t *testing.T) {
 				So(comp.Having, ShouldResemble, RowValue{"", "h"})
 			})
 		})
+
+		Convey("When doing an INSERT INTO SELECT without emitter", func() {
+			// the statement below does not make sense, it is just used to test
+			// whether we accept optional RANGE clauses correctly
+			p.Buffer = "INSERT INTO x SELECT '日本語', b FROM c [RANGE 3 TUPLES], d WHERE e GROUP BY f, g HAVING h"
+			p.Init()
+
+			Convey("Then the statement should be parsed correctly", func() {
+				err := p.Parse()
+				So(err, ShouldEqual, nil)
+				p.Execute()
+
+				ps := p.parseStack
+				So(ps.Len(), ShouldEqual, 1)
+				top := ps.Peek().comp
+				So(top, ShouldHaveSameTypeAs, InsertIntoSelectStmt{})
+				comp := top.(InsertIntoSelectStmt)
+
+				So(comp.Sink, ShouldEqual, "x")
+				So(comp.EmitterType, ShouldEqual, Rstream)
+				So(len(comp.Projections), ShouldEqual, 2)
+				So(comp.Projections[0], ShouldResemble, StringLiteral{"日本語"})
+				So(comp.Projections[1], ShouldResemble, RowValue{"", "b"})
+				So(len(comp.Relations), ShouldEqual, 2)
+				So(comp.Relations[0].Name, ShouldEqual, "c")
+				So(comp.Relations[0].Value, ShouldEqual, 3)
+				So(comp.Relations[0].Unit, ShouldEqual, Tuples)
+				So(comp.Relations[0].Alias, ShouldEqual, "")
+				So(comp.Relations[1].Name, ShouldEqual, "d")
+				So(comp.Relations[1].Unit, ShouldEqual, Unspecified)
+				So(comp.Relations[1].Alias, ShouldEqual, "")
+				So(comp.Filter, ShouldResemble, RowValue{"", "e"})
+				So(len(comp.GroupList), ShouldEqual, 2)
+				So(comp.GroupList[0], ShouldResemble, RowValue{"", "f"})
+				So(comp.GroupList[1], ShouldResemble, RowValue{"", "g"})
+				So(comp.Having, ShouldResemble, RowValue{"", "h"})
+			})
+		})
 	})
 }
