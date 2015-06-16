@@ -162,9 +162,14 @@ func (tb *TopologyBuilder) processStmt(_stmt interface{}) error {
 					parser.NumericLiteral{1}, parser.Tuples}
 			}
 		}
+		if stmt.EmitterType != parser.UnspecifiedEmitter {
+			err := fmt.Errorf("you cannot use a %s clause with an INSERT INTO "+
+				"statement at the moment", stmt.EmitterType)
+			return err
+		}
 		tmpStmt := parser.CreateStreamAsSelectStmt{
 			parser.StreamIdentifier(tmpName),
-			stmt.EmitterAST,
+			parser.EmitterAST{parser.Rstream, nil},
 			stmt.ProjectionsAST,
 			parser.WindowedFromAST{newRels},
 			stmt.FilterAST,

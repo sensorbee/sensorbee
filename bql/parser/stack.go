@@ -79,7 +79,7 @@ func (ps *parseStack) AssembleSelect() {
 	_having, _grouping, _filter, _from, _projections := ps.pop5()
 	// declare a default emitter
 	_emitter := &ParsedComponent{_projections.begin, _projections.begin,
-		EmitterAST{Rstream, nil},
+		EmitterAST{UnspecifiedEmitter, nil},
 	}
 	// override the emitter if there is one on top of the stack
 	if _elem := ps.Peek(); _elem != nil {

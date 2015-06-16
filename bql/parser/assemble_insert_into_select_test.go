@@ -216,7 +216,7 @@ func TestAssembleInsertIntoSelect(t *testing.T) {
 				comp := top.(InsertIntoSelectStmt)
 
 				So(comp.Sink, ShouldEqual, "x")
-				So(comp.EmitterType, ShouldEqual, Rstream)
+				So(comp.EmitterType, ShouldEqual, UnspecifiedEmitter)
 				So(len(comp.Projections), ShouldEqual, 2)
 				So(comp.Projections[0], ShouldResemble, StringLiteral{"日本語"})
 				So(comp.Projections[1], ShouldResemble, RowValue{"", "b"})
