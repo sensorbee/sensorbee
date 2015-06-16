@@ -1,9 +1,5 @@
 package cmd
 
-import (
-	"net/url"
-)
-
 type cmdInputStatusType int
 
 const (
@@ -29,5 +25,5 @@ type Command interface {
 	// Returns error when the input commands are invalid.
 	Input(input string) (cmdInputStatusType, error)
 	// Eval resolve input command to convert URL and requestType.
-	Eval() (requestType, string, url.Values)
+	Eval() (requestType, string, interface{})
 }

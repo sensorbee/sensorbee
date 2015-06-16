@@ -1,8 +1,11 @@
 package api
 
 import (
+	"bytes"
 	"encoding/json"
 	"github.com/gocraft/web"
+	"io"
+	"io/ioutil"
 	"net/http"
 	"sync/atomic"
 )
@@ -87,4 +90,35 @@ func (c *Context) RenderErrorJSON(e *Error) {
 	}{
 		Errors: []interface{}{e},
 	})
+}
+
+// Body returns a slice containing whole request body.
+// It caches the result so controllers can call this
+// method as many time as it wants.
+//
+// When the request body is empty (i.e. Read(req.Body)
+// returns io.EOF), this method returns and caches
+// an empty body slice and a nil error.
+func (c *Context) Body() ([]byte, error) {
+	if c.body != nil || c.bodyError != nil {
+		return c.body, c.bodyError
+	}
+
+	body, err := ioutil.ReadAll(c.request.Body)
+	if err != nil {
+		if err == io.EOF {
+			// when body is empty, this method caches
+			// an empty slice and a nil error.
+			body = []byte{}
+			err = nil
+		}
+	}
+
+	// Close and replace with new ReadCloser for parsing
+	// mime/multipart request body by Request.FormFile method.
+	c.request.Body.Close()
+	c.request.Body = ioutil.NopCloser(bytes.NewReader(body))
+	c.body = body
+	c.bodyError = err
+	return body, err
 }

@@ -10,7 +10,10 @@ const (
 )
 
 var (
-	InternalErrorCode = GenerateErrorCode("context", 6)
+	RequestBodyReadErrorCode    = GenerateErrorCode("api", 1)
+	RequestBodyParseErrorCode   = GenerateErrorCode("api", 2)
+	InternalErrorCode           = GenerateErrorCode("context", 6)
+	RequestURLNotFoundErrorCode = GenerateErrorCode("context", 8)
 )
 
 var packageErrorPrefixes = map[string]rune{}

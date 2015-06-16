@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"net/url"
 	"strings"
 )
 
@@ -16,7 +15,6 @@ type currentTopologyState struct {
 
 var (
 	currentTopology = currentTopologyState{""}
-	emptyValues     = url.Values{}
 )
 
 // NewBQLCommands return command list to execute BQL statement.
@@ -47,8 +45,8 @@ func (t *topologiesCmd) Input(input string) (cmdInputStatusType, error) {
 	return preparedCMD, nil
 }
 
-func (t *topologiesCmd) Eval() (requestType, string, url.Values) {
-	return getRequst, t.uri, emptyValues
+func (t *topologiesCmd) Eval() (requestType, string, interface{}) {
+	return getRequst, t.uri, nil
 }
 
 type changeTopologyCmd struct {
@@ -73,9 +71,9 @@ func (ct *changeTopologyCmd) Input(input string) (cmdInputStatusType, error) {
 	return preparedCMD, nil
 }
 
-func (ct *changeTopologyCmd) Eval() (requestType, string, url.Values) {
+func (ct *changeTopologyCmd) Eval() (requestType, string, interface{}) {
 	currentTopology.name = ct.name
-	return otherRequest, "", emptyValues
+	return otherRequest, "", nil
 }
 
 type topologyCmd struct {
@@ -106,8 +104,8 @@ func (t *topologyCmd) Input(input string) (cmdInputStatusType, error) {
 	return preparedCMD, nil
 }
 
-func (t *topologyCmd) Eval() (requestType, string, url.Values) {
-	return getRequst, t.uri, emptyValues
+func (t *topologyCmd) Eval() (requestType, string, interface{}) {
+	return getRequst, t.uri, nil
 }
 
 type topologyStopCmd struct {
@@ -129,12 +127,11 @@ func (be *topologyStopCmd) Input(input string) (cmdInputStatusType, error) {
 }
 
 // Eval operates topology stop.
-func (be *topologyStopCmd) Eval() (requestType, string, url.Values) {
+func (be *topologyStopCmd) Eval() (requestType, string, interface{}) {
 	uri := topologiesHeader + "/" + currentTopology.name
-	values := url.Values{
-		"state": []string{"stop"},
-	}
-	return postRequest, uri, values
+	m := map[string]interface{}{}
+	m["state"] = "stop"
+	return putRequest, uri, &m
 }
 
 type bqlCmd struct {
@@ -165,7 +162,7 @@ func (b *bqlCmd) Input(input string) (cmdInputStatusType, error) {
 }
 
 // Eval resolves input command to BQL statement
-func (b *bqlCmd) Eval() (requestType, string, url.Values) {
+func (b *bqlCmd) Eval() (requestType, string, interface{}) {
 	// flush buffer and get complete statement
 	stmt := strings.Replace(b.buffer, "\n", " ", -1)
 	stmt = stmt[:len(stmt)-1]
@@ -173,9 +170,8 @@ func (b *bqlCmd) Eval() (requestType, string, url.Values) {
 
 	fmt.Printf("BQL: %s\n", stmt) // for debug, delete later
 
-	uri := topologiesHeader + "/" + currentTopology.name
-	values := url.Values{
-		"queries": []string{stmt},
-	}
-	return postRequest, uri, values
+	uri := topologiesHeader + "/" + currentTopology.name + "/queries"
+	m := map[string]interface{}{}
+	m["queries"] = stmt
+	return postRequest, uri, &m
 }
