@@ -93,8 +93,25 @@ InsertIntoSelectStmt <- "INSERT" sp "INTO" sp
 ##### STATEMENT COMPONENTS #####
 ################################
 
-Emitter <- (ISTREAM / DSTREAM / RSTREAM) {
-        p.AssembleEmitter()
+Emitter <- (ISTREAM / DSTREAM / RSTREAM) < (sp '[' sp "EVERY" sp EmitterIntervals sp ']')? > {
+        p.AssembleEmitter(begin, end)
+    }
+
+EmitterIntervals <- ( TupleEmitterFromInterval (sp ',' sp TupleEmitterFromInterval)* ) /
+    TimeEmitterInterval / TupleEmitterInterval
+
+TimeEmitterInterval <- < TimeInterval > {
+        p.PushComponent(end, end, NewStream("*"))
+        p.AssembleStreamEmitInterval()
+    }
+
+TupleEmitterInterval <- < TuplesInterval > {
+        p.PushComponent(end, end, NewStream("*"))
+        p.AssembleStreamEmitInterval()
+    }
+
+TupleEmitterFromInterval <- TuplesInterval sp "IN" sp Stream {
+        p.AssembleStreamEmitInterval()
     }
 
 Projections <- < Projection sp (',' sp Projection)* > {

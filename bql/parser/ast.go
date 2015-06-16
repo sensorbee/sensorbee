@@ -64,7 +64,13 @@ type InsertIntoSelectStmt struct {
 }
 
 type EmitterAST struct {
-	EmitterType Emitter
+	EmitterType   Emitter
+	EmitIntervals []StreamEmitIntervalAST
+}
+
+type StreamEmitIntervalAST struct {
+	IntervalAST
+	Stream
 }
 
 type ProjectionsAST struct {
