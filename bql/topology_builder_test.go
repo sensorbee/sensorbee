@@ -8,26 +8,30 @@ import (
 
 func TestCreateSourceStmt(t *testing.T) {
 	Convey("Given a BQL TopologyBuilder", t, func() {
-		tb := bql.NewTopologyBuilder()
+		dt := newTestDynamicTopology()
+		Reset(func() {
+			dt.Stop()
+		})
+		tb := bql.NewTopologyBuilder(dt)
 
 		Convey("When running CREATE SOURCE with a dummy source", func() {
-			err := tb.BQL(`CREATE SOURCE hoge TYPE dummy`)
+			err := addBQLToTopology(tb, `CREATE SOURCE hoge TYPE dummy`)
 
 			Convey("Then there should be no error", func() {
 				So(err, ShouldBeNil)
 			})
 
 			Convey("And when running another CREATE SOURCE using the same name", func() {
-				err := tb.BQL(`CREATE SOURCE hoge TYPE dummy`)
+				err := addBQLToTopology(tb, `CREATE SOURCE hoge TYPE dummy`)
 
 				Convey("Then an error should be returned", func() {
 					So(err, ShouldNotBeNil)
-					So(err.Error(), ShouldEqual, "there is already a source called 'hoge-src'")
+					So(err.Error(), ShouldContainSubstring, "already")
 				})
 			})
 
 			Convey("And when running another CREATE SOURCE using a different name", func() {
-				err := tb.BQL(`CREATE SOURCE src TYPE dummy`)
+				err := addBQLToTopology(tb, `CREATE SOURCE src TYPE dummy`)
 
 				Convey("Then there should be no error", func() {
 					So(err, ShouldBeNil)
@@ -36,7 +40,7 @@ func TestCreateSourceStmt(t *testing.T) {
 		})
 
 		Convey("When running CREATE SOURCE with valid parameters", func() {
-			err := tb.BQL(`CREATE SOURCE hoge TYPE dummy WITH num=4`)
+			err := addBQLToTopology(tb, `CREATE SOURCE hoge TYPE dummy WITH num=4`)
 
 			Convey("Then there should be no error", func() {
 				So(err, ShouldBeNil)
@@ -44,7 +48,7 @@ func TestCreateSourceStmt(t *testing.T) {
 		})
 
 		Convey("When running CREATE SOURCE with invalid parameters", func() {
-			err := tb.BQL(`CREATE SOURCE hoge TYPE dummy WITH num=bar`)
+			err := addBQLToTopology(tb, `CREATE SOURCE hoge TYPE dummy WITH num=bar`)
 
 			Convey("Then an error should be returned", func() {
 				So(err, ShouldNotBeNil)
@@ -53,7 +57,7 @@ func TestCreateSourceStmt(t *testing.T) {
 		})
 
 		Convey("When running CREATE SOURCE with unknown parameters", func() {
-			err := tb.BQL(`CREATE SOURCE hoge TYPE dummy WITH foo=bar`)
+			err := addBQLToTopology(tb, `CREATE SOURCE hoge TYPE dummy WITH foo=bar`)
 
 			Convey("Then an error should be returned", func() {
 				So(err, ShouldNotBeNil)
@@ -62,7 +66,7 @@ func TestCreateSourceStmt(t *testing.T) {
 		})
 
 		Convey("When running CREATE SOURCE with an unknown source type", func() {
-			err := tb.BQL(`CREATE SOURCE hoge TYPE foo`)
+			err := addBQLToTopology(tb, `CREATE SOURCE hoge TYPE foo`)
 
 			Convey("Then an error should be returned", func() {
 				So(err, ShouldNotBeNil)
@@ -74,28 +78,33 @@ func TestCreateSourceStmt(t *testing.T) {
 
 func TestCreateStreamFromSourceStmt(t *testing.T) {
 	Convey("Given a BQL TopologyBuilder with a source", t, func() {
-		tb := bql.NewTopologyBuilder()
-		err := tb.BQL(`CREATE SOURCE hoge TYPE dummy`)
+		dt := newTestDynamicTopology()
+		Reset(func() {
+			unblockSource(dt, "hoge_src")
+			dt.Stop()
+		})
+		tb := bql.NewTopologyBuilder(dt)
+		err := addBQLToTopology(tb, `CREATE SOURCE hoge TYPE blocking_dummy`)
 		So(err, ShouldBeNil)
 
 		Convey("When running CREATE STREAM FROM SOURCE on an existing source", func() {
-			err := tb.BQL(`CREATE STREAM s FROM SOURCE hoge`)
+			err := addBQLToTopology(tb, `CREATE STREAM s FROM SOURCE hoge`)
 
 			Convey("Then there should be no error", func() {
 				So(err, ShouldBeNil)
 			})
 
 			Convey("And when running another CREATE STREAM FROM SOURCE with the same name", func() {
-				err := tb.BQL(`CREATE STREAM s FROM SOURCE hoge`)
+				err := addBQLToTopology(tb, `CREATE STREAM s FROM SOURCE hoge`)
 
 				Convey("Then an error should be returned the second time", func() {
 					So(err, ShouldNotBeNil)
-					So(err.Error(), ShouldEqual, "there is already a box called 's'")
+					So(err.Error(), ShouldContainSubstring, "already")
 				})
 			})
 
 			Convey("And when running another CREATE STREAM FROM SOURCE with a different name", func() {
-				err := tb.BQL(`CREATE STREAM t FROM SOURCE hoge`)
+				err := addBQLToTopology(tb, `CREATE STREAM t FROM SOURCE hoge`)
 
 				Convey("Then there should be no error", func() {
 					So(err, ShouldBeNil)
@@ -104,16 +113,16 @@ func TestCreateStreamFromSourceStmt(t *testing.T) {
 		})
 
 		Convey("When running CREATE STREAM FROM SOURCE on a non-existing source", func() {
-			err := tb.BQL(`CREATE STREAM s FROM SOURCE foo`)
+			err := addBQLToTopology(tb, `CREATE STREAM s FROM SOURCE foo`)
 
 			Convey("Then an error should be returned", func() {
 				So(err, ShouldNotBeNil)
-				So(err.Error(), ShouldEqual, "there is no box or source named 'foo-src'")
+				So(err.Error(), ShouldContainSubstring, "was not found")
 			})
 		})
 
 		Convey("When running CREATE STREAM FROM SOURCE with stream and source name the same", func() {
-			err := tb.BQL(`CREATE STREAM hoge FROM SOURCE hoge`)
+			err := addBQLToTopology(tb, `CREATE STREAM hoge FROM SOURCE hoge`)
 
 			Convey("Then there should be no error", func() {
 				So(err, ShouldBeNil)
@@ -124,23 +133,27 @@ func TestCreateStreamFromSourceStmt(t *testing.T) {
 
 func TestCreateStreamFromSourceExtStmt(t *testing.T) {
 	Convey("Given a BQL TopologyBuilder", t, func() {
-		tb := bql.NewTopologyBuilder()
+		dt := newTestDynamicTopology()
+		Reset(func() {
+			dt.Stop()
+		})
+		tb := bql.NewTopologyBuilder(dt)
 
 		Convey("When running CREATE STREAM FROM SOURCE (combo) with a dummy source", func() {
-			err := tb.BQL(`CREATE STREAM hoge FROM dummy SOURCE`)
+			err := addBQLToTopology(tb, `CREATE STREAM hoge FROM dummy SOURCE`)
 			So(err, ShouldBeNil)
 
 			Convey("And when running another CREATE STREAM FROM SOURCE (combo) using the same name", func() {
-				err := tb.BQL(`CREATE STREAM hoge FROM dummy SOURCE`)
+				err := addBQLToTopology(tb, `CREATE STREAM hoge FROM dummy SOURCE`)
 
 				Convey("Then an error should be returned", func() {
 					So(err, ShouldNotBeNil)
-					So(err.Error(), ShouldEqual, "there is already a source called 'hoge'")
+					So(err.Error(), ShouldContainSubstring, "already")
 				})
 			})
 		})
 		Convey("When running CREATE STREAM FROM SOURCE (combo) with invalid parameters", func() {
-			err := tb.BQL(`CREATE STREAM hoge FROM dummy SOURCE WITH foo=bar`)
+			err := addBQLToTopology(tb, `CREATE STREAM hoge FROM dummy SOURCE WITH foo=bar`)
 
 			Convey("Then an error should be returned", func() {
 				So(err, ShouldNotBeNil)
@@ -148,7 +161,7 @@ func TestCreateStreamFromSourceExtStmt(t *testing.T) {
 			})
 		})
 		Convey("When running CREATE STREAM FROM SOURCE (combo) with an unknown source type", func() {
-			err := tb.BQL(`CREATE STREAM hoge FROM foo SOURCE`)
+			err := addBQLToTopology(tb, `CREATE STREAM hoge FROM foo SOURCE`)
 
 			Convey("Then an error should be returned", func() {
 				So(err, ShouldNotBeNil)
@@ -160,14 +173,19 @@ func TestCreateStreamFromSourceExtStmt(t *testing.T) {
 
 func TestCreateStreamAsSelectStmt(t *testing.T) {
 	Convey("Given a BQL TopologyBuilder with source and stream", t, func() {
-		tb := bql.NewTopologyBuilder()
-		err := tb.BQL(`CREATE SOURCE hoge TYPE dummy`)
+		dt := newTestDynamicTopology()
+		Reset(func() {
+			unblockSource(dt, "hoge_src")
+			dt.Stop()
+		})
+		tb := bql.NewTopologyBuilder(dt)
+		err := addBQLToTopology(tb, `CREATE SOURCE hoge TYPE blocking_dummy`)
 		So(err, ShouldBeNil)
-		err = tb.BQL(`CREATE STREAM s FROM SOURCE hoge`)
+		err = addBQLToTopology(tb, `CREATE STREAM s FROM SOURCE hoge`)
 		So(err, ShouldBeNil)
 
 		Convey("When running CREATE STREAM AS SELECT on an existing stream", func() {
-			err := tb.BQL(`CREATE STREAM t AS SELECT ISTREAM int FROM
+			err := addBQLToTopology(tb, `CREATE STREAM t AS SELECT ISTREAM int FROM
                 s [RANGE 2 SECONDS] WHERE int=2`)
 
 			Convey("Then there should be no error", func() {
@@ -175,17 +193,17 @@ func TestCreateStreamAsSelectStmt(t *testing.T) {
 			})
 
 			Convey("And when running another CREATE STREAM AS SELECT with the same name", func() {
-				err := tb.BQL(`CREATE STREAM t AS SELECT ISTREAM int FROM
+				err := addBQLToTopology(tb, `CREATE STREAM t AS SELECT ISTREAM int FROM
                 s [RANGE 1 TUPLES] WHERE int=1`)
 
 				Convey("Then an error should be returned the second time", func() {
 					So(err, ShouldNotBeNil)
-					So(err.Error(), ShouldEqual, "there is already a box called 't'")
+					So(err.Error(), ShouldContainSubstring, "already")
 				})
 			})
 
 			Convey("And when running another CREATE STREAM AS SELECT with a different name", func() {
-				err := tb.BQL(`CREATE STREAM u AS SELECT ISTREAM int FROM
+				err := addBQLToTopology(tb, `CREATE STREAM u AS SELECT ISTREAM int FROM
                 s [RANGE 1 TUPLES] WHERE int=1`)
 
 				Convey("Then there should be no error", func() {
@@ -195,32 +213,32 @@ func TestCreateStreamAsSelectStmt(t *testing.T) {
 		})
 
 		Convey("When running CREATE STREAM AS SELECT on a source name", func() {
-			err := tb.BQL(`CREATE STREAM t AS SELECT ISTREAM int FROM
+			err := addBQLToTopology(tb, `CREATE STREAM t AS SELECT ISTREAM int FROM
                 hoge [RANGE 2 SECONDS] WHERE int=2`)
 
 			Convey("Then an error should be returned", func() {
 				So(err, ShouldNotBeNil)
-				So(err.Error(), ShouldEqual, "there is no box or source named 'hoge'")
+				So(err.Error(), ShouldContainSubstring, "was not found")
 			})
 		})
 
 		Convey("When running CREATE STREAM AS SELECT on a non-existing stream", func() {
-			err := tb.BQL(`CREATE STREAM t AS SELECT ISTREAM int FROM
+			err := addBQLToTopology(tb, `CREATE STREAM t AS SELECT ISTREAM int FROM
                 bar [RANGE 2 SECONDS] WHERE int=2`)
 
 			Convey("Then an error should be returned", func() {
 				So(err, ShouldNotBeNil)
-				So(err.Error(), ShouldEqual, "there is no box or source named 'bar'")
+				So(err.Error(), ShouldContainSubstring, "was not found")
 			})
 		})
 
 		Convey("When running CREATE STREAM AS SELECT with input and output name the same", func() {
-			err := tb.BQL(`CREATE STREAM s AS SELECT ISTREAM int FROM
+			err := addBQLToTopology(tb, `CREATE STREAM s AS SELECT ISTREAM int FROM
                 s [RANGE 2 SECONDS] WHERE int=2`)
 
 			Convey("Then an error should be returned", func() {
 				So(err, ShouldNotBeNil)
-				So(err.Error(), ShouldEqual, "there is already a box called 's'")
+				So(err.Error(), ShouldContainSubstring, "already")
 			})
 		})
 	})
@@ -228,26 +246,30 @@ func TestCreateStreamAsSelectStmt(t *testing.T) {
 
 func TestCreateSinkStmt(t *testing.T) {
 	Convey("Given a BQL TopologyBuilder", t, func() {
-		tb := bql.NewTopologyBuilder()
+		dt := newTestDynamicTopology()
+		Reset(func() {
+			dt.Stop()
+		})
+		tb := bql.NewTopologyBuilder(dt)
 
 		Convey("When running CREATE SINK with a collector source", func() {
-			err := tb.BQL(`CREATE SINK hoge TYPE collector`)
+			err := addBQLToTopology(tb, `CREATE SINK hoge TYPE collector`)
 
 			Convey("Then there should be no error", func() {
 				So(err, ShouldBeNil)
 			})
 
 			Convey("And when running another CREATE SINK using the same name", func() {
-				err := tb.BQL(`CREATE SINK hoge TYPE collector`)
+				err := addBQLToTopology(tb, `CREATE SINK hoge TYPE collector`)
 
 				Convey("Then an error should be returned", func() {
 					So(err, ShouldNotBeNil)
-					So(err.Error(), ShouldEqual, "there is already a sink called 'hoge'")
+					So(err.Error(), ShouldContainSubstring, "already")
 				})
 			})
 		})
 		Convey("When running CREATE SINK with invalid parameters", func() {
-			err := tb.BQL(`CREATE SINK hoge TYPE collector WITH foo=bar`)
+			err := addBQLToTopology(tb, `CREATE SINK hoge TYPE collector WITH foo=bar`)
 
 			Convey("Then an error should be returned", func() {
 				So(err, ShouldNotBeNil)
@@ -255,7 +277,7 @@ func TestCreateSinkStmt(t *testing.T) {
 			})
 		})
 		Convey("When running CREATE SINK with an unknown sink type", func() {
-			err := tb.BQL(`CREATE SINK hoge TYPE foo`)
+			err := addBQLToTopology(tb, `CREATE SINK hoge TYPE foo`)
 
 			Convey("Then an error should be returned", func() {
 				So(err, ShouldNotBeNil)
@@ -267,23 +289,28 @@ func TestCreateSinkStmt(t *testing.T) {
 
 func TestInsertIntoSelectStmt(t *testing.T) {
 	Convey("Given a BQL TopologyBuilder with source, stream, and sink", t, func() {
-		tb := bql.NewTopologyBuilder()
-		err := tb.BQL(`CREATE SOURCE hoge TYPE dummy`)
+		dt := newTestDynamicTopology()
+		Reset(func() {
+			unblockSource(dt, "hoge_src")
+			dt.Stop()
+		})
+		tb := bql.NewTopologyBuilder(dt)
+		err := addBQLToTopology(tb, `CREATE SOURCE hoge TYPE blocking_dummy`)
 		So(err, ShouldBeNil)
-		err = tb.BQL(`CREATE STREAM s FROM SOURCE hoge`)
+		err = addBQLToTopology(tb, `CREATE STREAM s FROM SOURCE hoge`)
 		So(err, ShouldBeNil)
-		err = tb.BQL(`CREATE SINK foo TYPE collector`)
+		err = addBQLToTopology(tb, `CREATE SINK foo TYPE collector`)
 		So(err, ShouldBeNil)
 
 		Convey("When running INSERT INTO SELECT on an existing stream and sink", func() {
-			err := tb.BQL(`INSERT INTO foo SELECT int FROM s`)
+			err := addBQLToTopology(tb, `INSERT INTO foo SELECT int FROM s`)
 
 			Convey("Then there should be no error", func() {
 				So(err, ShouldBeNil)
 			})
 
 			Convey("And when running another INSERT INTO SELECT", func() {
-				err := tb.BQL(`INSERT INTO foo SELECT int FROM s`)
+				err := addBQLToTopology(tb, `INSERT INTO foo SELECT int FROM s`)
 
 				Convey("Then there should be no error", func() {
 					So(err, ShouldBeNil)
@@ -292,29 +319,29 @@ func TestInsertIntoSelectStmt(t *testing.T) {
 		})
 
 		Convey("When running INSERT INTO SELECT on a source name", func() {
-			err := tb.BQL(`INSERT INTO foo SELECT int FROM hoge`)
+			err := addBQLToTopology(tb, `INSERT INTO foo SELECT int FROM hoge`)
 
 			Convey("Then an error should be returned", func() {
 				So(err, ShouldNotBeNil)
-				So(err.Error(), ShouldEqual, "there is no box or source named 'hoge'")
+				So(err.Error(), ShouldContainSubstring, "was not found")
 			})
 		})
 
 		Convey("When running INSERT INTO SELECT on a non-existing stream", func() {
-			err := tb.BQL(`INSERT INTO foo SELECT int FROM foo`)
+			err := addBQLToTopology(tb, `INSERT INTO foo SELECT int FROM foo`)
 
 			Convey("Then an error should be returned", func() {
 				So(err, ShouldNotBeNil)
-				So(err.Error(), ShouldEqual, "there is no box or source named 'foo'")
+				So(err.Error(), ShouldContainSubstring, "was not found")
 			})
 		})
 
 		Convey("When running INSERT INTO SELECT on a non-existing sink", func() {
-			err := tb.BQL(`INSERT INTO bar SELECT int FROM s`)
+			err := addBQLToTopology(tb, `INSERT INTO bar SELECT int FROM s`)
 
 			Convey("Then an error should be returned", func() {
 				So(err, ShouldNotBeNil)
-				So(err.Error(), ShouldEqual, "there is no sink named 'bar'")
+				So(err.Error(), ShouldContainSubstring, "was not found")
 			})
 		})
 	})
@@ -322,18 +349,23 @@ func TestInsertIntoSelectStmt(t *testing.T) {
 
 func TestMultipleStatements(t *testing.T) {
 	Convey("Given an empty BQL TopologyBuilder", t, func() {
-		tb := bql.NewTopologyBuilder()
+		dt := newTestDynamicTopology()
+		Reset(func() {
+			dt.Stop()
+		})
+		tb := bql.NewTopologyBuilder(dt)
 
 		Convey("When issuing multiple commands in a good order", func() {
 			stmts := `
-			CREATE STREAM source FROM dummy SOURCE WITH num=4;
+			CREATE STREAM source FROM blocking_dummy SOURCE WITH num=4;
 			CREATE STREAM box AS SELECT
 			  ISTREAM int, str((int+1) % 3) AS x FROM source
 			  [RANGE 2 SECONDS] WHERE int % 2 = 0;
 			CREATE SINK snk TYPE collector;
 			INSERT INTO snk SELECT * FROM box;
 			`
-			err := tb.BQL(stmts)
+			err := addBQLToTopology(tb, stmts)
+			So(unblockSource(dt, "source"), ShouldBeNil)
 
 			Convey("Then setup should succeed", func() {
 				So(err, ShouldBeNil)
@@ -342,14 +374,15 @@ func TestMultipleStatements(t *testing.T) {
 
 		Convey("When issuing multiple commands in a bad order", func() {
 			stmts := `
-			CREATE STREAM source FROM dummy SOURCE WITH num=4;
+			CREATE STREAM source FROM blocking_dummy SOURCE WITH num=4;
 			CREATE STREAM box AS SELECT
 			  ISTREAM int, str((int+1) % 3) AS x FROM source
 			  [RANGE 2 SECONDS] WHERE int % 2 = 0;
 			INSERT INTO snk SELECT * FROM box;
 			CREATE SINK snk TYPE collector;
 			`
-			err := tb.BQL(stmts)
+			err := addBQLToTopology(tb, stmts)
+			So(unblockSource(dt, "source"), ShouldBeNil)
 
 			Convey("Then setup should fail", func() {
 				So(err, ShouldNotBeNil)
