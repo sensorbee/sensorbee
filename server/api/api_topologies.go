@@ -71,6 +71,7 @@ func (tc *TopologiesContext) extractIntFromPath(key string, target *int64) error
 	if err != nil {
 		return nil
 	}
+
 	*target = id
 	return nil
 }
@@ -89,7 +90,7 @@ func (tc *TopologiesContext) Index(rw web.ResponseWriter, req *web.Request) {
 		tenants = append(tenants, k)
 	}
 	tc.RenderJSON(&map[string]interface{}{
-		"tenants": tenants,
+		"topologies": tenants,
 	})
 }
 
@@ -115,7 +116,7 @@ func (tc *TopologiesContext) Update(rw web.ResponseWriter, req *web.Request) {
 	if !ok {
 		tc.RenderJSON(&map[string]interface{}{
 			"name":   tc.name,
-			"status": "not initialized or runnning",
+			"status": "not initialized or running topology",
 		})
 		return
 	}

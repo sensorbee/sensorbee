@@ -7,10 +7,41 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"strings"
 	"sync/atomic"
 )
 
 type BaseContext struct{}
+
+func (b *BaseContext) NotFoundHandler(rw web.ResponseWriter, req *web.Request) {
+	// TODO: logger
+
+	// If API request URL was not found, return error in JSON
+	if strings.HasPrefix(req.URL.Path, "/api/") {
+		rw.Header().Set("Content-Type", "application/json")
+		rw.WriteHeader(http.StatusNotFound)
+		rw.Write([]byte(`
+{
+  "errors": [
+    {
+      "code": "E0008",
+      "message": "The request URL was not found."
+    }
+  ]
+}`))
+		return
+	}
+
+	// The following code won't be executed as long as the user
+	// uses sensorbee server command to run this http API server because
+	// sensorbee server cmd_run.go routes requests based on requests paths.
+
+	// TODO: Render a better template
+	rw.WriteHeader(http.StatusNotFound)
+	if _, err := io.WriteString(rw, "404 Not Found"); err != nil {
+		// logging "Cannot return the 404 not found page: "
+	}
+}
 
 type Context struct {
 	*BaseContext
@@ -38,6 +69,7 @@ func (c *Context) setUpContext(rw web.ResponseWriter, req *web.Request, next web
 func SetUpRouterWithCustomMiddleware(prefix string, parent *web.Router, middleware func(c *Context, rw web.ResponseWriter, req *web.Request, next web.NextMiddlewareFunc), callback func(string, *web.Router)) *web.Router {
 	if parent == nil {
 		parent = web.New(BaseContext{})
+		parent.NotFound((*BaseContext).NotFoundHandler)
 	}
 
 	root := parent.Subrouter(Context{}, "/")
