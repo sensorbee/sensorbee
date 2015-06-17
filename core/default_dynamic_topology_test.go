@@ -82,7 +82,55 @@ func TestDefaultDynamicTopologySetup(t *testing.T) {
 				So(n, ShouldPointTo, sn)
 			})
 
+			Convey("Then calling Resume on the running source shouldn't fail", func() {
+				So(sn.Resume(), ShouldBeNil)
+			})
+
+			Convey("And stopping it", func() {
+				So(sn.Stop(), ShouldBeNil)
+
+				Convey("Then Pause should fail", func() {
+					So(sn.Pause(), ShouldNotBeNil)
+				})
+
+				Convey("Then Resume should fail", func() {
+					So(sn.Resume(), ShouldNotBeNil)
+				})
+			})
 			dupNameTests("source1")
+		})
+
+		Convey("When adding a paused source", func() {
+			so := NewTupleEmitterSource(freshTuples())
+			son, err := t.AddSource("source1", so, &DynamicSourceConfig{
+				PausedOnStartup: true,
+			})
+			So(err, ShouldBeNil)
+
+			si := NewTupleCollectorSink()
+			sin, err := t.AddSink("sink", si, nil)
+			So(err, ShouldBeNil)
+			So(sin.Input("source1", nil), ShouldBeNil)
+
+			Convey("Then the source's state should be paused", func() {
+				So(son.State().Get(), ShouldEqual, TSPaused)
+
+				Convey("And a redundant Pause call shouldn't fail", func() {
+					So(son.Pause(), ShouldBeNil)
+				})
+			})
+
+			Convey("Then the sink should've received nothing", func() {
+				So(t.Stop(), ShouldBeNil)
+				So(si.Tuples, ShouldBeEmpty)
+			})
+
+			Convey("Then the sink should receive all tuples by resuming the source", func() {
+				So(son.Resume(), ShouldBeNil)
+				si.Wait(8)
+				So(t.Stop(), ShouldBeNil)
+				So(len(si.Tuples), ShouldEqual, 8)
+			})
 		})
 
 		Convey("When adding a box", func() {
@@ -485,6 +533,29 @@ func TestLinearDefaultDynamicTopology(t *testing.T) {
 
 			Convey("Then sink shouldn't receive tuples generated after it got removed", func() {
 				So(len(si.Tuples), ShouldEqual, 2)
+			})
+		})
+
+		Convey("When generating some tuples and pause the source", func() { // 2.a.
+			Reset(func() {
+				t.Stop()
+			})
+			so.EmitTuples(4)
+			So(son.Pause(), ShouldBeNil)
+			so.EmitTuplesNB(4)
+
+			Convey("Then the sink should only receive generated tuples", func() {
+				si.Wait(4)
+				So(len(si.Tuples), ShouldEqual, 4)
+			})
+
+			Convey("And resuming after that", func() {
+				So(son.Resume(), ShouldBeNil)
+
+				Convey("Then the sink should receive all tuples", func() {
+					si.Wait(8)
+					So(len(si.Tuples), ShouldEqual, 8)
+				})
 			})
 		})
 	})
