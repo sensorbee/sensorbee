@@ -85,7 +85,10 @@ type DynamicTopology interface {
 
 // DynamicSourceConfig has configuration parameters of a Source node.
 type DynamicSourceConfig struct {
-	// TODO: default state (paused?running?)
+	// PausedOnStartup is a flag which indicates the initial state of the
+	// source. If it is true, the source is paused. Otherwise, source runs just
+	// after it is added to a topology.
+	PausedOnStartup bool
 }
 
 // DynamicBoxConfig has configuration parameters of a Box node.
@@ -124,6 +127,13 @@ type DynamicNode interface {
 // DynamicSourceNode is a Source registered to a dynamic topology.
 type DynamicSourceNode interface {
 	DynamicNode
+
+	// Pause pauses a running source. A paused source can be resumed by calling
+	// Resume method. Pause is idempotent.
+	Pause() error
+
+	// Resume resumes a paused source. Resume is idempotent.
+	Resume() error
 }
 
 // DynamicBoxNode is a Box registered to a dynamic topology.

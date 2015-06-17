@@ -50,6 +50,10 @@ func (t *defaultDynamicTopology) Context() *Context {
 func (t *defaultDynamicTopology) AddSource(name string, s Source, config *DynamicSourceConfig) (DynamicSourceNode, error) {
 	// TODO: validate the name
 
+	if config == nil {
+		config = &DynamicSourceConfig{}
+	}
+
 	// This method assumes adding a Source having a duplicated name is rare.
 	// Under this assumption, acquiring wlock without checking the existence
 	// of the name with rlock doesn't degrade the performance.
@@ -72,6 +76,7 @@ func (t *defaultDynamicTopology) AddSource(name string, s Source, config *Dynami
 		defaultDynamicNode: newDefaultDynamicNode(t, name),
 		source:             s,
 		dsts:               newDynamicDataDestinations(name),
+		pausedOnStartup:    config.PausedOnStartup,
 	}
 	if err := t.checkNodeNameDuplication(name); err != nil {
 		if err := ds.Stop(); err != nil { // The same variable name is intentionally used.
@@ -87,7 +92,12 @@ func (t *defaultDynamicTopology) AddSource(name string, s Source, config *Dynami
 			t.ctx.Logger.Log(Error, "Cannot generate a stream from the source '%v': %v", name, err)
 		}
 	}()
-	ds.state.Wait(TSRunning)
+
+	if config.PausedOnStartup {
+		ds.state.Wait(TSPaused)
+	} else {
+		ds.state.Wait(TSRunning)
+	}
 	return ds, nil
 }
 
@@ -421,7 +431,13 @@ func (dn *defaultDynamicNode) State() TopologyStateHolder {
 }
 
 func (dn *defaultDynamicNode) checkAndPrepareForRunning(nodeType string) error {
-	if st, err := dn.state.checkAndPrepareForRunning(); err != nil {
+	dn.stateMutex.Lock()
+	defer dn.stateMutex.Unlock()
+	return dn.checkAndPrepareForRunningWithoutLock(nodeType)
+}
+
+func (dn *defaultDynamicNode) checkAndPrepareForRunningWithoutLock(nodeType string) error {
+	if st, err := dn.state.checkAndPrepareForRunningWithoutLock(); err != nil {
 		switch st {
 		case TSRunning, TSPaused:
 			return fmt.Errorf("%v '%v' is already running", nodeType, dn.name)
@@ -437,5 +453,11 @@ func (dn *defaultDynamicNode) checkAndPrepareForRunning(nodeType string) error {
 // checkAndPrepareStopState check the current state of the node and returns if
 // the node can be stopped or is already stopped.
 func (dn *defaultDynamicNode) checkAndPrepareForStopping(nodeType string) (stopped bool, err error) {
-	return dn.state.checkAndPrepareForStopping(false)
+	dn.stateMutex.Lock()
+	defer dn.stateMutex.Unlock()
+	return dn.checkAndPrepareForStoppingWithoutLock(nodeType)
+}
+
+func (dn *defaultDynamicNode) checkAndPrepareForStoppingWithoutLock(nodeType string) (stopped bool, err error) {
+	return dn.state.checkAndPrepareForStoppingWithoutLock(false)
 }

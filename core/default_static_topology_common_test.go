@@ -1,6 +1,7 @@
 package core
 
 import (
+	"fmt"
 	"pfi/sensorbee/sensorbee/core/tuple"
 	"sync"
 )
@@ -168,47 +169,56 @@ type TupleIncrementalEmitterSource struct {
 	Tuples []*tuple.Tuple
 
 	m     sync.Mutex
-	c     *sync.Cond
+	state *topologyStateHolder
 	cnt   int
-	state int // 0: running, 1: stopping, 2: stopped
 }
+
+var (
+	_ ResumableNode = &TupleIncrementalEmitterSource{}
+)
 
 func NewTupleIncrementalEmitterSource(ts []*tuple.Tuple) *TupleIncrementalEmitterSource {
 	s := &TupleIncrementalEmitterSource{
 		Tuples: ts,
 	}
-	s.c = sync.NewCond(&s.m)
+	s.state = newTopologyStateHolder(&s.m)
 	return s
 }
 
 func (s *TupleIncrementalEmitterSource) GenerateStream(ctx *Context, w Writer) error {
+	s.m.Lock()
+	defer s.m.Unlock()
+	s.state.setWithoutLock(TSRunning)
+
 	for _, t := range s.Tuples {
-		s.m.Lock()
-		for s.state == 0 && s.cnt == 0 {
-			s.c.Wait()
+		for {
+			if s.state.state == TSPaused {
+				s.state.waitWithoutLock(TSRunning)
+
+			} else if s.state.state == TSRunning {
+				if s.cnt != 0 {
+					break
+				}
+				s.state.cond.Wait()
+
+			} else {
+				break
+			}
 		}
 
 		// To make writing tests easy, GenerateStream doesn't stop until
 		// cnt get 0 or all tuples in s.Tuples are emitted.
-		if s.cnt == 0 && s.state != 0 {
-			s.state = 2
-			s.c.Broadcast()
-			s.m.Unlock()
-			return nil
+		if s.cnt == 0 && s.state.state >= TSStopping {
+			break
 		}
 
-		func() {
-			defer s.m.Unlock()
-			w.Write(ctx, t)
-			s.cnt--
-			s.c.Broadcast()
-		}()
+		w.Write(ctx, t)
+		s.cnt--
+		s.state.cond.Broadcast()
 	}
-	s.m.Lock()
-	defer s.m.Unlock()
-	s.state = 2
+
 	s.cnt = 0
-	s.c.Broadcast()
+	s.state.setWithoutLock(TSStopped)
 	return nil
 }
 
@@ -225,7 +235,7 @@ func (s *TupleIncrementalEmitterSource) EmitTuplesNB(n int) {
 	s.m.Lock()
 	defer s.m.Unlock()
 	s.cnt += n
-	s.c.Broadcast()
+	s.state.cond.Broadcast()
 }
 
 // WaitForEmission waits until all tuples specified by EmitTuples(NB) are emitted.
@@ -233,22 +243,38 @@ func (s *TupleIncrementalEmitterSource) WaitForEmission() {
 	s.m.Lock()
 	defer s.m.Unlock()
 	for s.cnt > 0 {
-		s.c.Wait()
+		s.state.cond.Wait()
 	}
 }
 
 func (s *TupleIncrementalEmitterSource) Stop(ctx *Context) error {
 	s.m.Lock()
 	defer s.m.Unlock()
-	if s.state == 2 {
+	if s.state.state == TSStopped {
 		return nil
 	}
-	s.state = 1
-	s.c.Broadcast()
+	s.state.setWithoutLock(TSStopping)
+	s.state.waitWithoutLock(TSStopped)
+	return nil
+}
 
-	for s.state < 2 {
-		s.c.Wait()
+func (s *TupleIncrementalEmitterSource) Pause(ctx *Context) error {
+	s.m.Lock()
+	defer s.m.Unlock()
+	if s.state.state >= TSStopping {
+		return fmt.Errorf("source is already stopped")
 	}
+	s.state.setWithoutLock(TSPaused)
+	return nil
+}
+
+func (s *TupleIncrementalEmitterSource) Resume(ctx *Context) error {
+	s.m.Lock()
+	defer s.m.Unlock()
+	if s.state.state >= TSStopping {
+		return fmt.Errorf("source is already stopped")
+	}
+	s.state.setWithoutLock(TSRunning)
 	return nil
 }
 

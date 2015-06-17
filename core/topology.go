@@ -255,6 +255,25 @@ func (h *topologyStateHolder) checkAndPrepareForStoppingWithoutLock(keepInitiali
 	}
 }
 
+// ResumableNode is a node in a topology which can dynamically be paused and
+// resumed at runtime.
+type ResumableNode interface {
+	// Pause pauses a running node. A paused node can be resumed by calling
+	// Resume method. Pause is idempotent and pausing a paused node shouldn't
+	// fail. Pause may be called before a node runs. For example, when a node
+	// is a source, Pause could be called before calling GenerateStream. In
+	// that case, GenerateStream should not generate any tuple until Resume is
+	// called.
+	//
+	// When Stop is called while the node is paused, the node must stop without
+	// waiting for Resume.
+	Pause(ctx *Context) error
+
+	// Resume resumes a paused node. Resume is idempotent and resuming a running
+	// node shouldn't fail. Resume may be called before a node runs.
+	Resume(ctx *Context) error
+}
+
 // BoxInputConfig has parameters to customize input behavior of a Box on each
 // input pipe.
 type BoxInputConfig struct {
