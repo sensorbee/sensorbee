@@ -527,6 +527,8 @@ func (d *dynamicDataDestinations) remove(name string) {
 	dst.close()
 }
 
+// Write writes tuples to destinations. It doesn't return any error including
+// errPipeClosed.
 func (d *dynamicDataDestinations) Write(ctx *Context, t *tuple.Tuple) error {
 	d.rwm.RLock()
 	shouldUnlock := true
