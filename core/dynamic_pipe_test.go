@@ -507,5 +507,34 @@ func TestDynamicDataDestinations(t *testing.T) {
 				}, ShouldNotPanic)
 			})
 		})
+
+		Convey("When pausing", func() {
+			dsts.pause()
+			ch := make(chan error)
+			go func() {
+				ch <- fmt.Errorf("dummy error")
+				ch <- dsts.Write(ctx, t)
+			}()
+			<-ch
+
+			Convey("Then the write should be blocked", func() {
+				Reset(func() {
+					dsts.resume()
+				})
+
+				blocked := true
+				select {
+				case <-ch:
+					blocked = false
+				default:
+				}
+				So(blocked, ShouldBeTrue)
+			})
+
+			Convey("Then resume method unblocks the write", func() {
+				dsts.resume()
+				So(<-ch, ShouldBeNil)
+			})
+		})
 	})
 }
