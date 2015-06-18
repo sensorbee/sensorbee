@@ -11,6 +11,10 @@ func (db *defaultDynamicBoxNode) Type() NodeType {
 	return NTBox
 }
 
+func (db *defaultDynamicBoxNode) Box() Box {
+	return db.box
+}
+
 func (db *defaultDynamicBoxNode) Input(refname string, config *BoxInputConfig) error {
 	s, err := db.topology.dataSource(refname)
 	if err != nil {

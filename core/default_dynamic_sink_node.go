@@ -14,6 +14,10 @@ func (ds *defaultDynamicSinkNode) Type() NodeType {
 	return NTSink
 }
 
+func (ds *defaultDynamicSinkNode) Sink() Sink {
+	return ds.sink
+}
+
 func (ds *defaultDynamicSinkNode) Name() string {
 	return ds.name
 }
