@@ -16,6 +16,10 @@ func (ds *defaultDynamicSourceNode) Type() NodeType {
 	return NTSource
 }
 
+func (ds *defaultDynamicSourceNode) Source() Source {
+	return ds.source
+}
+
 func (ds *defaultDynamicSourceNode) run() error {
 	if err := ds.checkAndPrepareForRunning("source"); err != nil {
 		return err
