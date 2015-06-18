@@ -128,6 +128,9 @@ type DynamicNode interface {
 type DynamicSourceNode interface {
 	DynamicNode
 
+	// Source returns internal source passed to DynamicTopology.AddSource.
+	Source() Source
+
 	// Pause pauses a running source. A paused source can be resumed by calling
 	// Resume method. Pause is idempotent.
 	Pause() error
@@ -139,6 +142,9 @@ type DynamicSourceNode interface {
 // DynamicBoxNode is a Box registered to a dynamic topology.
 type DynamicBoxNode interface {
 	DynamicNode
+
+	// Box returns internal source passed to DynamicTopology.AddBox.
+	Box() Box
 
 	// Input adds a new input from a Source, another Box, or even the Box
 	// itself. refname refers a name of node from which the Box want to receive
@@ -162,6 +168,9 @@ type DynamicBoxNode interface {
 // DynamicSinkNode is a Sink registered to a dynamic topology.
 type DynamicSinkNode interface {
 	DynamicNode
+
+	// Sink returns internal source passed to DynamicTopology.AddSink.
+	Sink() Sink
 
 	// Input adds a new input from a Source or a Box. refname refers a name of
 	// node from which the Box want to receive tuples. There must be a Source
