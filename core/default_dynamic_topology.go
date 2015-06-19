@@ -374,7 +374,7 @@ func (t *defaultDynamicTopology) Sink(name string) (DynamicSinkNode, error) {
 	if s, ok := t.sinks[name]; ok {
 		return s, nil
 	}
-	return nil, fmt.Errorf("source '%v' was not found", name)
+	return nil, fmt.Errorf("sink '%v' was not found", name)
 }
 
 func (t *defaultDynamicTopology) Sinks() map[string]DynamicSinkNode {
@@ -403,7 +403,7 @@ func (t *defaultDynamicTopology) dataSource(nodeName string) (dynamicDataSource,
 	if b, ok := t.boxes[nodeName]; ok {
 		return b, nil
 	}
-	return nil, fmt.Errorf("no such data source node: %v", nodeName)
+	return nil, fmt.Errorf("data source node %v was not found", nodeName)
 }
 
 type defaultDynamicNode struct {
