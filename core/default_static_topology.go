@@ -27,7 +27,7 @@ type defaultStaticTopology struct {
 	stateMutex *sync.Mutex
 
 	fatalListenerMutex sync.Mutex
-	fatalListener      []func(ctx *Context, name string, err error)
+	fatalListener      []func(ctx *Context, nodeName string, err error)
 }
 
 func (t *defaultStaticTopology) Run(ctx *Context) error {
@@ -83,7 +83,7 @@ func (t *defaultStaticTopology) run(ctx *Context) error {
 		wg.Add(1)
 		go func(name string, node *staticNode) {
 			defer wg.Done()
-			node.run(ctx, t, name)
+			node.run(ctx, t)
 		}(name, node)
 	}
 
@@ -211,21 +211,22 @@ func (t *defaultStaticTopology) Stop(ctx *Context) error {
 // AddFatalListener adds a listener function to the topology. The listener is
 // called when a source, a box, or a sink returned a fatal error. Listeners
 // are never called concurrently, that is they don't have to acquire locks even
-// if two fatal errors occurred at the same time.
+// if two fatal errors occurred at the same time. nodeName is the name of the
+// node which caused the fatal error.
 //
 // Currently, a fatal error occurred in Source.GenerateStream are not reported.
-func (t *defaultStaticTopology) AddFatalListener(l func(ctx *Context, name string, err error)) {
+func (t *defaultStaticTopology) AddFatalListener(l func(ctx *Context, nodeName string, err error)) {
 	t.fatalListenerMutex.Lock()
 	defer t.fatalListenerMutex.Unlock()
 	t.fatalListener = append(t.fatalListener, l)
 }
 
-func (t *defaultStaticTopology) notifyFatalListeners(ctx *Context, name string, err error) {
+func (t *defaultStaticTopology) notifyFatalListeners(ctx *Context, nodeName string, err error) {
 	t.fatalListenerMutex.Lock()
 	defer t.fatalListenerMutex.Unlock()
 
 	for _, l := range t.fatalListener {
-		l(ctx, name, err)
+		l(ctx, nodeName, err)
 	}
 }
 
@@ -266,6 +267,8 @@ func newStaticPipe(inputName string, capacity int) (*staticPipeReceiver, *static
 // the topology and writes tuples to the next destination nodes. It allows boxes
 // and sinks to receive tuples from multiple sources and boxes.
 type staticNode struct {
+	name string
+
 	// dst is a writer which sends tuples to the real destination.
 	// dst can be a box, a sink.
 	dst WriteCloser
@@ -274,18 +277,19 @@ type staticNode struct {
 	inputs map[string]*staticPipeReceiver
 }
 
-func newStaticNode(dst WriteCloser) *staticNode {
+func newStaticNode(name string, dst WriteCloser) *staticNode {
 	return &staticNode{
+		name:   name,
 		dst:    dst,
 		inputs: map[string]*staticPipeReceiver{},
 	}
 }
 
-func (sc *staticNode) addInput(name string, in *staticPipeReceiver) {
-	sc.inputs[name] = in
+func (sc *staticNode) addInput(nodeName string, in *staticPipeReceiver) {
+	sc.inputs[nodeName] = in
 }
 
-func (sc *staticNode) run(ctx *Context, topology *defaultStaticTopology, name string) {
+func (sc *staticNode) run(ctx *Context, topology *defaultStaticTopology) {
 	var (
 		wg                sync.WaitGroup
 		fatalErrorHandler sync.Once
@@ -300,7 +304,7 @@ func (sc *staticNode) run(ctx *Context, topology *defaultStaticTopology, name st
 		} else {
 			err = FatalError(fmt.Errorf("unknown error through panic: %v", v))
 		}
-		topology.notifyFatalListeners(ctx, name, err)
+		topology.notifyFatalListeners(ctx, sc.name, err)
 	}
 
 	drainer := func(in *staticPipeReceiver) {
@@ -330,7 +334,7 @@ func (sc *staticNode) run(ctx *Context, topology *defaultStaticTopology, name st
 					// Once a Box panics, it'll always panic after that. So,
 					// the log should only be written once.
 					fatalErrorHandler.Do(func() {
-						ctx.Logger.Log(Error, "%v paniced: %v", name, err)
+						ctx.Logger.Log(Error, "%v paniced: %v", sc.name, err)
 						go setFatal(err)
 						go drainer(in)
 					})
@@ -356,7 +360,7 @@ func (sc *staticNode) run(ctx *Context, topology *defaultStaticTopology, name st
 					switch {
 					case IsFatalError(err):
 						fatalErrorHandler.Do(func() {
-							ctx.Logger.Log(Error, "%v had a fatal error: %v", name, err)
+							ctx.Logger.Log(Error, "%v had a fatal error: %v", sc.name, err)
 							go setFatal(err)
 							go drainer(in)
 						})
@@ -366,7 +370,7 @@ func (sc *staticNode) run(ctx *Context, topology *defaultStaticTopology, name st
 						// TODO: retry
 
 					default:
-						ctx.Logger.Log(Warning, "%v cannot write a tuple: %v", name, err)
+						ctx.Logger.Log(Warning, "%v cannot write a tuple: %v", sc.name, err)
 						// Skip the current tuple
 					}
 				}
@@ -376,7 +380,7 @@ func (sc *staticNode) run(ctx *Context, topology *defaultStaticTopology, name st
 	wg.Wait()
 
 	if err := sc.dst.Close(ctx); err != nil {
-		ctx.Logger.Log(Error, "%v cannot close its output channel: %v", name, err)
+		ctx.Logger.Log(Error, "%v cannot close its output channel: %v", sc.name, err)
 	}
 }
 
@@ -391,8 +395,8 @@ func newStaticDestinations() *staticDestinations {
 
 // addDestination adds a WriteCloser as a destination.
 // This method isn't thread-safe after the topology start flowing tuples.
-func (mc *staticDestinations) addDestination(name string, w WriteCloser) {
-	mc.names = append(mc.names, name)
+func (mc *staticDestinations) addDestination(nodeName string, w WriteCloser) {
+	mc.names = append(mc.names, nodeName)
 	mc.dsts = append(mc.dsts, w)
 }
 

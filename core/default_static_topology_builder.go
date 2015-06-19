@@ -191,11 +191,11 @@ func (tb *defaultStaticTopologyBuilder) Build() (StaticTopology, error) {
 	}
 	for name, box := range tb.boxes {
 		dst := newStaticDestinations()
-		st.nodes[name] = newStaticNode(newBoxWriterAdapter(box, name, dst))
+		st.nodes[name] = newStaticNode(name, newBoxWriterAdapter(box, name, dst))
 		dsts[name] = dst
 	}
 	for name, sink := range tb.sinks {
-		st.nodes[name] = newStaticNode(newTraceWriter(sink, tuple.Input, name))
+		st.nodes[name] = newStaticNode(name, newTraceWriter(sink, tuple.Input, name))
 	}
 
 	for _, e := range tb.Edges {
