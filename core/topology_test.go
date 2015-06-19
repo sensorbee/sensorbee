@@ -68,16 +68,12 @@ func (ds *DummySource) GenerateStream(ctx *Context, w Writer) error {
 func (ds *DummySource) Stop(ctx *Context) error {
 	return nil
 }
-func (ds *DummySource) Schema() *Schema {
-	s := Schema("test")
-	return &s
-}
 
 type DummyBox struct{}
 
 var (
-	_ StatefulBox  = &DummyBox{}
-	_ SchemafulBox = &DummyBox{}
+	_ StatefulBox   = &DummyBox{}
+	_ NamedInputBox = &DummyBox{}
 )
 
 func (db *DummyBox) Init(ctx *Context) error {
@@ -86,11 +82,8 @@ func (db *DummyBox) Init(ctx *Context) error {
 func (db *DummyBox) Process(ctx *Context, t *tuple.Tuple, s Writer) error {
 	return nil
 }
-func (db *DummyBox) InputSchema() SchemaSet {
+func (db *DummyBox) InputNames() []string {
 	return nil
-}
-func (db *DummyBox) OutputSchema(s SchemaSet) (*Schema, error) {
-	return nil, nil
 }
 func (db *DummyBox) Terminate(ctx *Context) error {
 	return nil
@@ -114,7 +107,7 @@ func TestTopology(t *testing.T) {
 
 		box := &DummyBox{}
 		tb.AddBox("test_box1", box).
-			Input("test_input_schema")
+			Input("test_input")
 
 		t := tb.Build()
 

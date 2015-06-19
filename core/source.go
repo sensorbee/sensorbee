@@ -19,9 +19,4 @@ type Source interface {
 	// it's guaranteed that Stop won't be called more than once by
 	// components in SensorBee's core package.
 	Stop(ctx *Context) error
-
-	// Schema will return the schema of the data that can be expected
-	// from this Source. It is nil if no guarantees about that schema
-	// are made.
-	Schema() *Schema
 }

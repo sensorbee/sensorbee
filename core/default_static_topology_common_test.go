@@ -28,9 +28,6 @@ func (s *DoesNothingSource) GenerateStream(ctx *Context, w Writer) error {
 func (s *DoesNothingSource) Stop(ctx *Context) error {
 	return nil
 }
-func (s *DoesNothingSource) Schema() *Schema {
-	return nil
-}
 
 /**************************************************/
 
@@ -52,8 +49,8 @@ type ProxyBox struct {
 }
 
 var (
-	_ StatefulBox  = &ProxyBox{}
-	_ SchemafulBox = &ProxyBox{}
+	_ StatefulBox   = &ProxyBox{}
+	_ NamedInputBox = &ProxyBox{}
 )
 
 func (b *ProxyBox) Init(ctx *Context) error {
@@ -74,18 +71,11 @@ func (b *ProxyBox) Terminate(ctx *Context) error {
 	return nil
 }
 
-func (b *ProxyBox) InputSchema() SchemaSet {
-	if s, ok := b.b.(SchemafulBox); ok {
-		return s.InputSchema()
+func (b *ProxyBox) InputNames() []string {
+	if s, ok := b.b.(NamedInputBox); ok {
+		return s.InputNames()
 	}
 	return nil
-}
-
-func (b *ProxyBox) OutputSchema(ss SchemaSet) (*Schema, error) {
-	if s, ok := b.b.(SchemafulBox); ok {
-		return s.OutputSchema(ss)
-	}
-	return nil, nil
 }
 
 /**************************************************/
@@ -159,9 +149,6 @@ func (s *TupleEmitterSource) Stop(ctx *Context) error {
 	for s.state < 2 {
 		s.c.Wait()
 	}
-	return nil
-}
-func (s *TupleEmitterSource) Schema() *Schema {
 	return nil
 }
 
@@ -275,10 +262,6 @@ func (s *TupleIncrementalEmitterSource) Resume(ctx *Context) error {
 		return fmt.Errorf("source is already stopped")
 	}
 	s.state.setWithoutLock(TSRunning)
-	return nil
-}
-
-func (s *TupleIncrementalEmitterSource) Schema() *Schema {
 	return nil
 }
 
