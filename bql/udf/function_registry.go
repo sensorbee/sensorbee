@@ -2,7 +2,7 @@ package udf
 
 import (
 	"fmt"
-	"pfi/sensorbee/sensorbee/core/tuple"
+	"pfi/sensorbee/sensorbee/tuple"
 )
 
 // VarParamFun is an alias for a variadic function on tuple.Value.

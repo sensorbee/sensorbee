@@ -3,7 +3,7 @@ package core
 import (
 	"bytes"
 	. "github.com/smartystreets/goconvey/convey"
-	"pfi/sensorbee/sensorbee/core/tuple"
+	"pfi/sensorbee/sensorbee/tuple"
 	"testing"
 )
 
