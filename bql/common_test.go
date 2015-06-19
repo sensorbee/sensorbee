@@ -64,10 +64,6 @@ func (s *blockingSource) Stop(ctx *core.Context) error {
 	return s.s.Stop(ctx)
 }
 
-func (s *blockingSource) Schema() *core.Schema {
-	return s.s.Schema()
-}
-
 func (s *blockingSource) Pause(ctx *core.Context) error {
 	// TODO: this is temporary implementation
 	return nil
