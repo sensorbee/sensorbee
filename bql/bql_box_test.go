@@ -5,9 +5,9 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 	"pfi/sensorbee/sensorbee/bql"
 	"pfi/sensorbee/sensorbee/core"
-	"pfi/sensorbee/sensorbee/core/tuple"
 	"pfi/sensorbee/sensorbee/io/dummy_sink"
 	"pfi/sensorbee/sensorbee/io/dummy_source"
+	"pfi/sensorbee/sensorbee/tuple"
 	"testing"
 )
 

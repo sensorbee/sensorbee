@@ -1,7 +1,7 @@
 package core
 
 import (
-	"pfi/sensorbee/sensorbee/core/tuple"
+	"pfi/sensorbee/sensorbee/tuple"
 	"time"
 )
 
