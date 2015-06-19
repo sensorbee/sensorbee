@@ -341,10 +341,6 @@ func (s *stubFailingSource) Stop(ctx *Context) error {
 	return nil
 }
 
-func (s *stubFailingSource) Schema() *Schema {
-	return nil
-}
-
 func TestDefaultStaticTopologyStop(t *testing.T) {
 	config := Configuration{TupleTraceEnabled: 1}
 	ctx := newTestContext(config)

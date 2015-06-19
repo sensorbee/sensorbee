@@ -91,6 +91,7 @@ func (s *tupleEmitterSource) GenerateStream(ctx *core.Context, w core.Writer) er
 	s.c.Broadcast()
 	return nil
 }
+
 func (s *tupleEmitterSource) Stop(ctx *core.Context) error {
 	s.m.Lock()
 	defer s.m.Unlock()
@@ -102,8 +103,5 @@ func (s *tupleEmitterSource) Stop(ctx *core.Context) error {
 	for s.state < 2 {
 		s.c.Wait()
 	}
-	return nil
-}
-func (s *tupleEmitterSource) Schema() *core.Schema {
 	return nil
 }

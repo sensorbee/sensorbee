@@ -21,8 +21,6 @@ func (db *defaultDynamicBoxNode) Input(refname string, config *BoxInputConfig) e
 		return err
 	}
 
-	// TODO: schema validation
-
 	if config == nil {
 		config = defaultBoxInputConfig
 	}

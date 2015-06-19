@@ -91,7 +91,7 @@ func (l LogLevel) String() string {
 //
 // DroppedTuple should be called by a Box for each Tuple
 // where an error occurred that was so bad that processing
-// cannot continue for that particular Tuple (e.g., schema
+// cannot continue for that particular Tuple (e.g., named input
 // mismatch), but not grave enough to abort the whole process.
 type LogManager interface {
 	Log(level LogLevel, msg string, a ...interface{})

@@ -90,7 +90,6 @@ func (tb *defaultStaticTopologyBuilder) AddSource(name string, source Source) So
 	if nameErr := tb.checkName(name); nameErr != nil {
 		return &defaultSourceDeclarer{nameErr}
 	}
-	// TODO check that declared schema is a valid JSON Schema string
 	if err := tb.addComponent(name, source); err != nil {
 		return &defaultSourceDeclarer{err}
 	}
@@ -136,7 +135,6 @@ func (tb *defaultStaticTopologyBuilder) AddBox(name string, box Box) BoxDeclarer
 	if nameErr := tb.checkName(name); nameErr != nil {
 		return &defaultBoxDeclarer{err: nameErr}
 	}
-	// TODO check that declared schema is a valid JSON Schema string
 	if err := tb.addComponent(name, box); err != nil {
 		return &defaultBoxDeclarer{err: err}
 	}
