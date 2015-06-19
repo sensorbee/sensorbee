@@ -2,15 +2,19 @@ package udf
 
 import (
 	"fmt"
+	"pfi/sensorbee/sensorbee/core"
 	"pfi/sensorbee/sensorbee/tuple"
 )
 
 // VarParamFun is an alias for a variadic function on tuple.Value.
-type VarParamFun func(...tuple.Value) (tuple.Value, error)
+type VarParamFun func(*core.Context, ...tuple.Value) (tuple.Value, error)
 
 // FunctionRegistry is an interface to lookup functions for use in BQL
 // statements by their name.
 type FunctionRegistry interface {
+	// Context returns a core.Context associated with the registry.
+	Context() *core.Context
+
 	// Lookup will return a function with the given name and arity
 	// or an error if there is none. Note that this interface allows
 	// multiple functions with the same name but different arity,
@@ -34,24 +38,32 @@ type FunctionManager interface {
 }
 
 type defaultFunctionRegistry struct {
+	ctx   *core.Context
 	funcs map[string]struct {
 		fun     VarParamFun
 		checker func(int) bool
 	}
 }
 
-func NewDefaultFunctionRegistry() *defaultFunctionRegistry {
+func NewDefaultFunctionRegistry(ctx *core.Context) *defaultFunctionRegistry {
 	empty := map[string]struct {
 		fun     VarParamFun
 		checker func(int) bool
 	}{}
-	reg := &defaultFunctionRegistry{empty}
+	reg := &defaultFunctionRegistry{
+		ctx:   ctx,
+		funcs: empty,
+	}
 	// register some standard functions
-	toString := func(v tuple.Value) (tuple.Value, error) {
+	toString := func(ctx *core.Context, v tuple.Value) (tuple.Value, error) {
 		return tuple.String(v.String()), nil
 	}
 	reg.RegisterUnary("str", toString)
 	return reg
+}
+
+func (fr *defaultFunctionRegistry) Context() *core.Context {
+	return fr.ctx
 }
 
 func (fr *defaultFunctionRegistry) Lookup(name string, arity int) (VarParamFun, error) {
@@ -91,42 +103,42 @@ func (fr *defaultFunctionRegistry) registerFlexible(name string, f VarParamFun, 
 	return nil
 }
 
-func (fr *defaultFunctionRegistry) RegisterNullary(name string, f func() (tuple.Value, error)) error {
-	genFunc := func(vs ...tuple.Value) (tuple.Value, error) {
+func (fr *defaultFunctionRegistry) RegisterNullary(name string, f func(*core.Context) (tuple.Value, error)) error {
+	genFunc := func(ctx *core.Context, vs ...tuple.Value) (tuple.Value, error) {
 		if len(vs) != 0 {
 			return nil, fmt.Errorf("function '%s' should be used as nullary", name)
 		}
-		return f()
+		return f(ctx)
 	}
 	return fr.Register(name, genFunc, 0)
 }
 
-func (fr *defaultFunctionRegistry) RegisterUnary(name string, f func(tuple.Value) (tuple.Value, error)) error {
-	genFunc := func(vs ...tuple.Value) (tuple.Value, error) {
+func (fr *defaultFunctionRegistry) RegisterUnary(name string, f func(*core.Context, tuple.Value) (tuple.Value, error)) error {
+	genFunc := func(ctx *core.Context, vs ...tuple.Value) (tuple.Value, error) {
 		if len(vs) != 1 {
 			return nil, fmt.Errorf("function '%s' should be used as unary", name)
 		}
-		return f(vs[0])
+		return f(ctx, vs[0])
 	}
 	return fr.Register(name, genFunc, 1)
 }
 
-func (fr *defaultFunctionRegistry) RegisterBinary(name string, f func(tuple.Value, tuple.Value) (tuple.Value, error)) error {
-	genFunc := func(vs ...tuple.Value) (tuple.Value, error) {
+func (fr *defaultFunctionRegistry) RegisterBinary(name string, f func(*core.Context, tuple.Value, tuple.Value) (tuple.Value, error)) error {
+	genFunc := func(ctx *core.Context, vs ...tuple.Value) (tuple.Value, error) {
 		if len(vs) != 2 {
 			return nil, fmt.Errorf("function '%s' should be used as binary", name)
 		}
-		return f(vs[0], vs[1])
+		return f(ctx, vs[0], vs[1])
 	}
 	return fr.Register(name, genFunc, 2)
 }
 
-func (fr *defaultFunctionRegistry) RegisterTernary(name string, f func(tuple.Value, tuple.Value, tuple.Value) (tuple.Value, error)) error {
-	genFunc := func(vs ...tuple.Value) (tuple.Value, error) {
+func (fr *defaultFunctionRegistry) RegisterTernary(name string, f func(*core.Context, tuple.Value, tuple.Value, tuple.Value) (tuple.Value, error)) error {
+	genFunc := func(ctx *core.Context, vs ...tuple.Value) (tuple.Value, error) {
 		if len(vs) != 3 {
 			return nil, fmt.Errorf("function '%s' should be used as ternary", name)
 		}
-		return f(vs[0], vs[1], vs[2])
+		return f(ctx, vs[0], vs[1], vs[2])
 	}
 	return fr.Register(name, genFunc, 3)
 }
