@@ -11,7 +11,7 @@ import (
 
 func createFilterIstreamPlan(s string, t *testing.T) (ExecutionPlan, ExecutionPlan, error) {
 	p := parser.NewBQLParser()
-	reg := udf.NewDefaultFunctionRegistry()
+	reg := udf.NewDefaultFunctionRegistry(newTestContext())
 	_stmt, _, err := p.ParseStmt(s)
 	So(err, ShouldBeNil)
 	So(_stmt, ShouldHaveSameTypeAs, parser.CreateStreamAsSelectStmt{})
