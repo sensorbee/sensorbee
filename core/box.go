@@ -91,79 +91,17 @@ type StatefulBox interface {
 	Terminate(ctx *Context) error
 }
 
-// SchemaSet is a set of schemas required by a SchemafulBox for its input
-// data or computation of its output schema.
-// A schema can be nil, which means the input or output is schemaless and
-// accept any type of tuples.
-type SchemaSet map[string]*Schema
+// TODO: Support input constraints such as an acceptable frequency of tuples.
 
-// Names returns names of all the schema the set has. It returns names
-// of nil-schemas.
-func (s SchemaSet) Names() []string {
-	var ns []string
-	for n := range s {
-		ns = append(ns, n)
-	}
-	return ns
-}
-
-// Has returns true when the set has the schema with the name. It returns
-// true even when the set has a nil-schema with the name.
-func (s SchemaSet) Has(name string) bool {
-	_, ok := s[name]
-	return ok
-}
-
-// SchemafulBox is a Box having input/output schema information so that type
-// conversion error can be detected before it's executed.
-type SchemafulBox interface {
+// NamedInputBox is a box whose inputs have custom input names.
+type NamedInputBox interface {
 	Box
 
-	// InputSchema returns the specification of tuples which the Box receives.
-	//
-	// Schema is a map that declares the required input schema for
-	// each logical input stream, identified by a Box-internal input
-	// name. Most boxes will treat all input tuples the same way
-	// (e.g., filter by a certain value, aggregate a certain key etc.);
-	// such boxes do not require the concept of multiple logical streams
-	// and should return
-	//
-	//	{"*": mySchema}
-	//
-	// where mySchema is either nil (to signal that any input is fine)
-	// or a pointer to a valid Schema object (to signal that all input
-	// tuples must match that schema). However, boxes that need to
-	// treat tuples from one source different than tuples from another
-	// source (e.g., when joining on `user.id == events.uid` etc.),
-	// can declare that they require multiple streams with (maybe)
-	// different schemas:
-	//
-	//	{"left": schemaA, "right": schemaB}
-	//
-	// If schemaA or schemaB is nil, then any input is fine on that
-	// logical stream, otherwise it needs to match the given schema.
-	// It is also possible to mix the forms using
-	//
-	//	{"special": schemaA, "*": schemaB}
-	//
-	// in which streams with arbitrary names can be added, but the tuples
-	// in streams called "special" will have to match schemaA (if given),
-	// all others schemaB (if given).
-	// Also see BoxDeclarer.Input and BoxDeclarer.NamedInput.
-	InputSchema() SchemaSet
-
-	// OutputSchema is called on a Box when it is necessary to
-	// determine the shape of data that will be created by this Box.
-	// Since this output may vary depending on the data that is
-	// received, a SchemaSet with the schemas of the input streams is
-	// passed as a parameter. Each schema in the argument is tied
-	// to the name of the input defined in the schema returned from
-	// InputSchema method. Return a nil pointer to signal that there
-	// are no guarantees  about the shape of the returned data given.
-	OutputSchema(SchemaSet) (*Schema, error)
+	// InputNames returns a slice of names which the box accepts as input names.
+	// If it's empty, any name is accepted. Otherwise, the box only accepts
+	// names in the slice.
+	InputNames() []string
 }
-
-// TODO: Support input constraints such as an acceptable frequency of tuples.
 
 // BoxFunc can be used to add all methods required to fulfill the Box
 // interface to a normal function with the signature
@@ -192,28 +130,27 @@ func checkBoxInputName(b Box, boxName string, inputName string) error {
 	// The `Input()` caller said that we should attach the name
 	// `inputName` to incoming data (or not if inputName is "*").
 	// This is ok if
-	// - Box is schemaless
-	// - InputSchema() is nil
-	// - InputSchema() has a schema for that name
-	// - there is a "*" schema declared in InputSchema()
+	// - A Box doesn't have named inputs.
+	// - InputNames() is nil or empty
+	// - InputNames() contains the name
 	// Otherwise this is an error.
-	sbox, ok := b.(SchemafulBox)
+	nbox, ok := b.(NamedInputBox)
 	if !ok {
-		return nil // This box is schemaless.
+		return nil // This box accepts any name
 	}
 
-	inSchema := sbox.InputSchema()
-	if inSchema == nil {
-		return nil // schemaless
-	} else if inSchema.Has(inputName) {
-		// TODO: check if given schema matches the referenced source or box
-		return nil
-	} else if inSchema.Has("*") {
-		// TODO: check if given schema matches the referenced source or box
+	names := nbox.InputNames()
+	if len(names) == 0 { // names == nil or has zero length
 		return nil
 	}
+
+	for _, n := range names {
+		if n == inputName {
+			return nil
+		}
+	}
 	return fmt.Errorf("an input name %s isn't defined in the box '%v': %v",
-		inputName, boxName, strings.Join(inSchema.Names(), ", "))
+		inputName, boxName, strings.Join(names, ", "))
 }
 
 // boxWriterAdapter provides a Writer interface which writes tuples to a Box.

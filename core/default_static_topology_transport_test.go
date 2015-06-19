@@ -405,7 +405,7 @@ func TestDefaultStaticTopologyTupleTransport(t *testing.T) {
 		}
 		tb.AddSource("source", so)
 
-		b1 := CollectorBox{InSchema: SchemaSet{"hoge": nil}}
+		b1 := CollectorBox{InNames: []string{"hoge"}}
 		tb.AddBox("box1", &b1).NamedInput("source", "hoge")
 		b2 := CollectorBox{}
 		tb.AddBox("box2", &b2).Input("source")
@@ -497,14 +497,14 @@ func TestDefaultStaticTopologyTupleTransport(t *testing.T) {
 // CollectorBox is a simple forwarder box that also stores a copy
 // of all forwarded data for later inspection.
 type CollectorBox struct {
-	mutex    *sync.Mutex
-	Tuples   []*tuple.Tuple
-	InSchema SchemaSet
+	mutex   *sync.Mutex
+	Tuples  []*tuple.Tuple
+	InNames []string
 }
 
 var (
-	_ StatefulBox  = &CollectorBox{}
-	_ SchemafulBox = &CollectorBox{}
+	_ StatefulBox   = &CollectorBox{}
+	_ NamedInputBox = &CollectorBox{}
 )
 
 func (b *CollectorBox) Init(ctx *Context) error {
@@ -521,11 +521,8 @@ func (b *CollectorBox) Process(ctx *Context, t *tuple.Tuple, s Writer) error {
 	s.Write(ctx, t)
 	return nil
 }
-func (b *CollectorBox) InputSchema() SchemaSet {
-	return b.InSchema
-}
-func (b *CollectorBox) OutputSchema(s SchemaSet) (*Schema, error) {
-	return nil, nil
+func (b *CollectorBox) InputNames() []string {
+	return b.InNames
 }
 func (b *CollectorBox) Terminate(ctx *Context) error {
 	return nil
@@ -542,12 +539,12 @@ type SimpleJoinBox struct {
 	mutex       *sync.Mutex
 	LeftTuples  map[int64]*tuple.Tuple
 	RightTuples map[int64]*tuple.Tuple
-	inputSchema SchemaSet
+	inputNames  []string
 }
 
 var (
-	_ StatefulBox  = &SimpleJoinBox{}
-	_ SchemafulBox = &SimpleJoinBox{}
+	_ StatefulBox   = &SimpleJoinBox{}
+	_ NamedInputBox = &SimpleJoinBox{}
 )
 
 func (b *SimpleJoinBox) Init(ctx *Context) error {
@@ -612,13 +609,9 @@ func (b *SimpleJoinBox) Process(ctx *Context, t *tuple.Tuple, s Writer) error {
 	return nil
 }
 
-// require schemafree input from "left" and "right" named streams
-func (b *SimpleJoinBox) InputSchema() SchemaSet {
-	return b.inputSchema
-}
-
-func (b *SimpleJoinBox) OutputSchema(s SchemaSet) (*Schema, error) {
-	return nil, nil
+// require input from "left" and "right" named streams
+func (b *SimpleJoinBox) InputNames() []string {
+	return b.inputNames
 }
 
 func (b *SimpleJoinBox) Terminate(ctx *Context) error {

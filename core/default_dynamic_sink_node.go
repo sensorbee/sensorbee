@@ -32,8 +32,6 @@ func (ds *defaultDynamicSinkNode) Input(refname string, config *SinkInputConfig)
 		return err
 	}
 
-	// TODO: schema validation
-
 	if config == nil {
 		config = defaultSinkInputConfig
 	}
