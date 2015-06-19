@@ -5,7 +5,7 @@ import (
 	"io"
 	"log"
 	"os"
-	"pfi/sensorbee/sensorbee/core/tuple"
+	"pfi/sensorbee/sensorbee/tuple"
 )
 
 // NewConsolePrintLogger creates a LogManager that will write
