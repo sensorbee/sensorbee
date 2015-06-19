@@ -1,12 +1,10 @@
 package bql_test
 
 import (
-	"fmt"
 	"pfi/sensorbee/sensorbee/bql"
 	"pfi/sensorbee/sensorbee/bql/parser"
 	"pfi/sensorbee/sensorbee/core"
 	"pfi/sensorbee/sensorbee/io/dummy_source"
-	"runtime/debug"
 	"sync"
 )
 
