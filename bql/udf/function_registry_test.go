@@ -2,13 +2,14 @@ package udf
 
 import (
 	. "github.com/smartystreets/goconvey/convey"
+	"pfi/sensorbee/sensorbee/core"
 	"pfi/sensorbee/sensorbee/tuple"
 	"testing"
 )
 
 func TestDefaultFunctionRegistry(t *testing.T) {
 	Convey("Given a default function registry", t, func() {
-		fr := NewDefaultFunctionRegistry()
+		fr := NewDefaultFunctionRegistry(&core.Context{}) // context is not directly used now
 
 		Convey("When asking for an unknown function", func() {
 			_, err := fr.Lookup("hoge", 17)
@@ -18,7 +19,7 @@ func TestDefaultFunctionRegistry(t *testing.T) {
 		})
 
 		Convey("When adding a unary function via Register", func() {
-			fun := func(vs ...tuple.Value) (tuple.Value, error) {
+			fun := func(ctx *core.Context, vs ...tuple.Value) (tuple.Value, error) {
 				return tuple.Bool(true), nil
 			}
 			fr.Register("test", fun, 1)
@@ -35,7 +36,7 @@ func TestDefaultFunctionRegistry(t *testing.T) {
 		})
 
 		Convey("When adding a variadic function via RegisterVariadic", func() {
-			fun := func(vs ...tuple.Value) (tuple.Value, error) {
+			fun := func(ctx *core.Context, vs ...tuple.Value) (tuple.Value, error) {
 				return tuple.Bool(true), nil
 			}
 			fr.RegisterVariadic("hello", fun)
@@ -51,7 +52,7 @@ func TestDefaultFunctionRegistry(t *testing.T) {
 		})
 
 		Convey("When adding a unary function via RegisterNullary", func() {
-			fun := func() (tuple.Value, error) {
+			fun := func(*core.Context) (tuple.Value, error) {
 				return tuple.Bool(true), nil
 			}
 			fr.RegisterNullary("test0", fun)
@@ -68,7 +69,7 @@ func TestDefaultFunctionRegistry(t *testing.T) {
 		})
 
 		Convey("When adding a unary function via RegisterUnary", func() {
-			fun := func(tuple.Value) (tuple.Value, error) {
+			fun := func(*core.Context, tuple.Value) (tuple.Value, error) {
 				return tuple.Bool(true), nil
 			}
 			fr.RegisterUnary("test1", fun)
@@ -85,7 +86,7 @@ func TestDefaultFunctionRegistry(t *testing.T) {
 		})
 
 		Convey("When adding a binary function via RegisterBinary", func() {
-			fun := func(tuple.Value, tuple.Value) (tuple.Value, error) {
+			fun := func(*core.Context, tuple.Value, tuple.Value) (tuple.Value, error) {
 				return tuple.Bool(true), nil
 			}
 			fr.RegisterBinary("test2", fun)
@@ -102,7 +103,7 @@ func TestDefaultFunctionRegistry(t *testing.T) {
 		})
 
 		Convey("When adding a binary function via RegisterTernary", func() {
-			fun := func(tuple.Value, tuple.Value, tuple.Value) (tuple.Value, error) {
+			fun := func(*core.Context, tuple.Value, tuple.Value, tuple.Value) (tuple.Value, error) {
 				return tuple.Bool(true), nil
 			}
 			fr.RegisterTernary("test3", fun)

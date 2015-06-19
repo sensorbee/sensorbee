@@ -5,6 +5,7 @@ import (
 	"math"
 	"pfi/sensorbee/sensorbee/bql/parser"
 	"pfi/sensorbee/sensorbee/bql/udf"
+	"pfi/sensorbee/sensorbee/core"
 	"pfi/sensorbee/sensorbee/tuple"
 	"reflect"
 )
@@ -90,7 +91,7 @@ func ExpressionToEvaluator(ast interface{}, reg udf.FunctionRegistry) (Evaluator
 			}
 			evals[i] = eval
 		}
-		return FuncApp(fName, f, evals), nil
+		return FuncApp(fName, f, reg.Context(), evals), nil
 	case parser.Wildcard:
 		return &Wildcard{}, nil
 	}
@@ -473,7 +474,7 @@ func (f *funcApp) Eval(input tuple.Value) (v tuple.Value, err error) {
 		if err != nil {
 			return nil, err
 		}
-		f.paramValues[i] = reflect.ValueOf(value)
+		f.paramValues[i+1] = reflect.ValueOf(value)
 	}
 	// evaluate the function
 	results := f.fVal.Call(f.paramValues)
@@ -493,9 +494,10 @@ func (f *funcApp) Eval(input tuple.Value) (v tuple.Value, err error) {
 
 // FuncApp represents evaluation of a function on a number
 // of parameters that are expressions over an input Value.
-func FuncApp(name string, f udf.VarParamFun, params []Evaluator) Evaluator {
+func FuncApp(name string, f udf.VarParamFun, ctx *core.Context, params []Evaluator) Evaluator {
 	fVal := reflect.ValueOf(f)
-	paramValues := make([]reflect.Value, len(params))
+	paramValues := make([]reflect.Value, len(params)+1)
+	paramValues[0] = reflect.ValueOf(ctx)
 	return &funcApp{name, fVal, params, paramValues}
 }
 

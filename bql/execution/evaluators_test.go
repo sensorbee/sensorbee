@@ -6,6 +6,7 @@ import (
 	"math"
 	"pfi/sensorbee/sensorbee/bql/parser"
 	"pfi/sensorbee/sensorbee/bql/udf"
+	"pfi/sensorbee/sensorbee/core"
 	"pfi/sensorbee/sensorbee/tuple"
 	"testing"
 	"time"
@@ -16,9 +17,17 @@ type evalTest struct {
 	expected tuple.Value
 }
 
+func newTestContext() *core.Context {
+	return &core.Context{
+		Logger:       core.NewConsolePrintLogger(),
+		Config:       core.Configuration{},
+		SharedStates: core.NewDefaultSharedStateRegistry(),
+	}
+}
+
 func TestEvaluators(t *testing.T) {
 	testCases := getTestCases()
-	reg := &testFuncRegistry{}
+	reg := &testFuncRegistry{ctx: newTestContext()}
 
 	for _, testCase := range testCases {
 		testCase := testCase
@@ -54,7 +63,7 @@ func TestEvaluators(t *testing.T) {
 
 func TestFuncAppConversion(t *testing.T) {
 	Convey("Given a function registry", t, func() {
-		reg := &testFuncRegistry{}
+		reg := &testFuncRegistry{ctx: newTestContext()}
 
 		Convey("When a function is known in the registry", func() {
 			ast := parser.FuncAppAST{parser.FuncName("plusone"),
@@ -86,7 +95,7 @@ func TestFuncAppConversion(t *testing.T) {
 // PlusOne is an example function that adds one to int and float Values.
 // It panics if the input is Null and returns an error for any other
 // type.
-func PlusOne(vs ...tuple.Value) (tuple.Value, error) {
+func PlusOne(ctx *core.Context, vs ...tuple.Value) (tuple.Value, error) {
 	if len(vs) != 1 {
 		err := fmt.Errorf("cannot use %d parameters for unary function", len(vs))
 		return nil, err
@@ -106,6 +115,11 @@ func PlusOne(vs ...tuple.Value) (tuple.Value, error) {
 
 // testFuncRegistry returns the PlusOne function above for any parameter.
 type testFuncRegistry struct {
+	ctx *core.Context
+}
+
+func (tfr *testFuncRegistry) Context() *core.Context {
+	return tfr.ctx
 }
 
 func (tfr *testFuncRegistry) Lookup(name string, arity int) (udf.VarParamFun, error) {

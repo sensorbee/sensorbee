@@ -29,7 +29,7 @@ func NewTopologyBuilder(t core.DynamicTopology) *TopologyBuilder {
 	// create topology
 	tb := &TopologyBuilder{
 		topology: t,
-		Reg:      udf.NewDefaultFunctionRegistry(),
+		Reg:      udf.NewDefaultFunctionRegistry(t.Context()),
 	}
 	return tb
 }
