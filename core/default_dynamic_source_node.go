@@ -2,7 +2,7 @@ package core
 
 import (
 	"fmt"
-	"pfi/sensorbee/sensorbee/core/tuple"
+	"pfi/sensorbee/sensorbee/tuple"
 )
 
 type defaultDynamicSourceNode struct {
