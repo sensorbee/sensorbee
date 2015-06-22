@@ -99,7 +99,7 @@ func TestTopologiesExecuteQueriesAndShowTenant(t *testing.T) {
 				st := js["status"]
 				status, ok := st.(string)
 				So(ok, ShouldBeTrue)
-				So(status, ShouldStartWith, "unknown source type")
+				So(status, ShouldStartWith, "statement of type")
 				Convey("Given a topologies root path", func() {
 					path := "/topologies/"
 					Convey("When get request, then return tenant name list", func() {
@@ -136,7 +136,11 @@ func TestTopologiesExecuteQueriesAndShowTenant(t *testing.T) {
 						st := js["status"]
 						status, ok := st.(string)
 						So(ok, ShouldBeTrue)
-						So(status, ShouldEqual, "not initialized or running topology")
+						So(status, ShouldEqual, "done")
+						stt := js["state"]
+						state, ok := stt.(string)
+						So(ok, ShouldBeTrue)
+						So(state, ShouldEqual, "stop")
 					})
 				})
 			})

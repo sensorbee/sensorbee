@@ -23,7 +23,7 @@ func main() {
 		client.SetUpCMDLineToolCommand,
 	})
 
-	// TODO plugin registration
+	// TODO plugin registration and logging
 	if err := plugin.Register(); err != nil {
 		fmt.Println("plugin registration error")
 		return
