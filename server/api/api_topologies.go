@@ -6,6 +6,7 @@ import (
 	"github.com/gocraft/web"
 	"io/ioutil"
 	"pfi/sensorbee/sensorbee/bql"
+	"pfi/sensorbee/sensorbee/bql/parser"
 	"pfi/sensorbee/sensorbee/core"
 	"strconv"
 )
@@ -13,6 +14,7 @@ import (
 var (
 	topologyMap        = map[string]core.DynamicTopology{}
 	topologyBuilderMap = map[string]*bql.TopologyBuilder{}
+	bqlParser          = parser.NewBQLParser()
 )
 
 type TopologiesContext struct {
@@ -214,20 +216,29 @@ func (tc *TopologiesContext) Queries(rw web.ResponseWriter, req *web.Request) {
 
 	}
 
-	_, err = tb.AddStmt(queries) // TODO node identifier
+	stmts, err := bqlParser.ParseStmts(queries)
 	if err != nil {
 		tc.RenderJSON(&map[string]interface{}{
 			"name":   tc.name,
 			"status": err.Error(),
 		})
 		return
-	} else {
-		tc.RenderJSON(&map[string]interface{}{
-			"name":    tc.name,
-			"status":  "running",
-			"queries": queries,
-		})
 	}
+	for _, stmt := range stmts {
+		_, err = tb.AddStmt(stmt) // TODO node identifier
+		if err != nil {
+			tc.RenderJSON(&map[string]interface{}{
+				"name":   tc.name,
+				"status": err.Error(),
+			})
+			return // TODO return error detail
+		}
+	}
+	tc.RenderJSON(&map[string]interface{}{
+		"name":    tc.name,
+		"status":  "running",
+		"queries": queries,
+	})
 }
 
 func (tc *TopologiesContext) ShowSources(rw web.ResponseWriter, req *web.Request) {
