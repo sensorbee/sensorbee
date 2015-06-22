@@ -6,14 +6,15 @@ import (
 	"github.com/gocraft/web"
 	"io/ioutil"
 	"pfi/sensorbee/sensorbee/bql"
+	"pfi/sensorbee/sensorbee/bql/parser"
 	"pfi/sensorbee/sensorbee/core"
 	"strconv"
 )
 
 var (
+	topologyMap        = map[string]core.DynamicTopology{}
 	topologyBuilderMap = map[string]*bql.TopologyBuilder{}
-	topologyMap        = map[string]core.StaticTopology{}
-	topologyContextMap = map[string]core.Context{}
+	bqlParser          = parser.NewBQLParser()
 )
 
 type TopologiesContext struct {
@@ -110,7 +111,7 @@ func (tc *TopologiesContext) Show(rw web.ResponseWriter, req *web.Request) {
 	})
 }
 
-// Update execute BQLs
+// Update dynamic nodes by BQLs
 func (tc *TopologiesContext) Update(rw web.ResponseWriter, req *web.Request) {
 	tp, ok := topologyMap[tc.name]
 	if !ok {
@@ -145,10 +146,9 @@ func (tc *TopologiesContext) Update(rw web.ResponseWriter, req *web.Request) {
 	if !ok {
 		state = ""
 	}
-	ctx := topologyContextMap[tc.name]
 	switch state {
 	case "stop":
-		err = tp.Stop(&ctx)
+		err = tp.Stop()
 	case "pause":
 	case "resume":
 	default:
@@ -161,8 +161,9 @@ func (tc *TopologiesContext) Update(rw web.ResponseWriter, req *web.Request) {
 		})
 	} else {
 		tc.RenderJSON(&map[string]interface{}{
-			"name":  tc.name,
-			"state": state,
+			"name":   tc.name,
+			"status": "done",
+			"state":  state,
 		})
 	}
 }
@@ -196,14 +197,8 @@ func (tc *TopologiesContext) Queries(rw web.ResponseWriter, req *web.Request) {
 		return
 	}
 
-	// TODO need to apply dynamic topology
-	var tb *bql.TopologyBuilder
-	var ctx core.Context
-	tp, ok := topologyMap[tc.name]
+	tb, ok := topologyBuilderMap[tc.name]
 	if !ok {
-		tb = bql.NewTopologyBuilder()
-		topologyBuilderMap[tc.name] = tb
-
 		// TODO get context configuration from BQL
 		logManagment := core.NewConsolePrintLogger()
 		conf := core.Configuration{
@@ -213,14 +208,15 @@ func (tc *TopologiesContext) Queries(rw web.ResponseWriter, req *web.Request) {
 			Logger: logManagment,
 			Config: conf,
 		}
-		topologyContextMap[tc.name] = ctx
-	} else {
-		// if already exist topology, means that topology builder also exist
-		tb = topologyBuilderMap[tc.name]
-		ctx = topologyContextMap[tc.name]
+		tp := core.NewDefaultDynamicTopology(&ctx, tc.name)
+		topologyMap[tc.name] = tp
+
+		tb = bql.NewTopologyBuilder(tp)
+		topologyBuilderMap[tc.name] = tb
+
 	}
 
-	err = tb.BQL(queries)
+	stmts, err := bqlParser.ParseStmts(queries)
 	if err != nil {
 		tc.RenderJSON(&map[string]interface{}{
 			"name":   tc.name,
@@ -228,29 +224,21 @@ func (tc *TopologiesContext) Queries(rw web.ResponseWriter, req *web.Request) {
 		})
 		return
 	}
-
-	tp, err = tb.Build()
-	if err != nil {
-		tc.RenderJSON(&map[string]interface{}{
-			"name":   tc.name,
-			"status": err.Error(),
-		})
-		return
+	for _, stmt := range stmts {
+		_, err = tb.AddStmt(stmt) // TODO node identifier
+		if err != nil {
+			tc.RenderJSON(&map[string]interface{}{
+				"name":   tc.name,
+				"status": err.Error(),
+			})
+			return // TODO return error detail
+		}
 	}
-
-	err = tp.Run(&ctx)
-	if err != nil {
-		tc.RenderJSON(&map[string]interface{}{
-			"name":   tc.name,
-			"status": err.Error(),
-		})
-	} else {
-		tc.RenderJSON(&map[string]interface{}{
-			"name":    tc.name,
-			"status":  "running",
-			"queries": queries,
-		})
-	}
+	tc.RenderJSON(&map[string]interface{}{
+		"name":    tc.name,
+		"status":  "running",
+		"queries": queries,
+	})
 }
 
 func (tc *TopologiesContext) ShowSources(rw web.ResponseWriter, req *web.Request) {

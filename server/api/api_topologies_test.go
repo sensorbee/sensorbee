@@ -136,7 +136,11 @@ func TestTopologiesExecuteQueriesAndShowTenant(t *testing.T) {
 						st := js["status"]
 						status, ok := st.(string)
 						So(ok, ShouldBeTrue)
-						So(status, ShouldEqual, "not initialized or running topology")
+						So(status, ShouldEqual, "done")
+						stt := js["state"]
+						state, ok := stt.(string)
+						So(ok, ShouldBeTrue)
+						So(state, ShouldEqual, "stop")
 					})
 				})
 			})
