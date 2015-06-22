@@ -3,6 +3,7 @@ package client
 import (
 	"github.com/codegangsta/cli"
 	"pfi/sensorbee/sensorbee/client/cmd"
+	"strings"
 )
 
 func SetUpCMDLineToolCommand() cli.Command {
@@ -15,7 +16,7 @@ func SetUpCMDLineToolCommand() cli.Command {
 	cmd.Flags = []cli.Flag{
 		cli.StringFlag{
 			Name:   "uri",
-			Value:  "http://localhost:8090/api/v1",
+			Value:  "http://localhost:8090/api",
 			Usage:  "target URI to launch",
 			EnvVar: "URI",
 		},
@@ -31,7 +32,11 @@ func SetUpCMDLineToolCommand() cli.Command {
 
 // Launch SensorBee's command line client tool.
 func Launch(c *cli.Context) {
-	uri := c.String("uri")
+	host := c.String("uri")
+	if !strings.HasSuffix(host, "/") {
+		host += "/"
+	}
+	uri := host + c.String("version")
 
 	app := cmd.SetUpCommands(cmd.NewTopologiesCommands())
 	app.Run(uri)

@@ -93,6 +93,12 @@ func execute(resp *http.Response) []byte {
 		fmt.Println(err)
 		return []byte{}
 	}
-	fmt.Println(string(b)) // for debug
+	m := map[string]interface{}{}
+	err = json.Unmarshal(b, &m)
+	if err != nil {
+		fmt.Println(err)
+		fmt.Println(string(b))
+	}
+	fmt.Println(m) // for debug
 	return b
 }
