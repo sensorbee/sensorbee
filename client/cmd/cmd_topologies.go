@@ -164,14 +164,14 @@ func (b *bqlCmd) Input(input string) (cmdInputStatusType, error) {
 // Eval resolves input command to BQL statement
 func (b *bqlCmd) Eval() (RequestType, string, interface{}) {
 	// flush buffer and get complete statement
-	stmt := strings.Replace(b.buffer, "\n", " ", -1)
-	stmt = stmt[:len(stmt)-1]
+	queries := strings.Replace(b.buffer, "\n", " ", -1)
+	queries = queries[:len(queries)-1]
 	b.buffer = ""
 
-	fmt.Printf("BQL: %s\n", stmt) // for debug, delete later
+	fmt.Printf("BQL: %s\n", queries) // for debug, delete later
 
 	uri := topologiesHeader + "/" + currentTopology.name + "/queries"
 	m := map[string]interface{}{}
-	m["queries"] = stmt
+	m["queries"] = queries
 	return PostRequest, uri, &m
 }
