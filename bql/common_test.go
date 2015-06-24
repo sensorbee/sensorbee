@@ -81,9 +81,9 @@ func (s *blockingSource) Resume(ctx *core.Context) error {
 
 func init() {
 	bql.RegisterSourceType("blocking_dummy",
-		func(params tuple.Map) (core.Source, error) {
+		func(ctx *core.Context, params tuple.Map) (core.Source, error) {
 			// TODO: remove dummy_source package and move the source to this package.
-			s, err := dummy_source.CreateDummySource(params)
+			s, err := dummy_source.CreateDummySource(ctx, params)
 			if err != nil {
 				return nil, err
 			}

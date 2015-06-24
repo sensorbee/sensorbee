@@ -17,12 +17,12 @@ var (
 // SourceCreator is a function that creates a source from a
 // given parameter map as extracted from a CREATE SOURCE ... WITH
 // or CREATE STREAM FROM ... SOURCE WITH statement.
-type SourceCreator func(tuple.Map) (core.Source, error)
+type SourceCreator func(*core.Context, tuple.Map) (core.Source, error)
 
 // SinkCreator is a function that creates a sink from a
 // given parameter map as extracted from a CREATE SINK ... WITH
 // statement.
-type SinkCreator func(tuple.Map) (core.Sink, error)
+type SinkCreator func(*core.Context, tuple.Map) (core.Sink, error)
 
 // RegisterSourceType registers a new type of Source for use
 // in BQL and stores a function to create an instance of that
