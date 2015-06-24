@@ -390,3 +390,31 @@ func TestMultipleStatements(t *testing.T) {
 		})
 	})
 }
+
+func TestCreateStateStmt(t *testing.T) {
+	Convey("Given a BQL TopologyBuilder", t, func() {
+		dt := newTestDynamicTopology()
+		Reset(func() {
+			dt.Stop()
+		})
+		tb := bql.NewTopologyBuilder(dt)
+		cs, err := bql.CopyGlobalUDSRegistry()
+		So(err, ShouldBeNil)
+		tb.UDSCreators = cs
+
+		Convey("When creating a dummy UDS", func() {
+			So(addBQLToTopology(tb, `CREATE STATE hoge TYPE dummy_uds WITH num=5;`), ShouldBeNil)
+
+			Convey("Then the topology should have the state", func() {
+				s, err := dt.Context().GetSharedState("hoge")
+				So(err, ShouldBeNil)
+
+				Convey("And it should be a dummy UDS having right parameters", func() {
+					ds, ok := s.(*dummyUDS)
+					So(ok, ShouldBeTrue)
+					So(ds.num, ShouldEqual, 5)
+				})
+			})
+		})
+	})
+}
