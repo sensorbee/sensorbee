@@ -204,10 +204,10 @@ func (tb *TopologyBuilder) AddStmt(stmt interface{}) (core.DynamicNode, error) {
 	return nil, fmt.Errorf("statement of type %T is unimplemented", stmt)
 }
 
-func (tb *TopologyBuilder) mkParamsMap(params []parser.SourceSinkParamAST) map[string]string {
-	paramsMap := make(map[string]string, len(params))
+func (tb *TopologyBuilder) mkParamsMap(params []parser.SourceSinkParamAST) tuple.Map {
+	paramsMap := make(tuple.Map, len(params))
 	for _, kv := range params {
-		paramsMap[string(kv.Key)] = string(kv.Value)
+		paramsMap[string(kv.Key)] = kv.Value
 	}
 	return paramsMap
 }

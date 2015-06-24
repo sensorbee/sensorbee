@@ -206,6 +206,8 @@ SourceSinkParam <- SourceSinkParamKey '=' SourceSinkParamVal {
         p.AssembleSourceSinkParam()
     }
 
+SourceSinkParamVal <- BooleanLiteral / Literal
+
 
 ##############################
 ##### NESTED EXPRESSIONS #####
@@ -354,11 +356,6 @@ SourceSinkType <- < ident > {
 SourceSinkParamKey <- < ident > {
         substr := string([]rune(buffer)[begin:end])
         p.PushComponent(begin, end, SourceSinkParamKey(substr))
-    }
-
-SourceSinkParamVal <- < ([[a-z]] / [0-9] / '_')+ > {
-        substr := string([]rune(buffer)[begin:end])
-        p.PushComponent(begin, end, SourceSinkParamVal(substr))
     }
 
 Or <- < "OR" > {
