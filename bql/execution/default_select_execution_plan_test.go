@@ -6,6 +6,7 @@ import (
 	"pfi/sensorbee/sensorbee/bql/parser"
 	"pfi/sensorbee/sensorbee/bql/udf"
 	"pfi/sensorbee/sensorbee/tuple"
+	"sort"
 	"testing"
 	"time"
 )
@@ -1423,6 +1424,42 @@ func TestDefaultSelectExecutionPlanEmitters(t *testing.T) {
 	})
 }
 
+// sortedMapString computes a reliable string representation,
+// i.e., always with the same order
+// (does not work with nested maps)
+func sortedMapString(inMap tuple.Map) string {
+	// get the keys in correct order
+	keys := make(sort.StringSlice, 0, len(inMap))
+	for key := range inMap {
+		keys = append(keys, key)
+	}
+	keys.Sort()
+	// now build a reproducible string
+	out := "{"
+	for idx, key := range keys {
+		if idx != 0 {
+			out += ", "
+		}
+		out += fmt.Sprintf(`"%s": %s`, key, inMap[key])
+	}
+	out += "}"
+	return out
+}
+
+// tupleList implements sort.Interface for []tuple.Map based on
+// its string representation as per sortedMapString().
+type tupleList []tuple.Map
+
+func (tl tupleList) Len() int {
+	return len(tl)
+}
+func (tl tupleList) Swap(i, j int) {
+	tl[i], tl[j] = tl[j], tl[i]
+}
+func (tl tupleList) Less(i, j int) bool {
+	return sortedMapString(tl[i]) < sortedMapString(tl[j])
+}
+
 func TestDefaultSelectExecutionPlanJoin(t *testing.T) {
 	Convey("Given a JOIN selecting from left and right", t, func() {
 		tuples := getTuples(8)
@@ -1443,6 +1480,9 @@ func TestDefaultSelectExecutionPlanJoin(t *testing.T) {
 		Convey("When feeding it with tuples", func() {
 			for idx, inTup := range tuples {
 				out, err := plan.Process(inTup)
+				// sort the output by the "l" and then the "r" key before
+				// checking if it resembles the expected value
+				sort.Sort(tupleList(out))
 				So(err, ShouldBeNil)
 
 				Convey(fmt.Sprintf("Then joined values should appear in %v", idx), func() {
@@ -1507,6 +1547,9 @@ func TestDefaultSelectExecutionPlanJoin(t *testing.T) {
 		Convey("When feeding it with tuples", func() {
 			for idx, inTup := range tuples {
 				out, err := plan.Process(inTup)
+				// sort the output by the "l" and then the "r" key before
+				// checking if it resembles the expected value
+				sort.Sort(tupleList(out))
 				So(err, ShouldBeNil)
 
 				Convey(fmt.Sprintf("Then joined values should appear in %v", idx), func() {
@@ -1617,6 +1660,9 @@ func TestDefaultSelectExecutionPlanJoin(t *testing.T) {
 			for _, inTup := range tuples {
 				out, err := plan.Process(inTup)
 				So(err, ShouldBeNil)
+				// sort the output by the "l" and then the "r" key before
+				// checking if it resembles the expected value
+				sort.Sort(tupleList(out))
 				output = append(output, out)
 			}
 
@@ -1699,6 +1745,9 @@ func TestDefaultSelectExecutionPlanJoin(t *testing.T) {
 			for _, inTup := range tuples {
 				out, err := plan.Process(inTup)
 				So(err, ShouldBeNil)
+				// sort the output by the "l" and then the "r" key before
+				// checking if it resembles the expected value
+				sort.Sort(tupleList(out))
 				output = append(output, out)
 			}
 
@@ -1761,6 +1810,9 @@ func TestDefaultSelectExecutionPlanJoin(t *testing.T) {
 			for _, inTup := range tuples {
 				out, err := plan.Process(inTup)
 				So(err, ShouldBeNil)
+				// sort the output by the "l" and then the "r" key before
+				// checking if it resembles the expected value
+				sort.Sort(tupleList(out))
 				output = append(output, out)
 			}
 
@@ -1836,6 +1888,9 @@ func TestDefaultSelectExecutionPlanJoin(t *testing.T) {
 			for _, inTup := range tuples {
 				out, err := plan.Process(inTup)
 				So(err, ShouldBeNil)
+				// sort the output by the "l" and then the "r" key before
+				// checking if it resembles the expected value
+				sort.Sort(tupleList(out))
 				output = append(output, out)
 			}
 
@@ -1899,6 +1954,9 @@ func TestDefaultSelectExecutionPlanJoin(t *testing.T) {
 			for idx, inTup := range tuples {
 				out, err := plan.Process(inTup)
 				So(err, ShouldBeNil)
+				// sort the output by the "l" and then the "r" key before
+				// checking if it resembles the expected value
+				sort.Sort(tupleList(out))
 
 				Convey(fmt.Sprintf("Then joined values should appear in %v", idx), func() {
 					if idx == 0 {

@@ -111,6 +111,10 @@ func NewDefaultSelectExecutionPlan(lp *LogicalPlan, reg udf.FunctionRegistry) (E
 	}, nil
 }
 
+// Process takes an input tuple and returns a slice of Map values that
+// correspond to the results of the query represented by this execution
+// plan. Note that the order of items in the returned slice is undefined
+// and cannot be relied on.
 func (ep *defaultSelectExecutionPlan) Process(input *tuple.Tuple) ([]tuple.Map, error) {
 	// stream-to-relation:
 	// updates the internal buffer with correct window data
@@ -251,7 +255,8 @@ func (ep *defaultSelectExecutionPlan) shouldEmitNow(t *tuple.Tuple) bool {
 // currently stored in the buffer. The query results (which is a set of
 // tuple.Value, not tuple.Tuple) is stored in ep.curResults. The data
 // that was stored in ep.curResults before this method was called is
-// moved to ep.prevResults.
+// moved to ep.prevResults. Note that the order of values in ep.curResults
+// is undefined.
 //
 // In case of an error the contents of ep.curResults will still be
 // the same as before the call (so that the next run performs as
@@ -335,6 +340,10 @@ func (ep *defaultSelectExecutionPlan) performQueryOnBuffer() error {
 		return nil
 	}
 
+	// Note: `ep.buffers` is a map, so iterating over its keys may yield
+	// different results in every run of the program. We cannot expect
+	// a consistent order in which evalItem is run on the items of the
+	// cartesian product.
 	allStreams := make([]string, 0, len(ep.buffers))
 	for key := range ep.buffers {
 		allStreams = append(allStreams, key)
