@@ -29,7 +29,7 @@ Statements <- sp ((Statement sp ';' .*) / Statement) !.
 
 Statement <- (SelectStmt / CreateStreamAsSelectStmt / CreateSourceStmt /
              CreateStreamFromSourceStmt / CreateStreamFromSourceExtStmt /
-             CreateSinkStmt / InsertIntoSelectStmt)
+             CreateSinkStmt / InsertIntoSelectStmt / CreateStateStmt)
 
 SelectStmt <- "SELECT" sp
               Emitter? sp
@@ -67,6 +67,13 @@ CreateSinkStmt <- "CREATE" sp "SINK" sp
                     "TYPE" sp SourceSinkType sp
                     SourceSinkSpecs {
         p.AssembleCreateSink()
+    }
+
+CreateStateStmt <- "CREATE" sp "STATE" sp
+                    StreamIdentifier sp
+                    "TYPE" sp SourceSinkType sp
+                    SourceSinkSpecs {
+        p.AssembleCreateState()
     }
 
 CreateStreamFromSourceStmt <- "CREATE" sp "STREAM" sp
