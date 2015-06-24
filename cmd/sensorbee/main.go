@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/codegangsta/cli"
 	"os"
+	// _ "pfi/scouter-snippets/plugin"
 	"pfi/sensorbee/sensorbee/client"
 	"pfi/sensorbee/sensorbee/server"
 	"time"
@@ -20,14 +21,6 @@ func main() {
 		server.SetUpRunCommand,
 		client.SetUpCMDLineToolCommand,
 	})
-
-	// TODO plugin registration and logging
-	/*
-		if err := plugin.Register(); err != nil {
-			fmt.Println("plugin registration error")
-			return
-		}
-	*/
 
 	if err := app.Run(os.Args); err != nil {
 		os.Exit(1)
