@@ -106,3 +106,41 @@ func unblockSource(dt core.DynamicTopology, srcName string) error {
 	}
 	return sn.Resume()
 }
+
+type dummyUDS struct {
+	num int64
+}
+
+func newDummyUDS(ctx *core.Context, params tuple.Map) (core.SharedState, error) {
+	s := &dummyUDS{}
+	if v, ok := params["num"]; ok {
+		if n, err := tuple.ToInt(v); err != nil {
+			return nil, err
+		} else {
+			s.num = n
+		}
+	}
+	return s, nil
+}
+
+func (s *dummyUDS) TypeName() string {
+	return "dummy_uds"
+}
+
+func (s *dummyUDS) Init(ctx *core.Context) error {
+	return nil
+}
+
+func (s *dummyUDS) Write(ctx *core.Context, t *tuple.Tuple) error {
+	return nil
+}
+
+func (s *dummyUDS) Terminate(ctx *core.Context) error {
+	return nil
+}
+
+func init() {
+	if err := bql.RegisterGlobalUDSCreator("dummy_uds", bql.UDSCreatorFunc(newDummyUDS)); err != nil {
+		panic(err)
+	}
+}

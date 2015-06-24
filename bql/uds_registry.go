@@ -97,3 +97,30 @@ func (r *defaultUDSCreatorRegistry) Unregister(typeName string) error {
 	delete(r.creators, typeName)
 	return nil
 }
+
+var (
+	globalUDSCreatorRegistry = NewDefaultUDSCreatorRegistry()
+)
+
+// RegisterGlobalUDSCreator adds a UDSCreator which can be referred from all
+// topologies. UDSCreators registered after running topologies might not be
+// seen by those topologies. Call it from init functions to avoid such
+// conditions.
+func RegisterGlobalUDSCreator(typeName string, c UDSCreator) error {
+	return globalUDSCreatorRegistry.Register(typeName, c)
+}
+
+func CopyGlobalUDSRegistry() (UDSCreatorRegistry, error) {
+	r := NewDefaultUDSCreatorRegistry()
+	m, err := globalUDSCreatorRegistry.List()
+	if err != nil {
+		return nil, err
+	}
+
+	for t, c := range m {
+		if err := r.Register(t, c); err != nil {
+			return nil, err
+		}
+	}
+	return r, nil
+}
