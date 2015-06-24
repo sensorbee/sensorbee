@@ -5,6 +5,7 @@ import (
 	"pfi/sensorbee/sensorbee/bql/parser"
 	"pfi/sensorbee/sensorbee/core"
 	"pfi/sensorbee/sensorbee/io/dummy_source"
+	"pfi/sensorbee/sensorbee/tuple"
 	"sync"
 )
 
@@ -80,9 +81,9 @@ func (s *blockingSource) Resume(ctx *core.Context) error {
 
 func init() {
 	bql.RegisterSourceType("blocking_dummy",
-		func(params map[string]string) (core.Source, error) {
+		func(ctx *core.Context, params tuple.Map) (core.Source, error) {
 			// TODO: remove dummy_source package and move the source to this package.
-			s, err := dummy_source.CreateDummySource(params)
+			s, err := dummy_source.CreateDummySource(ctx, params)
 			if err != nil {
 				return nil, err
 			}

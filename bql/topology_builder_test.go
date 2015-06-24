@@ -48,16 +48,16 @@ func TestCreateSourceStmt(t *testing.T) {
 		})
 
 		Convey("When running CREATE SOURCE with invalid parameters", func() {
-			err := addBQLToTopology(tb, `CREATE SOURCE hoge TYPE dummy WITH num=bar`)
+			err := addBQLToTopology(tb, `CREATE SOURCE hoge TYPE dummy WITH num='bar'`)
 
 			Convey("Then an error should be returned", func() {
 				So(err, ShouldNotBeNil)
-				So(err.Error(), ShouldEqual, "num: cannot convert string 'bar' into integer")
+				So(err.Error(), ShouldEqual, "num: cannot convert value \"bar\" into integer")
 			})
 		})
 
 		Convey("When running CREATE SOURCE with unknown parameters", func() {
-			err := addBQLToTopology(tb, `CREATE SOURCE hoge TYPE dummy WITH foo=bar`)
+			err := addBQLToTopology(tb, `CREATE SOURCE hoge TYPE dummy WITH foo='bar'`)
 
 			Convey("Then an error should be returned", func() {
 				So(err, ShouldNotBeNil)
@@ -153,7 +153,7 @@ func TestCreateStreamFromSourceExtStmt(t *testing.T) {
 			})
 		})
 		Convey("When running CREATE STREAM FROM SOURCE (combo) with invalid parameters", func() {
-			err := addBQLToTopology(tb, `CREATE STREAM hoge FROM dummy SOURCE WITH foo=bar`)
+			err := addBQLToTopology(tb, `CREATE STREAM hoge FROM dummy SOURCE WITH foo='bar'`)
 
 			Convey("Then an error should be returned", func() {
 				So(err, ShouldNotBeNil)
@@ -269,7 +269,7 @@ func TestCreateSinkStmt(t *testing.T) {
 			})
 		})
 		Convey("When running CREATE SINK with invalid parameters", func() {
-			err := addBQLToTopology(tb, `CREATE SINK hoge TYPE collector WITH foo=bar`)
+			err := addBQLToTopology(tb, `CREATE SINK hoge TYPE collector WITH foo='bar'`)
 
 			Convey("Then an error should be returned", func() {
 				So(err, ShouldNotBeNil)

@@ -64,7 +64,7 @@ func (tb *TopologyBuilder) AddStmt(stmt interface{}) (core.DynamicNode, error) {
 		// check if we know whis type of source
 		if creator, ok := LookupSourceType(stmt.Type); ok {
 			// if so, try to create such a source
-			source, err := creator(paramsMap)
+			source, err := creator(tb.topology.Context(), paramsMap)
 			if err != nil {
 				return nil, err
 			}
@@ -103,7 +103,7 @@ func (tb *TopologyBuilder) AddStmt(stmt interface{}) (core.DynamicNode, error) {
 		// check if we know whis type of source
 		if creator, ok := LookupSourceType(stmt.Type); ok {
 			// if so, try to create such a source
-			source, err := creator(paramsMap)
+			source, err := creator(tb.topology.Context(), paramsMap)
 			if err != nil {
 				return nil, err
 			}
@@ -138,7 +138,7 @@ func (tb *TopologyBuilder) AddStmt(stmt interface{}) (core.DynamicNode, error) {
 		// check if we know whis type of sink
 		if creator, ok := LookupSinkType(stmt.Type); ok {
 			// if so, try to create such a sink
-			sink, err := creator(paramsMap)
+			sink, err := creator(tb.topology.Context(), paramsMap)
 			if err != nil {
 				return nil, err
 			}
@@ -204,10 +204,10 @@ func (tb *TopologyBuilder) AddStmt(stmt interface{}) (core.DynamicNode, error) {
 	return nil, fmt.Errorf("statement of type %T is unimplemented", stmt)
 }
 
-func (tb *TopologyBuilder) mkParamsMap(params []parser.SourceSinkParamAST) map[string]string {
-	paramsMap := make(map[string]string, len(params))
+func (tb *TopologyBuilder) mkParamsMap(params []parser.SourceSinkParamAST) tuple.Map {
+	paramsMap := make(tuple.Map, len(params))
 	for _, kv := range params {
-		paramsMap[string(kv.Key)] = string(kv.Value)
+		paramsMap[string(kv.Key)] = kv.Value
 	}
 	return paramsMap
 }
