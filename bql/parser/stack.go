@@ -183,6 +183,27 @@ func (ps *parseStack) AssembleCreateSink() {
 	ps.Push(&se)
 }
 
+// AssembleCreateState takes the topmost elements from the stack,
+// assuming they are components of a CREATE STATE statement, and
+// replaces them by a single CreateStateStmt element.
+//
+//  SourceSinkSpecsAST
+//  SourceSinkType
+//  StreamIdentifier
+//   =>
+//  CreateStateStmt{StreamIdentifier, SourceSinkType, SourceSinkSpecsAST}
+func (ps *parseStack) AssembleCreateState() {
+	_specs, _sinkType, _name := ps.pop3()
+
+	specs := _specs.comp.(SourceSinkSpecsAST)
+	sinkType := _sinkType.comp.(SourceSinkType)
+	name := _name.comp.(StreamIdentifier)
+
+	s := CreateStateStmt{name, sinkType, specs}
+	se := ParsedComponent{_name.begin, _specs.end, s}
+	ps.Push(&se)
+}
+
 // AssembleCreateStreamFromSource takes the topmost elements from the stack,
 // assuming they are components of a CREATE STREAM statement, and
 // replaces them by a single CreateStreamFromSourceStmt element.
