@@ -2,6 +2,7 @@ package parser
 
 import (
 	. "github.com/smartystreets/goconvey/convey"
+	"pfi/sensorbee/sensorbee/tuple"
 	"testing"
 )
 
@@ -12,7 +13,7 @@ func TestAssembleSourceSinkParam(t *testing.T) {
 		Convey("When the stack contains two correct items", func() {
 			ps.PushComponent(0, 4, Raw{"PRE"})
 			ps.PushComponent(4, 6, SourceSinkParamKey("key"))
-			ps.PushComponent(6, 8, SourceSinkParamVal("value"))
+			ps.PushComponent(6, 8, StringLiteral{"value"})
 			ps.AssembleSourceSinkParam()
 
 			Convey("Then AssembleSourceSinkParam replaces them with a new item", func() {
@@ -28,7 +29,7 @@ func TestAssembleSourceSinkParam(t *testing.T) {
 					Convey("And it contains the previously pushed data", func() {
 						comp := top.comp.(SourceSinkParamAST)
 						So(comp.Key, ShouldEqual, "key")
-						So(comp.Value, ShouldEqual, "value")
+						So(comp.Value, ShouldEqual, tuple.String("value"))
 					})
 				})
 			})

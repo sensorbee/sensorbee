@@ -2,6 +2,7 @@ package parser
 
 import (
 	. "github.com/smartystreets/goconvey/convey"
+	"pfi/sensorbee/sensorbee/tuple"
 	"testing"
 )
 
@@ -11,8 +12,8 @@ func TestAssembleCreateSource(t *testing.T) {
 		Convey("When the stack contains the correct CREATE SOURCE items", func() {
 			ps.PushComponent(2, 4, StreamIdentifier("a"))
 			ps.PushComponent(4, 6, SourceSinkType("b"))
-			ps.PushComponent(6, 8, SourceSinkParamAST{"c", "d"})
-			ps.PushComponent(8, 10, SourceSinkParamAST{"e", "f"})
+			ps.PushComponent(6, 8, SourceSinkParamAST{"c", tuple.String("d")})
+			ps.PushComponent(8, 10, SourceSinkParamAST{"e", tuple.String("f")})
 			ps.AssembleSourceSinkSpecs(6, 10)
 			ps.AssembleCreateSource()
 
@@ -32,9 +33,9 @@ func TestAssembleCreateSource(t *testing.T) {
 						So(comp.Type, ShouldEqual, "b")
 						So(len(comp.Params), ShouldEqual, 2)
 						So(comp.Params[0].Key, ShouldEqual, "c")
-						So(comp.Params[0].Value, ShouldEqual, "d")
+						So(comp.Params[0].Value, ShouldEqual, tuple.String("d"))
 						So(comp.Params[1].Key, ShouldEqual, "e")
-						So(comp.Params[1].Value, ShouldEqual, "f")
+						So(comp.Params[1].Value, ShouldEqual, tuple.String("f"))
 					})
 				})
 			})
@@ -51,8 +52,8 @@ func TestAssembleCreateSource(t *testing.T) {
 		Convey("When the stack contains a wrong item", func() {
 			ps.PushComponent(2, 4, Raw{"a"}) // must be StreamIdentifier
 			ps.PushComponent(4, 6, SourceSinkType("b"))
-			ps.PushComponent(6, 8, SourceSinkParamAST{"c", "d"})
-			ps.PushComponent(8, 10, SourceSinkParamAST{"e", "f"})
+			ps.PushComponent(6, 8, SourceSinkParamAST{"c", tuple.String("d")})
+			ps.PushComponent(8, 10, SourceSinkParamAST{"e", tuple.String("f")})
 			ps.AssembleSourceSinkSpecs(6, 10)
 
 			Convey("Then AssembleCreateSource panics", func() {
@@ -65,7 +66,7 @@ func TestAssembleCreateSource(t *testing.T) {
 		p := &bqlPeg{}
 
 		Convey("When doing a full CREATE SOURCE", func() {
-			p.Buffer = "CREATE SOURCE a_1 TYPE b_b WITH c=27, e_=f_1"
+			p.Buffer = "CREATE SOURCE a_1 TYPE b_b WITH c=27, e_='f_1'"
 			p.Init()
 
 			Convey("Then the statement should be parsed correctly", func() {
@@ -83,9 +84,9 @@ func TestAssembleCreateSource(t *testing.T) {
 				So(comp.Type, ShouldEqual, "b_b")
 				So(len(comp.Params), ShouldEqual, 2)
 				So(comp.Params[0].Key, ShouldEqual, "c")
-				So(comp.Params[0].Value, ShouldEqual, "27")
+				So(comp.Params[0].Value, ShouldEqual, tuple.Int(27))
 				So(comp.Params[1].Key, ShouldEqual, "e_")
-				So(comp.Params[1].Value, ShouldEqual, "f_1")
+				So(comp.Params[1].Value, ShouldEqual, tuple.String("f_1"))
 			})
 		})
 	})
