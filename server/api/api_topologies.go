@@ -8,7 +8,6 @@ import (
 	"pfi/sensorbee/sensorbee/bql"
 	"pfi/sensorbee/sensorbee/bql/parser"
 	"pfi/sensorbee/sensorbee/core"
-	"strconv"
 )
 
 var (
@@ -19,66 +18,25 @@ var (
 
 type TopologiesContext struct {
 	*APIContext
-	name   string
-	nodeId int64
+	tenantName string
 }
 
 func SetUpTopologiesRouter(prefix string, router *web.Router) {
 	root := router.Subrouter(TopologiesContext{}, "/topologies")
 	root.Middleware((*TopologiesContext).extractName)
-	root.Middleware((*TopologiesContext).extractNodeId)
 	// TODO validation (root can validate with regex like "\w+")
 	root.Get("/", (*TopologiesContext).Index)
-	root.Get(`/:name`, (*TopologiesContext).Show)
-	root.Put(`/:name`, (*TopologiesContext).Update)
-	root.Post(`/:name/queries`, (*TopologiesContext).Queries)
+	root.Get(`/:tenantName`, (*TopologiesContext).Show)
+	root.Put(`/:tenantName`, (*TopologiesContext).Update)
+	root.Post(`/:tenantName/queries`, (*TopologiesContext).Queries)
 
-	// node controller TODO separate to another file
-	root.Get(`/:name/sources/:id`, (*TopologiesContext).ShowSources)
-	root.Get(`/:name/streams/:id`, (*TopologiesContext).ShowStreams)
-	root.Get(`/:name/sinks/:id`, (*TopologiesContext).ShowSinks)
-	root.Put(`/:name/sources/:id`, (*TopologiesContext).UpdateSources)
-	root.Put(`/:name/streams/:id`, (*TopologiesContext).UpdateStreams)
-	root.Put(`/:name/sinks/:id`, (*TopologiesContext).UpdateSinks)
-	root.Delete(`/:name/sources/:id`, (*TopologiesContext).DeleteSources)
-	root.Delete(`/:name/streams/:id`, (*TopologiesContext).DeleteStreams)
-	root.Delete(`/:name/sinks/:id`, (*TopologiesContext).DeleteSinks)
-}
-
-func (tc *TopologiesContext) extractStringFromPath(key string, target *string) error {
-	s, ok := tc.request.PathParams[key]
-	if !ok {
-		return nil
-	}
-
-	*target = s
-	return nil
+	SetUpSourcesRouter(prefix, root)
+	SetUpStreamsRouter(prefix, root)
+	SetUpSinksRouter(prefix, root)
 }
 
 func (tc *TopologiesContext) extractName(rw web.ResponseWriter, req *web.Request, next web.NextMiddlewareFunc) {
-	if err := tc.extractStringFromPath("name", &tc.name); err != nil {
-		return
-	}
-	next(rw, req)
-}
-
-func (tc *TopologiesContext) extractIntFromPath(key string, target *int64) error {
-	i, ok := tc.request.PathParams[key]
-	if !ok {
-		return nil
-	}
-
-	id, err := strconv.ParseInt(i, 10, 64)
-	if err != nil {
-		return nil
-	}
-
-	*target = id
-	return nil
-}
-
-func (tc *TopologiesContext) extractNodeId(rw web.ResponseWriter, req *web.Request, next web.NextMiddlewareFunc) {
-	if err := tc.extractIntFromPath("id", &tc.nodeId); err != nil {
+	if err := tc.extractOptionStringFromPath("tenantName", &tc.tenantName); err != nil {
 		return
 	}
 	next(rw, req)
@@ -97,7 +55,7 @@ func (tc *TopologiesContext) Index(rw web.ResponseWriter, req *web.Request) {
 
 // Show returns the information of topology
 func (tc *TopologiesContext) Show(rw web.ResponseWriter, req *web.Request) {
-	_, ok := topologyBuilderMap[tc.name]
+	_, ok := topologyBuilderMap[tc.tenantName]
 	var status string
 	if !ok {
 		status = "not initialized"
@@ -105,7 +63,7 @@ func (tc *TopologiesContext) Show(rw web.ResponseWriter, req *web.Request) {
 		status = "initialized"
 	}
 	tc.RenderJSON(&map[string]interface{}{
-		"name":          tc.name,
+		"name":          tc.tenantName,
 		"status":        status,
 		"topology info": "", // TODO add topology information
 	})
@@ -113,10 +71,10 @@ func (tc *TopologiesContext) Show(rw web.ResponseWriter, req *web.Request) {
 
 // Update dynamic nodes by BQLs
 func (tc *TopologiesContext) Update(rw web.ResponseWriter, req *web.Request) {
-	tp, ok := topologyMap[tc.name]
+	tp, ok := topologyMap[tc.tenantName]
 	if !ok {
 		tc.RenderJSON(&map[string]interface{}{
-			"name":   tc.name,
+			"name":   tc.tenantName,
 			"status": "not initialized or running topology",
 		})
 		return
@@ -126,7 +84,7 @@ func (tc *TopologiesContext) Update(rw web.ResponseWriter, req *web.Request) {
 	b, err := ioutil.ReadAll(req.Body)
 	if err != nil {
 		tc.RenderJSON(&map[string]interface{}{
-			"name":   tc.name,
+			"name":   tc.tenantName,
 			"status": err.Error(),
 		})
 		return
@@ -135,7 +93,7 @@ func (tc *TopologiesContext) Update(rw web.ResponseWriter, req *web.Request) {
 	err = json.Unmarshal(b, &m)
 	if err != nil {
 		tc.RenderJSON(&map[string]interface{}{
-			"name":       tc.name,
+			"name":       tc.tenantName,
 			"query byte": string(b),
 			"status":     err.Error(),
 		})
@@ -156,12 +114,12 @@ func (tc *TopologiesContext) Update(rw web.ResponseWriter, req *web.Request) {
 	}
 	if err != nil {
 		tc.RenderJSON(&map[string]interface{}{
-			"name":   tc.name,
+			"name":   tc.tenantName,
 			"status": err.Error(),
 		})
 	} else {
 		tc.RenderJSON(&map[string]interface{}{
-			"name":   tc.name,
+			"name":   tc.tenantName,
 			"status": "done",
 			"state":  state,
 		})
@@ -173,7 +131,7 @@ func (tc *TopologiesContext) Queries(rw web.ResponseWriter, req *web.Request) {
 	b, err := ioutil.ReadAll(req.Body)
 	if err != nil {
 		tc.RenderJSON(&map[string]interface{}{
-			"name":   tc.name,
+			"name":   tc.tenantName,
 			"status": err.Error(),
 		})
 		return
@@ -182,7 +140,7 @@ func (tc *TopologiesContext) Queries(rw web.ResponseWriter, req *web.Request) {
 	err = json.Unmarshal(b, &m)
 	if err != nil {
 		tc.RenderJSON(&map[string]interface{}{
-			"name":       tc.name,
+			"name":       tc.tenantName,
 			"query byte": string(b),
 			"status":     err.Error(),
 		})
@@ -191,13 +149,13 @@ func (tc *TopologiesContext) Queries(rw web.ResponseWriter, req *web.Request) {
 	queries, ok := m["queries"].(string)
 	if !ok || queries == "" {
 		tc.RenderJSON(&map[string]interface{}{
-			"name":   tc.name,
+			"name":   tc.tenantName,
 			"status": "not support to execute empty query",
 		})
 		return
 	}
 
-	tb, ok := topologyBuilderMap[tc.name]
+	tb, ok := topologyBuilderMap[tc.tenantName]
 	if !ok {
 		// TODO get context configuration from BQL
 		logManagment := core.NewConsolePrintLogger()
@@ -208,18 +166,18 @@ func (tc *TopologiesContext) Queries(rw web.ResponseWriter, req *web.Request) {
 			Logger: logManagment,
 			Config: conf,
 		}
-		tp := core.NewDefaultDynamicTopology(&ctx, tc.name)
-		topologyMap[tc.name] = tp
+		tp := core.NewDefaultDynamicTopology(&ctx, tc.tenantName)
+		topologyMap[tc.tenantName] = tp
 
 		tb = bql.NewTopologyBuilder(tp)
-		topologyBuilderMap[tc.name] = tb
+		topologyBuilderMap[tc.tenantName] = tb
 
 	}
 
 	stmts, err := bqlParser.ParseStmts(queries)
 	if err != nil {
 		tc.RenderJSON(&map[string]interface{}{
-			"name":   tc.name,
+			"name":   tc.tenantName,
 			"status": err.Error(),
 		})
 		return
@@ -228,87 +186,15 @@ func (tc *TopologiesContext) Queries(rw web.ResponseWriter, req *web.Request) {
 		_, err = tb.AddStmt(stmt) // TODO node identifier
 		if err != nil {
 			tc.RenderJSON(&map[string]interface{}{
-				"name":   tc.name,
+				"name":   tc.tenantName,
 				"status": err.Error(),
 			})
 			return // TODO return error detail
 		}
 	}
 	tc.RenderJSON(&map[string]interface{}{
-		"name":    tc.name,
+		"name":    tc.tenantName,
 		"status":  "running",
 		"queries": queries,
-	})
-}
-
-func (tc *TopologiesContext) ShowSources(rw web.ResponseWriter, req *web.Request) {
-	tc.RenderJSON(&map[string]interface{}{
-		"name":    tc.name,
-		"node id": tc.nodeId,
-		"status":  "under the construction",
-	})
-}
-
-func (tc *TopologiesContext) ShowStreams(rw web.ResponseWriter, req *web.Request) {
-	tc.RenderJSON(&map[string]interface{}{
-		"name":    tc.name,
-		"node id": tc.nodeId,
-		"status":  "under the construction",
-	})
-}
-
-func (tc *TopologiesContext) ShowSinks(rw web.ResponseWriter, req *web.Request) {
-	tc.RenderJSON(&map[string]interface{}{
-		"name":    tc.name,
-		"node id": tc.nodeId,
-		"status":  "under the construction",
-	})
-}
-
-func (tc *TopologiesContext) UpdateSources(rw web.ResponseWriter, req *web.Request) {
-	tc.RenderJSON(&map[string]interface{}{
-		"name":    tc.name,
-		"node id": tc.nodeId,
-		"status":  "under the construction",
-	})
-}
-
-func (tc *TopologiesContext) UpdateStreams(rw web.ResponseWriter, req *web.Request) {
-	tc.RenderJSON(&map[string]interface{}{
-		"name":    tc.name,
-		"node id": tc.nodeId,
-		"status":  "under the construction",
-	})
-}
-
-func (tc *TopologiesContext) UpdateSinks(rw web.ResponseWriter, req *web.Request) {
-	tc.RenderJSON(&map[string]interface{}{
-		"name":    tc.name,
-		"node id": tc.nodeId,
-		"status":  "under the construction",
-	})
-}
-
-func (tc *TopologiesContext) DeleteSources(rw web.ResponseWriter, req *web.Request) {
-	tc.RenderJSON(&map[string]interface{}{
-		"name":    tc.name,
-		"node id": tc.nodeId,
-		"status":  "under the construction",
-	})
-}
-
-func (tc *TopologiesContext) DeleteStreams(rw web.ResponseWriter, req *web.Request) {
-	tc.RenderJSON(&map[string]interface{}{
-		"name":    tc.name,
-		"node id": tc.nodeId,
-		"status":  "under the construction",
-	})
-}
-
-func (tc *TopologiesContext) DeleteSinks(rw web.ResponseWriter, req *web.Request) {
-	tc.RenderJSON(&map[string]interface{}{
-		"name":    tc.name,
-		"node id": tc.nodeId,
-		"status":  "under the construction",
 	})
 }

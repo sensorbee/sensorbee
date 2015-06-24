@@ -81,6 +81,16 @@ func SetUpRouterWithCustomMiddleware(prefix string, parent *web.Router, middlewa
 	return parent
 }
 
+func (c *Context) extractOptionStringFromPath(key string, target *string) error {
+	s, ok := c.request.PathParams[key]
+	if !ok {
+		return nil
+	}
+
+	*target = s
+	return nil
+}
+
 func (c *Context) renderJSON(status int, v interface{}) {
 	c.HTTPStatus = status
 
