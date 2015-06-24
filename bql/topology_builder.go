@@ -10,8 +10,9 @@ import (
 )
 
 type TopologyBuilder struct {
-	topology core.DynamicTopology
-	Reg      udf.FunctionManager
+	topology    core.DynamicTopology
+	Reg         udf.FunctionManager
+	UDSCreators UDSCreatorRegistry
 }
 
 // TODO: Provide AtomicTopologyBuilder which support building multiple nodes
@@ -28,8 +29,9 @@ type TopologyBuilder struct {
 func NewTopologyBuilder(t core.DynamicTopology) *TopologyBuilder {
 	// create topology
 	tb := &TopologyBuilder{
-		topology: t,
-		Reg:      udf.NewDefaultFunctionRegistry(t.Context()),
+		topology:    t,
+		Reg:         udf.NewDefaultFunctionRegistry(t.Context()),
+		UDSCreators: NewDefaultUDSCreatorRegistry(),
 	}
 	return tb
 }
@@ -47,7 +49,7 @@ func topologyBuilderNextTemporaryID() int64 {
 }
 
 // AddStmt add a node created from a statement to the topology. It returns
-// a created node.
+// a created node. It returns a nil node when the statement is CREATE STATE.
 func (tb *TopologyBuilder) AddStmt(stmt interface{}) (core.DynamicNode, error) {
 	// TODO: Enable StopOnDisconnect properly
 
@@ -150,7 +152,20 @@ func (tb *TopologyBuilder) AddStmt(stmt interface{}) (core.DynamicNode, error) {
 		return nil, fmt.Errorf("unknown sink type: %s", stmt.Type)
 
 	case parser.CreateStateStmt:
-		return nil, fmt.Errorf("CREATE STATE not implemented yet")
+		c, err := tb.UDSCreators.Lookup(string(stmt.Type))
+		if err != nil {
+			return nil, err
+		}
+
+		ctx := tb.topology.Context()
+		s, err := c.CreateState(ctx, tb.mkParamsMap(stmt.Params))
+		if err != nil {
+			return nil, err
+		}
+		if err := ctx.SharedStates.Add(ctx, string(stmt.Name), s); err != nil {
+			return nil, err
+		}
+		return nil, nil
 
 	case parser.InsertIntoSelectStmt:
 		// get the sink to add an input to
