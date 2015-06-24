@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"pfi/sensorbee/sensorbee/core"
 	"pfi/sensorbee/sensorbee/tuple"
+	"sync"
 )
 
 // VarParamFun is an alias for a variadic function on tuple.Value.
@@ -39,6 +40,7 @@ type FunctionManager interface {
 
 type defaultFunctionRegistry struct {
 	ctx   *core.Context
+	m     sync.RWMutex
 	funcs map[string]struct {
 		fun     VarParamFun
 		checker func(int) bool
@@ -67,6 +69,8 @@ func (fr *defaultFunctionRegistry) Context() *core.Context {
 }
 
 func (fr *defaultFunctionRegistry) Lookup(name string, arity int) (VarParamFun, error) {
+	fr.m.RLock()
+	defer fr.m.RUnlock()
 	// look for variable-parameter functions
 	funWithChecker, exists := fr.funcs[name]
 	if exists {
@@ -91,6 +95,8 @@ func (fr *defaultFunctionRegistry) RegisterVariadic(name string, f VarParamFun) 
 }
 
 func (fr *defaultFunctionRegistry) registerFlexible(name string, f VarParamFun, arityOk func(int) bool) error {
+	fr.m.Lock()
+	defer fr.m.Unlock()
 	_, exists := fr.funcs[name]
 	if exists {
 		return fmt.Errorf("there is already a function named '%s'", name)
