@@ -49,6 +49,12 @@ type CreateSinkStmt struct {
 	SourceSinkSpecsAST
 }
 
+type CreateStateStmt struct {
+	Name StreamIdentifier
+	Type SourceSinkType
+	SourceSinkSpecsAST
+}
+
 type CreateStreamFromSourceStmt struct {
 	Name   StreamIdentifier
 	Source StreamIdentifier
