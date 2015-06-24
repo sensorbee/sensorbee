@@ -149,6 +149,9 @@ func (tb *TopologyBuilder) AddStmt(stmt interface{}) (core.DynamicNode, error) {
 		}
 		return nil, fmt.Errorf("unknown sink type: %s", stmt.Type)
 
+	case parser.CreateStateStmt:
+		return nil, fmt.Errorf("CREATE STATE not implemented yet")
+
 	case parser.InsertIntoSelectStmt:
 		// get the sink to add an input to
 		sink, err := tb.topology.Sink(string(stmt.Sink))
