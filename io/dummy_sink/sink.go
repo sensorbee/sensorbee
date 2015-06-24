@@ -15,7 +15,7 @@ func init() {
 
 // CreateCollectorSink creates a sink that collects all received
 // tuples in an internal array.
-func CreateCollectorSink(params map[string]string) (core.Sink, error) {
+func CreateCollectorSink(ctx *core.Context, params tuple.Map) (core.Sink, error) {
 	// check the given sink parameters
 	for key, _ := range params {
 		return nil, fmt.Errorf("unknown sink parameter: %s", key)

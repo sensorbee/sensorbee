@@ -2,6 +2,7 @@ package parser
 
 import (
 	"fmt"
+	"pfi/sensorbee/sensorbee/tuple"
 )
 
 // parseStack is a standard stack implementation, but also holds
@@ -559,14 +560,26 @@ func (ps *parseStack) AssembleSourceSinkSpecs(begin int, end int) {
 // stack, assuming they are part of a WITH clause in a CREATE SOURCE
 // statement and replaces them by a single SourceSinkParamAST element.
 //
-//  SourceSinkParamVal
+//  Any
 //  SourceSinkParamKey
 //   =>
-//  SourceSinkParamAST{SourceSinkParamKey, SourceSinkParamVal}
+//  SourceSinkParamAST{SourceSinkParamKey, tuple.Value}
 func (ps *parseStack) AssembleSourceSinkParam() {
 	_value, _key := ps.pop2()
 
-	value := _value.comp.(SourceSinkParamVal)
+	var value tuple.Value
+	switch lit := _value.comp.(type) {
+	default:
+		panic(fmt.Sprintf("cannot deal with a %T here", lit))
+	case StringLiteral:
+		value = tuple.String(lit.Value)
+	case BoolLiteral:
+		value = tuple.Bool(lit.Value)
+	case NumericLiteral:
+		value = tuple.Int(lit.Value)
+	case FloatLiteral:
+		value = tuple.Float(lit.Value)
+	}
 	key := _key.comp.(SourceSinkParamKey)
 
 	ss := SourceSinkParamAST{key, value}
