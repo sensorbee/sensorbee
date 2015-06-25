@@ -291,6 +291,7 @@ func (ep *defaultSelectExecutionPlan) performQueryOnBuffer() error {
 			for _, t := range myBuffer {
 				// add the data of this tuple to dataHolder and recurse
 				dataHolder[myKey] = t.Data[myKey]
+				setMetadata(dataHolder, myKey, t)
 				if err := procCartProd(rest, processItem); err != nil {
 					return err
 				}

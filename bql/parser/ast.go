@@ -397,6 +397,15 @@ const (
 	TimestampMeta
 )
 
+func (m MetaInformation) String() string {
+	s := "UnknownMeta"
+	switch m {
+	case TimestampMeta:
+		s = "TS"
+	}
+	return s
+}
+
 type Operator int
 
 const (

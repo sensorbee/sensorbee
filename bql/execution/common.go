@@ -31,6 +31,10 @@ func prepareProjections(projections []parser.Expression, reg udf.FunctionRegistr
 		// compute column name
 		colHeader := fmt.Sprintf("col_%v", i+1)
 		switch projType := proj.(type) {
+		case parser.RowMeta:
+			if projType.MetaType == parser.TimestampMeta {
+				colHeader = "ts"
+			}
 		case parser.RowValue:
 			colHeader = projType.Column
 		case parser.AliasAST:
@@ -64,6 +68,19 @@ func prepareFilter(filter parser.Expression, reg udf.FunctionRegistry) (Evaluato
 		return ExpressionToEvaluator(filter, reg)
 	}
 	return nil, nil
+}
+
+// setMetadata adds the metadata contained in the given Tuple into the
+// given Map with a key constructed using the given alias string. For example,
+//   {"alias": {"col_1": ..., "col_2": ...}}
+// is transformed into
+//   {"alias": {"col_1": ..., "col_2": ...},
+//    "alias:meta:TS": (timestamp of the given tuple)}
+// so that the Evaluator created from a RowMeta AST struct works correctly.
+func setMetadata(where tuple.Map, alias string, t *tuple.Tuple) {
+	// this key format is also used in ExpressionToEvaluator()
+	tsKey := fmt.Sprintf("%s:meta:%s", alias, parser.TimestampMeta)
+	where[tsKey] = tuple.Timestamp(t.Timestamp)
 }
 
 // assignOutputValue writes the given Value `value` to the given

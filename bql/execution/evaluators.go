@@ -8,9 +8,23 @@ import (
 	"pfi/sensorbee/sensorbee/core"
 	"pfi/sensorbee/sensorbee/tuple"
 	"reflect"
+	"strings"
 )
 
+// An Evaluator represents an expression such as `colX + 2` or
+// `t1:col AND t2:col` and can be evaluated, given the actual data
+// contained in one row.
 type Evaluator interface {
+	// Eval evaluates the expression that this Evaluator represents
+	// on the given input data. Note that in order to deal with
+	// joins and timestamps properly, the input data must have the shape
+	//   {"alias_1": {"col_1": ..., "col_2": ...},
+	//    "alias_1:meta:x": (meta datum "x" for alias_1's row),
+	//    "alias_2": {"col_1": ..., "col_2": ...},
+	//    "alias_2:meta:x": (meta datum "x" for alias_2's row),
+	//    ...}
+	// and every caller (in particular all execution plans)
+	// must ensure that the data has this shape.
 	Eval(input tuple.Value) (tuple.Value, error)
 }
 
@@ -20,6 +34,12 @@ type Evaluator interface {
 // input Value.
 func ExpressionToEvaluator(ast interface{}, reg udf.FunctionRegistry) (Evaluator, error) {
 	switch obj := ast.(type) {
+	case parser.RowMeta:
+		// construct a key for reading as used in setMetadata() for writing
+		metaKey := fmt.Sprintf("%s:meta:%s", obj.Relation, obj.MetaType)
+		if obj.MetaType == parser.TimestampMeta {
+			return &timestampCast{&PathAccess{metaKey}}, nil
+		}
 	case parser.RowValue:
 		return &PathAccess{obj.Relation + "." + obj.Column}, nil
 	case parser.AliasAST:
@@ -141,6 +161,22 @@ func (fa *PathAccess) Eval(input tuple.Value) (tuple.Value, error) {
 		return nil, err
 	}
 	return aMap.Get(fa.path)
+}
+
+// TODO this should probably be a general cast
+type timestampCast struct {
+	underlying Evaluator
+}
+
+func (t *timestampCast) Eval(input tuple.Value) (tuple.Value, error) {
+	val, err := t.underlying.Eval(input)
+	if err != nil {
+		return nil, err
+	}
+	if val.Type() != tuple.TypeTimestamp {
+		return nil, fmt.Errorf("value %v was %T, not Time", val, val)
+	}
+	return val, nil
 }
 
 type binOp struct {
@@ -501,13 +537,13 @@ func FuncApp(name string, f udf.VarParamFun, ctx *core.Context, params []Evaluat
 	return &funcApp{name, fVal, params, paramValues}
 }
 
-// Wildcard only works on Maps, assumes that the elements are also Maps
-// and pulls them up one level, so
-//   {"a": {"x": ...}, "b": {"y": ..., "z": ...}}
+// Wildcard only works on Maps, assumes that the elements which do not contain
+// ":meta:" are also Maps and pulls them up one level, so
+//   {"a": {"x": ...}, "a:meta:ts": ..., "b": {"y": ..., "z": ...}}
 // becomes
 //   {"x": ..., "y": ..., "z": ...}.
 // If there are keys appearing in multiple top-level Maps, then only one
-// of them will appear in the output, but it is undefined which of them.
+// of them will appear in the output, but it is undefined which.
 type Wildcard struct{}
 
 func (w *Wildcard) Eval(input tuple.Value) (tuple.Value, error) {
@@ -516,7 +552,10 @@ func (w *Wildcard) Eval(input tuple.Value) (tuple.Value, error) {
 		return nil, err
 	}
 	output := tuple.Map{}
-	for _, subElement := range aMap {
+	for alias, subElement := range aMap {
+		if strings.Contains(alias, ":meta:") {
+			continue
+		}
 		subMap, err := tuple.AsMap(subElement)
 		if err != nil {
 			return nil, err
