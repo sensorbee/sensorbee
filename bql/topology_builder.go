@@ -56,50 +56,6 @@ func (tb *TopologyBuilder) AddStmt(stmt interface{}) (core.DynamicNode, error) {
 	// check the type of statement
 	switch stmt := stmt.(type) {
 	case parser.CreateSourceStmt:
-		// we create a source with an internal name
-		// since BQL-wise it is not allowed to directly
-		// act on a "source" (but only on a "stream" derived
-		// from a "source")
-		srcName := string(stmt.Name + "_src")
-		// load params into map for faster access
-		paramsMap := tb.mkParamsMap(stmt.Params)
-		// check if we know whis type of source
-		if creator, ok := LookupSourceType(stmt.Type); ok {
-			// if so, try to create such a source
-			source, err := creator(tb.topology.Context(), paramsMap)
-			if err != nil {
-				return nil, err
-			}
-			return tb.topology.AddSource(srcName, source, nil)
-		}
-		return nil, fmt.Errorf("unknown source type: %s", stmt.Type)
-
-	case parser.CreateStreamFromSourceStmt:
-		// we create a stream by inserting a forwarding box
-		// behind the source created before
-		f := func(ctx *core.Context, t *tuple.Tuple, w core.Writer) error {
-			w.Write(ctx, t)
-			return nil
-		}
-		b := core.BoxFunc(f)
-		refSrcName := string(stmt.Source) + "_src"
-		// if the referenced source does not exist, `decl`
-		// will have an error
-		box, err := tb.topology.AddBox(string(stmt.Name), b, nil)
-		if err != nil {
-			return nil, err
-		}
-		if err := box.Input(refSrcName, nil); err != nil {
-			tb.topology.Remove(string(stmt.Name))
-			return nil, err
-		}
-		box.(core.DynamicBoxNode).StopOnDisconnect()
-		return box, nil
-
-	case parser.CreateStreamFromSourceExtStmt:
-		// this is a shortcut version of CREATE SOURCE
-		// and CREATE STREAM FROM SOURCE.
-
 		// load params into map for faster access
 		paramsMap := tb.mkParamsMap(stmt.Params)
 		// check if we know whis type of source
