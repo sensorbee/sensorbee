@@ -12,7 +12,7 @@ import (
 type TopologyBuilder struct {
 	topology    core.DynamicTopology
 	Reg         udf.FunctionManager
-	UDSCreators UDSCreatorRegistry
+	UDSCreators udf.UDSCreatorRegistry
 }
 
 // TODO: Provide AtomicTopologyBuilder which support building multiple nodes
@@ -31,7 +31,7 @@ func NewTopologyBuilder(t core.DynamicTopology) *TopologyBuilder {
 	tb := &TopologyBuilder{
 		topology:    t,
 		Reg:         udf.CopyGlobalUDFRegistry(t.Context()),
-		UDSCreators: NewDefaultUDSCreatorRegistry(),
+		UDSCreators: udf.NewDefaultUDSCreatorRegistry(),
 	}
 	return tb
 }

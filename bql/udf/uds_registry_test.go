@@ -1,8 +1,7 @@
-package bql_test
+package udf
 
 import (
 	. "github.com/smartystreets/goconvey/convey"
-	"pfi/sensorbee/sensorbee/bql"
 	"pfi/sensorbee/sensorbee/core"
 	"pfi/sensorbee/sensorbee/tuple"
 	"testing"
@@ -29,10 +28,10 @@ func (s *testSharedState) Terminate(ctx *core.Context) error {
 
 func TestEmptyDefaultUDSCreatorRegistry(t *testing.T) {
 	Convey("Given an empty default UDS registry", t, func() {
-		r := bql.NewDefaultUDSCreatorRegistry()
+		r := NewDefaultUDSCreatorRegistry()
 
 		Convey("When adding a creator function", func() {
-			err := r.Register("test_state_func", bql.UDSCreatorFunc(func(ctx *core.Context, params tuple.Map) (core.SharedState, error) {
+			err := r.Register("test_state_func", UDSCreatorFunc(func(ctx *core.Context, params tuple.Map) (core.SharedState, error) {
 				return &testSharedState{}, nil
 			}))
 
@@ -72,19 +71,22 @@ func TestEmptyDefaultUDSCreatorRegistry(t *testing.T) {
 }
 
 func TestDefaultUDSCreatorRegistry(t *testing.T) {
-	ctx := newTestContext(core.Configuration{})
+	ctx := &core.Context{
+		Logger:       core.NewConsolePrintLogger(),
+		SharedStates: core.NewDefaultSharedStateRegistry(),
+	}
 
 	Convey("Given an default UDS registry having two types", t, func() {
-		r := bql.NewDefaultUDSCreatorRegistry()
-		So(r.Register("test_state_func", bql.UDSCreatorFunc(func(ctx *core.Context, params tuple.Map) (core.SharedState, error) {
+		r := NewDefaultUDSCreatorRegistry()
+		So(r.Register("test_state_func", UDSCreatorFunc(func(ctx *core.Context, params tuple.Map) (core.SharedState, error) {
 			return &testSharedState{}, nil
 		})), ShouldBeNil)
-		So(r.Register("test_state_func2", bql.UDSCreatorFunc(func(ctx *core.Context, params tuple.Map) (core.SharedState, error) {
+		So(r.Register("test_state_func2", UDSCreatorFunc(func(ctx *core.Context, params tuple.Map) (core.SharedState, error) {
 			return &testSharedState{}, nil
 		})), ShouldBeNil)
 
 		Convey("When adding a new type having the registered type name", func() {
-			err := r.Register("test_state_func", bql.UDSCreatorFunc(func(ctx *core.Context, params tuple.Map) (core.SharedState, error) {
+			err := r.Register("test_state_func", UDSCreatorFunc(func(ctx *core.Context, params tuple.Map) (core.SharedState, error) {
 				return &testSharedState{}, nil
 			}))
 
