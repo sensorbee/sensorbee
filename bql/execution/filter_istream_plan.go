@@ -64,6 +64,7 @@ func (ep *filterIstreamPlan) Process(input *tuple.Tuple) ([]tuple.Map, error) {
 
 	// nest the data in a one-element map using the alias as the key
 	input.Data = tuple.Map{ep.relAlias: input.Data}
+	setMetadata(input.Data, ep.relAlias, input)
 
 	// evaluate filter condition and convert to bool
 	if ep.filter != nil {

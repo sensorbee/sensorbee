@@ -353,6 +353,20 @@ func getTestCases() []struct {
 				{tuple.String(""), tuple.Bool(false)},
 			},
 		},
+		// Extracting the timestamp should find the timestamp at the
+		// correct position
+		{parser.RowMeta{"s", parser.TimestampMeta},
+			[]evalTest{
+				// not a map:
+				{tuple.Int(17), nil},
+				// key not present:
+				{tuple.Map{"x": tuple.Int(17)}, nil},
+				// key present, but wrong type
+				{tuple.Map{"s:meta:TS": tuple.Int(17)}, nil},
+				// key present and correct type
+				{tuple.Map{"s:meta:TS": tuple.Timestamp(now)}, tuple.Timestamp(now)},
+			},
+		},
 		// Access to columns/keys should return the same values
 		{parser.RowValue{"", "a"},
 			[]evalTest{
