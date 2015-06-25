@@ -1,4 +1,4 @@
-package bql
+package udf
 
 import (
 	"fmt"
