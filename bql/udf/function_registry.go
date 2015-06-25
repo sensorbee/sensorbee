@@ -130,11 +130,6 @@ func NewDefaultFunctionRegistry(ctx *core.Context) FunctionManager {
 		ctx:   ctx,
 		funcs: map[string]UDF{},
 	}
-	// register some standard functions
-	toString := func(ctx *core.Context, v tuple.Value) (tuple.Value, error) {
-		return tuple.String(v.String()), nil
-	}
-	reg.Register("str", UnaryFunc(toString))
 	return reg
 }
 
@@ -162,4 +157,42 @@ func (fr *defaultFunctionRegistry) Register(name string, f UDF) error {
 	}
 	fr.funcs[name] = f
 	return nil
+}
+
+var (
+	// globalUDFRegistry has UDFs visible to all topologies. Do NOT use this
+	// instance in running topologies because it doesn't have an actual
+	// Context. Call CopyGlobalUDSRegistry to retrieve a new valid instance.
+	globalUDFRegistry = NewDefaultFunctionRegistry(nil).(*defaultFunctionRegistry)
+)
+
+// RegisterGlobalUDF adds a UDF which is visible to all topologies. UDFs
+// registered after running topologies might not be seen by those topologies.
+// Call it from init functions to avoid such conditions.
+func RegisterGlobalUDF(name string, f UDF) error {
+	return globalUDFRegistry.Register(name, f)
+}
+
+// CopyGlobalUDFRegistry creates a new FunctionManager which has all UDFs
+// registered to the global function manager.
+func CopyGlobalUDFRegistry(ctx *core.Context) FunctionManager {
+	globalUDFRegistry.m.RLock()
+	defer globalUDFRegistry.m.RUnlock()
+	reg := &defaultFunctionRegistry{
+		ctx:   ctx,
+		funcs: make(map[string]UDF, len(globalUDFRegistry.funcs)),
+	}
+
+	for n, f := range globalUDFRegistry.funcs {
+		reg.funcs[n] = f
+	}
+	return reg
+}
+
+func init() {
+	// register some standard functions
+	toString := func(ctx *core.Context, v tuple.Value) (tuple.Value, error) {
+		return tuple.String(v.String()), nil
+	}
+	globalUDFRegistry.Register("str", UnaryFunc(toString))
 }

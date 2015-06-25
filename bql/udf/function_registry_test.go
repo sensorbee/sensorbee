@@ -9,7 +9,7 @@ import (
 
 func TestDefaultFunctionRegistry(t *testing.T) {
 	Convey("Given a default function registry", t, func() {
-		fr := NewDefaultFunctionRegistry(&core.Context{}) // context is not directly used now
+		fr := CopyGlobalUDFRegistry(&core.Context{}) // context is not directly used now
 
 		Convey("When asking for an unknown function", func() {
 			_, err := fr.Lookup("hoge", 17)
