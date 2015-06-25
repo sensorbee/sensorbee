@@ -3,6 +3,7 @@ package bql_test
 import (
 	"pfi/sensorbee/sensorbee/bql"
 	"pfi/sensorbee/sensorbee/bql/parser"
+	"pfi/sensorbee/sensorbee/bql/udf"
 	"pfi/sensorbee/sensorbee/core"
 	"pfi/sensorbee/sensorbee/io/dummy_source"
 	"pfi/sensorbee/sensorbee/tuple"
@@ -140,7 +141,7 @@ func (s *dummyUDS) Terminate(ctx *core.Context) error {
 }
 
 func init() {
-	if err := bql.RegisterGlobalUDSCreator("dummy_uds", bql.UDSCreatorFunc(newDummyUDS)); err != nil {
+	if err := udf.RegisterGlobalUDSCreator("dummy_uds", udf.UDSCreatorFunc(newDummyUDS)); err != nil {
 		panic(err)
 	}
 }
