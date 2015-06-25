@@ -3,6 +3,7 @@ package bql_test
 import (
 	. "github.com/smartystreets/goconvey/convey"
 	"pfi/sensorbee/sensorbee/bql"
+	"pfi/sensorbee/sensorbee/bql/udf"
 	"testing"
 )
 
@@ -289,7 +290,7 @@ func TestCreateStateStmt(t *testing.T) {
 			dt.Stop()
 		})
 		tb := bql.NewTopologyBuilder(dt)
-		cs, err := bql.CopyGlobalUDSRegistry()
+		cs, err := udf.CopyGlobalUDSRegistry()
 		So(err, ShouldBeNil)
 		tb.UDSCreators = cs
 
