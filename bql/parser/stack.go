@@ -204,46 +204,6 @@ func (ps *parseStack) AssembleCreateState() {
 	ps.Push(&se)
 }
 
-// AssembleCreateStreamFromSource takes the topmost elements from the stack,
-// assuming they are components of a CREATE STREAM statement, and
-// replaces them by a single CreateStreamFromSourceStmt element.
-//
-//  StreamIdentifier
-//  StreamIdentifier
-//   =>
-//  CreateStreamFromSourceStmt{StreamIdentifier, StreamIdentifier}
-func (ps *parseStack) AssembleCreateStreamFromSource() {
-	_src, _name := ps.pop2()
-
-	src := _src.comp.(StreamIdentifier)
-	name := _name.comp.(StreamIdentifier)
-
-	s := CreateStreamFromSourceStmt{name, src}
-	se := ParsedComponent{_name.begin, _src.end, s}
-	ps.Push(&se)
-}
-
-// AssembleCreateStreamFromSourceExt takes the topmost elements from the stack,
-// assuming they are components of a CREATE STREAM statement, and
-// replaces them by a single CreateStreamFromSourceExtStmt element.
-//
-//  SourceSinkSpecsAST
-//  SourceSinkType
-//  StreamIdentifier
-//   =>
-//  CreateStreamFromSourceExtStmt{StreamIdentifier, SourceSinkType, SourceSinkSpecsAST}
-func (ps *parseStack) AssembleCreateStreamFromSourceExt() {
-	_specs, _sourceType, _name := ps.pop3()
-
-	specs := _specs.comp.(SourceSinkSpecsAST)
-	sourceType := _sourceType.comp.(SourceSinkType)
-	name := _name.comp.(StreamIdentifier)
-
-	s := CreateStreamFromSourceExtStmt{name, sourceType, specs}
-	se := ParsedComponent{_name.begin, _specs.end, s}
-	ps.Push(&se)
-}
-
 // AssembleInsertIntoSelect takes the topmost elements from the stack,
 // assuming they are components of a INSERT ... SELECT statement, and
 // replaces them by a single InsertIntoSelectStmt element.
