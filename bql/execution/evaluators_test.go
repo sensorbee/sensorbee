@@ -95,23 +95,25 @@ func TestFuncAppConversion(t *testing.T) {
 // PlusOne is an example function that adds one to int and float Values.
 // It panics if the input is Null and returns an error for any other
 // type.
-func PlusOne(ctx *core.Context, vs ...tuple.Value) (tuple.Value, error) {
-	if len(vs) != 1 {
-		err := fmt.Errorf("cannot use %d parameters for unary function", len(vs))
-		return nil, err
-	}
-	v := vs[0]
-	if v.Type() == tuple.TypeInt {
-		i, _ := tuple.AsInt(v)
-		return tuple.Int(i + 1), nil
-	} else if v.Type() == tuple.TypeFloat {
-		f, _ := tuple.AsFloat(v)
-		return tuple.Float(f + 1.0), nil
-	} else if v.Type() == tuple.TypeNull {
-		panic("null!")
-	}
-	return nil, fmt.Errorf("cannot add 1 to %v", v)
-}
+var (
+	PlusOne = udf.VariadicFunc(func(ctx *core.Context, vs ...tuple.Value) (tuple.Value, error) {
+		if len(vs) != 1 {
+			err := fmt.Errorf("cannot use %d parameters for unary function", len(vs))
+			return nil, err
+		}
+		v := vs[0]
+		if v.Type() == tuple.TypeInt {
+			i, _ := tuple.AsInt(v)
+			return tuple.Int(i + 1), nil
+		} else if v.Type() == tuple.TypeFloat {
+			f, _ := tuple.AsFloat(v)
+			return tuple.Float(f + 1.0), nil
+		} else if v.Type() == tuple.TypeNull {
+			panic("null!")
+		}
+		return nil, fmt.Errorf("cannot add 1 to %v", v)
+	})
+)
 
 // testFuncRegistry returns the PlusOne function above for any parameter.
 type testFuncRegistry struct {
@@ -122,7 +124,7 @@ func (tfr *testFuncRegistry) Context() *core.Context {
 	return tfr.ctx
 }
 
-func (tfr *testFuncRegistry) Lookup(name string, arity int) (udf.VarParamFun, error) {
+func (tfr *testFuncRegistry) Lookup(name string, arity int) (udf.UDF, error) {
 	if name == "plusone" {
 		return PlusOne, nil
 	}

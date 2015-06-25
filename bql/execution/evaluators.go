@@ -494,8 +494,8 @@ func (f *funcApp) Eval(input tuple.Value) (v tuple.Value, err error) {
 
 // FuncApp represents evaluation of a function on a number
 // of parameters that are expressions over an input Value.
-func FuncApp(name string, f udf.VarParamFun, ctx *core.Context, params []Evaluator) Evaluator {
-	fVal := reflect.ValueOf(f)
+func FuncApp(name string, f udf.UDF, ctx *core.Context, params []Evaluator) Evaluator {
+	fVal := reflect.ValueOf(f.Call)
 	paramValues := make([]reflect.Value, len(params)+1)
 	paramValues[0] = reflect.ValueOf(ctx)
 	return &funcApp{name, fVal, params, paramValues}
