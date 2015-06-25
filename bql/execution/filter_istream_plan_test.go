@@ -78,6 +78,28 @@ func TestFilterIstreamPlan(t *testing.T) {
 		})
 	})
 
+	// Select the tuple's timestamp
+	Convey("Given a SELECT clause with only the timestamp", t, func() {
+		tuples := getTuples(4)
+		s := `CREATE STREAM box AS SELECT ISTREAM ts() FROM src [RANGE 2 TUPLES]`
+		plan, refPlan, err := createFilterIstreamPlan(s, t)
+		So(err, ShouldBeNil)
+
+		Convey("When feeding it with tuples", func() {
+			for idx, inTup := range tuples {
+				out, err := plan.Process(inTup.Copy())
+				So(err, ShouldBeNil)
+				refOut, err := refPlan.Process(inTup.Copy())
+				So(err, ShouldBeNil)
+
+				Convey(fmt.Sprintf("Then the result should match the reference in %v", idx), func() {
+					So(out, ShouldResemble, refOut)
+				})
+			}
+
+		})
+	})
+
 	// Select a non-existing column
 	Convey("Given a SELECT clause with a non-existing column", t, func() {
 		tuples := getTuples(4)
