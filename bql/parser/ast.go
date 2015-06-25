@@ -55,17 +55,6 @@ type CreateStateStmt struct {
 	SourceSinkSpecsAST
 }
 
-type CreateStreamFromSourceStmt struct {
-	Name   StreamIdentifier
-	Source StreamIdentifier
-}
-
-type CreateStreamFromSourceExtStmt struct {
-	Name StreamIdentifier
-	Type SourceSinkType
-	SourceSinkSpecsAST
-}
-
 type InsertIntoSelectStmt struct {
 	Sink StreamIdentifier
 	SelectStmt
