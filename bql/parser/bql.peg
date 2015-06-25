@@ -238,6 +238,7 @@ baseExpr <-
     ('(' sp Expression sp ')') /
     BooleanLiteral /
     FuncApp /
+    RowMeta /
     RowValue /
     Literal
 
@@ -273,6 +274,13 @@ MultDivOp <- Multiply / Divide / Modulo
 Stream <- < ident > {
         substr := string([]rune(buffer)[begin:end])
         p.PushComponent(begin, end, NewStream(substr))
+    }
+
+RowMeta <- RowTimestamp
+
+RowTimestamp <- < (ident ':')? 'ts()' > {
+        substr := string([]rune(buffer)[begin:end])
+        p.PushComponent(begin, end, NewRowMeta(substr, TimestampMeta))
     }
 
 # TODO we must allow for valid JSON paths right of the ":" below
