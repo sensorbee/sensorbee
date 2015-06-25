@@ -21,6 +21,8 @@ func TestExpressionParser(t *testing.T) {
 		// RowValue
 		"a":         {RowValue{"", "a"}},
 		"tab:a":     {RowValue{"tab", "a"}},
+		"ts()":      {RowMeta{"", TimestampMeta}},
+		"tab:ts()":  {RowMeta{"tab", TimestampMeta}},
 		"a, b":      {RowValue{"", "a"}, RowValue{"", "b"}},
 		"A":         {RowValue{"", "A"}},
 		"my_mem_27": {RowValue{"", "my_mem_27"}},
