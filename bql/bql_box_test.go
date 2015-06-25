@@ -11,8 +11,11 @@ import (
 func setupTopology(stmt string) (core.DynamicTopology, error) {
 	// create a stream from a dummy source
 	dt := newTestDynamicTopology()
-	tb := NewTopologyBuilder(dt)
-	err := addBQLToTopology(tb, "CREATE SOURCE source TYPE blocking_dummy WITH num=4")
+	tb, err := NewTopologyBuilder(dt)
+	if err != nil {
+		return nil, err
+	}
+	err = addBQLToTopology(tb, "CREATE SOURCE source TYPE blocking_dummy WITH num=4")
 	if err != nil {
 		return nil, err
 	}
