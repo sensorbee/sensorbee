@@ -110,7 +110,9 @@ func RegisterGlobalUDSCreator(typeName string, c UDSCreator) error {
 	return globalUDSCreatorRegistry.Register(typeName, c)
 }
 
-func CopyGlobalUDSRegistry() (UDSCreatorRegistry, error) {
+// CopyGlobalUDSCreatorRegistry creates a new independent copy of the global
+// UDSCreatorRegistry.
+func CopyGlobalUDSCreatorRegistry() (UDSCreatorRegistry, error) {
 	r := NewDefaultUDSCreatorRegistry()
 	m, err := globalUDSCreatorRegistry.List()
 	if err != nil {
