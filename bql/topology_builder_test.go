@@ -1,8 +1,7 @@
-package bql_test
+package bql
 
 import (
 	. "github.com/smartystreets/goconvey/convey"
-	"pfi/sensorbee/sensorbee/bql"
 	"pfi/sensorbee/sensorbee/bql/udf"
 	"testing"
 )
@@ -13,7 +12,7 @@ func TestCreateSourceStmt(t *testing.T) {
 		Reset(func() {
 			dt.Stop()
 		})
-		tb := bql.NewTopologyBuilder(dt)
+		tb := NewTopologyBuilder(dt)
 
 		Convey("When running CREATE SOURCE with a dummy source", func() {
 			err := addBQLToTopology(tb, `CREATE SOURCE hoge TYPE dummy`)
@@ -84,7 +83,7 @@ func TestCreateStreamAsSelectStmt(t *testing.T) {
 			unblockSource(dt, "s")
 			dt.Stop()
 		})
-		tb := bql.NewTopologyBuilder(dt)
+		tb := NewTopologyBuilder(dt)
 		err := addBQLToTopology(tb, `CREATE SOURCE s TYPE blocking_dummy`)
 		So(err, ShouldBeNil)
 
@@ -144,7 +143,7 @@ func TestCreateSinkStmt(t *testing.T) {
 		Reset(func() {
 			dt.Stop()
 		})
-		tb := bql.NewTopologyBuilder(dt)
+		tb := NewTopologyBuilder(dt)
 
 		Convey("When running CREATE SINK with a collector source", func() {
 			err := addBQLToTopology(tb, `CREATE SINK hoge TYPE collector`)
@@ -188,7 +187,7 @@ func TestInsertIntoSelectStmt(t *testing.T) {
 			unblockSource(dt, "s")
 			dt.Stop()
 		})
-		tb := bql.NewTopologyBuilder(dt)
+		tb := NewTopologyBuilder(dt)
 		err := addBQLToTopology(tb, `CREATE SOURCE s TYPE blocking_dummy`)
 		So(err, ShouldBeNil)
 		err = addBQLToTopology(tb, `CREATE SINK foo TYPE collector`)
@@ -245,7 +244,7 @@ func TestMultipleStatements(t *testing.T) {
 		Reset(func() {
 			dt.Stop()
 		})
-		tb := bql.NewTopologyBuilder(dt)
+		tb := NewTopologyBuilder(dt)
 
 		Convey("When issuing multiple commands in a good order", func() {
 			stmts := `
@@ -289,7 +288,7 @@ func TestCreateStateStmt(t *testing.T) {
 		Reset(func() {
 			dt.Stop()
 		})
-		tb := bql.NewTopologyBuilder(dt)
+		tb := NewTopologyBuilder(dt)
 		cs, err := udf.CopyGlobalUDSRegistry()
 		So(err, ShouldBeNil)
 		tb.UDSCreators = cs
