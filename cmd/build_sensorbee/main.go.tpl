@@ -3,7 +3,6 @@ package main
 import (
     "github.com/codegangsta/cli"
     "os"
-    // _ "pfi/scouter-snippets/plugin"
     "pfi/sensorbee/sensorbee/client"
     "pfi/sensorbee/sensorbee/server"
     "time"
