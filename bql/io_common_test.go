@@ -1,8 +1,7 @@
-package bql_test
+package bql
 
 import (
 	"fmt"
-	"pfi/sensorbee/sensorbee/bql"
 	"pfi/sensorbee/sensorbee/core"
 	"pfi/sensorbee/sensorbee/tuple"
 	"sync"
@@ -101,7 +100,7 @@ func (s *tupleEmitterSource) Stop(ctx *core.Context) error {
 }
 
 func init() {
-	bql.RegisterSourceType("dummy", createDummySource)
+	RegisterSourceType("dummy", createDummySource)
 }
 
 type blockingSource struct {
@@ -145,7 +144,7 @@ func (s *blockingSource) Resume(ctx *core.Context) error {
 }
 
 func init() {
-	bql.RegisterSourceType("blocking_dummy",
+	RegisterSourceType("blocking_dummy",
 		func(ctx *core.Context, params tuple.Map) (core.Source, error) {
 			s, err := createDummySource(ctx, params)
 			if err != nil {
@@ -215,5 +214,5 @@ func (s *tupleCollectorSink) Close(ctx *core.Context) error {
 }
 
 func init() {
-	bql.RegisterSinkType("collector", createCollectorSink)
+	RegisterSinkType("collector", createCollectorSink)
 }
