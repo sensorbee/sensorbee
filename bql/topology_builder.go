@@ -10,9 +10,11 @@ import (
 )
 
 type TopologyBuilder struct {
-	topology    core.DynamicTopology
-	Reg         udf.FunctionManager
-	UDSCreators udf.UDSCreatorRegistry
+	topology       core.DynamicTopology
+	Reg            udf.FunctionManager
+	UDSCreators    udf.UDSCreatorRegistry
+	SourceCreators SourceCreatorRegistry
+	SinkCreators   SinkCreatorRegistry
 }
 
 // TODO: Provide AtomicTopologyBuilder which support building multiple nodes
@@ -26,14 +28,30 @@ type TopologyBuilder struct {
 // when a user wants to add three statement and the second statement fails,
 // only the node created from the first statement is registered to the topology
 // and it starts to generate tuples. Others won't be registered.
-func NewTopologyBuilder(t core.DynamicTopology) *TopologyBuilder {
-	// create topology
-	tb := &TopologyBuilder{
-		topology:    t,
-		Reg:         udf.CopyGlobalUDFRegistry(t.Context()),
-		UDSCreators: udf.NewDefaultUDSCreatorRegistry(),
+func NewTopologyBuilder(t core.DynamicTopology) (*TopologyBuilder, error) {
+	udss, err := udf.CopyGlobalUDSRegistry()
+	if err != nil {
+		return nil, err
 	}
-	return tb
+
+	srcs, err := CopyGlobalSourceRegistry()
+	if err != nil {
+		return nil, err
+	}
+
+	sinks, err := CopyGlobalSinkRegistry()
+	if err != nil {
+		return nil, err
+	}
+
+	tb := &TopologyBuilder{
+		topology:       t,
+		Reg:            udf.CopyGlobalUDFRegistry(t.Context()),
+		UDSCreators:    udss,
+		SourceCreators: srcs,
+		SinkCreators:   sinks,
+	}
+	return tb, nil
 }
 
 // TODO: if IDs are shared by distributed processes, they should have a process
@@ -58,16 +76,19 @@ func (tb *TopologyBuilder) AddStmt(stmt interface{}) (core.DynamicNode, error) {
 	case parser.CreateSourceStmt:
 		// load params into map for faster access
 		paramsMap := tb.mkParamsMap(stmt.Params)
+
 		// check if we know whis type of source
-		if creator, ok := LookupSourceType(stmt.Type); ok {
-			// if so, try to create such a source
-			source, err := creator(tb.topology.Context(), paramsMap)
-			if err != nil {
-				return nil, err
-			}
-			return tb.topology.AddSource(string(stmt.Name), source, nil)
+		creator, err := tb.SourceCreators.Lookup(string(stmt.Type))
+		if err != nil {
+			return nil, err
 		}
-		return nil, fmt.Errorf("unknown source type: %s", stmt.Type)
+
+		// if so, try to create such a source
+		source, err := creator.CreateSource(tb.topology.Context(), paramsMap)
+		if err != nil {
+			return nil, err
+		}
+		return tb.topology.AddSource(string(stmt.Name), source, nil)
 
 	case parser.CreateStreamAsSelectStmt:
 		// insert a bqlBox that executes the SELECT statement
@@ -94,18 +115,20 @@ func (tb *TopologyBuilder) AddStmt(stmt interface{}) (core.DynamicNode, error) {
 		paramsMap := tb.mkParamsMap(stmt.Params)
 
 		// check if we know whis type of sink
-		if creator, ok := LookupSinkType(stmt.Type); ok {
-			// if so, try to create such a sink
-			sink, err := creator(tb.topology.Context(), paramsMap)
-			if err != nil {
-				return nil, err
-			}
-			// we insert a sink, but cannot connect it to
-			// any streams yet, therefore we have to keep track
-			// of the SinkDeclarer
-			return tb.topology.AddSink(string(stmt.Name), sink, nil)
+		creator, err := tb.SinkCreators.Lookup(string(stmt.Type))
+		if err != nil {
+			return nil, err
 		}
-		return nil, fmt.Errorf("unknown sink type: %s", stmt.Type)
+
+		// if so, try to create such a sink
+		sink, err := creator.CreateSink(tb.topology.Context(), paramsMap)
+		if err != nil {
+			return nil, err
+		}
+		// we insert a sink, but cannot connect it to
+		// any streams yet, therefore we have to keep track
+		// of the SinkDeclarer
+		return tb.topology.AddSink(string(stmt.Name), sink, nil)
 
 	case parser.CreateStateStmt:
 		c, err := tb.UDSCreators.Lookup(string(stmt.Type))

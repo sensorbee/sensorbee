@@ -100,7 +100,7 @@ func (s *tupleEmitterSource) Stop(ctx *core.Context) error {
 }
 
 func init() {
-	RegisterSourceType("dummy", createDummySource)
+	RegisterGlobalSourceCreator("dummy", SourceCreatorFunc(createDummySource))
 }
 
 type blockingSource struct {
@@ -144,8 +144,8 @@ func (s *blockingSource) Resume(ctx *core.Context) error {
 }
 
 func init() {
-	RegisterSourceType("blocking_dummy",
-		func(ctx *core.Context, params tuple.Map) (core.Source, error) {
+	RegisterGlobalSourceCreator("blocking_dummy",
+		SourceCreatorFunc(func(ctx *core.Context, params tuple.Map) (core.Source, error) {
 			s, err := createDummySource(ctx, params)
 			if err != nil {
 				return nil, err
@@ -155,7 +155,7 @@ func init() {
 			}
 			bs.wg.Add(1)
 			return bs, nil
-		})
+		}))
 }
 
 func unblockSource(dt core.DynamicTopology, srcName string) error {
@@ -214,5 +214,5 @@ func (s *tupleCollectorSink) Close(ctx *core.Context) error {
 }
 
 func init() {
-	RegisterSinkType("collector", createCollectorSink)
+	RegisterGlobalSinkCreator("collector", SinkCreatorFunc(createCollectorSink))
 }

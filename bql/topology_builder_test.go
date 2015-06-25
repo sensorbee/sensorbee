@@ -12,7 +12,8 @@ func TestCreateSourceStmt(t *testing.T) {
 		Reset(func() {
 			dt.Stop()
 		})
-		tb := NewTopologyBuilder(dt)
+		tb, err := NewTopologyBuilder(dt)
+		So(err, ShouldBeNil)
 
 		Convey("When running CREATE SOURCE with a dummy source", func() {
 			err := addBQLToTopology(tb, `CREATE SOURCE hoge TYPE dummy`)
@@ -70,7 +71,7 @@ func TestCreateSourceStmt(t *testing.T) {
 
 			Convey("Then an error should be returned", func() {
 				So(err, ShouldNotBeNil)
-				So(err.Error(), ShouldEqual, "unknown source type: foo")
+				So(err.Error(), ShouldContainSubstring, "not registered")
 			})
 		})
 	})
@@ -83,8 +84,9 @@ func TestCreateStreamAsSelectStmt(t *testing.T) {
 			unblockSource(dt, "s")
 			dt.Stop()
 		})
-		tb := NewTopologyBuilder(dt)
-		err := addBQLToTopology(tb, `CREATE SOURCE s TYPE blocking_dummy`)
+		tb, err := NewTopologyBuilder(dt)
+		So(err, ShouldBeNil)
+		err = addBQLToTopology(tb, `CREATE SOURCE s TYPE blocking_dummy`)
 		So(err, ShouldBeNil)
 
 		Convey("When running CREATE STREAM AS SELECT on an existing stream", func() {
@@ -143,7 +145,8 @@ func TestCreateSinkStmt(t *testing.T) {
 		Reset(func() {
 			dt.Stop()
 		})
-		tb := NewTopologyBuilder(dt)
+		tb, err := NewTopologyBuilder(dt)
+		So(err, ShouldBeNil)
 
 		Convey("When running CREATE SINK with a collector source", func() {
 			err := addBQLToTopology(tb, `CREATE SINK hoge TYPE collector`)
@@ -174,7 +177,7 @@ func TestCreateSinkStmt(t *testing.T) {
 
 			Convey("Then an error should be returned", func() {
 				So(err, ShouldNotBeNil)
-				So(err.Error(), ShouldEqual, "unknown sink type: foo")
+				So(err.Error(), ShouldContainSubstring, "not registered")
 			})
 		})
 	})
@@ -187,8 +190,9 @@ func TestInsertIntoSelectStmt(t *testing.T) {
 			unblockSource(dt, "s")
 			dt.Stop()
 		})
-		tb := NewTopologyBuilder(dt)
-		err := addBQLToTopology(tb, `CREATE SOURCE s TYPE blocking_dummy`)
+		tb, err := NewTopologyBuilder(dt)
+		So(err, ShouldBeNil)
+		err = addBQLToTopology(tb, `CREATE SOURCE s TYPE blocking_dummy`)
 		So(err, ShouldBeNil)
 		err = addBQLToTopology(tb, `CREATE SINK foo TYPE collector`)
 		So(err, ShouldBeNil)
@@ -244,7 +248,8 @@ func TestMultipleStatements(t *testing.T) {
 		Reset(func() {
 			dt.Stop()
 		})
-		tb := NewTopologyBuilder(dt)
+		tb, err := NewTopologyBuilder(dt)
+		So(err, ShouldBeNil)
 
 		Convey("When issuing multiple commands in a good order", func() {
 			stmts := `
@@ -288,7 +293,8 @@ func TestCreateStateStmt(t *testing.T) {
 		Reset(func() {
 			dt.Stop()
 		})
-		tb := NewTopologyBuilder(dt)
+		tb, err := NewTopologyBuilder(dt)
+		So(err, ShouldBeNil)
 		cs, err := udf.CopyGlobalUDSRegistry()
 		So(err, ShouldBeNil)
 		tb.UDSCreators = cs
