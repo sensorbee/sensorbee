@@ -169,7 +169,7 @@ func (tc *TopologiesContext) Queries(rw web.ResponseWriter, req *web.Request) {
 		tp := core.NewDefaultDynamicTopology(&ctx, tc.tenantName)
 		topologyMap[tc.tenantName] = tp
 
-		tb = bql.NewTopologyBuilder(tp)
+		tb, _ = bql.NewTopologyBuilder(tp) // TODO: fix this by supporting Create action
 		topologyBuilderMap[tc.tenantName] = tb
 
 	}
