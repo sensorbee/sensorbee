@@ -5,8 +5,6 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 	"pfi/sensorbee/sensorbee/bql"
 	"pfi/sensorbee/sensorbee/core"
-	"pfi/sensorbee/sensorbee/io/dummy_sink"
-	"pfi/sensorbee/sensorbee/io/dummy_source"
 	"pfi/sensorbee/sensorbee/tuple"
 	"testing"
 )
@@ -37,7 +35,7 @@ func setupTopology(stmt string) (core.DynamicTopology, error) {
 }
 
 func TestBasicBqlBoxConnectivity(t *testing.T) {
-	tuples := dummy_source.MkTuples(4)
+	tuples := mkTuples(4)
 	tup2 := *tuples[1]
 	tup4 := *tuples[3]
 
@@ -54,7 +52,7 @@ func TestBasicBqlBoxConnectivity(t *testing.T) {
 
 		sin, err := dt.Sink("snk")
 		So(err, ShouldBeNil)
-		si := sin.Sink().(*dummy_sink.TupleCollectorSink)
+		si := sin.Sink().(*tupleCollectorSink)
 
 		Convey("When 4 tuples are emitted by the source", func() {
 			tup2.Data["x"] = tuple.String(fmt.Sprintf("%d", ((2 + 1) % 3)))
