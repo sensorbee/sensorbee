@@ -7,6 +7,7 @@ import (
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"text/template"
 )
 
@@ -48,14 +49,12 @@ func main() {
 
 	b, err := ioutil.ReadFile(pluginYAMLFilePath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, err.Error())
-		return
+		panic(err)
 	}
 
 	m := map[string]interface{}{}
 	if err := yaml.Unmarshal(b, &m); err != nil {
-		fmt.Fprintf(os.Stderr, err.Error())
-		return
+		panic(err)
 	}
 
 	paths, ok := m["Plugins"]
@@ -75,35 +74,31 @@ func main() {
 	create(PluginPath{
 		Paths: pluginPaths,
 	})
+
+	os.Exit(0)
 }
 
 func create(pluginPaths PluginPath) {
 	tpl := template.Must(template.ParseFiles(templateFileName))
 	var b bytes.Buffer
 	if err := tpl.Execute(&b, pluginPaths); err != nil {
-		fmt.Fprintf(os.Stderr, err.Error())
-		return
+		panic(err)
 	}
 
 	// file output
 	if err := os.MkdirAll(outputMainGoDir, os.ModePerm); err != nil {
-		fmt.Fprintf(os.Stderr, err.Error())
-		return
+		panic(err)
 	}
 	outFilePath := outputMainGoDir + string(os.PathSeparator) + outputMainGoFileName
 	if err := ioutil.WriteFile(outFilePath, b.Bytes(), os.ModePerm); err != nil {
-		fmt.Fprintf(os.Stderr, err.Error())
-		return
+		panic(err)
 	}
-	// TODO go fmt
 
-	// cmd := exec.Command("go", "fmt", outFilePath)
-	// cmd.Stdout = os.Stdout
-	// cmd.Stderr = os.Stderr
-	// if err := cmd.Run(); err != nil {
-
-	// }
-	// if err != nil {
-	// 		bail(err.Error(), 2)
-	// }
+	// go fmt
+	cmd := exec.Command("go", "fmt", outFilePath)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		panic(err)
+	}
 }

@@ -1,8 +1,4 @@
 --- # SensorBee plug-in list
 Plugins:
-- pfi/scouter-snippets/plugin
-- pfi/scouter-snippets/plugin
-- pfi/scouter-snippets/plugin
-- pfi/scouter-snippets/plugin
-#- pfi/sensorbee/scouter
-#- pfi/sensorbee/fluentbee
+#- pfi/sensorbee/snowflake/plugin
+#- pfi/sensorbee/scouter/plugin
