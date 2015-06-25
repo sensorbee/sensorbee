@@ -230,7 +230,32 @@ func NewRowValue(s string) RowValue {
 	}
 	// "table.col"
 	return RowValue{components[0], components[1]}
+}
 
+type RowMeta struct {
+	Relation string
+	MetaType MetaInformation
+}
+
+func (rm RowMeta) ReferencedRelations() map[string]bool {
+	return map[string]bool{rm.Relation: true}
+}
+
+func (rm RowMeta) RenameReferencedRelation(from, to string) Expression {
+	if rm.Relation == from {
+		return RowMeta{to, rm.MetaType}
+	}
+	return rm
+}
+
+func NewRowMeta(s string, t MetaInformation) RowMeta {
+	components := strings.SplitN(s, ":", 2)
+	if len(components) == 1 {
+		// just the meta information
+		return RowMeta{"", t}
+	}
+	// relation name and meta information
+	return RowMeta{components[0], t}
 }
 
 type Raw struct {
@@ -364,6 +389,13 @@ func (i IntervalUnit) String() string {
 	}
 	return s
 }
+
+type MetaInformation int
+
+const (
+	UnknownMeta MetaInformation = iota
+	TimestampMeta
+)
 
 type Operator int
 
