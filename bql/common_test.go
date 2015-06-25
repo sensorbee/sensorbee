@@ -1,7 +1,6 @@
-package bql_test
+package bql
 
 import (
-	"pfi/sensorbee/sensorbee/bql"
 	"pfi/sensorbee/sensorbee/bql/parser"
 	"pfi/sensorbee/sensorbee/bql/udf"
 	"pfi/sensorbee/sensorbee/core"
@@ -22,7 +21,7 @@ func newTestDynamicTopology() core.DynamicTopology {
 	return core.NewDefaultDynamicTopology(ctx, "testTopology")
 }
 
-func addBQLToTopology(tb *bql.TopologyBuilder, bql string) error {
+func addBQLToTopology(tb *TopologyBuilder, bql string) error {
 	p := parser.NewBQLParser()
 	// execute all parsed statements
 	stmts, err := p.ParseStmts(bql)
