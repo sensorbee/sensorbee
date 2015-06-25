@@ -106,9 +106,9 @@ func RegisterGlobalSinkCreator(typeName string, c SinkCreator) error {
 	return globalSinkCreatorRegistry.Register(typeName, c)
 }
 
-// CopyGlobalSinkRegistry creates a new independent copy of the global
+// CopyGlobalSinkCreatorRegistry creates a new independent copy of the global
 // SinkCreatorRegistry.
-func CopyGlobalSinkRegistry() (SinkCreatorRegistry, error) {
+func CopyGlobalSinkCreatorRegistry() (SinkCreatorRegistry, error) {
 	r := NewDefaultSinkCreatorRegistry()
 	m, err := globalSinkCreatorRegistry.List()
 	if err != nil {

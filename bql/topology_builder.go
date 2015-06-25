@@ -29,17 +29,17 @@ type TopologyBuilder struct {
 // only the node created from the first statement is registered to the topology
 // and it starts to generate tuples. Others won't be registered.
 func NewTopologyBuilder(t core.DynamicTopology) (*TopologyBuilder, error) {
-	udss, err := udf.CopyGlobalUDSRegistry()
+	udss, err := udf.CopyGlobalUDSCreatorRegistry()
 	if err != nil {
 		return nil, err
 	}
 
-	srcs, err := CopyGlobalSourceRegistry()
+	srcs, err := CopyGlobalSourceCreatorRegistry()
 	if err != nil {
 		return nil, err
 	}
 
-	sinks, err := CopyGlobalSinkRegistry()
+	sinks, err := CopyGlobalSinkCreatorRegistry()
 	if err != nil {
 		return nil, err
 	}

@@ -2,7 +2,6 @@ package bql
 
 import (
 	. "github.com/smartystreets/goconvey/convey"
-	"pfi/sensorbee/sensorbee/bql/udf"
 	"testing"
 )
 
@@ -295,9 +294,6 @@ func TestCreateStateStmt(t *testing.T) {
 		})
 		tb, err := NewTopologyBuilder(dt)
 		So(err, ShouldBeNil)
-		cs, err := udf.CopyGlobalUDSRegistry()
-		So(err, ShouldBeNil)
-		tb.UDSCreators = cs
 
 		Convey("When creating a dummy UDS", func() {
 			So(addBQLToTopology(tb, `CREATE STATE hoge TYPE dummy_uds WITH num=5;`), ShouldBeNil)

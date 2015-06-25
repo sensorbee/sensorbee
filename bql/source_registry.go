@@ -106,9 +106,9 @@ func RegisterGlobalSourceCreator(typeName string, c SourceCreator) error {
 	return globalSourceCreatorRegistry.Register(typeName, c)
 }
 
-// CopyGlobalSourceRegistry creates a new independent copy of the global
+// CopyGlobalSourceCreatorRegistry creates a new independent copy of the global
 // SourceCreatorRegistry.
-func CopyGlobalSourceRegistry() (SourceCreatorRegistry, error) {
+func CopyGlobalSourceCreatorRegistry() (SourceCreatorRegistry, error) {
 	r := NewDefaultSourceCreatorRegistry()
 	m, err := globalSourceCreatorRegistry.List()
 	if err != nil {
