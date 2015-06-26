@@ -308,7 +308,7 @@ func genericFuncArgumentConverter(t reflect.Type) (argumentConverter, error) {
 
 		case time.Time:
 			return func(v tuple.Value) (interface{}, error) {
-				return tuple.ToTime(v)
+				return tuple.ToTimestamp(v)
 			}, nil
 
 		default:
