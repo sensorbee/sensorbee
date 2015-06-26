@@ -1,4 +1,3 @@
-//go:generate build_sensorbee -in=plugin.yaml -outdir=../sensorbee -outname=default_main.go
 package main
 
 import (
@@ -10,10 +9,6 @@ import (
 	"os"
 	"os/exec"
 	"text/template"
-)
-
-const (
-	templateFileName = "main.go.tpl"
 )
 
 var (
@@ -78,7 +73,7 @@ func main() {
 }
 
 func create(pluginPaths PluginPath) {
-	tpl := template.Must(template.ParseFiles(templateFileName))
+	tpl := template.Must(template.New("tpl").Parse(mainGoTemplate))
 	var b bytes.Buffer
 	if err := tpl.Execute(&b, pluginPaths); err != nil {
 		panic(err)
@@ -101,3 +96,68 @@ func create(pluginPaths PluginPath) {
 		panic(err)
 	}
 }
+
+const (
+	mainGoTemplate = `package main
+
+import (
+    "github.com/codegangsta/cli"
+    "os"
+    "pfi/sensorbee/sensorbee/client"
+    "pfi/sensorbee/sensorbee/server"
+    "time"
+{{range $_, $path := .Paths}}    _ "{{$path}}"
+{{end}})
+
+type commandGenerator func() cli.Command
+
+func init() {
+    // TODO
+    time.Local = time.UTC
+}
+
+func main() {
+    app := setUpApp([]commandGenerator{
+        server.SetUpRunCommand,
+        client.SetUpCMDLineToolCommand,
+    })
+
+    if err := app.Run(os.Args); err != nil {
+        os.Exit(1)
+    }
+}
+
+func setUpApp(cmds []commandGenerator) *cli.App {
+    app := cli.NewApp()
+    app.Name = "sensorbee"
+    app.Usage = "SenserBee"
+    app.Version = "0.0.1" // TODO get dynamic, will be get from external file
+    app.Flags = []cli.Flag{
+        cli.StringFlag{ // TODO get configuration from external file
+            Name:   "config, c",
+            Value:  "/etc/sersorbee/sensorbee.config",
+            Usage:  "path to the config file",
+            EnvVar: "SENSORBEE_CONFIG",
+        },
+    }
+    app.Before = appBeforeHook
+
+    for _, c := range cmds {
+        app.Commands = append(app.Commands, c())
+    }
+    return app
+}
+
+func appBeforeHook(c *cli.Context) error {
+    if err := loadConfig(c); err != nil {
+        return err
+    }
+    return nil
+}
+
+func loadConfig(c *cli.Context) error {
+    // TODO load configuration file (YAML)
+    return nil
+}
+`
+)
