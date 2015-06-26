@@ -80,12 +80,11 @@ func TestCreateStreamAsSelectStmt(t *testing.T) {
 	Convey("Given a BQL TopologyBuilder with source and stream", t, func() {
 		dt := newTestDynamicTopology()
 		Reset(func() {
-			unblockSource(dt, "s")
 			dt.Stop()
 		})
 		tb, err := NewTopologyBuilder(dt)
 		So(err, ShouldBeNil)
-		err = addBQLToTopology(tb, `CREATE SOURCE s TYPE blocking_dummy`)
+		err = addBQLToTopology(tb, `CREATE PAUSED SOURCE s TYPE dummy`)
 		So(err, ShouldBeNil)
 
 		Convey("When running CREATE STREAM AS SELECT on an existing stream", func() {
@@ -186,12 +185,11 @@ func TestInsertIntoSelectStmt(t *testing.T) {
 	Convey("Given a BQL TopologyBuilder with source, stream, and sink", t, func() {
 		dt := newTestDynamicTopology()
 		Reset(func() {
-			unblockSource(dt, "s")
 			dt.Stop()
 		})
 		tb, err := NewTopologyBuilder(dt)
 		So(err, ShouldBeNil)
-		err = addBQLToTopology(tb, `CREATE SOURCE s TYPE blocking_dummy`)
+		err = addBQLToTopology(tb, `CREATE PAUSED SOURCE s TYPE dummy`)
 		So(err, ShouldBeNil)
 		err = addBQLToTopology(tb, `CREATE SINK foo TYPE collector`)
 		So(err, ShouldBeNil)
@@ -252,15 +250,15 @@ func TestMultipleStatements(t *testing.T) {
 
 		Convey("When issuing multiple commands in a good order", func() {
 			stmts := `
-			CREATE SOURCE source TYPE blocking_dummy WITH num=4;
+			CREATE PAUSED SOURCE source TYPE dummy WITH num=4;
 			CREATE STREAM box AS SELECT
 			  ISTREAM int, str((int+1) % 3) AS x FROM source
 			  [RANGE 2 SECONDS] WHERE int % 2 = 0;
 			CREATE SINK snk TYPE collector;
 			INSERT INTO snk SELECT * FROM box;
+			RESUME SOURCE source;
 			`
 			err := addBQLToTopology(tb, stmts)
-			So(unblockSource(dt, "source"), ShouldBeNil)
 
 			Convey("Then setup should succeed", func() {
 				So(err, ShouldBeNil)
@@ -269,15 +267,15 @@ func TestMultipleStatements(t *testing.T) {
 
 		Convey("When issuing multiple commands in a bad order", func() {
 			stmts := `
-			CREATE SOURCE source TYPE blocking_dummy WITH num=4;
+			CREATE PAUSED SOURCE source TYPE dummy WITH num=4;
 			CREATE STREAM box AS SELECT
 			  ISTREAM int, str((int+1) % 3) AS x FROM source
 			  [RANGE 2 SECONDS] WHERE int % 2 = 0;
 			INSERT INTO snk SELECT * FROM box;
 			CREATE SINK snk TYPE collector;
+			RESUME SOURCE source;
 			`
 			err := addBQLToTopology(tb, stmts)
-			So(unblockSource(dt, "source"), ShouldBeNil)
 
 			Convey("Then setup should fail", func() {
 				So(err, ShouldNotBeNil)

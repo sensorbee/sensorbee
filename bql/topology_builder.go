@@ -84,12 +84,13 @@ func (tb *TopologyBuilder) AddStmt(stmt interface{}) (core.DynamicNode, error) {
 		}
 
 		// if so, try to create such a source
-		// TODO take an appropriate action if stmt.Paused is Yes
 		source, err := creator.CreateSource(tb.topology.Context(), paramsMap)
 		if err != nil {
 			return nil, err
 		}
-		return tb.topology.AddSource(string(stmt.Name), source, nil)
+		return tb.topology.AddSource(string(stmt.Name), source, &core.DynamicSourceConfig{
+			PausedOnStartup: stmt.Paused == parser.Yes,
+		})
 
 	case parser.CreateStreamAsSelectStmt:
 		// insert a bqlBox that executes the SELECT statement
@@ -198,8 +199,25 @@ func (tb *TopologyBuilder) AddStmt(stmt interface{}) (core.DynamicNode, error) {
 		}
 		return box, nil
 
-		// TODO: case parser.PauseSourceStmt
-		// TODO: case parser.ResumeSourceStmt
+	case parser.PauseSourceStmt:
+		src, err := tb.topology.Source(string(stmt.Source))
+		if err != nil {
+			return nil, err
+		}
+		if err := src.Pause(); err != nil {
+			return nil, err
+		}
+		return src, nil
+
+	case parser.ResumeSourceStmt:
+		src, err := tb.topology.Source(string(stmt.Source))
+		if err != nil {
+			return nil, err
+		}
+		if err := src.Resume(); err != nil {
+			return nil, err
+		}
+		return src, nil
 	}
 
 	return nil, fmt.Errorf("statement of type %T is unimplemented", stmt)
