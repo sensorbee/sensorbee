@@ -28,7 +28,8 @@ type bqlPeg Peg {
 Statements <- sp ((Statement sp ';' .*) / Statement) !.
 
 Statement <- (SelectStmt / CreateStreamAsSelectStmt / CreateSourceStmt /
-             CreateSinkStmt / InsertIntoSelectStmt / CreateStateStmt)
+             CreateSinkStmt / InsertIntoSelectStmt / CreateStateStmt /
+             PauseSourceStmt / ResumeSourceStmt)
 
 SelectStmt <- "SELECT" sp
               Emitter? sp
@@ -54,7 +55,7 @@ CreateStreamAsSelectStmt <- "CREATE" sp "STREAM" sp
         p.AssembleCreateStreamAsSelect()
     }
 
-CreateSourceStmt <- "CREATE" sp "SOURCE" sp
+CreateSourceStmt <- "CREATE" sp PausedOpt sp "SOURCE" sp
                     StreamIdentifier sp
                     "TYPE" sp SourceSinkType sp
                     SourceSinkSpecs {
@@ -79,6 +80,14 @@ InsertIntoSelectStmt <- "INSERT" sp "INTO" sp
                     StreamIdentifier sp
                     SelectStmt {
         p.AssembleInsertIntoSelect()
+    }
+
+PauseSourceStmt <- "PAUSE" sp "SOURCE" sp StreamIdentifier {
+        p.AssemblePauseSource()
+    }
+
+ResumeSourceStmt <- "RESUME" sp "SOURCE" sp StreamIdentifier {
+        p.AssembleResumeSource()
     }
 
 
@@ -199,6 +208,10 @@ SourceSinkParam <- SourceSinkParamKey '=' SourceSinkParamVal {
     }
 
 SourceSinkParamVal <- BooleanLiteral / Literal
+
+PausedOpt <- < (Paused / Unpaused)? > {
+        p.EnsureKeywordPresent(begin, end)
+    }
 
 
 ##############################
@@ -356,6 +369,14 @@ SourceSinkType <- < ident > {
 SourceSinkParamKey <- < ident > {
         substr := string([]rune(buffer)[begin:end])
         p.PushComponent(begin, end, SourceSinkParamKey(substr))
+    }
+
+Paused <- < "PAUSED" > {
+        p.PushComponent(begin, end, Yes)
+    }
+
+Unpaused <- < "UNPAUSED" > {
+        p.PushComponent(begin, end, No)
     }
 
 Or <- < "OR" > {
