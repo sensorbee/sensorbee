@@ -1,3 +1,4 @@
+//go:generate build_sensorbee -in=plugin.yaml -outdir=../sensorbee -outname=default_main.go
 package main
 
 import (
@@ -59,13 +60,11 @@ func main() {
 
 	paths, ok := m["Plugins"]
 	if !ok {
-		fmt.Fprintf(os.Stdout, "not found plugin list")
-		return
+		fmt.Fprintf(os.Stdout, "not found plug-in list\n")
 	}
 	pathList, ok := paths.([]interface{})
 	if !ok || len(pathList) < 1 {
-		fmt.Fprintf(os.Stdout, "plugin list is empty")
-		return
+		fmt.Fprintf(os.Stdout, "plug-in list is not list style or empty\n")
 	}
 	pluginPaths := []string{}
 	for _, path := range pathList {
