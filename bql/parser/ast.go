@@ -60,6 +60,14 @@ type InsertIntoSelectStmt struct {
 	SelectStmt
 }
 
+type PauseSourceStmt struct {
+	Source StreamIdentifier
+}
+
+type ResumeSourceStmt struct {
+	Source StreamIdentifier
+}
+
 type EmitterAST struct {
 	EmitterType   Emitter
 	EmitIntervals []StreamEmitIntervalAST

@@ -28,7 +28,8 @@ type bqlPeg Peg {
 Statements <- sp ((Statement sp ';' .*) / Statement) !.
 
 Statement <- (SelectStmt / CreateStreamAsSelectStmt / CreateSourceStmt /
-             CreateSinkStmt / InsertIntoSelectStmt / CreateStateStmt)
+             CreateSinkStmt / InsertIntoSelectStmt / CreateStateStmt /
+             PauseSourceStmt / ResumeSourceStmt)
 
 SelectStmt <- "SELECT" sp
               Emitter? sp
@@ -79,6 +80,14 @@ InsertIntoSelectStmt <- "INSERT" sp "INTO" sp
                     StreamIdentifier sp
                     SelectStmt {
         p.AssembleInsertIntoSelect()
+    }
+
+PauseSourceStmt <- "PAUSE" sp "SOURCE" sp StreamIdentifier {
+        p.AssemblePauseSource()
+    }
+
+ResumeSourceStmt <- "RESUME" sp "SOURCE" sp StreamIdentifier {
+        p.AssembleResumeSource()
     }
 
 

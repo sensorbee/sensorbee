@@ -223,6 +223,40 @@ func (ps *parseStack) AssembleInsertIntoSelect() {
 	ps.Push(&se)
 }
 
+// AssemblePauseSource takes the topmost elements from the stack,
+// assuming they are components of a PAUSE SOURCE statement, and
+// replaces them by a single PauseSourceStmt element.
+//
+//  StreamIdentifier
+//   =>
+//  PauseSourceStmt{StreamIdentifier}
+func (ps *parseStack) AssemblePauseSource() {
+	// pop the components from the stack in reverse order
+	_name := ps.Pop()
+
+	name := _name.comp.(StreamIdentifier)
+
+	se := ParsedComponent{_name.begin, _name.end, PauseSourceStmt{name}}
+	ps.Push(&se)
+}
+
+// AssembleResumeSource takes the topmost elements from the stack,
+// assuming they are components of a RESUME SOURCE statement, and
+// replaces them by a single ResumeSourceStmt element.
+//
+//  StreamIdentifier
+//   =>
+//  ResumeSourceStmt{StreamIdentifier}
+func (ps *parseStack) AssembleResumeSource() {
+	// pop the components from the stack in reverse order
+	_name := ps.Pop()
+
+	name := _name.comp.(StreamIdentifier)
+
+	se := ParsedComponent{_name.begin, _name.end, ResumeSourceStmt{name}}
+	ps.Push(&se)
+}
+
 /* Projections/Columns */
 
 // AssembleEmitter takes the topmost elements from the stack, assuming
