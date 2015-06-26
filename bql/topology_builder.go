@@ -84,6 +84,7 @@ func (tb *TopologyBuilder) AddStmt(stmt interface{}) (core.DynamicNode, error) {
 		}
 
 		// if so, try to create such a source
+		// TODO take an appropriate action if stmt.Paused is Yes
 		source, err := creator.CreateSource(tb.topology.Context(), paramsMap)
 		if err != nil {
 			return nil, err

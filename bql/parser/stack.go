@@ -141,24 +141,27 @@ func (ps *parseStack) AssembleCreateStreamAsSelect() {
 // assuming they are components of a CREATE SOURCE statement, and
 // replaces them by a single CreateSourceStmt element.
 //
+//  BinaryKeyword
 //  SourceSinkSpecsAST
 //  SourceSinkType
 //  StreamIdentifier
 //   =>
-//  CreateSourceStmt{StreamIdentifier, SourceSinkType, SourceSinkSpecsAST}
+//  CreateSourceStmt{BinaryKeyword, StreamIdentifier, SourceSinkType,
+//    SourceSinkSpecsAST}
 func (ps *parseStack) AssembleCreateSource() {
 	// pop the components from the stack in reverse order
-	_specs, _sourceType, _name := ps.pop3()
+	_specs, _sourceType, _name, _paused := ps.pop4()
 
 	// extract and convert the contained structure
 	// (if this fails, this is a fundamental parser bug => panic ok)
 	specs := _specs.comp.(SourceSinkSpecsAST)
 	sourceType := _sourceType.comp.(SourceSinkType)
 	name := _name.comp.(StreamIdentifier)
+	paused := _paused.comp.(BinaryKeyword)
 
 	// assemble the CreateSourceStmt and push it back
-	s := CreateSourceStmt{name, sourceType, specs}
-	se := ParsedComponent{_name.begin, _specs.end, s}
+	s := CreateSourceStmt{paused, name, sourceType, specs}
+	se := ParsedComponent{_paused.begin, _specs.end, s}
 	ps.Push(&se)
 }
 
@@ -599,6 +602,23 @@ func (ps *parseStack) AssembleSourceSinkParam() {
 
 	ss := SourceSinkParamAST{key, value}
 	ps.PushComponent(_key.begin, _value.end, ss)
+}
+
+// EnsureKeywordPresent makes sure that the top element of the stack
+// is a BinaryKeyword element.
+func (ps *parseStack) EnsureKeywordPresent(begin int, end int) {
+	top := ps.Peek()
+	if top == nil || top.end <= begin {
+		// there is no item in the given range
+		ps.PushComponent(begin, end, UnspecifiedKeyword)
+	} else {
+		// there is an item in the given range
+		_, ok := top.comp.(BinaryKeyword)
+		if !ok {
+			panic(fmt.Sprintf("begin (%d) != end (%d), but there "+
+				"was a %T on the stack", begin, end, top.comp))
+		}
+	}
 }
 
 /* Expressions */
