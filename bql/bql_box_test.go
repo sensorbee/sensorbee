@@ -15,7 +15,7 @@ func setupTopology(stmt string) (core.DynamicTopology, error) {
 	if err != nil {
 		return nil, err
 	}
-	err = addBQLToTopology(tb, "CREATE SOURCE source TYPE blocking_dummy WITH num=4")
+	err = addBQLToTopology(tb, "CREATE PAUSED SOURCE source TYPE dummy WITH num=4")
 	if err != nil {
 		return nil, err
 	}
@@ -24,12 +24,10 @@ func setupTopology(stmt string) (core.DynamicTopology, error) {
 		return nil, err
 	}
 	// sink
-	err = addBQLToTopology(tb, "CREATE SINK snk TYPE collector")
-	if err != nil {
-		return nil, err
-	}
-	// connect box and sink
-	err = addBQLToTopology(tb, "INSERT INTO snk SELECT * FROM box")
+	err = addBQLToTopology(tb, `
+		CREATE SINK snk TYPE collector;
+		INSERT INTO snk SELECT * FROM box;
+		RESUME SOURCE source;`)
 	if err != nil {
 		return nil, err
 	}
@@ -49,8 +47,6 @@ func TestBasicBqlBoxConnectivity(t *testing.T) {
 		Reset(func() {
 			dt.Stop()
 		})
-
-		So(unblockSource(dt, "source"), ShouldBeNil)
 
 		sin, err := dt.Sink("snk")
 		So(err, ShouldBeNil)
