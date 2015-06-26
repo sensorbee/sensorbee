@@ -295,7 +295,7 @@ func TestToBlob(t *testing.T) {
 	runConversionTestCases(t, toFun, "ToBlob", testCases)
 }
 
-func TestToTime(t *testing.T) {
+func TestToTimestamp(t *testing.T) {
 	now := time.Now()
 
 	testCases := map[string][]convTestInput{
@@ -344,10 +344,10 @@ func TestToTime(t *testing.T) {
 	}
 
 	toFun := func(v Value) (interface{}, error) {
-		val, err := ToTime(v)
+		val, err := ToTimestamp(v)
 		return val, err
 	}
-	runConversionTestCases(t, toFun, "ToTime", testCases)
+	runConversionTestCases(t, toFun, "ToTimestamp", testCases)
 }
 
 func runConversionTestCases(t *testing.T,
