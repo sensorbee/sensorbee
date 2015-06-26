@@ -196,6 +196,9 @@ func (tb *TopologyBuilder) AddStmt(stmt interface{}) (core.DynamicNode, error) {
 			return nil, err
 		}
 		return box, nil
+
+		// TODO: case parser.PauseSourceStmt
+		// TODO: case parser.ResumeSourceStmt
 	}
 
 	return nil, fmt.Errorf("statement of type %T is unimplemented", stmt)
