@@ -254,7 +254,7 @@ func ToBlob(v Value) ([]byte, error) {
 	}
 }
 
-// ToTime converts a given Value to a time.Time struct, if possible.
+// ToTimestamp converts a given Value to a time.Time struct, if possible.
 // The conversion rules are as follows:
 //
 //  * Null: zero time (this is *not* the time with Unix time 0!)
@@ -265,7 +265,7 @@ func ToBlob(v Value) ([]byte, error) {
 //  * String: Time with the given RFC3339/ISO8601 representation
 //  * Timestamp: actual time
 //  * other: (error)
-func ToTime(v Value) (time.Time, error) {
+func ToTimestamp(v Value) (time.Time, error) {
 	defaultValue := time.Time{}
 	switch v.Type() {
 	case TypeNull:
