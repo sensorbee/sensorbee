@@ -224,6 +224,16 @@ func NewValue(v interface{}) (result Value, err error) {
 		result = Blob(vt)
 	case nil:
 		result = Null{}
+
+	// support some tuple types for convenience
+	case Array:
+		result = vt
+	case Map:
+		result = vt
+	case Blob:
+		result = vt
+	case Timestamp:
+		result = vt
 	default:
 		err = fmt.Errorf("unsupported type %T", v)
 	}
