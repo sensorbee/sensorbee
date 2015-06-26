@@ -38,8 +38,9 @@ type CreateStreamAsSelectStmt struct {
 }
 
 type CreateSourceStmt struct {
-	Name StreamIdentifier
-	Type SourceSinkType
+	Paused BinaryKeyword
+	Name   StreamIdentifier
+	Type   SourceSinkType
 	SourceSinkSpecsAST
 }
 
@@ -58,6 +59,14 @@ type CreateStateStmt struct {
 type InsertIntoSelectStmt struct {
 	Sink StreamIdentifier
 	SelectStmt
+}
+
+type PauseSourceStmt struct {
+	Source StreamIdentifier
+}
+
+type ResumeSourceStmt struct {
+	Source StreamIdentifier
 }
 
 type EmitterAST struct {
@@ -402,6 +411,25 @@ func (m MetaInformation) String() string {
 	switch m {
 	case TimestampMeta:
 		s = "TS"
+	}
+	return s
+}
+
+type BinaryKeyword int
+
+const (
+	UnspecifiedKeyword BinaryKeyword = iota
+	Yes
+	No
+)
+
+func (k BinaryKeyword) String() string {
+	s := "Unspecified"
+	switch k {
+	case Yes:
+		s = "Yes"
+	case No:
+		s = "No"
 	}
 	return s
 }

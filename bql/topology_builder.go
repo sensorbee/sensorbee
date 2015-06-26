@@ -84,6 +84,7 @@ func (tb *TopologyBuilder) AddStmt(stmt interface{}) (core.DynamicNode, error) {
 		}
 
 		// if so, try to create such a source
+		// TODO take an appropriate action if stmt.Paused is Yes
 		source, err := creator.CreateSource(tb.topology.Context(), paramsMap)
 		if err != nil {
 			return nil, err
@@ -196,6 +197,9 @@ func (tb *TopologyBuilder) AddStmt(stmt interface{}) (core.DynamicNode, error) {
 			return nil, err
 		}
 		return box, nil
+
+		// TODO: case parser.PauseSourceStmt
+		// TODO: case parser.ResumeSourceStmt
 	}
 
 	return nil, fmt.Errorf("statement of type %T is unimplemented", stmt)

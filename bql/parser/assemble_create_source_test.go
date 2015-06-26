@@ -10,6 +10,7 @@ func TestAssembleCreateSource(t *testing.T) {
 	Convey("Given a parseStack", t, func() {
 		ps := parseStack{}
 		Convey("When the stack contains the correct CREATE SOURCE items", func() {
+			ps.PushComponent(0, 2, Yes)
 			ps.PushComponent(2, 4, StreamIdentifier("a"))
 			ps.PushComponent(4, 6, SourceSinkType("b"))
 			ps.PushComponent(6, 8, SourceSinkParamAST{"c", tuple.String("d")})
@@ -23,12 +24,13 @@ func TestAssembleCreateSource(t *testing.T) {
 				Convey("And that item is a CreateSourceStmt", func() {
 					top := ps.Peek()
 					So(top, ShouldNotBeNil)
-					So(top.begin, ShouldEqual, 2)
+					So(top.begin, ShouldEqual, 0)
 					So(top.end, ShouldEqual, 10)
 					So(top.comp, ShouldHaveSameTypeAs, CreateSourceStmt{})
 
 					Convey("And it contains the previously pushed data", func() {
 						comp := top.comp.(CreateSourceStmt)
+						So(comp.Paused, ShouldEqual, Yes)
 						So(comp.Name, ShouldEqual, "a")
 						So(comp.Type, ShouldEqual, "b")
 						So(len(comp.Params), ShouldEqual, 2)
@@ -50,6 +52,7 @@ func TestAssembleCreateSource(t *testing.T) {
 		})
 
 		Convey("When the stack contains a wrong item", func() {
+			ps.PushComponent(0, 2, Yes)
 			ps.PushComponent(2, 4, Raw{"a"}) // must be StreamIdentifier
 			ps.PushComponent(4, 6, SourceSinkType("b"))
 			ps.PushComponent(6, 8, SourceSinkParamAST{"c", tuple.String("d")})
@@ -66,7 +69,7 @@ func TestAssembleCreateSource(t *testing.T) {
 		p := &bqlPeg{}
 
 		Convey("When doing a full CREATE SOURCE", func() {
-			p.Buffer = "CREATE SOURCE a_1 TYPE b_b WITH c=27, e_='f_1'"
+			p.Buffer = "CREATE PAUSED SOURCE a_1 TYPE b_b WITH c=27, e_='f_1'"
 			p.Init()
 
 			Convey("Then the statement should be parsed correctly", func() {
@@ -80,6 +83,7 @@ func TestAssembleCreateSource(t *testing.T) {
 				So(top, ShouldHaveSameTypeAs, CreateSourceStmt{})
 				comp := top.(CreateSourceStmt)
 
+				So(comp.Paused, ShouldEqual, Yes)
 				So(comp.Name, ShouldEqual, "a_1")
 				So(comp.Type, ShouldEqual, "b_b")
 				So(len(comp.Params), ShouldEqual, 2)
