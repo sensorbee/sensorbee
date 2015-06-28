@@ -58,6 +58,20 @@ func (m Map) String() string {
 	return string(bytes)
 }
 
+func (m *Map) UnmarshalJSON(data []byte) error {
+	var j map[string]interface{}
+	if err := json.Unmarshal(data, &j); err != nil {
+		return err
+	}
+
+	newMap, err := NewMap(j)
+	if err != nil {
+		return err
+	}
+	*m = newMap
+	return nil
+}
+
 func (m Map) Copy() Map {
 	out := make(map[string]Value, len(m))
 	for key, val := range m {
