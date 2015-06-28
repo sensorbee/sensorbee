@@ -61,3 +61,17 @@ func (a Array) String() string {
 	}
 	return string(bytes)
 }
+
+func (a *Array) UnmarshalJSON(data []byte) error {
+	var j []interface{}
+	if err := json.Unmarshal(data, &j); err != nil {
+		return err
+	}
+
+	newArray, err := NewArray(j)
+	if err != nil {
+		return err
+	}
+	*a = newArray
+	return nil
+}
