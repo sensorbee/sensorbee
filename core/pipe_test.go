@@ -10,7 +10,7 @@ import (
 func BenchmarkDynamicPipe(b *testing.B) {
 	config := Configuration{TupleTraceEnabled: 1}
 	ctx := newTestContext(config)
-	r, s := newDynamicPipe("test", 1024)
+	r, s := newPipe("test", 1024)
 	go func() {
 		for _ = range r.in {
 		}
@@ -27,7 +27,7 @@ func BenchmarkDynamicPipe(b *testing.B) {
 	})
 }
 
-func drainReceiver(r *dynamicPipeReceiver) {
+func drainReceiver(r *pipeReceiver) {
 	for _ = range r.in {
 	}
 }
@@ -38,7 +38,7 @@ func TestDynamicPipe(t *testing.T) {
 
 	Convey("Given a dynamic pipe", t, func() {
 		// Use small capacity to check the sender never blocks.
-		r, s := newDynamicPipe("test", 1)
+		r, s := newPipe("test", 1)
 		t := &tuple.Tuple{
 			InputName: "hoge",
 			Data: tuple.Map{
@@ -102,7 +102,7 @@ func TestDynamicDataSources(t *testing.T) {
 	ctx := newTestContext(config)
 
 	Convey("Given an empty data source", t, func() {
-		srcs := newDynamicDataSources("test_component")
+		srcs := newDataSources("test_component")
 
 		Convey("When stopping it before starting to pour tuples", func() {
 			srcs.stop(ctx)
@@ -115,7 +115,7 @@ func TestDynamicDataSources(t *testing.T) {
 	})
 
 	Convey("Given an empty data source", t, func() {
-		srcs := newDynamicDataSources("test_component")
+		srcs := newDataSources("test_component")
 		si := NewTupleCollectorSink()
 
 		t := &tuple.Tuple{
@@ -148,7 +148,7 @@ func TestDynamicDataSources(t *testing.T) {
 		})
 
 		Convey("When adding an input after starting pouring and write a tuple", func() {
-			r, s := newDynamicPipe("test1", 1)
+			r, s := newPipe("test1", 1)
 			So(srcs.add("test_node_1", r), ShouldBeNil)
 			So(s.Write(ctx, t), ShouldBeNil)
 			s.close()
@@ -162,10 +162,10 @@ func TestDynamicDataSources(t *testing.T) {
 	})
 
 	Convey("Given a data source having destinations", t, func() {
-		srcs := newDynamicDataSources("test_component")
-		dsts := make([]*dynamicPipeSender, 2)
+		srcs := newDataSources("test_component")
+		dsts := make([]*pipeSender, 2)
 		for i := range dsts {
-			r, s := newDynamicPipe(fmt.Sprint("test", i+1), 1)
+			r, s := newPipe(fmt.Sprint("test", i+1), 1)
 			srcs.add(fmt.Sprint("test_node_", i+1), r)
 			dsts[i] = s
 		}
@@ -277,7 +277,7 @@ func TestDynamicDataSources(t *testing.T) {
 		})
 
 		Convey("When adding a new input and sending a tuple", func() {
-			r, s := newDynamicPipe("test3", 1)
+			r, s := newPipe("test3", 1)
 			srcs.add("test_node_3", r)
 			So(s.Write(ctx, t), ShouldBeNil)
 			srcs.stop(ctx)
@@ -289,7 +289,7 @@ func TestDynamicDataSources(t *testing.T) {
 		})
 
 		Convey("When adding a new input with the duplicated name", func() {
-			r, _ := newDynamicPipe("test3", 1)
+			r, _ := newPipe("test3", 1)
 			err := srcs.add("test_node_1", r)
 
 			Convey("Then it should fail", func() {
@@ -328,14 +328,14 @@ func TestDynamicDataSources(t *testing.T) {
 	})
 }
 
-// TODO: add fail tests of dynamicDataSources
+// TODO: add fail tests of dataSources
 
 func TestDynamicDataDestinations(t *testing.T) {
 	config := Configuration{TupleTraceEnabled: 1}
 	ctx := newTestContext(config)
 
 	Convey("Given an empty data destination", t, func() {
-		dsts := newDynamicDataDestinations("test_component")
+		dsts := newDataDestinations("test_component")
 		t := &tuple.Tuple{
 			InputName: "test_component",
 			Data: tuple.Map{
@@ -356,10 +356,10 @@ func TestDynamicDataDestinations(t *testing.T) {
 	})
 
 	Convey("Given data destinations", t, func() {
-		dsts := newDynamicDataDestinations("test_component")
-		recvs := make([]*dynamicPipeReceiver, 2)
+		dsts := newDataDestinations("test_component")
+		recvs := make([]*pipeReceiver, 2)
 		for i := range recvs {
-			r, s := newDynamicPipe(fmt.Sprint("test", i+1), 1)
+			r, s := newPipe(fmt.Sprint("test", i+1), 1)
 			recvs[i] = r
 			dsts.add(fmt.Sprint("test_node_", i+1), s)
 		}
@@ -434,7 +434,7 @@ func TestDynamicDataDestinations(t *testing.T) {
 			}
 			So(dsts.Write(ctx, t), ShouldBeNil)
 
-			r, s := newDynamicPipe("test3", 1)
+			r, s := newPipe("test3", 1)
 			So(dsts.add("test_node_3", s), ShouldBeNil)
 			Reset(func() {
 				dsts.Close(ctx)
@@ -458,7 +458,7 @@ func TestDynamicDataDestinations(t *testing.T) {
 		})
 
 		Convey("When adding a destination with the duplicated name", func() {
-			_, s := newDynamicPipe("hoge", 1)
+			_, s := newPipe("hoge", 1)
 			err := dsts.add("test_node_1", s)
 
 			Convey("Then it should fail", func() {

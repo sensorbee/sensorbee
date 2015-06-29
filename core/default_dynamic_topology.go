@@ -75,7 +75,7 @@ func (t *defaultDynamicTopology) AddSource(name string, s Source, config *Dynami
 	ds := &defaultDynamicSourceNode{
 		defaultDynamicNode: newDefaultDynamicNode(t, name),
 		source:             s,
-		dsts:               newDynamicDataDestinations(name),
+		dsts:               newDataDestinations(name),
 		pausedOnStartup:    config.PausedOnStartup,
 	}
 	if err := t.checkNodeNameDuplication(name); err != nil {
@@ -138,9 +138,9 @@ func (t *defaultDynamicTopology) AddBox(name string, b Box, config *DynamicBoxCo
 
 	db := &defaultDynamicBoxNode{
 		defaultDynamicNode: newDefaultDynamicNode(t, name),
-		srcs:               newDynamicDataSources(name),
+		srcs:               newDataSources(name),
 		box:                b,
-		dsts:               newDynamicDataDestinations(name),
+		dsts:               newDataDestinations(name),
 	}
 	t.boxes[name] = db
 
@@ -166,7 +166,7 @@ func (t *defaultDynamicTopology) AddSink(name string, s Sink, config *DynamicSin
 
 	ds := &defaultDynamicSinkNode{
 		defaultDynamicNode: newDefaultDynamicNode(t, name),
-		srcs:               newDynamicDataSources(name),
+		srcs:               newDataSources(name),
 		sink:               s,
 	}
 	t.sinks[name] = ds
@@ -390,7 +390,7 @@ func (t *defaultDynamicTopology) Sinks() map[string]DynamicSinkNode {
 
 type dynamicDataSource interface {
 	Name() string
-	destinations() *dynamicDataDestinations
+	destinations() *dataDestinations
 }
 
 func (t *defaultDynamicTopology) dataSource(nodeName string) (dynamicDataSource, error) {

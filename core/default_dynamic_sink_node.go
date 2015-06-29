@@ -6,7 +6,7 @@ import (
 
 type defaultDynamicSinkNode struct {
 	*defaultDynamicNode
-	srcs *dynamicDataSources
+	srcs *dataSources
 	sink Sink
 }
 
@@ -36,7 +36,7 @@ func (ds *defaultDynamicSinkNode) Input(refname string, config *SinkInputConfig)
 		config = defaultSinkInputConfig
 	}
 
-	recv, send := newDynamicPipe("output", config.capacity())
+	recv, send := newPipe("output", config.capacity())
 	if err := s.destinations().add(ds.name, send); err != nil {
 		return err
 	}
