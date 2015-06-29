@@ -13,9 +13,9 @@ type defaultDynamicTopology struct {
 	// concurrently. DO NOT acquire this lock after locking stateMutex
 	// (opposite is fine).
 	nodeMutex sync.RWMutex
-	sources   map[string]*defaultDynamicSourceNode
-	boxes     map[string]*defaultDynamicBoxNode
-	sinks     map[string]*defaultDynamicSinkNode
+	sources   map[string]*defaultSourceNode
+	boxes     map[string]*defaultBoxNode
+	sinks     map[string]*defaultSinkNode
 
 	state      *topologyStateHolder
 	stateMutex sync.Mutex
@@ -34,9 +34,9 @@ func NewDefaultDynamicTopology(ctx *Context, name string) DynamicTopology {
 		ctx:  ctx,
 		name: name,
 
-		sources: map[string]*defaultDynamicSourceNode{},
-		boxes:   map[string]*defaultDynamicBoxNode{},
-		sinks:   map[string]*defaultDynamicSinkNode{},
+		sources: map[string]*defaultSourceNode{},
+		boxes:   map[string]*defaultBoxNode{},
+		sinks:   map[string]*defaultSinkNode{},
 	}
 	t.state = newTopologyStateHolder(&t.stateMutex)
 	t.state.state = TSRunning // A dynamic topology is running by default.
@@ -72,11 +72,11 @@ func (t *defaultDynamicTopology) AddSource(name string, s Source, config *Dynami
 		return nil, fmt.Errorf("the topology is already stopped")
 	}
 
-	ds := &defaultDynamicSourceNode{
-		defaultDynamicNode: newDefaultDynamicNode(t, name),
-		source:             s,
-		dsts:               newDataDestinations(name),
-		pausedOnStartup:    config.PausedOnStartup,
+	ds := &defaultSourceNode{
+		defaultNode:     newdefaultNode(t, name),
+		source:          s,
+		dsts:            newDataDestinations(name),
+		pausedOnStartup: config.PausedOnStartup,
 	}
 	if err := t.checkNodeNameDuplication(name); err != nil {
 		if err := ds.Stop(); err != nil { // The same variable name is intentionally used.
@@ -136,11 +136,11 @@ func (t *defaultDynamicTopology) AddBox(name string, b Box, config *DynamicBoxCo
 		}
 	}
 
-	db := &defaultDynamicBoxNode{
-		defaultDynamicNode: newDefaultDynamicNode(t, name),
-		srcs:               newDataSources(name),
-		box:                b,
-		dsts:               newDataDestinations(name),
+	db := &defaultBoxNode{
+		defaultNode: newdefaultNode(t, name),
+		srcs:        newDataSources(name),
+		box:         b,
+		dsts:        newDataDestinations(name),
 	}
 	t.boxes[name] = db
 
@@ -164,10 +164,10 @@ func (t *defaultDynamicTopology) AddSink(name string, s Sink, config *DynamicSin
 		return nil, err
 	}
 
-	ds := &defaultDynamicSinkNode{
-		defaultDynamicNode: newDefaultDynamicNode(t, name),
-		srcs:               newDataSources(name),
-		sink:               s,
+	ds := &defaultSinkNode{
+		defaultNode: newdefaultNode(t, name),
+		srcs:        newDataSources(name),
+		sink:        s,
 	}
 	t.sinks[name] = ds
 
@@ -279,7 +279,7 @@ func (t *defaultDynamicTopology) Remove(name string) error {
 			}
 
 			if retErr != nil && n.Type() == NTSource {
-				s := n.(*defaultDynamicSourceNode)
+				s := n.(*defaultSourceNode)
 				s.dsts.Close(t.ctx)
 			}
 		}()
@@ -406,15 +406,15 @@ func (t *defaultDynamicTopology) dataSource(nodeName string) (dynamicDataSource,
 	return nil, fmt.Errorf("data source node %v was not found", nodeName)
 }
 
-type defaultDynamicNode struct {
+type defaultNode struct {
 	topology   *defaultDynamicTopology
 	name       string
 	state      *topologyStateHolder
 	stateMutex sync.Mutex
 }
 
-func newDefaultDynamicNode(t *defaultDynamicTopology, name string) *defaultDynamicNode {
-	dn := &defaultDynamicNode{
+func newdefaultNode(t *defaultDynamicTopology, name string) *defaultNode {
+	dn := &defaultNode{
 		topology: t,
 		name:     name,
 	}
@@ -422,21 +422,21 @@ func newDefaultDynamicNode(t *defaultDynamicTopology, name string) *defaultDynam
 	return dn
 }
 
-func (dn *defaultDynamicNode) Name() string {
+func (dn *defaultNode) Name() string {
 	return dn.name
 }
 
-func (dn *defaultDynamicNode) State() TopologyStateHolder {
+func (dn *defaultNode) State() TopologyStateHolder {
 	return dn.state
 }
 
-func (dn *defaultDynamicNode) checkAndPrepareForRunning(nodeType string) error {
+func (dn *defaultNode) checkAndPrepareForRunning(nodeType string) error {
 	dn.stateMutex.Lock()
 	defer dn.stateMutex.Unlock()
 	return dn.checkAndPrepareForRunningWithoutLock(nodeType)
 }
 
-func (dn *defaultDynamicNode) checkAndPrepareForRunningWithoutLock(nodeType string) error {
+func (dn *defaultNode) checkAndPrepareForRunningWithoutLock(nodeType string) error {
 	if st, err := dn.state.checkAndPrepareForRunningWithoutLock(); err != nil {
 		switch st {
 		case TSRunning, TSPaused:
@@ -452,12 +452,12 @@ func (dn *defaultDynamicNode) checkAndPrepareForRunningWithoutLock(nodeType stri
 
 // checkAndPrepareStopState check the current state of the node and returns if
 // the node can be stopped or is already stopped.
-func (dn *defaultDynamicNode) checkAndPrepareForStopping(nodeType string) (stopped bool, err error) {
+func (dn *defaultNode) checkAndPrepareForStopping(nodeType string) (stopped bool, err error) {
 	dn.stateMutex.Lock()
 	defer dn.stateMutex.Unlock()
 	return dn.checkAndPrepareForStoppingWithoutLock(nodeType)
 }
 
-func (dn *defaultDynamicNode) checkAndPrepareForStoppingWithoutLock(nodeType string) (stopped bool, err error) {
+func (dn *defaultNode) checkAndPrepareForStoppingWithoutLock(nodeType string) (stopped bool, err error) {
 	return dn.state.checkAndPrepareForStoppingWithoutLock(false)
 }
