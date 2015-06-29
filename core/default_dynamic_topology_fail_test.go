@@ -8,6 +8,69 @@ import (
 	"testing"
 )
 
+type stubInitTerminateBoxSharedConfig struct {
+	initFailAt int
+	initCnt    int
+
+	terminateFailAt  int
+	terminatePanicAt int
+	terminateCnt     int
+}
+
+type stubInitTerminateBox struct {
+	*terminateChecker
+	init struct {
+		called bool
+		block  bool
+		failed bool
+		wg     sync.WaitGroup
+	}
+
+	shared *stubInitTerminateBoxSharedConfig
+}
+
+var _ StatefulBox = &stubInitTerminateBox{}
+
+func newStubInitTerminateBox(b Box, s *stubInitTerminateBoxSharedConfig) *stubInitTerminateBox {
+	return &stubInitTerminateBox{
+		terminateChecker: newTerminateChecker(b),
+		shared:           s,
+	}
+}
+
+func (s *stubInitTerminateBox) Init(ctx *Context) error {
+	i := &s.init
+	i.called = true
+	if i.block {
+		i.wg.Add(1)
+		i.wg.Wait()
+	}
+	s.shared.initCnt++
+	if s.shared.initCnt == s.shared.initFailAt {
+		i.failed = true
+		return fmt.Errorf("failure")
+	}
+	return nil
+}
+
+func (s *stubInitTerminateBox) ResumeInit() {
+	s.init.wg.Done()
+}
+
+func (s *stubInitTerminateBox) Terminate(ctx *Context) error {
+	s.shared.terminateCnt++
+	if err := s.terminateChecker.Terminate(ctx); err != nil {
+		return err
+	}
+	if s.shared.terminateCnt == s.shared.terminatePanicAt {
+		panic(fmt.Errorf("failure"))
+	}
+	if s.shared.terminateCnt == s.shared.terminateFailAt {
+		return fmt.Errorf("failure")
+	}
+	return nil
+}
+
 type panicBox struct {
 	ProxyBox
 

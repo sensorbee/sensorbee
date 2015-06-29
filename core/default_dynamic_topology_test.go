@@ -2,8 +2,82 @@ package core
 
 import (
 	. "github.com/smartystreets/goconvey/convey"
+	"pfi/sensorbee/sensorbee/tuple"
+	"sync"
+	"sync/atomic"
 	"testing"
 )
+
+func freshTuples() []*tuple.Tuple {
+	tup1 := &tuple.Tuple{
+		Data: tuple.Map{
+			"seq": tuple.Int(1),
+		},
+		InputName: "input",
+	}
+	tup2 := tup1.Copy()
+	tup2.Data["seq"] = tuple.Int(2)
+	tup3 := tup1.Copy()
+	tup3.Data["seq"] = tuple.Int(3)
+	tup4 := tup1.Copy()
+	tup4.Data["seq"] = tuple.Int(4)
+	tup5 := tup1.Copy()
+	tup5.Data["seq"] = tuple.Int(5)
+	tup6 := tup1.Copy()
+	tup6.Data["seq"] = tuple.Int(6)
+	tup7 := tup1.Copy()
+	tup7.Data["seq"] = tuple.Int(7)
+	tup8 := tup1.Copy()
+	tup8.Data["seq"] = tuple.Int(8)
+	return []*tuple.Tuple{tup1, tup2, tup3, tup4,
+		tup5, tup6, tup7, tup8}
+}
+
+type terminateChecker struct {
+	ProxyBox
+
+	m            sync.Mutex
+	c            *sync.Cond
+	terminateCnt int
+}
+
+func newTerminateChecker(b Box) *terminateChecker {
+	t := &terminateChecker{
+		ProxyBox: ProxyBox{b: b},
+	}
+	t.c = sync.NewCond(&t.m)
+	return t
+}
+
+func (t *terminateChecker) Terminate(ctx *Context) error {
+	t.m.Lock()
+	t.terminateCnt++
+	t.c.Broadcast()
+	t.m.Unlock()
+	return t.ProxyBox.Terminate(ctx)
+}
+
+func (t *terminateChecker) WaitForTermination() {
+	t.m.Lock()
+	defer t.m.Unlock()
+	for t.terminateCnt == 0 {
+		t.c.Wait()
+	}
+}
+
+type sinkCloseChecker struct {
+	s        Sink
+	closeCnt int32
+}
+
+func (s *sinkCloseChecker) Write(ctx *Context, t *tuple.Tuple) error {
+	return s.s.Write(ctx, t)
+}
+
+func (s *sinkCloseChecker) Close(ctx *Context) error {
+	atomic.AddInt32(&s.closeCnt, 1)
+	return s.s.Close(ctx)
+}
 
 func TestDefaultDynamicTopologySetup(t *testing.T) {
 	config := Configuration{TupleTraceEnabled: 1}
@@ -209,6 +283,24 @@ func TestDefaultDynamicTopologySetup(t *testing.T) {
 		})
 	})
 }
+
+// On one topology, there're some patterns to be tested.
+//
+// 1. Call Stop when no tuple was generated from Source.
+// 2. Call Stop when some but not all tuples are generated from Source
+//   a. and no tuples are received by Sink.
+//   b. some tuples are received by Sink and others are in Boxes.
+//   c. and all those tuples are received by Sink.
+// 3. Call Stop when all tuples are generated from Source
+//   a. and no tuples are received by Sink.
+//   b. and some tuples are received by Sink and others are in Boxes.
+//   c. and all tuples are received by Sink.
+//
+// Followings are topologies to be tested:
+//
+// 1. Linear
+// 2. Multiple sinks (including fan-out)
+// 3. Multiple sources (including JOIN)
 
 func TestLinearDefaultDynamicTopology(t *testing.T) {
 	// This test is written based on TestShutdownLinearDefaultStaticTopology
