@@ -69,6 +69,10 @@ type ResumeSourceStmt struct {
 	Source StreamIdentifier
 }
 
+type RewindSourceStmt struct {
+	Source StreamIdentifier
+}
+
 type EmitterAST struct {
 	EmitterType   Emitter
 	EmitIntervals []StreamEmitIntervalAST
