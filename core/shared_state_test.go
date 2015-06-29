@@ -239,15 +239,18 @@ func (c *countingSharedState) Terminate(ctx *Context) error {
 	return nil
 }
 
-func TestSharedStateInStaticTopology(t *testing.T) {
-	Convey("Given a static topology and a state", t, func() {
+func TestSharedStateInTopology(t *testing.T) {
+	Convey("Given a topology and a state", t, func() {
 		// Run this test with parallelism 1
 		config := Configuration{TupleTraceEnabled: 1}
 		ctx := newTestContext(config)
 		counter := &countingSharedState{}
 		So(ctx.SharedStates.Add(ctx, "test_counter", counter), ShouldBeNil)
 
-		tb := NewDefaultStaticTopologyBuilder()
+		t := NewDefaultDynamicTopology(ctx, "test")
+		Reset(func() {
+			t.Stop()
+		})
 
 		ts := []*tuple.Tuple{}
 		for i := 0; i < 4; i++ {
@@ -258,7 +261,10 @@ func TestSharedStateInStaticTopology(t *testing.T) {
 			})
 		}
 		so := NewTupleEmitterSource(ts)
-		So(tb.AddSource("source", so).Err(), ShouldBeNil)
+		son, err := t.AddSource("source", so, &DynamicSourceConfig{
+			PausedOnStartup: true,
+		})
+		So(err, ShouldBeNil)
 
 		b1 := BoxFunc(func(ctx *Context, t *tuple.Tuple, w Writer) error {
 			s, err := ctx.GetSharedState("test_counter")
@@ -268,7 +274,9 @@ func TestSharedStateInStaticTopology(t *testing.T) {
 			s.Write(ctx, t)
 			return w.Write(ctx, t)
 		})
-		So(tb.AddBox("box1", b1).Input("source").Err(), ShouldBeNil)
+		bn1, err := t.AddBox("box1", b1, nil)
+		So(err, ShouldBeNil)
+		So(bn1.Input("source", nil), ShouldBeNil)
 
 		b2 := BoxFunc(func(ctx *Context, t *tuple.Tuple, w Writer) error {
 			s, err := ctx.GetSharedState("test_counter")
@@ -286,23 +294,16 @@ func TestSharedStateInStaticTopology(t *testing.T) {
 			t.Data["cur_cnt"] = tuple.Int(atomic.LoadInt32(&c.cnt))
 			return w.Write(ctx, t)
 		})
-		So(tb.AddBox("box2", b2).Input("box1").Err(), ShouldBeNil)
+		bn2, err := t.AddBox("box2", b2, nil)
+		So(err, ShouldBeNil)
+		So(bn2.Input("box1", nil), ShouldBeNil)
 
 		si := NewTupleCollectorSink()
 		sic := &sinkCloseChecker{s: si}
-		So(tb.AddSink("sink", sic).Input("box2").Err(), ShouldBeNil)
-
-		ti, err := tb.Build()
+		sin, err := t.AddSink("sink", sic, nil)
 		So(err, ShouldBeNil)
-
-		t := ti.(*defaultStaticTopology)
-		go func() {
-			t.Run(ctx)
-		}()
-		Reset(func() {
-			t.Stop(ctx)
-		})
-		t.state.Wait(TSRunning)
+		So(sin.Input("box2", nil), ShouldBeNil)
+		So(son.Resume(), ShouldBeNil)
 		si.Wait(4)
 
 		Convey("When running a topology with boxes refering to the state", func() {

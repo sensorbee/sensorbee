@@ -92,17 +92,17 @@ func TestDefaultDynamicTopologySetup(t *testing.T) {
 
 		dupNameTests := func(name string) {
 			Convey("Then adding a source having the same name should fail", func() {
-				_, err := t.AddSource(name, &DummySource{}, nil)
+				_, err := t.AddSource(name, &DoesNothingSource{}, nil)
 				So(err, ShouldNotBeNil)
 			})
 
 			Convey("Then adding a box having the same name should fail", func() {
-				_, err := t.AddBox(name, &DummyBox{}, nil)
+				_, err := t.AddBox(name, &DoesNothingBox{}, nil)
 				So(err, ShouldNotBeNil)
 			})
 
 			Convey("Then adding a sink having the same name should fail", func() {
-				_, err := t.AddSink(name, &DummySink{}, nil)
+				_, err := t.AddSink(name, &DoesNothingSink{}, nil)
 				So(err, ShouldNotBeNil)
 			})
 		}
@@ -115,17 +115,17 @@ func TestDefaultDynamicTopologySetup(t *testing.T) {
 			})
 
 			Convey("Then adding a source to the stopped topology should fail", func() {
-				_, err := t.AddSource("test_source", &DummySource{}, nil)
+				_, err := t.AddSource("test_source", &DoesNothingSource{}, nil)
 				So(err, ShouldNotBeNil)
 			})
 
 			Convey("Then adding a box to the stopped topology should fail", func() {
-				_, err := t.AddBox("test_box", &DummyBox{}, nil)
+				_, err := t.AddBox("test_box", &DoesNothingBox{}, nil)
 				So(err, ShouldNotBeNil)
 			})
 
 			Convey("Then adding a sink to the stopped topology should fail", func() {
-				_, err := t.AddSink("test_sink", &DummySink{}, nil)
+				_, err := t.AddSink("test_sink", &DoesNothingSink{}, nil)
 				So(err, ShouldNotBeNil)
 			})
 		})
@@ -208,7 +208,7 @@ func TestDefaultDynamicTopologySetup(t *testing.T) {
 		})
 
 		Convey("When adding a box", func() {
-			b := newTerminateChecker(&DummyBox{})
+			b := newTerminateChecker(&DoesNothingBox{})
 			bn, err := t.AddBox("box1", b, nil)
 			So(err, ShouldBeNil)
 
@@ -246,7 +246,7 @@ func TestDefaultDynamicTopologySetup(t *testing.T) {
 		})
 
 		Convey("When adding a sink", func() {
-			s := &DummySink{}
+			s := &DoesNothingSink{}
 			sn, err := t.AddSink("sink1", s, nil)
 			So(err, ShouldBeNil)
 
@@ -303,7 +303,6 @@ func TestDefaultDynamicTopologySetup(t *testing.T) {
 // 3. Multiple sources (including JOIN)
 
 func TestLinearDefaultDynamicTopology(t *testing.T) {
-	// This test is written based on TestShutdownLinearDefaultStaticTopology
 	config := Configuration{TupleTraceEnabled: 1}
 	ctx := newTestContext(config)
 
