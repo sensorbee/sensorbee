@@ -220,6 +220,8 @@ func (tb *TopologyBuilder) AddStmt(stmt interface{}) (core.DynamicNode, error) {
 		return src, nil
 	}
 
+	// TODO: case parser.RewindSourceStmt
+
 	return nil, fmt.Errorf("statement of type %T is unimplemented", stmt)
 }
 
