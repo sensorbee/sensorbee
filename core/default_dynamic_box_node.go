@@ -2,9 +2,9 @@ package core
 
 type defaultDynamicBoxNode struct {
 	*defaultDynamicNode
-	srcs *dynamicDataSources
+	srcs *dataSources
 	box  Box
-	dsts *dynamicDataDestinations
+	dsts *dataDestinations
 }
 
 func (db *defaultDynamicBoxNode) Type() NodeType {
@@ -29,7 +29,7 @@ func (db *defaultDynamicBoxNode) Input(refname string, config *BoxInputConfig) e
 		return err
 	}
 
-	recv, send := newDynamicPipe(config.inputName(), config.capacity())
+	recv, send := newPipe(config.inputName(), config.capacity())
 	if err := s.destinations().add(db.name, send); err != nil {
 		return err
 	}
@@ -85,6 +85,6 @@ func (db *defaultDynamicBoxNode) stop() {
 	db.state.Wait(TSStopped)
 }
 
-func (db *defaultDynamicBoxNode) destinations() *dynamicDataDestinations {
+func (db *defaultDynamicBoxNode) destinations() *dataDestinations {
 	return db.dsts
 }

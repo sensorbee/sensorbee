@@ -8,7 +8,7 @@ import (
 type defaultDynamicSourceNode struct {
 	*defaultDynamicNode
 	source          Source
-	dsts            *dynamicDataDestinations
+	dsts            *dataDestinations
 	pausedOnStartup bool
 }
 
@@ -112,7 +112,7 @@ func (ds *defaultDynamicSourceNode) pause() error {
 	}
 
 	// If the source doesn't implement ResumableNode, the default pause/resume
-	// implementation in dynamicDataDestinations is used.
+	// implementation in dataDestinations is used.
 	ds.dsts.pause()
 	ds.state.setWithoutLock(TSPaused)
 	return nil
@@ -144,6 +144,6 @@ func (ds *defaultDynamicSourceNode) Resume() error {
 	return nil
 }
 
-func (ds *defaultDynamicSourceNode) destinations() *dynamicDataDestinations {
+func (ds *defaultDynamicSourceNode) destinations() *dataDestinations {
 	return ds.dsts
 }

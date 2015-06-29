@@ -7,14 +7,14 @@ import (
 	"sync"
 )
 
-func newDynamicPipe(inputName string, capacity int) (*dynamicPipeReceiver, *dynamicPipeSender) {
+func newPipe(inputName string, capacity int) (*pipeReceiver, *pipeSender) {
 	p := make(chan *tuple.Tuple, capacity) // TODO: the type should be chan []*tuple.Tuple
 
-	r := &dynamicPipeReceiver{
+	r := &pipeReceiver{
 		in: p,
 	}
 
-	s := &dynamicPipeSender{
+	s := &pipeSender{
 		inputName: inputName,
 		out:       p,
 	}
@@ -22,18 +22,18 @@ func newDynamicPipe(inputName string, capacity int) (*dynamicPipeReceiver, *dyna
 	return r, s
 }
 
-type dynamicPipeReceiver struct {
+type pipeReceiver struct {
 	in     <-chan *tuple.Tuple
-	sender *dynamicPipeSender
+	sender *pipeSender
 }
 
 // close closes the channel from the receiver side. It doesn't directly close
 // the channel. Instead, it sends a signal to the sender so that sender can
 // close the channel.
-func (r *dynamicPipeReceiver) close() {
+func (r *pipeReceiver) close() {
 	// Close the sender because close(r.in) isn't safe. This method uses a
 	// goroutine because it might be dead-locked when the channel is full.
-	// In that case dynamicPipeSender.Write blocks at s.out <- t having RLock.
+	// In that case pipeSender.Write blocks at s.out <- t having RLock.
 	// Then, calling sender.close() is blocked until someone reads a tuple
 	// from r.in.
 	go func() {
@@ -41,7 +41,7 @@ func (r *dynamicPipeReceiver) close() {
 	}()
 }
 
-type dynamicPipeSender struct {
+type pipeSender struct {
 	inputName   string
 	out         chan<- *tuple.Tuple
 	inputClosed <-chan struct{}
@@ -53,7 +53,7 @@ type dynamicPipeSender struct {
 
 // Write outputs the given tuple to the pipe. This method only returns
 // errPipeClosed and never panics.
-func (s *dynamicPipeSender) Write(ctx *Context, t *tuple.Tuple) error {
+func (s *pipeSender) Write(ctx *Context, t *tuple.Tuple) error {
 	s.rwm.RLock()
 	defer s.rwm.RUnlock()
 
@@ -69,13 +69,13 @@ func (s *dynamicPipeSender) Write(ctx *Context, t *tuple.Tuple) error {
 // Close closes a channel. When multiple goroutines try to close the channel,
 // only one goroutine can actually close it. Other goroutines don't wait until
 // the channel is actually closed. Close never fails.
-func (s *dynamicPipeSender) Close(ctx *Context) error {
+func (s *pipeSender) Close(ctx *Context) error {
 	// Close method is provided to support WriteCloser interface.
 	s.close()
 	return nil
 }
 
-func (s *dynamicPipeSender) close() {
+func (s *pipeSender) close() {
 	s.rwm.Lock()
 	defer s.rwm.Unlock()
 	if s.closed {
@@ -85,45 +85,45 @@ func (s *dynamicPipeSender) close() {
 	close(s.out)
 }
 
-type dynamicDataSources struct {
+type dataSources struct {
 	nodeName string
 
 	// m protects state, recvs, and msgChs.
 	m     sync.Mutex
 	state *topologyStateHolder
 
-	recvs map[string]*dynamicPipeReceiver
+	recvs map[string]*pipeReceiver
 
 	// msgChs is a slice of channels which are connected to goroutines
 	// pouring tuples. They receive controlling messages through this channel.
-	msgChs []chan<- *dynamicDataSourcesMessage
+	msgChs []chan<- *dataSourcesMessage
 }
 
-func newDynamicDataSources(nodeName string) *dynamicDataSources {
-	s := &dynamicDataSources{
+func newDataSources(nodeName string) *dataSources {
+	s := &dataSources{
 		nodeName: nodeName,
-		recvs:    map[string]*dynamicPipeReceiver{},
+		recvs:    map[string]*pipeReceiver{},
 	}
 	s.state = newTopologyStateHolder(&s.m)
 	return s
 }
 
-type dynamicDataSourcesMessage struct {
-	cmd dynamicDataSourcesCommand
+type dataSourcesMessage struct {
+	cmd dataSourcesCommand
 	v   interface{}
 }
 
-type dynamicDataSourcesCommand int
+type dataSourcesCommand int
 
 const (
-	ddscAddReceiver dynamicDataSourcesCommand = iota
+	ddscAddReceiver dataSourcesCommand = iota
 	ddscStop
 	ddscToggleGracefulStop
 	ddscStopOnDisconnect
 )
 
-func (s *dynamicDataSources) add(name string, r *dynamicPipeReceiver) error {
-	// Because dynamicDataSources is used internally and shouldn't return error
+func (s *dataSources) add(name string, r *pipeReceiver) error {
+	// Because dataSources is used internally and shouldn't return error
 	// in most cases, there's no need to check s.recvs with RLock before
 	// actually acquiring Lock.
 	s.m.Lock()
@@ -139,26 +139,26 @@ func (s *dynamicDataSources) add(name string, r *dynamicPipeReceiver) error {
 		return fmt.Errorf("node '%v' is already receiving tuples from '%v'", s.nodeName, name)
 	}
 	s.recvs[name] = r
-	s.sendMessageWithoutLock(&dynamicDataSourcesMessage{
+	s.sendMessageWithoutLock(&dataSourcesMessage{
 		cmd: ddscAddReceiver,
 		v:   r,
 	})
 	return nil
 }
 
-func (s *dynamicDataSources) sendMessage(msg *dynamicDataSourcesMessage) {
+func (s *dataSources) sendMessage(msg *dataSourcesMessage) {
 	s.m.Lock()
 	defer s.m.Unlock()
 	s.sendMessageWithoutLock(msg)
 }
 
-func (s *dynamicDataSources) sendMessageWithoutLock(msg *dynamicDataSourcesMessage) {
+func (s *dataSources) sendMessageWithoutLock(msg *dataSourcesMessage) {
 	for _, ch := range s.msgChs {
 		ch <- msg
 	}
 }
 
-func (s *dynamicDataSources) remove(name string) {
+func (s *dataSources) remove(name string) {
 	s.m.Lock()
 	defer s.m.Unlock()
 	if s.state.getWithoutLock() >= TSStopping {
@@ -180,7 +180,7 @@ func (s *dynamicDataSources) remove(name string) {
 
 // pour pours out tuples for the target Writer. The target must directly be
 // connected to a Box or a Sink.
-func (s *dynamicDataSources) pour(ctx *Context, w Writer, paralellism int) error {
+func (s *dataSources) pour(ctx *Context, w Writer, paralellism int) error {
 	if paralellism == 0 {
 		paralellism = 1
 	}
@@ -207,7 +207,7 @@ func (s *dynamicDataSources) pour(ctx *Context, w Writer, paralellism int) error
 			}
 		}
 
-		genCases := func(msgCh <-chan *dynamicDataSourcesMessage) []reflect.SelectCase {
+		genCases := func(msgCh <-chan *dataSourcesMessage) []reflect.SelectCase {
 			cs := make([]reflect.SelectCase, 0, len(s.recvs)+2)
 			cs = append(cs, reflect.SelectCase{
 				Dir:  reflect.SelectRecv,
@@ -231,7 +231,7 @@ func (s *dynamicDataSources) pour(ctx *Context, w Writer, paralellism int) error
 		}
 
 		for i := 0; i < paralellism; i++ {
-			msgCh := make(chan *dynamicDataSourcesMessage)
+			msgCh := make(chan *dataSourcesMessage)
 			s.msgChs = append(s.msgChs, msgCh)
 
 			wg.Add(1)
@@ -312,7 +312,7 @@ func (s *dynamicDataSources) pour(ctx *Context, w Writer, paralellism int) error
 	return threadErr
 }
 
-func (s *dynamicDataSources) pouringThread(ctx *Context, w Writer, cs []reflect.SelectCase) (inputs []reflect.SelectCase, retErr error) {
+func (s *dataSources) pouringThread(ctx *Context, w Writer, cs []reflect.SelectCase) (inputs []reflect.SelectCase, retErr error) {
 	const (
 		message = iota
 		defaultCase
@@ -381,15 +381,15 @@ receiveLoop:
 
 		switch i {
 		case message:
-			msg, ok := v.Interface().(*dynamicDataSourcesMessage)
+			msg, ok := v.Interface().(*dataSourcesMessage)
 			if !ok {
-				ctx.Logger.Log(Warning, "Received an invalid control message in dynamicDataSources: %v", v.Interface())
+				ctx.Logger.Log(Warning, "Received an invalid control message in dataSources: %v", v.Interface())
 				continue
 			}
 
 			switch msg.cmd {
 			case ddscAddReceiver:
-				c, ok := msg.v.(*dynamicPipeReceiver)
+				c, ok := msg.v.(*pipeReceiver)
 				if !ok {
 					ctx.Logger.Log(Warning, "Cannot add a new receiver due to a type error")
 					break
@@ -444,24 +444,24 @@ receiveLoop:
 // enableGracefulStop enables graceful stop mode. If the mode is enabled, the
 // suorce automatically stops when it doesn't receive any input after stop is
 // called.
-func (s *dynamicDataSources) enableGracefulStop() {
+func (s *dataSources) enableGracefulStop() {
 	// Perhaps this function should be something like 'toggle', but it wasn't
 	// necessary at the time of this writing.
-	s.sendMessage(&dynamicDataSourcesMessage{
+	s.sendMessage(&dataSourcesMessage{
 		cmd: ddscToggleGracefulStop,
 	})
 }
 
-// stopOnDisconnect activates automatic stop when the dynamicDataSources has
+// stopOnDisconnect activates automatic stop when the dataSources has
 // no receiver.
-func (s *dynamicDataSources) stopOnDisconnect() {
-	s.sendMessage(&dynamicDataSourcesMessage{
+func (s *dataSources) stopOnDisconnect() {
+	s.sendMessage(&dataSourcesMessage{
 		cmd: ddscStopOnDisconnect,
 	})
 }
 
 // stop stops the source after processing tuples which it currently has.
-func (s *dynamicDataSources) stop(ctx *Context) {
+func (s *dataSources) stop(ctx *Context) {
 	s.m.Lock()
 	defer s.m.Unlock()
 	if stopped, err := s.state.checkAndPrepareForStoppingWithoutLock(false); stopped || err != nil {
@@ -475,34 +475,34 @@ func (s *dynamicDataSources) stop(ctx *Context) {
 	}
 	s.recvs = nil
 
-	s.sendMessageWithoutLock(&dynamicDataSourcesMessage{
+	s.sendMessageWithoutLock(&dataSourcesMessage{
 		cmd: ddscStop,
 	})
 	s.state.waitWithoutLock(TSStopped)
 }
 
-// dynamicDataDestinations have writers connected to multiple destination nodes and
+// dataDestinations have writers connected to multiple destination nodes and
 // distributes tuples to them.
-type dynamicDataDestinations struct {
+type dataDestinations struct {
 	// nodeName is the name of the node which writes tuples to
 	// destinations (i.e. the name of a Source or a Box).
 	nodeName string
 	rwm      sync.RWMutex
 	cond     *sync.Cond
-	dsts     map[string]*dynamicPipeSender
+	dsts     map[string]*pipeSender
 	paused   bool
 }
 
-func newDynamicDataDestinations(nodeName string) *dynamicDataDestinations {
-	d := &dynamicDataDestinations{
+func newDataDestinations(nodeName string) *dataDestinations {
+	d := &dataDestinations{
 		nodeName: nodeName,
-		dsts:     map[string]*dynamicPipeSender{},
+		dsts:     map[string]*pipeSender{},
 	}
 	d.cond = sync.NewCond(&d.rwm)
 	return d
 }
 
-func (d *dynamicDataDestinations) add(name string, s *dynamicPipeSender) error {
+func (d *dataDestinations) add(name string, s *pipeSender) error {
 	d.rwm.Lock()
 	defer d.rwm.Unlock()
 	if d.dsts == nil {
@@ -516,7 +516,7 @@ func (d *dynamicDataDestinations) add(name string, s *dynamicPipeSender) error {
 	return nil
 }
 
-func (d *dynamicDataDestinations) remove(name string) {
+func (d *dataDestinations) remove(name string) {
 	d.rwm.Lock()
 	defer d.rwm.Unlock()
 	dst, ok := d.dsts[name]
@@ -529,7 +529,7 @@ func (d *dynamicDataDestinations) remove(name string) {
 
 // Write writes tuples to destinations. It doesn't return any error including
 // errPipeClosed.
-func (d *dynamicDataDestinations) Write(ctx *Context, t *tuple.Tuple) error {
+func (d *dataDestinations) Write(ctx *Context, t *tuple.Tuple) error {
 	d.rwm.RLock()
 	shouldUnlock := true
 	defer func() {
@@ -560,7 +560,7 @@ func (d *dynamicDataDestinations) Write(ctx *Context, t *tuple.Tuple) error {
 	var closed []string
 	for name, dst := range d.dsts {
 		// TODO: recovering from panic here instead of using RWLock in
-		// dynamicPipeSender might be faster.
+		// pipeSender might be faster.
 
 		s := t
 		if needsCopy {
@@ -588,19 +588,19 @@ func (d *dynamicDataDestinations) Write(ctx *Context, t *tuple.Tuple) error {
 	return nil
 }
 
-func (d *dynamicDataDestinations) pause() {
+func (d *dataDestinations) pause() {
 	d.rwm.Lock()
 	defer d.rwm.Unlock()
 	d.setPaused(true)
 }
 
-func (d *dynamicDataDestinations) resume() {
+func (d *dataDestinations) resume() {
 	d.rwm.Lock()
 	defer d.rwm.Unlock()
 	d.setPaused(false)
 }
 
-func (d *dynamicDataDestinations) setPaused(p bool) {
+func (d *dataDestinations) setPaused(p bool) {
 	if d.paused == p {
 		return
 	}
@@ -608,7 +608,7 @@ func (d *dynamicDataDestinations) setPaused(p bool) {
 	d.cond.Broadcast()
 }
 
-func (d *dynamicDataDestinations) Close(ctx *Context) error {
+func (d *dataDestinations) Close(ctx *Context) error {
 	d.rwm.Lock()
 	defer d.rwm.Unlock()
 	for _, dst := range d.dsts {
