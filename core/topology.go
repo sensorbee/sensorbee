@@ -1,325 +1,101 @@
 package core
 
-import (
-	"fmt"
-	"sync"
-)
+// DynamicTopology is a topology which can add Sources, Boxes, and Sinks
+// dynamically. Boxes and Sinks can also add inputs dynamically from running
+// Sources or Boxes.
+type DynamicTopology interface {
+	// Context returns the Context tied to the topology. It isn't always safe
+	// to modify fields of the Context. However, some fields of it can handle
+	// concurrent access properly. See the document of Context for details.
+	Context() *Context
 
-// NodeType represents the type of a node in a topology.
-type NodeType int
+	// AddSource adds a Source to the topology. It will asynchronously call
+	// source's GenerateStream and returns after the source becomes ready.
+	// GenerateStream could be called lazily to avoid unnecessary computation.
+	// GenerateStream and Stop might also be called when this method returns
+	// an error. The caller must not call GenerateStream or Stop of the source.
+	AddSource(name string, s Source, config *DynamicSourceConfig) (DynamicSourceNode, error)
 
-const (
-	// NTSource means the node is a Source.
-	NTSource NodeType = iota
-
-	// NTBox means the node is a Box.
-	NTBox
-
-	// NTSink means the node is a Sink.
-	NTSink
-)
-
-func (t NodeType) String() string {
-	switch t {
-	case NTSource:
-		return "source"
-	case NTBox:
-		return "box"
-	case NTSink:
-		return "sink"
-	default:
-		return "unknown"
-	}
-}
-
-// TopologyState represents a status of a topology or a node.
-type TopologyState int
-
-const (
-	// TSInitialized means that a topology or a node is just initialized and
-	// ready to be run.
-	TSInitialized TopologyState = iota
-
-	// TSStarting means a topology or a node is now booting itself and will run
-	// shortly.
-	TSStarting
-
-	// TSRunning means a topology or a node is currently running and emitting
-	// tuples to sinks.
-	TSRunning
-
-	// TSPaused means a topology or a node is temporarily stopping to emit
-	// tuples and can be resumed later.
-	TSPaused
-
-	// TSStopping means a topology or a node is stopping all sources and closing
-	// channels between sources, boxes, and sinks.
-	TSStopping
-
-	// TSStopped means a topology or a node is stopped. A stopped topology
-	// doesn't have to be able to run again.
-	TSStopped
-)
-
-func (s TopologyState) String() string {
-	switch s {
-	case TSInitialized:
-		return "initialized"
-	case TSStarting:
-		return "starting"
-	case TSRunning:
-		return "running"
-	case TSPaused:
-		return "paused"
-	case TSStopping:
-		return "stopping"
-	case TSStopped:
-		return "stopped"
-	default:
-		return "unknown"
-	}
-}
-
-// TopologyStateHolder is a struct safely referring a state of a topology or a
-// node. It only provides read-only methods.
-type TopologyStateHolder interface {
-	// Get returns the current state of a topology or a node.
-	Get() TopologyState
-
-	// Wait waits until the topology or the node has the specified state. It
-	// returns the current state. The current state may differ from the given
-	// state, but it's guaranteed that the current state is a successor of
-	// the given state. For example, when Wait(TSStarting) is called, TSRunning
-	// or TSStopped can be returned.
-	Wait(s TopologyState) TopologyState
-}
-
-type topologyStateHolder struct {
-	state TopologyState
-	cond  *sync.Cond
-}
-
-func newTopologyStateHolder(m sync.Locker) *topologyStateHolder {
-	if m == nil {
-		m = &sync.Mutex{}
-	}
-	return &topologyStateHolder{
-		cond: sync.NewCond(m),
-	}
-}
-
-func (h *topologyStateHolder) Get() TopologyState {
-	h.cond.L.Lock()
-	defer h.cond.L.Unlock()
-	return h.getWithoutLock()
-}
-
-func (h *topologyStateHolder) getWithoutLock() TopologyState {
-	return h.state
-}
-
-// Set sets a new state.
-func (h *topologyStateHolder) Set(s TopologyState) error {
-	h.cond.L.Lock()
-	defer h.cond.L.Unlock()
-	return h.setWithoutLock(s)
-}
-
-func (h *topologyStateHolder) setWithoutLock(s TopologyState) error {
-	if h.state > s {
-		if h.state == TSPaused && s == TSRunning {
-			// TSPaused can exceptionally be reset to TSRunning
-		} else {
-			return fmt.Errorf("state cannot be changed from %v to %v", h.state, s)
-		}
-	}
-	h.state = s
-	h.cond.Broadcast()
-	return nil
-}
-
-func (h *topologyStateHolder) Wait(s TopologyState) TopologyState {
-	h.cond.L.Lock()
-	defer h.cond.L.Unlock()
-	return h.waitWithoutLock(s)
-}
-
-func (h *topologyStateHolder) waitWithoutLock(s TopologyState) TopologyState {
-	for {
-		if h.state >= s {
-			if h.state == TSPaused && s == TSRunning {
-				// Wait until the state becomes TSRunning
-			} else {
-				break
-			}
-		}
-		h.cond.Wait()
-	}
-	return h.state
-}
-
-// checkAndPrepareForRunning checks the current state to see if it can be run.
-// It returns the current state and an error. Possible errors are:
-//
-//	1. a topology or a node is already running (with TSRunning, TSStopped)
-//	2. a topology or a node is already stopped (with TSStopped)
-//	3. invalid state
-//
-// The state is set to TSStarting when it can be run.
-func (h *topologyStateHolder) checkAndPrepareForRunning() (TopologyState, error) {
-	h.cond.L.Lock()
-	defer h.cond.L.Unlock()
-	return h.checkAndPrepareForRunningWithoutLock()
-}
-
-func (h *topologyStateHolder) checkAndPrepareForRunningWithoutLock() (TopologyState, error) {
-	switch h.state {
-	case TSInitialized:
-		h.setWithoutLock(TSStarting)
-		return h.state, nil
-
-	case TSStarting:
-		// Immediately returning an error could be confusing for callers,
-		// so wait until the topology becomes at least the running state.
-		h.waitWithoutLock(TSRunning)
-
-		// It's natural for running methods to return an error when the state
-		// isn't TSInitialized even if it's TSStarting so that only a single
-		// caller will succeed.
-		fallthrough
-
-	case TSRunning, TSPaused:
-		return h.state, fmt.Errorf("already running")
-
-	case TSStopping:
-		h.waitWithoutLock(TSStopped)
-		fallthrough
-
-	case TSStopped:
-		return h.state, fmt.Errorf("already stopped")
-
-	default:
-		return h.state, fmt.Errorf("invalid state: %v", h.state)
-	}
-}
-
-// checkAndPrepareForStopping check the current state to see if it can be
-// stopped. It returns a bool flag indicating whether a topology or a node
-// is already stopped. When it returns false, the caller can stop the component.
-// It returns an error only when the current state is invalid.
-//
-// The state is set to TSStopped when the current state is TSInitialized.
-// It might be inconvenient for some components. If the component requires
-// termination and cleanup process even if it isn't running, pass true to
-// keepInitialized argument. If keep initialized argument is true, it doesn't
-// change the state from TSInitialized to TSStopped and returns false and a nil
-// error.
-func (h *topologyStateHolder) checkAndPrepareForStopping(keepInitialized bool) (alreadyStopped bool, err error) {
-	h.cond.L.Lock()
-	defer h.cond.L.Unlock()
-	return h.checkAndPrepareForStoppingWithoutLock(keepInitialized)
-}
-
-func (h *topologyStateHolder) checkAndPrepareForStoppingWithoutLock(keepInitialized bool) (bool, error) {
-	for {
-		switch h.state {
-		case TSInitialized:
-			if keepInitialized {
-				return false, nil
-			}
-			h.setWithoutLock(TSStopped)
-			return true, nil
-
-		case TSStarting:
-			h.waitWithoutLock(TSRunning)
-			// If somebody else has already stopped the component, the state
-			// might be different from TSRunning. So, this process continues to
-			// the next iteration.
-
-		case TSRunning, TSPaused:
-			h.setWithoutLock(TSStopping)
-			return false, nil
-
-		case TSStopping:
-			// Someone else is trying to stop the component. This thread just
-			// waits until it's stopped.
-			h.waitWithoutLock(TSStopped)
-			return true, nil
-
-		case TSStopped:
-			return true, nil
-
-		default:
-			return false, fmt.Errorf("invalid state: %v", h.state)
-		}
-	}
-}
-
-// ResumableNode is a node in a topology which can dynamically be paused and
-// resumed at runtime.
-type ResumableNode interface {
-	// Pause pauses a running node. A paused node can be resumed by calling
-	// Resume method. Pause is idempotent and pausing a paused node shouldn't
-	// fail. Pause may be called before a node runs. For example, when a node
-	// is a source, Pause could be called before calling GenerateStream. In
-	// that case, GenerateStream should not generate any tuple until Resume is
-	// called.
+	// AddBox adds a Box to the topology. It returns DynamicBoxNode and the
+	// caller can configure inputs or other settings of the Box node through it.
 	//
-	// When Stop is called while the node is paused, the node must stop without
-	// waiting for Resume.
-	Pause(ctx *Context) error
+	// Don't add the same instance of a Box more than once even if they have
+	// different names. However, if a Box has a reference counter and
+	// its initialization and termination are done exactly once at proper
+	// timing, it can be added multiple times when a builder supports duplicated
+	// registration of the same instance of a Box.
+	AddBox(name string, b Box, config *DynamicBoxConfig) (DynamicBoxNode, error)
 
-	// Resume resumes a paused node. Resume is idempotent and resuming a running
-	// node shouldn't fail. Resume may be called before a node runs.
-	Resume(ctx *Context) error
+	// AddSink adds a Sink to the topology. It returns DynamicSinkNode and the
+	// caller can configure inputs or other settings of the Sink node through it.
+	AddSink(name string, s Sink, config *DynamicSinkConfig) (DynamicSinkNode, error)
+
+	// Remove removes a node from the topology. It doesn't return an error when
+	// the topology couldn't find a node having the name. The removed node is
+	// stopped by the topology and Remove methods blocks until the node actually
+	// stops.
+	Remove(name string) error
+
+	// Stop stops the topology. If the topology doesn't have a cycle, it stops
+	// after all tuples generated from Sources at the time of the invocation
+	// are written into Sinks. Stop method returns after processing all the
+	// tuples.
+	//
+	// BUG: Currently Stop method doesn't work if the topology has a cycle.
+	Stop() error
+
+	// State returns the current state of the topology. The topology's state
+	// isn't relevant to those dynamic nodes have.
+	State() TopologyStateHolder
+
+	// TODO: low priority: Pause, Resume
+
+	// Node returns a node registered to the topology. It returns an error
+	// when the topology doesn't have the node.
+	Node(name string) (DynamicNode, error)
+
+	// Nodes returns all nodes registered to the topology. The map returned
+	// from this method can safely be modified.
+	Nodes() map[string]DynamicNode
+
+	// Source returns a source registered to the topology. It returns an error
+	// when the topology doesn't have the source.
+	Source(name string) (DynamicSourceNode, error)
+
+	// Sources returns all sources registered to the topology. The map returned
+	// from this method can safely be modified.
+	Sources() map[string]DynamicSourceNode
+
+	// Box returns a box registered to the topology. It returns an error when
+	// the topology doesn't have the box.
+	Box(name string) (DynamicBoxNode, error)
+
+	// Boxes returns all boxes registered to the topology. The map returned
+	// from this method can safely be modified.
+	Boxes() map[string]DynamicBoxNode
+
+	// Sink returns a sink registereed to the topology. It returns an error
+	// when the topology doesn't have the sink.
+	Sink(name string) (DynamicSinkNode, error)
+
+	// Sinks returns all sinks registered to the topology. The map returned
+	// from this method can safely be modified.
+	Sinks() map[string]DynamicSinkNode
 }
 
-// BoxInputConfig has parameters to customize input behavior of a Box on each
-// input pipe.
-type BoxInputConfig struct {
-	// InputName is a custom name attached to incoming tuples. When it is empty,
-	// "*" will be used.
-	InputName string
-
-	// Capacity is the maximum capacity (length) of input pipe. When this
-	// parameter is 0, the default value is used. This parameter is only used
-	// as a hint and doesn't guarantee that the pipe can actually have the
-	// specified number of tuples.
-	Capacity int
+// DynamicSourceConfig has configuration parameters of a Source node.
+type DynamicSourceConfig struct {
+	// PausedOnStartup is a flag which indicates the initial state of the
+	// source. If it is true, the source is paused. Otherwise, source runs just
+	// after it is added to a topology.
+	PausedOnStartup bool
 }
 
-func (c *BoxInputConfig) inputName() string {
-	if c.InputName == "" {
-		return "*"
-	}
-	return c.InputName
+// DynamicBoxConfig has configuration parameters of a Box node.
+type DynamicBoxConfig struct {
+	// TODO: parallelism
 }
 
-func (c *BoxInputConfig) capacity() int {
-	if c.Capacity == 0 {
-		return 1024
-	}
-	return c.Capacity
+// DynamicSinkConfig has configuration parameters of a Sink node.
+type DynamicSinkConfig struct {
 }
-
-// SinkInputConfig has parameters to customize input behavior of a Sink on
-// each input pipe.
-type SinkInputConfig struct {
-	// Capacity is the maximum capacity (length) of input pipe. When this
-	// parameter is 0, the default value is used. This parameter is only used
-	// as a hint and doesn't guarantee that the pipe can actually have the
-	// specified number of tuples.
-	Capacity int
-}
-
-func (c *SinkInputConfig) capacity() int {
-	if c.Capacity == 0 {
-		return 1024
-	}
-	return c.Capacity
-}
-
-var (
-	defaultBoxInputConfig  = &BoxInputConfig{}
-	defaultSinkInputConfig = &SinkInputConfig{}
-)
