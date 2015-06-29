@@ -7,7 +7,7 @@ import (
 
 func TestCreateSourceStmt(t *testing.T) {
 	Convey("Given a BQL TopologyBuilder", t, func() {
-		dt := newTestDynamicTopology()
+		dt := newTestTopology()
 		Reset(func() {
 			dt.Stop()
 		})
@@ -78,7 +78,7 @@ func TestCreateSourceStmt(t *testing.T) {
 
 func TestCreateStreamAsSelectStmt(t *testing.T) {
 	Convey("Given a BQL TopologyBuilder with source and stream", t, func() {
-		dt := newTestDynamicTopology()
+		dt := newTestTopology()
 		Reset(func() {
 			dt.Stop()
 		})
@@ -139,7 +139,7 @@ func TestCreateStreamAsSelectStmt(t *testing.T) {
 
 func TestCreateSinkStmt(t *testing.T) {
 	Convey("Given a BQL TopologyBuilder", t, func() {
-		dt := newTestDynamicTopology()
+		dt := newTestTopology()
 		Reset(func() {
 			dt.Stop()
 		})
@@ -183,7 +183,7 @@ func TestCreateSinkStmt(t *testing.T) {
 
 func TestInsertIntoSelectStmt(t *testing.T) {
 	Convey("Given a BQL TopologyBuilder with source, stream, and sink", t, func() {
-		dt := newTestDynamicTopology()
+		dt := newTestTopology()
 		Reset(func() {
 			dt.Stop()
 		})
@@ -241,7 +241,7 @@ func TestInsertIntoSelectStmt(t *testing.T) {
 
 func TestMultipleStatements(t *testing.T) {
 	Convey("Given an empty BQL TopologyBuilder", t, func() {
-		dt := newTestDynamicTopology()
+		dt := newTestTopology()
 		Reset(func() {
 			dt.Stop()
 		})
@@ -286,7 +286,7 @@ func TestMultipleStatements(t *testing.T) {
 
 func TestCreateStateStmt(t *testing.T) {
 	Convey("Given a BQL TopologyBuilder", t, func() {
-		dt := newTestDynamicTopology()
+		dt := newTestTopology()
 		Reset(func() {
 			dt.Stop()
 		})

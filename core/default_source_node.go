@@ -5,22 +5,22 @@ import (
 	"pfi/sensorbee/sensorbee/tuple"
 )
 
-type defaultDynamicSourceNode struct {
-	*defaultDynamicNode
+type defaultSourceNode struct {
+	*defaultNode
 	source          Source
-	dsts            *dynamicDataDestinations
+	dsts            *dataDestinations
 	pausedOnStartup bool
 }
 
-func (ds *defaultDynamicSourceNode) Type() NodeType {
+func (ds *defaultSourceNode) Type() NodeType {
 	return NTSource
 }
 
-func (ds *defaultDynamicSourceNode) Source() Source {
+func (ds *defaultSourceNode) Source() Source {
 	return ds.source
 }
 
-func (ds *defaultDynamicSourceNode) run() error {
+func (ds *defaultSourceNode) run() error {
 	if err := ds.checkAndPrepareForRunning("source"); err != nil {
 		return err
 	}
@@ -50,7 +50,7 @@ func (ds *defaultDynamicSourceNode) run() error {
 	return ds.source.GenerateStream(ds.topology.ctx, newTraceWriter(ds.dsts, tuple.Output, ds.name))
 }
 
-func (ds *defaultDynamicSourceNode) Stop() error {
+func (ds *defaultSourceNode) Stop() error {
 	ds.stateMutex.Lock()
 	defer ds.stateMutex.Unlock()
 	paused := false
@@ -84,12 +84,12 @@ func (ds *defaultDynamicSourceNode) Stop() error {
 	return nil
 }
 
-func (ds *defaultDynamicSourceNode) Pause() error {
+func (ds *defaultSourceNode) Pause() error {
 	ds.stateMutex.Lock()
 	defer ds.stateMutex.Unlock()
 
-	// Because defaultDynamicSourceNode will be returned after run method is
-	// called by defaultDynamicTopology, the possible states are limited.
+	// Because defaultSourceNode will be returned after run method is
+	// called by defaultTopology, the possible states are limited.
 	switch ds.state.getWithoutLock() {
 	case TSRunning:
 	case TSPaused:
@@ -100,7 +100,7 @@ func (ds *defaultDynamicSourceNode) Pause() error {
 	return ds.pause()
 }
 
-func (ds *defaultDynamicSourceNode) pause() error {
+func (ds *defaultSourceNode) pause() error {
 	// pause doesn't acquire lock
 	if rn, ok := ds.source.(ResumableNode); ok {
 		// prefer the implementation of the source to the default one.
@@ -112,13 +112,13 @@ func (ds *defaultDynamicSourceNode) pause() error {
 	}
 
 	// If the source doesn't implement ResumableNode, the default pause/resume
-	// implementation in dynamicDataDestinations is used.
+	// implementation in dataDestinations is used.
 	ds.dsts.pause()
 	ds.state.setWithoutLock(TSPaused)
 	return nil
 }
 
-func (ds *defaultDynamicSourceNode) Resume() error {
+func (ds *defaultSourceNode) Resume() error {
 	ds.stateMutex.Lock()
 	defer ds.stateMutex.Unlock()
 
@@ -144,6 +144,6 @@ func (ds *defaultDynamicSourceNode) Resume() error {
 	return nil
 }
 
-func (ds *defaultDynamicSourceNode) destinations() *dynamicDataDestinations {
+func (ds *defaultSourceNode) destinations() *dataDestinations {
 	return ds.dsts
 }

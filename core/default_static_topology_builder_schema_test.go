@@ -5,49 +5,56 @@ import (
 	"testing"
 )
 
-// TestDefaultStaticTopologyBuilderInputNamesChecks tests that checks for matching
+// TestDefaultTopologyInputNamesChecks tests that checks for matching
 // named inputs are done correctly when building a topology.
-func TestDefaultStaticTopologyBuilderInputNamesChecks(t *testing.T) {
+func TestDefaultTopologyInputNamesChecks(t *testing.T) {
+	config := Configuration{TupleTraceEnabled: 1}
+	ctx := newTestContext(config)
+
 	Convey("Given a default topology builder", t, func() {
-		tb := NewDefaultStaticTopologyBuilder()
-		s := &DoesNothingSource{}
-		tb.AddSource("source", s)
+		t := NewDefaultTopology(ctx, "dt1")
+		Reset(func() {
+			t.Stop()
+		})
+
+		s := NewTupleEmitterSource(freshTuples())
+		t.AddSource("source", s, &SourceConfig{
+			PausedOnStartup: true,
+		})
 
 		Convey("When using a box with no input name constraint", func() {
 			b := &DoesNothingBoxWithInputNames{}
+			bn, err := t.AddBox("box", b, nil)
+			So(err, ShouldBeNil)
 
 			Convey("Then adding an unnamed input should succeed", func() {
-				bdecl := tb.AddBox("box", b).Input("source")
-				So(bdecl.Err(), ShouldBeNil)
+				So(bn.Input("source", nil), ShouldBeNil)
 			})
 
 			Convey("Then adding a named input for '*' should succeed", func() {
-				bdecl := tb.AddBox("box", b).NamedInput("source", "*")
-				So(bdecl.Err(), ShouldBeNil)
+				So(bn.Input("source", &BoxInputConfig{InputName: "*"}), ShouldBeNil)
 			})
 
 			Convey("Then adding a named input for 'hoge' should succeed", func() {
-				bdecl := tb.AddBox("box", b).NamedInput("source", "hoge")
-				So(bdecl.Err(), ShouldBeNil)
+				So(bn.Input("source", &BoxInputConfig{InputName: "hoge"}), ShouldBeNil)
 			})
 		})
 
 		Convey("When using a box with empty input names", func() {
 			b := &DoesNothingBoxWithInputNames{InNames: []string{}}
+			bn, err := t.AddBox("box", b, nil)
+			So(err, ShouldBeNil)
 
 			Convey("Then adding an unnamed input should succeed", func() {
-				bdecl := tb.AddBox("box", b).Input("source")
-				So(bdecl.Err(), ShouldBeNil)
+				So(bn.Input("source", nil), ShouldBeNil)
 			})
 
 			Convey("Then adding a named input for '*' should succeed", func() {
-				bdecl := tb.AddBox("box", b).NamedInput("source", "*")
-				So(bdecl.Err(), ShouldBeNil)
+				So(bn.Input("source", &BoxInputConfig{InputName: "*"}), ShouldBeNil)
 			})
 
 			Convey("Then adding a named input for 'hoge' should succeed", func() {
-				bdecl := tb.AddBox("box", b).NamedInput("source", "hoge")
-				So(bdecl.Err(), ShouldBeNil)
+				So(bn.Input("source", &BoxInputConfig{InputName: "hoge"}), ShouldBeNil)
 			})
 		})
 
@@ -57,54 +64,49 @@ func TestDefaultStaticTopologyBuilderInputNamesChecks(t *testing.T) {
 		// requiring a certain name?
 		Convey("When using a box with a named input 'hoge'", func() {
 			b := &DoesNothingBoxWithInputNames{InNames: []string{"hoge"}}
+			bn, err := t.AddBox("box", b, nil)
+			So(err, ShouldBeNil)
 
 			Convey("Then adding an unnamed input should fail", func() {
-				bdecl := tb.AddBox("box", b).Input("source")
-				So(bdecl.Err(), ShouldNotBeNil)
+				So(bn.Input("source", nil), ShouldNotBeNil)
 			})
 
 			Convey("Then adding a named input for '*' should fail", func() {
-				bdecl := tb.AddBox("box", b).NamedInput("source", "*")
-				So(bdecl.Err(), ShouldNotBeNil)
+				So(bn.Input("source", &BoxInputConfig{InputName: "*"}), ShouldNotBeNil)
 			})
 
 			Convey("Then adding a named input for 'foo' should fail", func() {
-				bdecl := tb.AddBox("box", b).NamedInput("source", "foo")
-				So(bdecl.Err(), ShouldNotBeNil)
+				So(bn.Input("source", &BoxInputConfig{InputName: "foo"}), ShouldNotBeNil)
 			})
 
 			Convey("Then adding a named input for 'hoge' should succeed", func() {
-				bdecl := tb.AddBox("box", b).NamedInput("source", "hoge")
-				So(bdecl.Err(), ShouldBeNil)
+				So(bn.Input("source", &BoxInputConfig{InputName: "hoge"}), ShouldBeNil)
 			})
 		})
 
 		Convey("When using a box with a named inputs 'hoge' and 'fuga'", func() {
 			b := &DoesNothingBoxWithInputNames{InNames: []string{"hoge", "fuga"}}
+			bn, err := t.AddBox("box", b, nil)
+			So(err, ShouldBeNil)
 
 			Convey("Then adding an unnamed input should fail", func() {
-				bdecl := tb.AddBox("box", b).Input("source")
-				So(bdecl.Err(), ShouldNotBeNil)
+				So(bn.Input("source", nil), ShouldNotBeNil)
 			})
 
 			Convey("Then adding a named input for '*' should fail", func() {
-				bdecl := tb.AddBox("box", b).NamedInput("source", "*")
-				So(bdecl.Err(), ShouldNotBeNil)
+				So(bn.Input("source", &BoxInputConfig{InputName: "*"}), ShouldNotBeNil)
 			})
 
 			Convey("Then adding a named input for 'foo' should fail", func() {
-				bdecl := tb.AddBox("box", b).NamedInput("source", "foo")
-				So(bdecl.Err(), ShouldNotBeNil)
+				So(bn.Input("source", &BoxInputConfig{InputName: "foo"}), ShouldNotBeNil)
 			})
 
 			Convey("Then adding a named input for 'hoge' should succeed", func() {
-				bdecl := tb.AddBox("box", b).NamedInput("source", "hoge")
-				So(bdecl.Err(), ShouldBeNil)
+				So(bn.Input("source", &BoxInputConfig{InputName: "hoge"}), ShouldBeNil)
 			})
 
 			Convey("Then adding a named input for 'fuga' should succeed", func() {
-				bdecl := tb.AddBox("box", b).NamedInput("source", "fuga")
-				So(bdecl.Err(), ShouldBeNil)
+				So(bn.Input("source", &BoxInputConfig{InputName: "fuga"}), ShouldBeNil)
 			})
 		})
 	})

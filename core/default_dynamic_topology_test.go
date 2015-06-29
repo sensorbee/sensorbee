@@ -2,33 +2,107 @@ package core
 
 import (
 	. "github.com/smartystreets/goconvey/convey"
+	"pfi/sensorbee/sensorbee/tuple"
+	"sync"
+	"sync/atomic"
 	"testing"
 )
 
-func TestDefaultDynamicTopologySetup(t *testing.T) {
+func freshTuples() []*tuple.Tuple {
+	tup1 := &tuple.Tuple{
+		Data: tuple.Map{
+			"seq": tuple.Int(1),
+		},
+		InputName: "input",
+	}
+	tup2 := tup1.Copy()
+	tup2.Data["seq"] = tuple.Int(2)
+	tup3 := tup1.Copy()
+	tup3.Data["seq"] = tuple.Int(3)
+	tup4 := tup1.Copy()
+	tup4.Data["seq"] = tuple.Int(4)
+	tup5 := tup1.Copy()
+	tup5.Data["seq"] = tuple.Int(5)
+	tup6 := tup1.Copy()
+	tup6.Data["seq"] = tuple.Int(6)
+	tup7 := tup1.Copy()
+	tup7.Data["seq"] = tuple.Int(7)
+	tup8 := tup1.Copy()
+	tup8.Data["seq"] = tuple.Int(8)
+	return []*tuple.Tuple{tup1, tup2, tup3, tup4,
+		tup5, tup6, tup7, tup8}
+}
+
+type terminateChecker struct {
+	ProxyBox
+
+	m            sync.Mutex
+	c            *sync.Cond
+	terminateCnt int
+}
+
+func newTerminateChecker(b Box) *terminateChecker {
+	t := &terminateChecker{
+		ProxyBox: ProxyBox{b: b},
+	}
+	t.c = sync.NewCond(&t.m)
+	return t
+}
+
+func (t *terminateChecker) Terminate(ctx *Context) error {
+	t.m.Lock()
+	t.terminateCnt++
+	t.c.Broadcast()
+	t.m.Unlock()
+	return t.ProxyBox.Terminate(ctx)
+}
+
+func (t *terminateChecker) WaitForTermination() {
+	t.m.Lock()
+	defer t.m.Unlock()
+	for t.terminateCnt == 0 {
+		t.c.Wait()
+	}
+}
+
+type sinkCloseChecker struct {
+	s        Sink
+	closeCnt int32
+}
+
+func (s *sinkCloseChecker) Write(ctx *Context, t *tuple.Tuple) error {
+	return s.s.Write(ctx, t)
+}
+
+func (s *sinkCloseChecker) Close(ctx *Context) error {
+	atomic.AddInt32(&s.closeCnt, 1)
+	return s.s.Close(ctx)
+}
+
+func TestDefaultTopologySetup(t *testing.T) {
 	config := Configuration{TupleTraceEnabled: 1}
 	ctx := newTestContext(config)
 
-	Convey("Given a default dynamic topology", t, func() {
-		dt := NewDefaultDynamicTopology(ctx, "dt1")
-		t := dt.(*defaultDynamicTopology)
+	Convey("Given a default topology", t, func() {
+		dt := NewDefaultTopology(ctx, "dt1")
+		t := dt.(*defaultTopology)
 		Reset(func() {
 			t.Stop()
 		})
 
 		dupNameTests := func(name string) {
 			Convey("Then adding a source having the same name should fail", func() {
-				_, err := t.AddSource(name, &DummySource{}, nil)
+				_, err := t.AddSource(name, &DoesNothingSource{}, nil)
 				So(err, ShouldNotBeNil)
 			})
 
 			Convey("Then adding a box having the same name should fail", func() {
-				_, err := t.AddBox(name, &DummyBox{}, nil)
+				_, err := t.AddBox(name, &DoesNothingBox{}, nil)
 				So(err, ShouldNotBeNil)
 			})
 
 			Convey("Then adding a sink having the same name should fail", func() {
-				_, err := t.AddSink(name, &DummySink{}, nil)
+				_, err := t.AddSink(name, &DoesNothingSink{}, nil)
 				So(err, ShouldNotBeNil)
 			})
 		}
@@ -41,17 +115,17 @@ func TestDefaultDynamicTopologySetup(t *testing.T) {
 			})
 
 			Convey("Then adding a source to the stopped topology should fail", func() {
-				_, err := t.AddSource("test_source", &DummySource{}, nil)
+				_, err := t.AddSource("test_source", &DoesNothingSource{}, nil)
 				So(err, ShouldNotBeNil)
 			})
 
 			Convey("Then adding a box to the stopped topology should fail", func() {
-				_, err := t.AddBox("test_box", &DummyBox{}, nil)
+				_, err := t.AddBox("test_box", &DoesNothingBox{}, nil)
 				So(err, ShouldNotBeNil)
 			})
 
 			Convey("Then adding a sink to the stopped topology should fail", func() {
-				_, err := t.AddSink("test_sink", &DummySink{}, nil)
+				_, err := t.AddSink("test_sink", &DoesNothingSink{}, nil)
 				So(err, ShouldNotBeNil)
 			})
 		})
@@ -102,7 +176,7 @@ func TestDefaultDynamicTopologySetup(t *testing.T) {
 
 		Convey("When adding a paused source", func() {
 			so := NewTupleEmitterSource(freshTuples())
-			son, err := t.AddSource("source1", so, &DynamicSourceConfig{
+			son, err := t.AddSource("source1", so, &SourceConfig{
 				PausedOnStartup: true,
 			})
 			So(err, ShouldBeNil)
@@ -134,7 +208,7 @@ func TestDefaultDynamicTopologySetup(t *testing.T) {
 		})
 
 		Convey("When adding a box", func() {
-			b := newTerminateChecker(&DummyBox{})
+			b := newTerminateChecker(&DoesNothingBox{})
 			bn, err := t.AddBox("box1", b, nil)
 			So(err, ShouldBeNil)
 
@@ -172,7 +246,7 @@ func TestDefaultDynamicTopologySetup(t *testing.T) {
 		})
 
 		Convey("When adding a sink", func() {
-			s := &DummySink{}
+			s := &DoesNothingSink{}
 			sn, err := t.AddSink("sink1", s, nil)
 			So(err, ShouldBeNil)
 
@@ -210,8 +284,25 @@ func TestDefaultDynamicTopologySetup(t *testing.T) {
 	})
 }
 
-func TestLinearDefaultDynamicTopology(t *testing.T) {
-	// This test is written based on TestShutdownLinearDefaultStaticTopology
+// On one topology, there're some patterns to be tested.
+//
+// 1. Call Stop when no tuple was generated from Source.
+// 2. Call Stop when some but not all tuples are generated from Source
+//   a. and no tuples are received by Sink.
+//   b. some tuples are received by Sink and others are in Boxes.
+//   c. and all those tuples are received by Sink.
+// 3. Call Stop when all tuples are generated from Source
+//   a. and no tuples are received by Sink.
+//   b. and some tuples are received by Sink and others are in Boxes.
+//   c. and all tuples are received by Sink.
+//
+// Followings are topologies to be tested:
+//
+// 1. Linear
+// 2. Multiple sinks (including fan-out)
+// 3. Multiple sources (including JOIN)
+
+func TestLinearDefaultTopology(t *testing.T) {
 	config := Configuration{TupleTraceEnabled: 1}
 	ctx := newTestContext(config)
 
@@ -219,8 +310,8 @@ func TestLinearDefaultDynamicTopology(t *testing.T) {
 		/*
 		 *   so -*--> b1 -*--> b2 -*--> si
 		 */
-		dt := NewDefaultDynamicTopology(ctx, "dt1")
-		t := dt.(*defaultDynamicTopology)
+		dt := NewDefaultTopology(ctx, "dt1")
+		t := dt.(*defaultTopology)
 
 		so := NewTupleIncrementalEmitterSource(freshTuples())
 		son, err := t.AddSource("source", so, nil)
@@ -561,7 +652,7 @@ func TestLinearDefaultDynamicTopology(t *testing.T) {
 	})
 }
 
-func TestForkDefaultDynamicTopology(t *testing.T) {
+func TestForkDefaultTopology(t *testing.T) {
 	config := Configuration{TupleTraceEnabled: 1}
 	ctx := newTestContext(config)
 
@@ -571,8 +662,8 @@ func TestForkDefaultDynamicTopology(t *testing.T) {
 		 *   so -*
 		 *        \--> b2 -*--> si2
 		 */
-		dt := NewDefaultDynamicTopology(ctx, "dt1")
-		t := dt.(*defaultDynamicTopology)
+		dt := NewDefaultTopology(ctx, "dt1")
+		t := dt.(*defaultTopology)
 
 		so := NewTupleIncrementalEmitterSource(freshTuples())
 		_, err := t.AddSource("source", so, nil)
@@ -771,7 +862,7 @@ func TestForkDefaultDynamicTopology(t *testing.T) {
 	})
 }
 
-func TestJoinDefaultDynamicTopology(t *testing.T) {
+func TestJoinDefaultTopology(t *testing.T) {
 	config := Configuration{TupleTraceEnabled: 1}
 	ctx := newTestContext(config)
 
@@ -781,8 +872,8 @@ func TestJoinDefaultDynamicTopology(t *testing.T) {
 		 *           --> b -*--> si
 		 *   so2 -*-/
 		 */
-		tb := NewDefaultDynamicTopology(ctx, "dt1")
-		t := tb.(*defaultDynamicTopology)
+		tb := NewDefaultTopology(ctx, "dt1")
+		t := tb.(*defaultTopology)
 
 		so1 := NewTupleIncrementalEmitterSource(freshTuples()[0:4])
 		_, err := t.AddSource("source1", so1, nil)
