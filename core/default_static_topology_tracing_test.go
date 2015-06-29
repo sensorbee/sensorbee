@@ -23,18 +23,26 @@ func TestDefaultStaticTopologyTupleTracingConfiguration(t *testing.T) {
 			BatchID:       7,
 			Trace:         []tuple.TraceEvent{},
 		}
-		tb := NewDefaultStaticTopologyBuilder()
-		so1 := NewTupleIncrementalEmitterSource([]*tuple.Tuple{tup.Copy(), tup.Copy(), tup.Copy()})
-		tb.AddSource("so1", so1)
-		b := BoxFunc(forwardBox)
-		tb.AddBox("box", b).Input("so1")
-		si := NewTupleCollectorSink()
-		tb.AddSink("si", si).Input("box")
 
-		tp, err := tb.Build()
+		t := NewDefaultTopology(ctx, "test")
+		Reset(func() {
+			t.Stop()
+		})
+		so1 := NewTupleIncrementalEmitterSource([]*tuple.Tuple{tup.Copy(), tup.Copy(), tup.Copy()})
+		_, err := t.AddSource("so1", so1, nil)
 		So(err, ShouldBeNil)
+
+		b := BoxFunc(forwardBox)
+		bn, err := t.AddBox("box", b, nil)
+		So(err, ShouldBeNil)
+		So(bn.Input("so1", nil), ShouldBeNil)
+
+		si := NewTupleCollectorSink()
+		sin, err := t.AddSink("si", si, nil)
+		So(err, ShouldBeNil)
+		So(sin.Input("box", nil), ShouldBeNil)
+
 		Convey("When switch tracing configuration in running topology", func() {
-			go tp.Run(ctx)
 			so1.EmitTuples(1)
 			si.Wait(1)
 			ctx.SetTupleTraceEnabled(true)
@@ -83,38 +91,70 @@ func TestDefaultStaticTopologyTupleTracing(t *testing.T) {
 		 *        *- b1 -*         *- b4 -*
 		 *   so2 /        \--> b3 /        \-*--> si2
 		 */
-		tb := NewDefaultStaticTopologyBuilder()
+		t := NewDefaultTopology(ctx, "test")
+		Reset(func() {
+			t.Stop()
+		})
 		so1 := &TupleEmitterSource{
 			Tuples: []*tuple.Tuple{&tup1},
 		}
-		tb.AddSource("so1", so1)
+		son1, err := t.AddSource("so1", so1, &SourceConfig{
+			PausedOnStartup: true,
+		})
+		So(err, ShouldBeNil)
+
 		so2 := &TupleEmitterSource{
 			Tuples: []*tuple.Tuple{&tup2},
 		}
-		tb.AddSource("so2", so2)
+		son2, err := t.AddSource("so2", so2, &SourceConfig{
+			PausedOnStartup: true,
+		})
+		So(err, ShouldBeNil)
 
 		b1 := BoxFunc(forwardBox)
-		tb.AddBox("box1", b1).
-			Input("so1").
-			Input("so2")
+		bn1, err := t.AddBox("box1", b1, nil)
+		So(err, ShouldBeNil)
+		So(bn1.Input("so1", nil), ShouldBeNil)
+		So(bn1.Input("so2", nil), ShouldBeNil)
+
 		b2 := BoxFunc(forwardBox)
-		tb.AddBox("box2", b2).Input("box1")
+		bn2, err := t.AddBox("box2", b2, nil)
+		So(err, ShouldBeNil)
+		So(bn2.Input("box1", nil), ShouldBeNil)
+
 		b3 := BoxFunc(forwardBox)
-		tb.AddBox("box3", b3).Input("box1")
+		bn3, err := t.AddBox("box3", b3, nil)
+		So(err, ShouldBeNil)
+		So(bn3.Input("box1", nil), ShouldBeNil)
+
 		b4 := BoxFunc(forwardBox)
-		tb.AddBox("box4", b4).
-			Input("box2").
-			Input("box3")
+		bn4, err := t.AddBox("box4", b4, nil)
+		So(err, ShouldBeNil)
+		So(bn4.Input("box2", nil), ShouldBeNil)
+		So(bn4.Input("box3", nil), ShouldBeNil)
 
 		si1 := &TupleCollectorSink{}
-		tb.AddSink("si1", si1).Input("box4")
-		si2 := &TupleCollectorSink{}
-		tb.AddSink("si2", si2).Input("box4")
-
-		to, err := tb.Build()
+		sin1, err := t.AddSink("si1", si1, nil)
 		So(err, ShouldBeNil)
+		So(sin1.Input("box4", nil), ShouldBeNil)
+
+		si2 := &TupleCollectorSink{}
+		sin2, err := t.AddSink("si2", si2, nil)
+		So(err, ShouldBeNil)
+		So(sin2.Input("box4", nil), ShouldBeNil)
+
+		bn1.StopOnDisconnect()
+		bn2.StopOnDisconnect()
+		bn3.StopOnDisconnect()
+		bn4.StopOnDisconnect()
+		sin1.StopOnDisconnect()
+		sin2.StopOnDisconnect()
+		So(son1.Resume(), ShouldBeNil)
+		So(son2.Resume(), ShouldBeNil)
+		sin1.State().Wait(TSStopped)
+		sin2.State().Wait(TSStopped)
+
 		Convey("When a tuple is emitted by the source", func() {
-			to.Run(ctx)
 			Convey("Then tracer has 2 kind of route from source1", func() {
 				// make expected routes
 				route1 := []string{
@@ -153,6 +193,7 @@ func TestDefaultStaticTopologyTupleTracing(t *testing.T) {
 				So(aRoutes, ShouldContain, eRoutes[2])
 				So(aRoutes, ShouldContain, eRoutes[3])
 			})
+
 			Convey("Then tracer has 2 kind of route from source2", func() {
 				// make expected routes
 				route1 := []string{
