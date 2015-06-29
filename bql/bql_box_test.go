@@ -8,9 +8,9 @@ import (
 	"testing"
 )
 
-func setupTopology(stmt string) (core.DynamicTopology, error) {
+func setupTopology(stmt string) (core.Topology, error) {
 	// create a stream from a dummy source
-	dt := newTestDynamicTopology()
+	dt := newTestTopology()
 	tb, err := NewTopologyBuilder(dt)
 	if err != nil {
 		return nil, err

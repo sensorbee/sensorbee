@@ -93,7 +93,7 @@ func (b *panicBox) Process(ctx *Context, t *tuple.Tuple, w Writer) error {
 	return b.ProxyBox.Process(ctx, t, w)
 }
 
-func TestDefaultDynamicTopologyFailure(t *testing.T) {
+func TestDefaultTopologyFailure(t *testing.T) {
 	config := Configuration{TupleTraceEnabled: 1}
 	ctx := newTestContext(config)
 
@@ -101,8 +101,8 @@ func TestDefaultDynamicTopologyFailure(t *testing.T) {
 		/*
 		 *   so -*--> b1 -*--> si
 		 */
-		dt := NewDefaultDynamicTopology(ctx, "dt1")
-		t := dt.(*defaultDynamicTopology)
+		dt := NewDefaultTopology(ctx, "dt1")
+		t := dt.(*defaultTopology)
 		Reset(func() {
 			t.Stop()
 		})

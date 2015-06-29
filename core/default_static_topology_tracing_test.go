@@ -24,7 +24,7 @@ func TestDefaultStaticTopologyTupleTracingConfiguration(t *testing.T) {
 			Trace:         []tuple.TraceEvent{},
 		}
 
-		t := NewDefaultDynamicTopology(ctx, "test")
+		t := NewDefaultTopology(ctx, "test")
 		Reset(func() {
 			t.Stop()
 		})
@@ -91,14 +91,14 @@ func TestDefaultStaticTopologyTupleTracing(t *testing.T) {
 		 *        *- b1 -*         *- b4 -*
 		 *   so2 /        \--> b3 /        \-*--> si2
 		 */
-		t := NewDefaultDynamicTopology(ctx, "test")
+		t := NewDefaultTopology(ctx, "test")
 		Reset(func() {
 			t.Stop()
 		})
 		so1 := &TupleEmitterSource{
 			Tuples: []*tuple.Tuple{&tup1},
 		}
-		son1, err := t.AddSource("so1", so1, &DynamicSourceConfig{
+		son1, err := t.AddSource("so1", so1, &SourceConfig{
 			PausedOnStartup: true,
 		})
 		So(err, ShouldBeNil)
@@ -106,7 +106,7 @@ func TestDefaultStaticTopologyTupleTracing(t *testing.T) {
 		so2 := &TupleEmitterSource{
 			Tuples: []*tuple.Tuple{&tup2},
 		}
-		son2, err := t.AddSource("so2", so2, &DynamicSourceConfig{
+		son2, err := t.AddSource("so2", so2, &SourceConfig{
 			PausedOnStartup: true,
 		})
 		So(err, ShouldBeNil)

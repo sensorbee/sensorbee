@@ -79,13 +79,13 @@ func (s *sinkCloseChecker) Close(ctx *Context) error {
 	return s.s.Close(ctx)
 }
 
-func TestDefaultDynamicTopologySetup(t *testing.T) {
+func TestDefaultTopologySetup(t *testing.T) {
 	config := Configuration{TupleTraceEnabled: 1}
 	ctx := newTestContext(config)
 
-	Convey("Given a default dynamic topology", t, func() {
-		dt := NewDefaultDynamicTopology(ctx, "dt1")
-		t := dt.(*defaultDynamicTopology)
+	Convey("Given a default topology", t, func() {
+		dt := NewDefaultTopology(ctx, "dt1")
+		t := dt.(*defaultTopology)
 		Reset(func() {
 			t.Stop()
 		})
@@ -176,7 +176,7 @@ func TestDefaultDynamicTopologySetup(t *testing.T) {
 
 		Convey("When adding a paused source", func() {
 			so := NewTupleEmitterSource(freshTuples())
-			son, err := t.AddSource("source1", so, &DynamicSourceConfig{
+			son, err := t.AddSource("source1", so, &SourceConfig{
 				PausedOnStartup: true,
 			})
 			So(err, ShouldBeNil)
@@ -302,7 +302,7 @@ func TestDefaultDynamicTopologySetup(t *testing.T) {
 // 2. Multiple sinks (including fan-out)
 // 3. Multiple sources (including JOIN)
 
-func TestLinearDefaultDynamicTopology(t *testing.T) {
+func TestLinearDefaultTopology(t *testing.T) {
 	config := Configuration{TupleTraceEnabled: 1}
 	ctx := newTestContext(config)
 
@@ -310,8 +310,8 @@ func TestLinearDefaultDynamicTopology(t *testing.T) {
 		/*
 		 *   so -*--> b1 -*--> b2 -*--> si
 		 */
-		dt := NewDefaultDynamicTopology(ctx, "dt1")
-		t := dt.(*defaultDynamicTopology)
+		dt := NewDefaultTopology(ctx, "dt1")
+		t := dt.(*defaultTopology)
 
 		so := NewTupleIncrementalEmitterSource(freshTuples())
 		son, err := t.AddSource("source", so, nil)
@@ -652,7 +652,7 @@ func TestLinearDefaultDynamicTopology(t *testing.T) {
 	})
 }
 
-func TestForkDefaultDynamicTopology(t *testing.T) {
+func TestForkDefaultTopology(t *testing.T) {
 	config := Configuration{TupleTraceEnabled: 1}
 	ctx := newTestContext(config)
 
@@ -662,8 +662,8 @@ func TestForkDefaultDynamicTopology(t *testing.T) {
 		 *   so -*
 		 *        \--> b2 -*--> si2
 		 */
-		dt := NewDefaultDynamicTopology(ctx, "dt1")
-		t := dt.(*defaultDynamicTopology)
+		dt := NewDefaultTopology(ctx, "dt1")
+		t := dt.(*defaultTopology)
 
 		so := NewTupleIncrementalEmitterSource(freshTuples())
 		_, err := t.AddSource("source", so, nil)
@@ -862,7 +862,7 @@ func TestForkDefaultDynamicTopology(t *testing.T) {
 	})
 }
 
-func TestJoinDefaultDynamicTopology(t *testing.T) {
+func TestJoinDefaultTopology(t *testing.T) {
 	config := Configuration{TupleTraceEnabled: 1}
 	ctx := newTestContext(config)
 
@@ -872,8 +872,8 @@ func TestJoinDefaultDynamicTopology(t *testing.T) {
 		 *           --> b -*--> si
 		 *   so2 -*-/
 		 */
-		tb := NewDefaultDynamicTopology(ctx, "dt1")
-		t := tb.(*defaultDynamicTopology)
+		tb := NewDefaultTopology(ctx, "dt1")
+		t := tb.(*defaultTopology)
 
 		so1 := NewTupleIncrementalEmitterSource(freshTuples()[0:4])
 		_, err := t.AddSource("source1", so1, nil)

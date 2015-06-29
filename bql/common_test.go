@@ -15,10 +15,10 @@ func newTestContext(config core.Configuration) *core.Context {
 	}
 }
 
-func newTestDynamicTopology() core.DynamicTopology {
+func newTestTopology() core.Topology {
 	config := core.Configuration{TupleTraceEnabled: 0}
 	ctx := newTestContext(config)
-	return core.NewDefaultDynamicTopology(ctx, "testTopology")
+	return core.NewDefaultTopology(ctx, "testTopology")
 }
 
 func addBQLToTopology(tb *TopologyBuilder, bql string) error {

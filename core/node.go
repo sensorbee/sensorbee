@@ -27,13 +27,13 @@ func (t NodeType) String() string {
 	}
 }
 
-// DynamicNode is a node registered to a dynamic topology. It defines methods
+// Node is a node registered to a topology. It defines methods
 // common to Source, Box, and Sink nodes.
-type DynamicNode interface {
+type Node interface {
 	// Type returns the type of the node, which can be NTSource, NTBox,
-	// or NTSink. It's safe to convert DynamicNode to a specific node interface
+	// or NTSink. It's safe to convert Node to a specific node interface
 	// corresponding to the returned NodeType. For example, if NTBox is
-	// returned, the node can be converted to DynamicBoxNode with a type
+	// returned, the node can be converted to BoxNode with a type
 	// assertion.
 	Type() NodeType
 
@@ -51,11 +51,11 @@ type DynamicNode interface {
 	Stop() error
 }
 
-// DynamicSourceNode is a Source registered to a dynamic topology.
-type DynamicSourceNode interface {
-	DynamicNode
+// SourceNode is a Source registered to a topology.
+type SourceNode interface {
+	Node
 
-	// Source returns internal source passed to DynamicTopology.AddSource.
+	// Source returns internal source passed to Topology.AddSource.
 	Source() Source
 
 	// Pause pauses a running source. A paused source can be resumed by calling
@@ -66,11 +66,11 @@ type DynamicSourceNode interface {
 	Resume() error
 }
 
-// DynamicBoxNode is a Box registered to a dynamic topology.
-type DynamicBoxNode interface {
-	DynamicNode
+// BoxNode is a Box registered to a topology.
+type BoxNode interface {
+	Node
 
-	// Box returns internal source passed to DynamicTopology.AddBox.
+	// Box returns internal source passed to Topology.AddBox.
 	Box() Box
 
 	// Input adds a new input from a Source, another Box, or even the Box
@@ -122,11 +122,11 @@ func (c *BoxInputConfig) capacity() int {
 
 var defaultBoxInputConfig = &BoxInputConfig{}
 
-// DynamicSinkNode is a Sink registered to a dynamic topology.
-type DynamicSinkNode interface {
-	DynamicNode
+// SinkNode is a Sink registered to a topology.
+type SinkNode interface {
+	Node
 
-	// Sink returns internal source passed to DynamicTopology.AddSink.
+	// Sink returns internal source passed to Topology.AddSink.
 	Sink() Sink
 
 	// Input adds a new input from a Source or a Box. refname refers a name of

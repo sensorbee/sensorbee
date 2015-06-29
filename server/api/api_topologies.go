@@ -11,7 +11,7 @@ import (
 )
 
 var (
-	topologyMap        = map[string]core.DynamicTopology{}
+	topologyMap        = map[string]core.Topology{}
 	topologyBuilderMap = map[string]*bql.TopologyBuilder{}
 	bqlParser          = parser.NewBQLParser()
 )
@@ -69,7 +69,7 @@ func (tc *TopologiesContext) Show(rw web.ResponseWriter, req *web.Request) {
 	})
 }
 
-// Update dynamic nodes by BQLs
+// Update nodes by BQLs
 func (tc *TopologiesContext) Update(rw web.ResponseWriter, req *web.Request) {
 	tp, ok := topologyMap[tc.tenantName]
 	if !ok {
@@ -166,7 +166,7 @@ func (tc *TopologiesContext) Queries(rw web.ResponseWriter, req *web.Request) {
 			Logger: logManagment,
 			Config: conf,
 		}
-		tp := core.NewDefaultDynamicTopology(&ctx, tc.tenantName)
+		tp := core.NewDefaultTopology(&ctx, tc.tenantName)
 		topologyMap[tc.tenantName] = tp
 
 		tb, _ = bql.NewTopologyBuilder(tp) // TODO: fix this by supporting Create action

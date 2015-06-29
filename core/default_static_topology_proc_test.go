@@ -39,7 +39,7 @@ func TestDefaultStaticTopologyTupleProcessing(t *testing.T) {
 		/*
 		 *   so -*--> b -*--> si
 		 */
-		t := NewDefaultDynamicTopology(ctx, "test")
+		t := NewDefaultTopology(ctx, "test")
 		Reset(func() {
 			t.Stop()
 		})
@@ -99,19 +99,19 @@ func TestDefaultStaticTopologyTupleProcessing(t *testing.T) {
 		 *           --> b -*--> si
 		 *   so2 -*-/
 		 */
-		t := NewDefaultDynamicTopology(ctx, "test")
+		t := NewDefaultTopology(ctx, "test")
 		Reset(func() {
 			t.Stop()
 		})
 
 		s1 := &TupleEmitterSource{Tuples: []*tuple.Tuple{tup1}}
-		son1, err := t.AddSource("source1", s1, &DynamicSourceConfig{
+		son1, err := t.AddSource("source1", s1, &SourceConfig{
 			PausedOnStartup: true,
 		})
 		So(err, ShouldBeNil)
 
 		s2 := &TupleEmitterSource{Tuples: []*tuple.Tuple{tup2}}
-		son2, err := t.AddSource("source2", s2, &DynamicSourceConfig{
+		son2, err := t.AddSource("source2", s2, &SourceConfig{
 			PausedOnStartup: true,
 		})
 		So(err, ShouldBeNil)
@@ -150,13 +150,13 @@ func TestDefaultStaticTopologyTupleProcessing(t *testing.T) {
 		 *        \--> b2 -*-/
 		 */
 
-		t := NewDefaultDynamicTopology(ctx, "test")
+		t := NewDefaultTopology(ctx, "test")
 		Reset(func() {
 			t.Stop()
 		})
 
 		s1 := &TupleEmitterSource{Tuples: []*tuple.Tuple{tup1}}
-		son, err := t.AddSource("source1", s1, &DynamicSourceConfig{
+		son, err := t.AddSource("source1", s1, &SourceConfig{
 			PausedOnStartup: true,
 		})
 		So(err, ShouldBeNil)
@@ -195,13 +195,13 @@ func TestDefaultStaticTopologyTupleProcessing(t *testing.T) {
 		 *                \--> si2
 		 */
 
-		t := NewDefaultDynamicTopology(ctx, "test")
+		t := NewDefaultTopology(ctx, "test")
 		Reset(func() {
 			t.Stop()
 		})
 
 		s1 := &TupleEmitterSource{Tuples: []*tuple.Tuple{tup1}}
-		son, err := t.AddSource("source1", s1, &DynamicSourceConfig{
+		son, err := t.AddSource("source1", s1, &SourceConfig{
 			PausedOnStartup: true,
 		})
 		So(err, ShouldBeNil)
