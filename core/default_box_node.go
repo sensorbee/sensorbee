@@ -1,21 +1,21 @@
 package core
 
-type defaultDynamicBoxNode struct {
-	*defaultDynamicNode
+type defaultBoxNode struct {
+	*defaultNode
 	srcs *dataSources
 	box  Box
 	dsts *dataDestinations
 }
 
-func (db *defaultDynamicBoxNode) Type() NodeType {
+func (db *defaultBoxNode) Type() NodeType {
 	return NTBox
 }
 
-func (db *defaultDynamicBoxNode) Box() Box {
+func (db *defaultBoxNode) Box() Box {
 	return db.box
 }
 
-func (db *defaultDynamicBoxNode) Input(refname string, config *BoxInputConfig) error {
+func (db *defaultBoxNode) Input(refname string, config *BoxInputConfig) error {
 	s, err := db.topology.dataSource(refname)
 	if err != nil {
 		return err
@@ -40,7 +40,7 @@ func (db *defaultDynamicBoxNode) Input(refname string, config *BoxInputConfig) e
 	return nil
 }
 
-func (db *defaultDynamicBoxNode) run() error {
+func (db *defaultBoxNode) run() error {
 	if err := db.checkAndPrepareForRunning("box"); err != nil {
 		return err
 	}
@@ -62,20 +62,20 @@ func (db *defaultDynamicBoxNode) run() error {
 	return db.srcs.pour(db.topology.ctx, w, 1) // TODO: make parallelism configurable
 }
 
-func (db *defaultDynamicBoxNode) Stop() error {
+func (db *defaultBoxNode) Stop() error {
 	db.stop()
 	return nil
 }
 
-func (db *defaultDynamicBoxNode) EnableGracefulStop() {
+func (db *defaultBoxNode) EnableGracefulStop() {
 	db.srcs.enableGracefulStop()
 }
 
-func (db *defaultDynamicBoxNode) StopOnDisconnect() {
+func (db *defaultBoxNode) StopOnDisconnect() {
 	db.srcs.stopOnDisconnect()
 }
 
-func (db *defaultDynamicBoxNode) stop() {
+func (db *defaultBoxNode) stop() {
 	if stopped, err := db.checkAndPrepareForStopping("box"); stopped || err != nil {
 		return
 	}
@@ -85,6 +85,6 @@ func (db *defaultDynamicBoxNode) stop() {
 	db.state.Wait(TSStopped)
 }
 
-func (db *defaultDynamicBoxNode) destinations() *dataDestinations {
+func (db *defaultBoxNode) destinations() *dataDestinations {
 	return db.dsts
 }

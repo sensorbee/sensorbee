@@ -4,29 +4,29 @@ import (
 	"pfi/sensorbee/sensorbee/tuple"
 )
 
-type defaultDynamicSinkNode struct {
-	*defaultDynamicNode
+type defaultSinkNode struct {
+	*defaultNode
 	srcs *dataSources
 	sink Sink
 }
 
-func (ds *defaultDynamicSinkNode) Type() NodeType {
+func (ds *defaultSinkNode) Type() NodeType {
 	return NTSink
 }
 
-func (ds *defaultDynamicSinkNode) Sink() Sink {
+func (ds *defaultSinkNode) Sink() Sink {
 	return ds.sink
 }
 
-func (ds *defaultDynamicSinkNode) Name() string {
+func (ds *defaultSinkNode) Name() string {
 	return ds.name
 }
 
-func (ds *defaultDynamicSinkNode) State() TopologyStateHolder {
+func (ds *defaultSinkNode) State() TopologyStateHolder {
 	return ds.state
 }
 
-func (ds *defaultDynamicSinkNode) Input(refname string, config *SinkInputConfig) error {
+func (ds *defaultSinkNode) Input(refname string, config *SinkInputConfig) error {
 	s, err := ds.topology.dataSource(refname)
 	if err != nil {
 		return err
@@ -47,7 +47,7 @@ func (ds *defaultDynamicSinkNode) Input(refname string, config *SinkInputConfig)
 	return nil
 }
 
-func (ds *defaultDynamicSinkNode) run() error {
+func (ds *defaultSinkNode) run() error {
 	if err := ds.checkAndPrepareForRunning("sink"); err != nil {
 		return err
 	}
@@ -63,20 +63,20 @@ func (ds *defaultDynamicSinkNode) run() error {
 	return ds.srcs.pour(ds.topology.ctx, newTraceWriter(ds.sink, tuple.Input, ds.name), 1)
 }
 
-func (ds *defaultDynamicSinkNode) Stop() error {
+func (ds *defaultSinkNode) Stop() error {
 	ds.stop()
 	return nil
 }
 
-func (ds *defaultDynamicSinkNode) EnableGracefulStop() {
+func (ds *defaultSinkNode) EnableGracefulStop() {
 	ds.srcs.enableGracefulStop()
 }
 
-func (ds *defaultDynamicSinkNode) StopOnDisconnect() {
+func (ds *defaultSinkNode) StopOnDisconnect() {
 	ds.srcs.stopOnDisconnect()
 }
 
-func (ds *defaultDynamicSinkNode) stop() {
+func (ds *defaultSinkNode) stop() {
 	if stopped, err := ds.checkAndPrepareForStopping("sink"); stopped || err != nil {
 		return
 	}
