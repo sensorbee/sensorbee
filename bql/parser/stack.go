@@ -260,6 +260,23 @@ func (ps *parseStack) AssembleResumeSource() {
 	ps.Push(&se)
 }
 
+// AssembleRewindSource takes the topmost elements from the stack,
+// assuming they are components of a REWIND SOURCE statement, and
+// replaces them by a single RewindSourceStmt element.
+//
+//  StreamIdentifier
+//   =>
+//  RewindSourceStmt{StreamIdentifier}
+func (ps *parseStack) AssembleRewindSource() {
+	// pop the components from the stack in reverse order
+	_name := ps.Pop()
+
+	name := _name.comp.(StreamIdentifier)
+
+	se := ParsedComponent{_name.begin, _name.end, RewindSourceStmt{name}}
+	ps.Push(&se)
+}
+
 /* Projections/Columns */
 
 // AssembleEmitter takes the topmost elements from the stack, assuming
