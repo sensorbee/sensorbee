@@ -247,7 +247,7 @@ func TestSharedStateInTopology(t *testing.T) {
 		counter := &countingSharedState{}
 		So(ctx.SharedStates.Add(ctx, "test_counter", counter), ShouldBeNil)
 
-		t := NewDefaultDynamicTopology(ctx, "test")
+		t := NewDefaultTopology(ctx, "test")
 		Reset(func() {
 			t.Stop()
 		})
@@ -261,7 +261,7 @@ func TestSharedStateInTopology(t *testing.T) {
 			})
 		}
 		so := NewTupleEmitterSource(ts)
-		son, err := t.AddSource("source", so, &DynamicSourceConfig{
+		son, err := t.AddSource("source", so, &SourceConfig{
 			PausedOnStartup: true,
 		})
 		So(err, ShouldBeNil)

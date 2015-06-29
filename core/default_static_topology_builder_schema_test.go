@@ -5,20 +5,20 @@ import (
 	"testing"
 )
 
-// TestDefaultDynamicTopologyInputNamesChecks tests that checks for matching
+// TestDefaultTopologyInputNamesChecks tests that checks for matching
 // named inputs are done correctly when building a topology.
-func TestDefaultDynamicTopologyInputNamesChecks(t *testing.T) {
+func TestDefaultTopologyInputNamesChecks(t *testing.T) {
 	config := Configuration{TupleTraceEnabled: 1}
 	ctx := newTestContext(config)
 
 	Convey("Given a default topology builder", t, func() {
-		t := NewDefaultDynamicTopology(ctx, "dt1")
+		t := NewDefaultTopology(ctx, "dt1")
 		Reset(func() {
 			t.Stop()
 		})
 
 		s := NewTupleEmitterSource(freshTuples())
-		t.AddSource("source", s, &DynamicSourceConfig{
+		t.AddSource("source", s, &SourceConfig{
 			PausedOnStartup: true,
 		})
 

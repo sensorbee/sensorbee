@@ -5,7 +5,7 @@ import (
 	"sync"
 )
 
-type defaultDynamicTopology struct {
+type defaultTopology struct {
 	ctx  *Context
 	name string
 
@@ -25,12 +25,12 @@ type defaultDynamicTopology struct {
 	// management is required.
 }
 
-// NewDefaultDynamicTopology creates a dynamic topology having a simple graph
+// NewDefaultTopology creates a topology having a simple graph
 // structure.
-func NewDefaultDynamicTopology(ctx *Context, name string) DynamicTopology {
+func NewDefaultTopology(ctx *Context, name string) Topology {
 	// TODO: validate name
 
-	t := &defaultDynamicTopology{
+	t := &defaultTopology{
 		ctx:  ctx,
 		name: name,
 
@@ -39,19 +39,19 @@ func NewDefaultDynamicTopology(ctx *Context, name string) DynamicTopology {
 		sinks:   map[string]*defaultSinkNode{},
 	}
 	t.state = newTopologyStateHolder(&t.stateMutex)
-	t.state.state = TSRunning // A dynamic topology is running by default.
+	t.state.state = TSRunning // A topology is running by default.
 	return t
 }
 
-func (t *defaultDynamicTopology) Context() *Context {
+func (t *defaultTopology) Context() *Context {
 	return t.ctx
 }
 
-func (t *defaultDynamicTopology) AddSource(name string, s Source, config *DynamicSourceConfig) (DynamicSourceNode, error) {
+func (t *defaultTopology) AddSource(name string, s Source, config *SourceConfig) (SourceNode, error) {
 	// TODO: validate the name
 
 	if config == nil {
-		config = &DynamicSourceConfig{}
+		config = &SourceConfig{}
 	}
 
 	// This method assumes adding a Source having a duplicated name is rare.
@@ -106,7 +106,7 @@ func (t *defaultDynamicTopology) AddSource(name string, s Source, config *Dynami
 // checkNodeNameDuplication checks if the given name is unique in the topology.
 // This method doesn't acquire the lock and it's the caller's responsibility
 // to do it before calling this method.
-func (t *defaultDynamicTopology) checkNodeNameDuplication(name string) error {
+func (t *defaultTopology) checkNodeNameDuplication(name string) error {
 	if _, ok := t.sources[name]; ok {
 		return fmt.Errorf("the name is already used by a source: %v", name)
 	}
@@ -119,7 +119,7 @@ func (t *defaultDynamicTopology) checkNodeNameDuplication(name string) error {
 	return nil
 }
 
-func (t *defaultDynamicTopology) AddBox(name string, b Box, config *DynamicBoxConfig) (DynamicBoxNode, error) {
+func (t *defaultTopology) AddBox(name string, b Box, config *BoxConfig) (BoxNode, error) {
 	t.nodeMutex.Lock()
 	defer t.nodeMutex.Unlock()
 	if t.state.Get() >= TSStopping {
@@ -153,7 +153,7 @@ func (t *defaultDynamicTopology) AddBox(name string, b Box, config *DynamicBoxCo
 	return db, nil
 }
 
-func (t *defaultDynamicTopology) AddSink(name string, s Sink, config *DynamicSinkConfig) (DynamicSinkNode, error) {
+func (t *defaultTopology) AddSink(name string, s Sink, config *SinkConfig) (SinkNode, error) {
 	t.nodeMutex.Lock()
 	defer t.nodeMutex.Unlock()
 	if t.state.Get() >= TSStopping {
@@ -180,11 +180,11 @@ func (t *defaultDynamicTopology) AddSink(name string, s Sink, config *DynamicSin
 	return ds, nil
 }
 
-func (t *defaultDynamicTopology) Stop() error {
+func (t *defaultTopology) Stop() error {
 	t.nodeMutex.Lock()
 	defer t.nodeMutex.Unlock()
 	if stopped, err := t.state.checkAndPrepareForStoppingWithoutLock(false); err != nil {
-		return fmt.Errorf("the dynamic topology has an invalid state: %v", t.state.Get())
+		return fmt.Errorf("the topology has an invalid state: %v", t.state.Get())
 	} else if stopped {
 		return nil
 	}
@@ -241,12 +241,12 @@ func (t *defaultDynamicTopology) Stop() error {
 	return nil
 }
 
-func (t *defaultDynamicTopology) State() TopologyStateHolder {
+func (t *defaultTopology) State() TopologyStateHolder {
 	return t.state
 }
 
-func (t *defaultDynamicTopology) Remove(name string) error {
-	n := func() DynamicNode {
+func (t *defaultTopology) Remove(name string) error {
+	n := func() Node {
 		t.nodeMutex.Lock()
 		defer t.nodeMutex.Unlock()
 
@@ -292,13 +292,13 @@ func (t *defaultDynamicTopology) Remove(name string) error {
 
 // TODO: Add method to clean up (possibly indirectly) stopped nodes
 
-func (t *defaultDynamicTopology) Node(name string) (DynamicNode, error) {
+func (t *defaultTopology) Node(name string) (Node, error) {
 	t.nodeMutex.RLock()
 	defer t.nodeMutex.RUnlock()
 	return t.nodeWithoutLock(name)
 }
 
-func (t *defaultDynamicTopology) nodeWithoutLock(name string) (DynamicNode, error) {
+func (t *defaultTopology) nodeWithoutLock(name string) (Node, error) {
 	if s, ok := t.sources[name]; ok {
 		return s, nil
 	}
@@ -311,11 +311,11 @@ func (t *defaultDynamicTopology) nodeWithoutLock(name string) (DynamicNode, erro
 	return nil, fmt.Errorf("node '%v' was not found", name)
 }
 
-func (t *defaultDynamicTopology) Nodes() map[string]DynamicNode {
+func (t *defaultTopology) Nodes() map[string]Node {
 	t.nodeMutex.RLock()
 	defer t.nodeMutex.RUnlock()
 
-	m := make(map[string]DynamicNode, len(t.sources)+len(t.boxes)+len(t.sinks))
+	m := make(map[string]Node, len(t.sources)+len(t.boxes)+len(t.sinks))
 	for name, s := range t.sources {
 		m[name] = s
 	}
@@ -328,7 +328,7 @@ func (t *defaultDynamicTopology) Nodes() map[string]DynamicNode {
 	return m
 }
 
-func (t *defaultDynamicTopology) Source(name string) (DynamicSourceNode, error) {
+func (t *defaultTopology) Source(name string) (SourceNode, error) {
 	t.nodeMutex.RLock()
 	defer t.nodeMutex.RUnlock()
 	if s, ok := t.sources[name]; ok {
@@ -337,18 +337,18 @@ func (t *defaultDynamicTopology) Source(name string) (DynamicSourceNode, error) 
 	return nil, fmt.Errorf("source '%v' was not found", name)
 }
 
-func (t *defaultDynamicTopology) Sources() map[string]DynamicSourceNode {
+func (t *defaultTopology) Sources() map[string]SourceNode {
 	t.nodeMutex.RLock()
 	defer t.nodeMutex.RUnlock()
 
-	m := make(map[string]DynamicSourceNode, len(t.sources))
+	m := make(map[string]SourceNode, len(t.sources))
 	for name, s := range t.sources {
 		m[name] = s
 	}
 	return m
 }
 
-func (t *defaultDynamicTopology) Box(name string) (DynamicBoxNode, error) {
+func (t *defaultTopology) Box(name string) (BoxNode, error) {
 	t.nodeMutex.RLock()
 	defer t.nodeMutex.RUnlock()
 	if b, ok := t.boxes[name]; ok {
@@ -357,18 +357,18 @@ func (t *defaultDynamicTopology) Box(name string) (DynamicBoxNode, error) {
 	return nil, fmt.Errorf("box '%v' was not found", name)
 }
 
-func (t *defaultDynamicTopology) Boxes() map[string]DynamicBoxNode {
+func (t *defaultTopology) Boxes() map[string]BoxNode {
 	t.nodeMutex.RLock()
 	defer t.nodeMutex.RUnlock()
 
-	m := make(map[string]DynamicBoxNode, len(t.boxes))
+	m := make(map[string]BoxNode, len(t.boxes))
 	for name, b := range t.boxes {
 		m[name] = b
 	}
 	return m
 }
 
-func (t *defaultDynamicTopology) Sink(name string) (DynamicSinkNode, error) {
+func (t *defaultTopology) Sink(name string) (SinkNode, error) {
 	t.nodeMutex.RLock()
 	defer t.nodeMutex.RUnlock()
 	if s, ok := t.sinks[name]; ok {
@@ -377,23 +377,23 @@ func (t *defaultDynamicTopology) Sink(name string) (DynamicSinkNode, error) {
 	return nil, fmt.Errorf("sink '%v' was not found", name)
 }
 
-func (t *defaultDynamicTopology) Sinks() map[string]DynamicSinkNode {
+func (t *defaultTopology) Sinks() map[string]SinkNode {
 	t.nodeMutex.RLock()
 	defer t.nodeMutex.RUnlock()
 
-	m := make(map[string]DynamicSinkNode, len(t.sinks))
+	m := make(map[string]SinkNode, len(t.sinks))
 	for name, s := range t.sinks {
 		m[name] = s
 	}
 	return m
 }
 
-type dynamicDataSource interface {
+type dataSource interface {
 	Name() string
 	destinations() *dataDestinations
 }
 
-func (t *defaultDynamicTopology) dataSource(nodeName string) (dynamicDataSource, error) {
+func (t *defaultTopology) dataSource(nodeName string) (dataSource, error) {
 	t.nodeMutex.RLock()
 	defer t.nodeMutex.RUnlock()
 
@@ -407,13 +407,13 @@ func (t *defaultDynamicTopology) dataSource(nodeName string) (dynamicDataSource,
 }
 
 type defaultNode struct {
-	topology   *defaultDynamicTopology
+	topology   *defaultTopology
 	name       string
 	state      *topologyStateHolder
 	stateMutex sync.Mutex
 }
 
-func newdefaultNode(t *defaultDynamicTopology, name string) *defaultNode {
+func newdefaultNode(t *defaultTopology, name string) *defaultNode {
 	dn := &defaultNode{
 		topology: t,
 		name:     name,

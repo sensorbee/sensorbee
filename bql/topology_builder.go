@@ -10,7 +10,7 @@ import (
 )
 
 type TopologyBuilder struct {
-	topology       core.DynamicTopology
+	topology       core.Topology
 	Reg            udf.FunctionManager
 	UDSCreators    udf.UDSCreatorRegistry
 	SourceCreators SourceCreatorRegistry
@@ -21,14 +21,14 @@ type TopologyBuilder struct {
 // in an atomic manner (kind of transactionally)
 
 // NewTopologyBuilder creates a new TopologyBuilder which dynamically creates
-// nodes from BQL statements. The target DynamicTopology can be shared by
+// nodes from BQL statements. The target Topology can be shared by
 // multiple TopologyBuilders.
 //
 // TopologyBuilder doesn't support atomic topology building. For example,
 // when a user wants to add three statement and the second statement fails,
 // only the node created from the first statement is registered to the topology
 // and it starts to generate tuples. Others won't be registered.
-func NewTopologyBuilder(t core.DynamicTopology) (*TopologyBuilder, error) {
+func NewTopologyBuilder(t core.Topology) (*TopologyBuilder, error) {
 	udss, err := udf.CopyGlobalUDSCreatorRegistry()
 	if err != nil {
 		return nil, err
@@ -68,7 +68,7 @@ func topologyBuilderNextTemporaryID() int64 {
 
 // AddStmt add a node created from a statement to the topology. It returns
 // a created node. It returns a nil node when the statement is CREATE STATE.
-func (tb *TopologyBuilder) AddStmt(stmt interface{}) (core.DynamicNode, error) {
+func (tb *TopologyBuilder) AddStmt(stmt interface{}) (core.Node, error) {
 	// TODO: Enable StopOnDisconnect properly
 
 	// check the type of statement
@@ -88,7 +88,7 @@ func (tb *TopologyBuilder) AddStmt(stmt interface{}) (core.DynamicNode, error) {
 		if err != nil {
 			return nil, err
 		}
-		return tb.topology.AddSource(string(stmt.Name), source, &core.DynamicSourceConfig{
+		return tb.topology.AddSource(string(stmt.Name), source, &core.SourceConfig{
 			PausedOnStartup: stmt.Paused == parser.Yes,
 		})
 
@@ -109,7 +109,7 @@ func (tb *TopologyBuilder) AddStmt(stmt interface{}) (core.DynamicNode, error) {
 				return nil, err
 			}
 		}
-		dbox.(core.DynamicBoxNode).StopOnDisconnect()
+		dbox.(core.BoxNode).StopOnDisconnect()
 		return dbox, nil
 
 	case parser.CreateSinkStmt:
@@ -190,7 +190,7 @@ func (tb *TopologyBuilder) AddStmt(stmt interface{}) (core.DynamicNode, error) {
 		if err != nil {
 			return nil, err
 		}
-		box.(core.DynamicBoxNode).StopOnDisconnect()
+		box.(core.BoxNode).StopOnDisconnect()
 
 		// now connect the sink to that box
 		if err := sink.Input(tmpName, nil); err != nil {

@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func BenchmarkDynamicPipe(b *testing.B) {
+func BenchmarkPipe(b *testing.B) {
 	config := Configuration{TupleTraceEnabled: 1}
 	ctx := newTestContext(config)
 	r, s := newPipe("test", 1024)
@@ -32,11 +32,11 @@ func drainReceiver(r *pipeReceiver) {
 	}
 }
 
-func TestDynamicPipe(t *testing.T) {
+func TestPipe(t *testing.T) {
 	config := Configuration{TupleTraceEnabled: 1}
 	ctx := newTestContext(config)
 
-	Convey("Given a dynamic pipe", t, func() {
+	Convey("Given a pipe", t, func() {
 		// Use small capacity to check the sender never blocks.
 		r, s := newPipe("test", 1)
 		t := &tuple.Tuple{
@@ -97,7 +97,7 @@ func TestDynamicPipe(t *testing.T) {
 	})
 }
 
-func TestDynamicDataSources(t *testing.T) {
+func TestDataSources(t *testing.T) {
 	config := Configuration{TupleTraceEnabled: 1}
 	ctx := newTestContext(config)
 
@@ -330,7 +330,7 @@ func TestDynamicDataSources(t *testing.T) {
 
 // TODO: add fail tests of dataSources
 
-func TestDynamicDataDestinations(t *testing.T) {
+func TestDataDestinations(t *testing.T) {
 	config := Configuration{TupleTraceEnabled: 1}
 	ctx := newTestContext(config)
 
