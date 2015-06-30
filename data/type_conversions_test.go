@@ -1,4 +1,4 @@
-package tuple
+package data
 
 import (
 	"fmt"
@@ -226,15 +226,15 @@ func TestToString(t *testing.T) {
 			{"now", Timestamp(now), now.Format(time.RFC3339Nano)},
 		},
 		"Array": {
-			{"empty", Array{}, "tuple.Array{}"},
-			{"non-empty", Array{Int(2), String("foo")}, `tuple.Array{2, "foo"}`},
+			{"empty", Array{}, "data.Array{}"},
+			{"non-empty", Array{Int(2), String("foo")}, `data.Array{2, "foo"}`},
 		},
 		"Map": {
-			{"empty", Map{}, `tuple.Map{}`},
+			{"empty", Map{}, `data.Map{}`},
 			// the following test would fail once in a while because
 			// golang randomizes the keys for Maps, i.e., we cannot be sure
 			// that we will always get the same string
-			// convTestInput{"non-empty", Map{"a": Int(2), "b": String("foo")}, `tuple.Map{"a":2, "b":"foo"}`},
+			// convTestInput{"non-empty", Map{"a": Int(2), "b": String("foo")}, `data.Map{"a":2, "b":"foo"}`},
 		},
 	}
 

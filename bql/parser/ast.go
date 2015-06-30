@@ -1,7 +1,7 @@
 package parser
 
 import (
-	"pfi/sensorbee/sensorbee/tuple"
+	"pfi/sensorbee/sensorbee/data"
 	"strconv"
 	"strings"
 )
@@ -137,7 +137,7 @@ type SourceSinkSpecsAST struct {
 
 type SourceSinkParamAST struct {
 	Key   SourceSinkParamKey
-	Value tuple.Value
+	Value data.Value
 }
 
 type BinaryOpAST struct {

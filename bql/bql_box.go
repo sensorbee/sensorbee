@@ -5,7 +5,6 @@ import (
 	"pfi/sensorbee/sensorbee/bql/parser"
 	"pfi/sensorbee/sensorbee/bql/udf"
 	"pfi/sensorbee/sensorbee/core"
-	"pfi/sensorbee/sensorbee/tuple"
 	"sync"
 )
 
@@ -41,7 +40,7 @@ func (b *bqlBox) Init(ctx *core.Context) error {
 	return nil
 }
 
-func (b *bqlBox) Process(ctx *core.Context, t *tuple.Tuple, s core.Writer) error {
+func (b *bqlBox) Process(ctx *core.Context, t *core.Tuple, s core.Writer) error {
 	b.mutex.Lock()
 	defer b.mutex.Unlock()
 
@@ -53,7 +52,7 @@ func (b *bqlBox) Process(ctx *core.Context, t *tuple.Tuple, s core.Writer) error
 
 	// emit result data as tuples
 	for _, data := range resultData {
-		tup := &tuple.Tuple{
+		tup := &core.Tuple{
 			Data:          data,
 			Timestamp:     t.Timestamp,
 			ProcTimestamp: t.ProcTimestamp,

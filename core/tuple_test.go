@@ -1,22 +1,23 @@
-package tuple
+package core
 
 import (
 	. "github.com/smartystreets/goconvey/convey"
+	"pfi/sensorbee/sensorbee/data"
 	"testing"
 	"time"
 )
 
 func TestTuple(t *testing.T) {
-	var testData = Map{
-		"bool":   Bool(true),
-		"int":    Int(1),
-		"float":  Float(0.1),
-		"string": String("homhom"),
-		"byte":   Blob([]byte("madmad")),
-		"time":   Timestamp(time.Date(2015, time.April, 10, 10, 23, 0, 0, time.UTC)),
-		"array":  Array([]Value{String("saysay"), String("mammam")}),
-		"map": Map{
-			"string": String("homhom"),
+	var testData = data.Map{
+		"bool":   data.Bool(true),
+		"int":    data.Int(1),
+		"float":  data.Float(0.1),
+		"string": data.String("homhom"),
+		"byte":   data.Blob([]byte("madmad")),
+		"time":   data.Timestamp(time.Date(2015, time.April, 10, 10, 23, 0, 0, time.UTC)),
+		"array":  data.Array([]data.Value{data.String("saysay"), data.String("mammam")}),
+		"map": data.Map{
+			"string": data.String("homhom"),
 		},
 	}
 	tup := Tuple{

@@ -3,7 +3,6 @@ package core
 import (
 	"bytes"
 	. "github.com/smartystreets/goconvey/convey"
-	"pfi/sensorbee/sensorbee/tuple"
 	"testing"
 )
 
@@ -31,7 +30,7 @@ func TestPrintLogger(t *testing.T) {
 		})
 
 		Convey("When given dropped tuple", func() {
-			t := &tuple.Tuple{BatchID: 1}
+			t := &Tuple{BatchID: 1}
 
 			Convey("Logger should write tuple dump to Writer", func() {
 				logger.DroppedTuple(t, "for debug")

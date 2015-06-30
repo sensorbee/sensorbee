@@ -2,7 +2,7 @@ package parser
 
 import (
 	. "github.com/smartystreets/goconvey/convey"
-	"pfi/sensorbee/sensorbee/tuple"
+	"pfi/sensorbee/sensorbee/data"
 	"testing"
 )
 
@@ -12,8 +12,8 @@ func TestAssembleSourceSinkSpecs(t *testing.T) {
 
 		Convey("When the stack contains only SourceSinkParams in the given range", func() {
 			ps.PushComponent(0, 6, Raw{"PRE"})
-			ps.PushComponent(6, 7, SourceSinkParamAST{"key", tuple.String("val")})
-			ps.PushComponent(7, 8, SourceSinkParamAST{"a", tuple.String("b")})
+			ps.PushComponent(6, 7, SourceSinkParamAST{"key", data.String("val")})
+			ps.PushComponent(7, 8, SourceSinkParamAST{"a", data.String("b")})
 			ps.AssembleSourceSinkSpecs(6, 8)
 
 			Convey("Then AssembleSourceSinkSpecs transforms them into one item", func() {
@@ -30,9 +30,9 @@ func TestAssembleSourceSinkSpecs(t *testing.T) {
 						comp := top.comp.(SourceSinkSpecsAST)
 						So(len(comp.Params), ShouldEqual, 2)
 						So(comp.Params[0].Key, ShouldEqual, "key")
-						So(comp.Params[0].Value, ShouldEqual, tuple.String("val"))
+						So(comp.Params[0].Value, ShouldEqual, data.String("val"))
 						So(comp.Params[1].Key, ShouldEqual, "a")
-						So(comp.Params[1].Value, ShouldEqual, tuple.String("b"))
+						So(comp.Params[1].Value, ShouldEqual, data.String("b"))
 					})
 				})
 			})
@@ -132,9 +132,9 @@ func TestAssembleSourceSinkSpecs(t *testing.T) {
 				So(s.Params, ShouldNotBeNil)
 				So(len(s.Params), ShouldEqual, 2)
 				So(s.Params[0], ShouldResemble,
-					SourceSinkParamAST{"port", tuple.Int(8080)})
+					SourceSinkParamAST{"port", data.Int(8080)})
 				So(s.Params[1], ShouldResemble,
-					SourceSinkParamAST{"proto", tuple.String("http")})
+					SourceSinkParamAST{"proto", data.String("http")})
 			})
 		})
 	})

@@ -4,7 +4,8 @@ import (
 	"fmt"
 	"pfi/sensorbee/sensorbee/bql/parser"
 	"pfi/sensorbee/sensorbee/bql/udf"
-	"pfi/sensorbee/sensorbee/tuple"
+	"pfi/sensorbee/sensorbee/core"
+	"pfi/sensorbee/sensorbee/data"
 )
 
 type colDesc struct {
@@ -77,10 +78,10 @@ func prepareFilter(filter parser.Expression, reg udf.FunctionRegistry) (Evaluato
 //   {"alias": {"col_1": ..., "col_2": ...},
 //    "alias:meta:TS": (timestamp of the given tuple)}
 // so that the Evaluator created from a RowMeta AST struct works correctly.
-func setMetadata(where tuple.Map, alias string, t *tuple.Tuple) {
+func setMetadata(where data.Map, alias string, t *core.Tuple) {
 	// this key format is also used in ExpressionToEvaluator()
 	tsKey := fmt.Sprintf("%s:meta:%s", alias, parser.TimestampMeta)
-	where[tsKey] = tuple.Timestamp(t.Timestamp)
+	where[tsKey] = data.Timestamp(t.Timestamp)
 }
 
 // assignOutputValue writes the given Value `value` to the given
@@ -88,9 +89,9 @@ func setMetadata(where tuple.Map, alias string, t *tuple.Tuple) {
 // If the key is "*" and the value is itself a Map, its contents
 // will be "pulled up" and directly assigned to `where` (not
 // nested) in order to provide wildcard functionality.
-func assignOutputValue(where tuple.Map, key string, value tuple.Value) error {
+func assignOutputValue(where data.Map, key string, value data.Value) error {
 	if key == "*" {
-		valMap, err := tuple.AsMap(value)
+		valMap, err := data.AsMap(value)
 		if err != nil {
 			return err
 		}

@@ -2,34 +2,34 @@ package core
 
 import (
 	. "github.com/smartystreets/goconvey/convey"
-	"pfi/sensorbee/sensorbee/tuple"
+	"pfi/sensorbee/sensorbee/data"
 	"sync"
 	"sync/atomic"
 	"testing"
 )
 
-func freshTuples() []*tuple.Tuple {
-	tup1 := &tuple.Tuple{
-		Data: tuple.Map{
-			"seq": tuple.Int(1),
+func freshTuples() []*Tuple {
+	tup1 := &Tuple{
+		Data: data.Map{
+			"seq": data.Int(1),
 		},
 		InputName: "input",
 	}
 	tup2 := tup1.Copy()
-	tup2.Data["seq"] = tuple.Int(2)
+	tup2.Data["seq"] = data.Int(2)
 	tup3 := tup1.Copy()
-	tup3.Data["seq"] = tuple.Int(3)
+	tup3.Data["seq"] = data.Int(3)
 	tup4 := tup1.Copy()
-	tup4.Data["seq"] = tuple.Int(4)
+	tup4.Data["seq"] = data.Int(4)
 	tup5 := tup1.Copy()
-	tup5.Data["seq"] = tuple.Int(5)
+	tup5.Data["seq"] = data.Int(5)
 	tup6 := tup1.Copy()
-	tup6.Data["seq"] = tuple.Int(6)
+	tup6.Data["seq"] = data.Int(6)
 	tup7 := tup1.Copy()
-	tup7.Data["seq"] = tuple.Int(7)
+	tup7.Data["seq"] = data.Int(7)
 	tup8 := tup1.Copy()
-	tup8.Data["seq"] = tuple.Int(8)
-	return []*tuple.Tuple{tup1, tup2, tup3, tup4,
+	tup8.Data["seq"] = data.Int(8)
+	return []*Tuple{tup1, tup2, tup3, tup4,
 		tup5, tup6, tup7, tup8}
 }
 
@@ -70,7 +70,7 @@ type sinkCloseChecker struct {
 	closeCnt int32
 }
 
-func (s *sinkCloseChecker) Write(ctx *Context, t *tuple.Tuple) error {
+func (s *sinkCloseChecker) Write(ctx *Context, t *Tuple) error {
 	return s.s.Write(ctx, t)
 }
 

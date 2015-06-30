@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"math"
 	"pfi/sensorbee/sensorbee/core"
-	"pfi/sensorbee/sensorbee/tuple"
+	"pfi/sensorbee/sensorbee/data"
 	"reflect"
 	"time"
 )
@@ -13,7 +13,7 @@ import (
 // GenericFunc creates a new UDF from various form of functions. Arguments
 // of the function don't have to be tuple types, but some standard types are
 // allowed. The UDF returned provide a weak type conversion, that is it uses
-// tuple.To{Type} function to convert values. Therefore, a string may be
+// data.To{Type} function to convert values. Therefore, a string may be
 // passed as an integer or vice versa. If the function wants to provide
 // strict type conversion, generate UDF by Func function.
 //
@@ -23,8 +23,8 @@ import (
 //	- standard floats
 //	- string
 //	- time.Time
-//	- tuple.Bool, tuple.Int, tuple.Float, tuple.String, tuple.Blob,
-//	  tuple.Timestamp, tuple.Array, tuple.Map, tuple.Value
+//	- data.Bool, data.Int, data.Float, data.String, data.Blob,
+//	  data.Timestamp, data.Array, data.Map, data.Value
 //	- a slice of types above
 func GenericFunc(function interface{}) (UDF, error) {
 	t := reflect.TypeOf(function)
@@ -80,13 +80,13 @@ func checkGenericFuncReturnTypes(t reflect.Type) (bool, error) {
 	case 1:
 		out := t.Out(0)
 		if out.Kind() == reflect.Interface {
-			// tuple.Value is the only interface which is accepted.
-			if !out.Implements(reflect.TypeOf(tuple.NewValue).Out(0)) {
-				return false, fmt.Errorf("the return value isn't convertible to tuple.Value")
+			// data.Value is the only interface which is accepted.
+			if !out.Implements(reflect.TypeOf(data.NewValue).Out(0)) {
+				return false, fmt.Errorf("the return value isn't convertible to data.Value")
 			}
 		}
-		if _, err := tuple.NewValue(reflect.Zero(t.Out(0)).Interface()); err != nil {
-			return false, fmt.Errorf("the return value isn't convertible to tuple.Value")
+		if _, err := data.NewValue(reflect.Zero(t.Out(0)).Interface()); err != nil {
+			return false, fmt.Errorf("the return value isn't convertible to data.Value")
 		}
 
 	default:
@@ -103,19 +103,19 @@ func genericFuncHasContext(t reflect.Type) bool {
 	return reflect.TypeOf(&core.Context{}).AssignableTo(c)
 }
 
-type argumentConverter func(tuple.Value) (interface{}, error)
+type argumentConverter func(data.Value) (interface{}, error)
 
 func genericFuncArgumentConverter(t reflect.Type) (argumentConverter, error) {
 	// TODO: this function is too long.
 	switch t.Kind() {
 	case reflect.Bool:
-		return func(v tuple.Value) (interface{}, error) {
-			return tuple.ToBool(v)
+		return func(v data.Value) (interface{}, error) {
+			return data.ToBool(v)
 		}, nil
 
 	case reflect.Int:
-		return func(v tuple.Value) (interface{}, error) {
-			i, err := tuple.ToInt(v)
+		return func(v data.Value) (interface{}, error) {
+			i, err := data.ToInt(v)
 			if err != nil {
 				return nil, err
 			}
@@ -129,8 +129,8 @@ func genericFuncArgumentConverter(t reflect.Type) (argumentConverter, error) {
 		}, nil
 
 	case reflect.Int8:
-		return func(v tuple.Value) (interface{}, error) {
-			i, err := tuple.ToInt(v)
+		return func(v data.Value) (interface{}, error) {
+			i, err := data.ToInt(v)
 			if err != nil {
 				return nil, err
 			}
@@ -144,8 +144,8 @@ func genericFuncArgumentConverter(t reflect.Type) (argumentConverter, error) {
 		}, nil
 
 	case reflect.Int16:
-		return func(v tuple.Value) (interface{}, error) {
-			i, err := tuple.ToInt(v)
+		return func(v data.Value) (interface{}, error) {
+			i, err := data.ToInt(v)
 			if err != nil {
 				return nil, err
 			}
@@ -159,8 +159,8 @@ func genericFuncArgumentConverter(t reflect.Type) (argumentConverter, error) {
 		}, nil
 
 	case reflect.Int32:
-		return func(v tuple.Value) (interface{}, error) {
-			i, err := tuple.ToInt(v)
+		return func(v data.Value) (interface{}, error) {
+			i, err := data.ToInt(v)
 			if err != nil {
 				return nil, err
 			}
@@ -174,13 +174,13 @@ func genericFuncArgumentConverter(t reflect.Type) (argumentConverter, error) {
 		}, nil
 
 	case reflect.Int64:
-		return func(v tuple.Value) (interface{}, error) {
-			return tuple.ToInt(v)
+		return func(v data.Value) (interface{}, error) {
+			return data.ToInt(v)
 		}, nil
 
 	case reflect.Uint:
-		return func(v tuple.Value) (interface{}, error) {
-			i, err := tuple.ToInt(v)
+		return func(v data.Value) (interface{}, error) {
+			i, err := data.ToInt(v)
 			if err != nil {
 				return nil, err
 			}
@@ -194,8 +194,8 @@ func genericFuncArgumentConverter(t reflect.Type) (argumentConverter, error) {
 		}, nil
 
 	case reflect.Uint8:
-		return func(v tuple.Value) (interface{}, error) {
-			i, err := tuple.ToInt(v)
+		return func(v data.Value) (interface{}, error) {
+			i, err := data.ToInt(v)
 			if err != nil {
 				return nil, err
 			}
@@ -209,8 +209,8 @@ func genericFuncArgumentConverter(t reflect.Type) (argumentConverter, error) {
 		}, nil
 
 	case reflect.Uint16:
-		return func(v tuple.Value) (interface{}, error) {
-			i, err := tuple.ToInt(v)
+		return func(v data.Value) (interface{}, error) {
+			i, err := data.ToInt(v)
 			if err != nil {
 				return nil, err
 			}
@@ -224,8 +224,8 @@ func genericFuncArgumentConverter(t reflect.Type) (argumentConverter, error) {
 		}, nil
 
 	case reflect.Uint32:
-		return func(v tuple.Value) (interface{}, error) {
-			i, err := tuple.ToInt(v)
+		return func(v data.Value) (interface{}, error) {
+			i, err := data.ToInt(v)
 			if err != nil {
 				return nil, err
 			}
@@ -239,8 +239,8 @@ func genericFuncArgumentConverter(t reflect.Type) (argumentConverter, error) {
 		}, nil
 
 	case reflect.Uint64:
-		return func(v tuple.Value) (interface{}, error) {
-			i, err := tuple.ToInt(v)
+		return func(v data.Value) (interface{}, error) {
+			i, err := data.ToInt(v)
 			if err != nil {
 				return nil, err
 			}
@@ -252,8 +252,8 @@ func genericFuncArgumentConverter(t reflect.Type) (argumentConverter, error) {
 		}, nil
 
 	case reflect.Float32:
-		return func(v tuple.Value) (interface{}, error) {
-			f, err := tuple.ToFloat(v)
+		return func(v data.Value) (interface{}, error) {
+			f, err := data.ToFloat(v)
 			if err != nil {
 				return nil, err
 			}
@@ -261,21 +261,21 @@ func genericFuncArgumentConverter(t reflect.Type) (argumentConverter, error) {
 		}, nil
 
 	case reflect.Float64:
-		return func(v tuple.Value) (interface{}, error) {
-			return tuple.ToFloat(v)
+		return func(v data.Value) (interface{}, error) {
+			return data.ToFloat(v)
 		}, nil
 
 	case reflect.String:
-		return func(v tuple.Value) (interface{}, error) {
-			return tuple.ToString(v)
+		return func(v data.Value) (interface{}, error) {
+			return data.ToString(v)
 		}, nil
 
 	case reflect.Slice:
 		elemType := t.Elem()
 		if elemType.Kind() == reflect.Uint8 {
 			// process this as a blob
-			return func(v tuple.Value) (interface{}, error) {
-				return tuple.ToBlob(v)
+			return func(v data.Value) (interface{}, error) {
+				return data.ToBlob(v)
 			}, nil
 		}
 
@@ -283,8 +283,8 @@ func genericFuncArgumentConverter(t reflect.Type) (argumentConverter, error) {
 		if err != nil {
 			return nil, err
 		}
-		return func(v tuple.Value) (interface{}, error) {
-			a, err := tuple.AsArray(v)
+		return func(v data.Value) (interface{}, error) {
+			a, err := data.AsArray(v)
 			if err != nil {
 				return nil, err
 			}
@@ -301,20 +301,20 @@ func genericFuncArgumentConverter(t reflect.Type) (argumentConverter, error) {
 
 	default:
 		switch reflect.Zero(t).Interface().(type) {
-		case tuple.Map:
-			return func(v tuple.Value) (interface{}, error) {
-				return tuple.AsMap(v)
+		case data.Map:
+			return func(v data.Value) (interface{}, error) {
+				return data.AsMap(v)
 			}, nil
 
 		case time.Time:
-			return func(v tuple.Value) (interface{}, error) {
-				return tuple.ToTimestamp(v)
+			return func(v data.Value) (interface{}, error) {
+				return data.ToTimestamp(v)
 			}, nil
 
 		default:
-			if t.Implements(reflect.TypeOf(tuple.NewValue).Out(0)) { // tuple.Value
+			if t.Implements(reflect.TypeOf(data.NewValue).Out(0)) { // data.Value
 				// Zero(interface) returns nil and type assertion doesn't work for it.
-				return func(v tuple.Value) (interface{}, error) {
+				return func(v data.Value) (interface{}, error) {
 					return v, nil
 				}, nil
 			}
@@ -339,7 +339,7 @@ type genericFunc struct {
 	converters []argumentConverter
 }
 
-func (g *genericFunc) Call(ctx *core.Context, args ...tuple.Value) (tuple.Value, error) {
+func (g *genericFunc) Call(ctx *core.Context, args ...data.Value) (data.Value, error) {
 	out, err := g.call(ctx, args...)
 	if err != nil {
 		return nil, err
@@ -350,10 +350,10 @@ func (g *genericFunc) Call(ctx *core.Context, args ...tuple.Value) (tuple.Value,
 			return nil, out[1].Interface().(error)
 		}
 	}
-	return tuple.NewValue(out[0].Interface())
+	return data.NewValue(out[0].Interface())
 }
 
-func (g *genericFunc) call(ctx *core.Context, args ...tuple.Value) ([]reflect.Value, error) {
+func (g *genericFunc) call(ctx *core.Context, args ...data.Value) ([]reflect.Value, error) {
 	if len(args) < g.arity {
 		if g.variadic && len(args) == g.arity-1 {
 			// having no variadic parameter is ok.

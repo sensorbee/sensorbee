@@ -2,7 +2,7 @@ package parser
 
 import (
 	. "github.com/smartystreets/goconvey/convey"
-	"pfi/sensorbee/sensorbee/tuple"
+	"pfi/sensorbee/sensorbee/data"
 	"testing"
 )
 
@@ -13,8 +13,8 @@ func TestAssembleCreateSource(t *testing.T) {
 			ps.PushComponent(0, 2, Yes)
 			ps.PushComponent(2, 4, StreamIdentifier("a"))
 			ps.PushComponent(4, 6, SourceSinkType("b"))
-			ps.PushComponent(6, 8, SourceSinkParamAST{"c", tuple.String("d")})
-			ps.PushComponent(8, 10, SourceSinkParamAST{"e", tuple.String("f")})
+			ps.PushComponent(6, 8, SourceSinkParamAST{"c", data.String("d")})
+			ps.PushComponent(8, 10, SourceSinkParamAST{"e", data.String("f")})
 			ps.AssembleSourceSinkSpecs(6, 10)
 			ps.AssembleCreateSource()
 
@@ -35,9 +35,9 @@ func TestAssembleCreateSource(t *testing.T) {
 						So(comp.Type, ShouldEqual, "b")
 						So(len(comp.Params), ShouldEqual, 2)
 						So(comp.Params[0].Key, ShouldEqual, "c")
-						So(comp.Params[0].Value, ShouldEqual, tuple.String("d"))
+						So(comp.Params[0].Value, ShouldEqual, data.String("d"))
 						So(comp.Params[1].Key, ShouldEqual, "e")
-						So(comp.Params[1].Value, ShouldEqual, tuple.String("f"))
+						So(comp.Params[1].Value, ShouldEqual, data.String("f"))
 					})
 				})
 			})
@@ -55,8 +55,8 @@ func TestAssembleCreateSource(t *testing.T) {
 			ps.PushComponent(0, 2, Yes)
 			ps.PushComponent(2, 4, Raw{"a"}) // must be StreamIdentifier
 			ps.PushComponent(4, 6, SourceSinkType("b"))
-			ps.PushComponent(6, 8, SourceSinkParamAST{"c", tuple.String("d")})
-			ps.PushComponent(8, 10, SourceSinkParamAST{"e", tuple.String("f")})
+			ps.PushComponent(6, 8, SourceSinkParamAST{"c", data.String("d")})
+			ps.PushComponent(8, 10, SourceSinkParamAST{"e", data.String("f")})
 			ps.AssembleSourceSinkSpecs(6, 10)
 
 			Convey("Then AssembleCreateSource panics", func() {
@@ -88,9 +88,9 @@ func TestAssembleCreateSource(t *testing.T) {
 				So(comp.Type, ShouldEqual, "b_b")
 				So(len(comp.Params), ShouldEqual, 2)
 				So(comp.Params[0].Key, ShouldEqual, "c")
-				So(comp.Params[0].Value, ShouldEqual, tuple.Int(27))
+				So(comp.Params[0].Value, ShouldEqual, data.Int(27))
 				So(comp.Params[1].Key, ShouldEqual, "e_")
-				So(comp.Params[1].Value, ShouldEqual, tuple.String("f_1"))
+				So(comp.Params[1].Value, ShouldEqual, data.String("f_1"))
 			})
 		})
 	})

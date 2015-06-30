@@ -4,7 +4,8 @@ import (
 	"fmt"
 	"pfi/sensorbee/sensorbee/bql/parser"
 	"pfi/sensorbee/sensorbee/bql/udf"
-	"pfi/sensorbee/sensorbee/tuple"
+	"pfi/sensorbee/sensorbee/core"
+	"pfi/sensorbee/sensorbee/data"
 	"reflect"
 	"time"
 )
@@ -22,14 +23,14 @@ type defaultSelectExecutionPlan struct {
 	// Process() is called with a new tuple.
 	buffers map[string]*inputBuffer
 	// curResults holds results of a query over the buffer.
-	curResults []tuple.Map
+	curResults []data.Map
 	// prevResults holds results of a query over the buffer
 	// in the previous execution run.
-	prevResults []tuple.Map
+	prevResults []data.Map
 }
 
 type inputBuffer struct {
-	tuples     []*tuple.Tuple
+	tuples     []*core.Tuple
 	windowSize int64
 	windowType parser.IntervalUnit
 }
@@ -68,13 +69,13 @@ func NewDefaultSelectExecutionPlan(lp *LogicalPlan, reg udf.FunctionRegistry) (E
 	// initialize buffers (one per declared input relation)
 	buffers := make(map[string]*inputBuffer, len(lp.Relations))
 	for _, rel := range lp.Relations {
-		var tuples []*tuple.Tuple
+		var tuples []*core.Tuple
 		rangeValue := rel.Value
 		rangeUnit := rel.Unit
 		if rangeUnit == parser.Tuples {
 			// we already know the required capacity of this buffer
 			// if we work with absolute numbers
-			tuples = make([]*tuple.Tuple, 0, rangeValue+1)
+			tuples = make([]*core.Tuple, 0, rangeValue+1)
 		}
 		// the alias of the relation is the key of the buffer
 		buffers[rel.Alias] = &inputBuffer{
@@ -106,8 +107,8 @@ func NewDefaultSelectExecutionPlan(lp *LogicalPlan, reg udf.FunctionRegistry) (E
 		emitCounters: emitCounters,
 		relations:    lp.Relations,
 		buffers:      buffers,
-		curResults:   []tuple.Map{},
-		prevResults:  []tuple.Map{},
+		curResults:   []data.Map{},
+		prevResults:  []data.Map{},
 	}, nil
 }
 
@@ -115,7 +116,7 @@ func NewDefaultSelectExecutionPlan(lp *LogicalPlan, reg udf.FunctionRegistry) (E
 // correspond to the results of the query represented by this execution
 // plan. Note that the order of items in the returned slice is undefined
 // and cannot be relied on.
-func (ep *defaultSelectExecutionPlan) Process(input *tuple.Tuple) ([]tuple.Map, error) {
+func (ep *defaultSelectExecutionPlan) Process(input *core.Tuple) ([]data.Map, error) {
 	// stream-to-relation:
 	// updates the internal buffer with correct window data
 	if err := ep.addTupleToBuffer(input); err != nil {
@@ -146,7 +147,7 @@ func (ep *defaultSelectExecutionPlan) Process(input *tuple.Tuple) ([]tuple.Map, 
 // Note that after calling this function, these buffers may hold more
 // items than allowed by the window specification, so a call to
 // removeOutdatedTuplesFromBuffer is necessary afterwards.
-func (ep *defaultSelectExecutionPlan) addTupleToBuffer(t *tuple.Tuple) error {
+func (ep *defaultSelectExecutionPlan) addTupleToBuffer(t *core.Tuple) error {
 	// we need to append this tuple to all buffers where the input name
 	// matches the relation name, so first we count the those buffers
 	// (for `FROM a AS left, a AS right`, this tuple will be
@@ -177,7 +178,7 @@ func (ep *defaultSelectExecutionPlan) addTupleToBuffer(t *tuple.Tuple) error {
 				editTuple = t.Copy()
 			}
 			// nest the data in a one-element map using the alias as the key
-			editTuple.Data = tuple.Map{rel.Alias: editTuple.Data}
+			editTuple.Data = data.Map{rel.Alias: editTuple.Data}
 			// TODO maybe a slice is not the best implementation for a queue?
 			bufferPtr := ep.buffers[rel.Alias]
 			bufferPtr.tuples = append(bufferPtr.tuples, editTuple)
@@ -203,7 +204,7 @@ func (ep *defaultSelectExecutionPlan) removeOutdatedTuplesFromBuffer(curTupTime 
 		} else if buffer.windowType == parser.Seconds { // time-based window
 			// copy all "sufficiently new" tuples to new buffer
 			// TODO avoid the reallocation here
-			newBuf := make([]*tuple.Tuple, 0, curBufSize)
+			newBuf := make([]*core.Tuple, 0, curBufSize)
 			for _, tup := range buffer.tuples {
 				dur := curTupTime.Sub(tup.Timestamp)
 				if dur.Seconds() <= float64(buffer.windowSize) {
@@ -221,7 +222,7 @@ func (ep *defaultSelectExecutionPlan) removeOutdatedTuplesFromBuffer(curTupTime 
 
 // shouldEmitNow returns true if the input tuple should trigger
 // computation of output values.
-func (ep *defaultSelectExecutionPlan) shouldEmitNow(t *tuple.Tuple) bool {
+func (ep *defaultSelectExecutionPlan) shouldEmitNow(t *core.Tuple) bool {
 	// first check if we have a stream-independent rule
 	// (e.g., `RSTREAM` or `RSTREAM [EVERY 2 TUPLES]`)
 	if interval, ok := ep.emitterRules["*"]; ok {
@@ -253,7 +254,7 @@ func (ep *defaultSelectExecutionPlan) shouldEmitNow(t *tuple.Tuple) bool {
 
 // performQueryOnBuffer executes a SELECT query on the data of the tuples
 // currently stored in the buffer. The query results (which is a set of
-// tuple.Value, not tuple.Tuple) is stored in ep.curResults. The data
+// data.Value, not core.Tuple) is stored in ep.curResults. The data
 // that was stored in ep.curResults before this method was called is
 // moved to ep.prevResults. Note that the order of values in ep.curResults
 // is undefined.
@@ -276,13 +277,13 @@ func (ep *defaultSelectExecutionPlan) performQueryOnBuffer() error {
 	//  {"streamA": {data}, "streamB": {data}, "streamC": {data}}
 	// and then run filter/projections on each of this items
 
-	dataHolder := tuple.Map{}
+	dataHolder := data.Map{}
 
 	// function to compute cartesian product and do something on each
 	// resulting item
-	var procCartProd func([]string, func(tuple.Map) error) error
+	var procCartProd func([]string, func(data.Map) error) error
 
-	procCartProd = func(remainingKeys []string, processItem func(tuple.Map) error) error {
+	procCartProd = func(remainingKeys []string, processItem func(data.Map) error) error {
 		if len(remainingKeys) > 0 {
 			// not all buffers have been visited yet
 			myKey := remainingKeys[0]
@@ -310,14 +311,14 @@ func (ep *defaultSelectExecutionPlan) performQueryOnBuffer() error {
 	// function to evaluate filter on the input data and -- if the filter does
 	// not exist or evaluates to true -- compute the projections and store
 	// the result in the `output` slice
-	evalItem := func(data tuple.Map) error {
+	evalItem := func(d data.Map) error {
 		// evaluate filter condition and convert to bool
 		if ep.filter != nil {
-			filterResult, err := ep.filter.Eval(data)
+			filterResult, err := ep.filter.Eval(d)
 			if err != nil {
 				return err
 			}
-			filterResultBool, err := tuple.ToBool(filterResult)
+			filterResultBool, err := data.ToBool(filterResult)
 			if err != nil {
 				return err
 			}
@@ -327,9 +328,9 @@ func (ep *defaultSelectExecutionPlan) performQueryOnBuffer() error {
 			}
 		}
 		// otherwise, compute all the expressions
-		result := tuple.Map(make(map[string]tuple.Value, len(ep.projections)))
+		result := data.Map(make(map[string]data.Value, len(ep.projections)))
 		for _, proj := range ep.projections {
-			value, err := proj.evaluator.Eval(data)
+			value, err := proj.evaluator.Eval(d)
 			if err != nil {
 				return err
 			}
@@ -376,9 +377,9 @@ func (ep *defaultSelectExecutionPlan) performQueryOnBuffer() error {
 // Currently there is no support for multiplicities, i.e., if an item
 // is 3 times in `new` and 1 time in `old` it will *not* be contained
 // in the result set.
-func (ep *defaultSelectExecutionPlan) computeResultTuples() ([]tuple.Map, error) {
+func (ep *defaultSelectExecutionPlan) computeResultTuples() ([]data.Map, error) {
 	// TODO turn this into an iterator/generator pattern
-	var output []tuple.Map
+	var output []data.Map
 	if ep.emitterType == parser.Rstream {
 		// emit all tuples
 		for _, res := range ep.curResults {

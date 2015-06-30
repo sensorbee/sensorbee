@@ -1,7 +1,6 @@
 package core
 
 import (
-	"pfi/sensorbee/sensorbee/tuple"
 	"sync/atomic"
 )
 
@@ -95,7 +94,7 @@ func (l LogLevel) String() string {
 // mismatch), but not grave enough to abort the whole process.
 type LogManager interface {
 	Log(level LogLevel, msg string, a ...interface{})
-	DroppedTuple(t *tuple.Tuple, msg string, a ...interface{})
+	DroppedTuple(t *Tuple, msg string, a ...interface{})
 }
 
 // Configuration is an arrangement of SensorBee processing settings.
