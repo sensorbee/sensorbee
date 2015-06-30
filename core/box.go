@@ -165,12 +165,12 @@ func newBoxWriterAdapter(b Box, name string, dst WriteCloser) *boxWriterAdapter 
 		box:  b,
 		name: name,
 		// An output traces is written just after the box Process writes a tuple.
-		dst: newTraceWriter(dst, Output, name),
+		dst: newTraceWriter(dst, ETOutput, name),
 	}
 }
 
 func (wa *boxWriterAdapter) Write(ctx *Context, t *Tuple) error {
-	tracing(t, ctx, Input, wa.name)
+	tracing(t, ctx, ETInput, wa.name)
 	return wa.box.Process(ctx, t, wa.dst)
 }
 

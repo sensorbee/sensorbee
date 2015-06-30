@@ -46,7 +46,7 @@ func (ds *defaultSourceNode) run() error {
 		return err
 	}
 
-	return ds.source.GenerateStream(ds.topology.ctx, newTraceWriter(ds.dsts, Output, ds.name))
+	return ds.source.GenerateStream(ds.topology.ctx, newTraceWriter(ds.dsts, ETOutput, ds.name))
 }
 
 func (ds *defaultSourceNode) Stop() error {
