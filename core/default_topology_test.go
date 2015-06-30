@@ -659,6 +659,16 @@ func TestLinearDefaultTopology(t *testing.T) {
 				So(bn1.State().Wait(TSStopped), ShouldEqual, TSStopped)
 			})
 		})
+
+		Convey("When only b1 stops on outbound disconnection and the sink is stopped", func() {
+			bn1.StopOnDisconnect(Outbound)
+			So(sin.Stop(), ShouldBeNil)
+
+			Convey("Then bn2.StopOnDisconnect should eventually stop bn1", func() {
+				bn2.StopOnDisconnect(Outbound)
+				So(bn1.State().Wait(TSStopped), ShouldEqual, TSStopped)
+			})
+		})
 	})
 }
 
