@@ -66,9 +66,9 @@ type Box interface {
 type StatefulBox interface {
 	Box
 
-	// Init is called on each Box in a Topology when StaticTopology.Run()
-	// is executed. It can be used to keep a reference to the Context
-	// object or initialize other forms of state.
+	// Init is called on each Box in a Topology when Topology.Add is called.
+	// It can be used to keep a reference to the Context object or initialize
+	// other forms of state.
 	//
 	// When the same instance of the box is added to a topology more than
 	// once, Init will be called multiple times.

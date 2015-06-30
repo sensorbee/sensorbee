@@ -8,11 +8,9 @@ import (
 	"time"
 )
 
-// TestDefaultStaticTopologyTupleProcessing tests that tuples are correctly
-// processed by boxes in various topologies. This is very similar to
-// TestDefaultStaticTopologyTupleTransport but with a focus on box processing
-// results.
-func TestDefaultStaticTopologyTupleProcessing(t *testing.T) {
+// TestDefaultTopologyTupleProcessing tests that tuples are correctly
+// processed by boxes in various topologies.
+func TestDefaultTopologyTupleProcessing(t *testing.T) {
 	tup1 := &tuple.Tuple{
 		Data: tuple.Map{
 			"source": tuple.String("value"),
