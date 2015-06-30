@@ -5,6 +5,8 @@ type defaultBoxNode struct {
 	srcs *dataSources
 	box  Box
 	dsts *dataDestinations
+
+	stopOnOutboundDisconnect bool
 }
 
 func (db *defaultBoxNode) Type() NodeType {
@@ -71,8 +73,18 @@ func (db *defaultBoxNode) EnableGracefulStop() {
 	db.srcs.enableGracefulStop()
 }
 
-func (db *defaultBoxNode) StopOnDisconnect() {
-	db.srcs.stopOnDisconnect()
+func (db *defaultBoxNode) StopOnDisconnect(dir ConnDir) {
+	if dir&Inbound != 0 {
+		db.srcs.stopOnDisconnect()
+	} else if dir&Outbound != 0 {
+		db.stateMutex.Lock()
+		db.stopOnOutboundDisconnect = true
+		db.stateMutex.Unlock()
+
+		if db.dsts.len() == 0 {
+			db.stop()
+		}
+	}
 }
 
 func (db *defaultBoxNode) stop() {
@@ -87,4 +99,17 @@ func (db *defaultBoxNode) stop() {
 
 func (db *defaultBoxNode) destinations() *dataDestinations {
 	return db.dsts
+}
+
+func (db *defaultBoxNode) dstCallback(e ddEvent) {
+	switch e {
+	case ddeDisconnect:
+		db.stateMutex.Lock()
+		shouldStop := db.stopOnOutboundDisconnect
+		db.stateMutex.Unlock()
+
+		if shouldStop {
+			db.stop()
+		}
+	}
 }

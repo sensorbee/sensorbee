@@ -109,7 +109,7 @@ func (tb *TopologyBuilder) AddStmt(stmt interface{}) (core.Node, error) {
 				return nil, err
 			}
 		}
-		dbox.(core.BoxNode).StopOnDisconnect()
+		dbox.(core.BoxNode).StopOnDisconnect(core.Inbound)
 		return dbox, nil
 
 	case parser.CreateSinkStmt:
@@ -190,7 +190,7 @@ func (tb *TopologyBuilder) AddStmt(stmt interface{}) (core.Node, error) {
 		if err != nil {
 			return nil, err
 		}
-		box.(core.BoxNode).StopOnDisconnect()
+		box.(core.BoxNode).StopOnDisconnect(core.Inbound)
 
 		// now connect the sink to that box
 		if err := sink.Input(tmpName, nil); err != nil {
