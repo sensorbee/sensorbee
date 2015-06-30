@@ -2,13 +2,12 @@ package core
 
 import (
 	"fmt"
-	"pfi/sensorbee/sensorbee/tuple"
 	"reflect"
 	"sync"
 )
 
 func newPipe(inputName string, capacity int) (*pipeReceiver, *pipeSender) {
-	p := make(chan *tuple.Tuple, capacity) // TODO: the type should be chan []*tuple.Tuple
+	p := make(chan *Tuple, capacity) // TODO: the type should be chan []*Tuple
 
 	r := &pipeReceiver{
 		in: p,
@@ -23,7 +22,7 @@ func newPipe(inputName string, capacity int) (*pipeReceiver, *pipeSender) {
 }
 
 type pipeReceiver struct {
-	in     <-chan *tuple.Tuple
+	in     <-chan *Tuple
 	sender *pipeSender
 }
 
@@ -43,7 +42,7 @@ func (r *pipeReceiver) close() {
 
 type pipeSender struct {
 	inputName   string
-	out         chan<- *tuple.Tuple
+	out         chan<- *Tuple
 	inputClosed <-chan struct{}
 
 	// rwm protects out from write-close conflicts.
@@ -53,7 +52,7 @@ type pipeSender struct {
 
 // Write outputs the given tuple to the pipe. This method only returns
 // errPipeClosed and never panics.
-func (s *pipeSender) Write(ctx *Context, t *tuple.Tuple) error {
+func (s *pipeSender) Write(ctx *Context, t *Tuple) error {
 	s.rwm.RLock()
 	defer s.rwm.RUnlock()
 
@@ -417,7 +416,7 @@ receiveLoop:
 			break receiveLoop
 
 		default:
-			t, ok := v.Interface().(*tuple.Tuple)
+			t, ok := v.Interface().(*Tuple)
 			if !ok {
 				ctx.Logger.Log(Error, "Cannot receive a tuple from a receiver due to a type error")
 				break
@@ -529,7 +528,7 @@ func (d *dataDestinations) remove(name string) {
 
 // Write writes tuples to destinations. It doesn't return any error including
 // errPipeClosed.
-func (d *dataDestinations) Write(ctx *Context, t *tuple.Tuple) error {
+func (d *dataDestinations) Write(ctx *Context, t *Tuple) error {
 	d.rwm.RLock()
 	shouldUnlock := true
 	defer func() {

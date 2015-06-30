@@ -1,11 +1,10 @@
 package core
 
 import (
-	"pfi/sensorbee/sensorbee/tuple"
 	"time"
 )
 
-func tracing(t *tuple.Tuple, ctx *Context, inout tuple.EventType, msg string) {
+func tracing(t *Tuple, ctx *Context, inout EventType, msg string) {
 	if !ctx.IsTupleTraceEnabled() {
 		return
 	}
@@ -13,8 +12,8 @@ func tracing(t *tuple.Tuple, ctx *Context, inout tuple.EventType, msg string) {
 	t.AddEvent(ev)
 }
 
-func newDefaultEvent(inout tuple.EventType, msg string) tuple.TraceEvent {
-	return tuple.TraceEvent{
+func newDefaultEvent(inout EventType, msg string) TraceEvent {
+	return TraceEvent{
 		time.Now(),
 		inout,
 		msg,
@@ -23,11 +22,11 @@ func newDefaultEvent(inout tuple.EventType, msg string) tuple.TraceEvent {
 
 type traceWriter struct {
 	w     WriteCloser
-	inout tuple.EventType
+	inout EventType
 	msg   string
 }
 
-func newTraceWriter(w WriteCloser, inout tuple.EventType, msg string) *traceWriter {
+func newTraceWriter(w WriteCloser, inout EventType, msg string) *traceWriter {
 	return &traceWriter{
 		w:     w,
 		inout: inout,
@@ -35,7 +34,7 @@ func newTraceWriter(w WriteCloser, inout tuple.EventType, msg string) *traceWrit
 	}
 }
 
-func (tw *traceWriter) Write(ctx *Context, t *tuple.Tuple) error {
+func (tw *traceWriter) Write(ctx *Context, t *Tuple) error {
 	tracing(t, ctx, tw.inout, tw.msg)
 	return tw.w.Write(ctx, t)
 }

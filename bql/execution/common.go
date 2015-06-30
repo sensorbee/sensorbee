@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"pfi/sensorbee/sensorbee/bql/parser"
 	"pfi/sensorbee/sensorbee/bql/udf"
+	"pfi/sensorbee/sensorbee/core"
 	"pfi/sensorbee/sensorbee/tuple"
 )
 
@@ -77,7 +78,7 @@ func prepareFilter(filter parser.Expression, reg udf.FunctionRegistry) (Evaluato
 //   {"alias": {"col_1": ..., "col_2": ...},
 //    "alias:meta:TS": (timestamp of the given tuple)}
 // so that the Evaluator created from a RowMeta AST struct works correctly.
-func setMetadata(where tuple.Map, alias string, t *tuple.Tuple) {
+func setMetadata(where tuple.Map, alias string, t *core.Tuple) {
 	// this key format is also used in ExpressionToEvaluator()
 	tsKey := fmt.Sprintf("%s:meta:%s", alias, parser.TimestampMeta)
 	where[tsKey] = tuple.Timestamp(t.Timestamp)

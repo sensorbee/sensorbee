@@ -33,7 +33,7 @@ func (s *stubSharedState) Init(ctx *Context) error {
 	return nil
 }
 
-func (s *stubSharedState) Write(ctx *Context, t *tuple.Tuple) error {
+func (s *stubSharedState) Write(ctx *Context, t *Tuple) error {
 	return nil
 }
 
@@ -229,7 +229,7 @@ func (c *countingSharedState) Init(ctx *Context) error {
 	return nil
 }
 
-func (c *countingSharedState) Write(ctx *Context, t *tuple.Tuple) error {
+func (c *countingSharedState) Write(ctx *Context, t *Tuple) error {
 	i, _ := tuple.ToInt(t.Data["n"])
 	atomic.AddInt32(&c.cnt, int32(i))
 	return nil
@@ -252,9 +252,9 @@ func TestSharedStateInTopology(t *testing.T) {
 			t.Stop()
 		})
 
-		ts := []*tuple.Tuple{}
+		ts := []*Tuple{}
 		for i := 0; i < 4; i++ {
-			ts = append(ts, &tuple.Tuple{
+			ts = append(ts, &Tuple{
 				Data: tuple.Map{
 					"n": tuple.Int(i + 1),
 				},
@@ -266,7 +266,7 @@ func TestSharedStateInTopology(t *testing.T) {
 		})
 		So(err, ShouldBeNil)
 
-		b1 := BoxFunc(func(ctx *Context, t *tuple.Tuple, w Writer) error {
+		b1 := BoxFunc(func(ctx *Context, t *Tuple, w Writer) error {
 			s, err := ctx.GetSharedState("test_counter")
 			if err != nil {
 				return err
@@ -278,7 +278,7 @@ func TestSharedStateInTopology(t *testing.T) {
 		So(err, ShouldBeNil)
 		So(bn1.Input("source", nil), ShouldBeNil)
 
-		b2 := BoxFunc(func(ctx *Context, t *tuple.Tuple, w Writer) error {
+		b2 := BoxFunc(func(ctx *Context, t *Tuple, w Writer) error {
 			s, err := ctx.GetSharedState("test_counter")
 			if err != nil {
 				return err

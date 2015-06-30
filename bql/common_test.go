@@ -61,7 +61,7 @@ func (s *dummyUDS) Init(ctx *core.Context) error {
 	return nil
 }
 
-func (s *dummyUDS) Write(ctx *core.Context, t *tuple.Tuple) error {
+func (s *dummyUDS) Write(ctx *core.Context, t *core.Tuple) error {
 	return nil
 }
 

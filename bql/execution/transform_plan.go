@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"pfi/sensorbee/sensorbee/bql/parser"
 	"pfi/sensorbee/sensorbee/bql/udf"
+	"pfi/sensorbee/sensorbee/core"
 	"pfi/sensorbee/sensorbee/tuple"
 	"strings"
 )
@@ -41,7 +42,7 @@ type ExecutionPlan interface {
 	//
 	// NB. Process is not thread-safe, i.e., it must be called in
 	// a single-threaded context.
-	Process(input *tuple.Tuple) ([]tuple.Map, error)
+	Process(input *core.Tuple) ([]tuple.Map, error)
 }
 
 func Analyze(s parser.CreateStreamAsSelectStmt) (*LogicalPlan, error) {

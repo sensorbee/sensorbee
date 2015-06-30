@@ -3,6 +3,7 @@ package execution
 import (
 	"pfi/sensorbee/sensorbee/bql/parser"
 	"pfi/sensorbee/sensorbee/bql/udf"
+	"pfi/sensorbee/sensorbee/core"
 	"pfi/sensorbee/sensorbee/tuple"
 	"reflect"
 )
@@ -51,7 +52,7 @@ func NewFilterIstreamPlan(lp *LogicalPlan, reg udf.FunctionRegistry) (ExecutionP
 	}, lp.Relations[0].Alias, rangeValue, make([]tuple.Map, 0, rangeValue), 0}, nil
 }
 
-func (ep *filterIstreamPlan) Process(input *tuple.Tuple) ([]tuple.Map, error) {
+func (ep *filterIstreamPlan) Process(input *core.Tuple) ([]tuple.Map, error) {
 	// remove the oldest item from prevResults after it has once
 	// been filled completely
 	if ep.procItems >= ep.windowSize {
