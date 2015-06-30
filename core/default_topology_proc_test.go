@@ -2,7 +2,7 @@ package core
 
 import (
 	. "github.com/smartystreets/goconvey/convey"
-	"pfi/sensorbee/sensorbee/tuple"
+	"pfi/sensorbee/sensorbee/data"
 	"strings"
 	"testing"
 	"time"
@@ -12,8 +12,8 @@ import (
 // processed by boxes in various topologies.
 func TestDefaultTopologyTupleProcessing(t *testing.T) {
 	tup1 := &Tuple{
-		Data: tuple.Map{
-			"source": tuple.String("value"),
+		Data: data.Map{
+			"source": data.String("value"),
 		},
 		InputName:     "input",
 		Timestamp:     time.Date(2015, time.April, 10, 10, 23, 0, 0, time.UTC),
@@ -21,8 +21,8 @@ func TestDefaultTopologyTupleProcessing(t *testing.T) {
 		BatchID:       7,
 	}
 	tup2 := &Tuple{
-		Data: tuple.Map{
-			"source": tuple.String("hoge"),
+		Data: data.Map{
+			"source": data.String("hoge"),
 		},
 		InputName:     "input",
 		Timestamp:     time.Date(2015, time.April, 10, 10, 23, 1, 0, time.UTC),
@@ -281,16 +281,16 @@ func TestDefaultTopologyTupleProcessing(t *testing.T) {
 
 func toUpper(ctx *Context, t *Tuple, w Writer) error {
 	x, _ := t.Data.Get("source")
-	s, _ := tuple.AsString(x)
-	t.Data["to-upper"] = tuple.String(strings.ToUpper(s))
+	s, _ := data.AsString(x)
+	t.Data["to-upper"] = data.String(strings.ToUpper(s))
 	w.Write(ctx, t)
 	return nil
 }
 
 func addSuffix(ctx *Context, t *Tuple, w Writer) error {
 	x, _ := t.Data.Get("source")
-	s, _ := tuple.AsString(x)
-	t.Data["add-suffix"] = tuple.String(s + "_1")
+	s, _ := data.AsString(x)
+	t.Data["add-suffix"] = data.String(s + "_1")
 	w.Write(ctx, t)
 	return nil
 }
@@ -335,13 +335,13 @@ func (s *TupleContentsCollectorSink) Write(ctx *Context, t *Tuple) (err error) {
 
 	x, err := t.Data.Get("to-upper")
 	if err == nil {
-		str, _ := tuple.AsString(x)
+		str, _ := data.AsString(x)
 		s.uppercaseResults = append(s.uppercaseResults, str)
 	}
 
 	x, err = t.Data.Get("add-suffix")
 	if err == nil {
-		str, _ := tuple.AsString(x)
+		str, _ := data.AsString(x)
 		s.suffixResults = append(s.suffixResults, str)
 	}
 	return err

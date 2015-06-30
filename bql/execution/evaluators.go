@@ -6,7 +6,7 @@ import (
 	"pfi/sensorbee/sensorbee/bql/parser"
 	"pfi/sensorbee/sensorbee/bql/udf"
 	"pfi/sensorbee/sensorbee/core"
-	"pfi/sensorbee/sensorbee/tuple"
+	"pfi/sensorbee/sensorbee/data"
 	"reflect"
 	"strings"
 )
@@ -25,7 +25,7 @@ type Evaluator interface {
 	//    ...}
 	// and every caller (in particular all execution plans)
 	// must ensure that the data has this shape.
-	Eval(input tuple.Value) (tuple.Value, error)
+	Eval(input data.Value) (data.Value, error)
 }
 
 // ExpressionToEvaluator takes one of the Expression structs that result
@@ -125,8 +125,8 @@ type IntConstant struct {
 	value int64
 }
 
-func (i *IntConstant) Eval(input tuple.Value) (tuple.Value, error) {
-	return tuple.Int(i.value), nil
+func (i *IntConstant) Eval(input data.Value) (data.Value, error) {
+	return data.Int(i.value), nil
 }
 
 // FloatConstant always returns the same float value, independent
@@ -135,8 +135,8 @@ type FloatConstant struct {
 	value float64
 }
 
-func (f *FloatConstant) Eval(input tuple.Value) (tuple.Value, error) {
-	return tuple.Float(f.value), nil
+func (f *FloatConstant) Eval(input data.Value) (data.Value, error) {
+	return data.Float(f.value), nil
 }
 
 // BoolConstant always returns the same boolean value, independent
@@ -145,8 +145,8 @@ type BoolConstant struct {
 	value bool
 }
 
-func (b *BoolConstant) Eval(input tuple.Value) (tuple.Value, error) {
-	return tuple.Bool(b.value), nil
+func (b *BoolConstant) Eval(input data.Value) (data.Value, error) {
+	return data.Bool(b.value), nil
 }
 
 // PathAccess only works for maps and returns the Value at the given
@@ -155,8 +155,8 @@ type PathAccess struct {
 	path string
 }
 
-func (fa *PathAccess) Eval(input tuple.Value) (tuple.Value, error) {
-	aMap, err := tuple.AsMap(input)
+func (fa *PathAccess) Eval(input data.Value) (data.Value, error) {
+	aMap, err := data.AsMap(input)
 	if err != nil {
 		return nil, err
 	}
@@ -168,12 +168,12 @@ type timestampCast struct {
 	underlying Evaluator
 }
 
-func (t *timestampCast) Eval(input tuple.Value) (tuple.Value, error) {
+func (t *timestampCast) Eval(input data.Value) (data.Value, error) {
 	val, err := t.underlying.Eval(input)
 	if err != nil {
 		return nil, err
 	}
-	if val.Type() != tuple.TypeTimestamp {
+	if val.Type() != data.TypeTimestamp {
 		return nil, fmt.Errorf("value %v was %T, not Time", val, val)
 	}
 	return val, nil
@@ -184,7 +184,7 @@ type binOp struct {
 	right Evaluator
 }
 
-func (bo *binOp) evalLeftAndRight(input tuple.Value) (tuple.Value, tuple.Value, error) {
+func (bo *binOp) evalLeftAndRight(input data.Value) (data.Value, data.Value, error) {
 	leftRes, err := bo.left.Eval(input)
 	if err != nil {
 		return nil, nil, err
@@ -204,31 +204,31 @@ type logBinOp struct {
 	leftSidePreReturn    bool
 }
 
-func (lbo *logBinOp) Eval(input tuple.Value) (tuple.Value, error) {
+func (lbo *logBinOp) Eval(input data.Value) (data.Value, error) {
 	leftRes, err := lbo.left.Eval(input)
 	if err != nil {
 		return nil, err
 	}
-	leftBool, err := tuple.ToBool(leftRes)
+	leftBool, err := data.ToBool(leftRes)
 	if err != nil {
 		return nil, err
 	}
 	// support early return if the left side has a certain value
 	if leftBool == lbo.leftSidePreCondition {
-		return tuple.Bool(lbo.leftSidePreReturn), nil
+		return data.Bool(lbo.leftSidePreReturn), nil
 	}
 	rightRes, err := lbo.right.Eval(input)
 	if err != nil {
 		return nil, err
 	}
-	rightBool, err := tuple.ToBool(rightRes)
+	rightBool, err := data.ToBool(rightRes)
 	if err != nil {
 		return nil, err
 	}
 	if rightBool {
-		return tuple.Bool(true), nil
+		return data.Bool(true), nil
 	}
-	return tuple.Bool(false), nil
+	return data.Bool(false), nil
 }
 
 func Or(bo binOp) Evaluator {
@@ -249,16 +249,16 @@ type not struct {
 	neg Evaluator
 }
 
-func (n *not) Eval(input tuple.Value) (tuple.Value, error) {
+func (n *not) Eval(input data.Value) (data.Value, error) {
 	neg, err := n.neg.Eval(input)
 	if err != nil {
 		return nil, err
 	}
-	negBool, err := tuple.AsBool(neg)
+	negBool, err := data.AsBool(neg)
 	if err != nil {
 		return nil, err
 	}
-	return tuple.Bool(!negBool), nil
+	return data.Bool(!negBool), nil
 }
 
 func Not(e Evaluator) Evaluator {
@@ -270,10 +270,10 @@ func Not(e Evaluator) Evaluator {
 // compBinOp provides functionality for comparing two values
 type compBinOp struct {
 	binOp
-	cmpOp func(tuple.Value, tuple.Value) (bool, error)
+	cmpOp func(data.Value, data.Value) (bool, error)
 }
 
-func (cbo *compBinOp) Eval(input tuple.Value) (tuple.Value, error) {
+func (cbo *compBinOp) Eval(input data.Value) (data.Value, error) {
 	leftVal, rightVal, err := cbo.evalLeftAndRight(input)
 	if err != nil {
 		return nil, err
@@ -282,24 +282,24 @@ func (cbo *compBinOp) Eval(input tuple.Value) (tuple.Value, error) {
 	if err != nil {
 		return nil, err
 	}
-	return tuple.Bool(res), nil
+	return data.Bool(res), nil
 }
 
 func Equal(bo binOp) Evaluator {
-	cmpOp := func(leftVal tuple.Value, rightVal tuple.Value) (bool, error) {
+	cmpOp := func(leftVal data.Value, rightVal data.Value) (bool, error) {
 		leftType := leftVal.Type()
 		rightType := rightVal.Type()
 		eq := false
 		if leftType == rightType {
 			eq = reflect.DeepEqual(leftVal, rightVal)
-		} else if leftType == tuple.TypeInt && rightType == tuple.TypeFloat {
-			l, _ := tuple.AsInt(leftVal)
-			r, _ := tuple.AsFloat(rightVal)
+		} else if leftType == data.TypeInt && rightType == data.TypeFloat {
+			l, _ := data.AsInt(leftVal)
+			r, _ := data.AsFloat(rightVal)
 			// convert left to float to get 2 == 2.0
 			eq = float64(l) == r
-		} else if leftType == tuple.TypeFloat && rightType == tuple.TypeInt {
-			l, _ := tuple.AsFloat(leftVal)
-			r, _ := tuple.AsInt(rightVal)
+		} else if leftType == data.TypeFloat && rightType == data.TypeInt {
+			l, _ := data.AsFloat(leftVal)
+			r, _ := data.AsInt(rightVal)
 			// convert right to float to get 2.0 == 2
 			eq = l == float64(r)
 		}
@@ -310,7 +310,7 @@ func Equal(bo binOp) Evaluator {
 }
 
 func Less(bo binOp) Evaluator {
-	cmpOp := func(leftVal tuple.Value, rightVal tuple.Value) (bool, error) {
+	cmpOp := func(leftVal data.Value, rightVal data.Value) (bool, error) {
 		leftType := leftVal.Type()
 		rightType := rightVal.Type()
 		stdErr := fmt.Errorf("cannot compare %T and %T", leftVal, rightVal)
@@ -319,39 +319,39 @@ func Less(bo binOp) Evaluator {
 			switch leftType {
 			default:
 				return false, stdErr
-			case tuple.TypeInt:
-				l, _ := tuple.AsInt(leftVal)
-				r, _ := tuple.AsInt(rightVal)
+			case data.TypeInt:
+				l, _ := data.AsInt(leftVal)
+				r, _ := data.AsInt(rightVal)
 				retVal = l < r
-			case tuple.TypeFloat:
-				l, _ := tuple.AsFloat(leftVal)
-				r, _ := tuple.AsFloat(rightVal)
+			case data.TypeFloat:
+				l, _ := data.AsFloat(leftVal)
+				r, _ := data.AsFloat(rightVal)
 				retVal = l < r
-			case tuple.TypeString:
-				l, _ := tuple.AsString(leftVal)
-				r, _ := tuple.AsString(rightVal)
+			case data.TypeString:
+				l, _ := data.AsString(leftVal)
+				r, _ := data.AsString(rightVal)
 				retVal = l < r
-			case tuple.TypeBool:
-				l, _ := tuple.AsBool(leftVal)
-				r, _ := tuple.AsBool(rightVal)
+			case data.TypeBool:
+				l, _ := data.AsBool(leftVal)
+				r, _ := data.AsBool(rightVal)
 				retVal = (l == false) && (r == true)
-			case tuple.TypeTimestamp:
-				l, _ := tuple.AsTimestamp(leftVal)
-				r, _ := tuple.AsTimestamp(rightVal)
+			case data.TypeTimestamp:
+				l, _ := data.AsTimestamp(leftVal)
+				r, _ := data.AsTimestamp(rightVal)
 				retVal = l.Before(r)
 			}
 			return retVal, nil
-		} else if leftType == tuple.TypeInt && rightType == tuple.TypeFloat {
+		} else if leftType == data.TypeInt && rightType == data.TypeFloat {
 			// left is integer
-			l, _ := tuple.AsInt(leftVal)
+			l, _ := data.AsInt(leftVal)
 			// right is float; also convert left to float to avoid overflow
-			r, _ := tuple.AsFloat(rightVal)
+			r, _ := data.AsFloat(rightVal)
 			return float64(l) < r, nil
-		} else if leftType == tuple.TypeFloat && rightType == tuple.TypeInt {
+		} else if leftType == data.TypeFloat && rightType == data.TypeInt {
 			// left is float
-			l, _ := tuple.AsFloat(leftVal)
+			l, _ := data.AsFloat(leftVal)
 			// right is int; convert right to float to avoid overflow
-			r, _ := tuple.AsInt(rightVal)
+			r, _ := data.AsInt(rightVal)
 			return l < float64(r), nil
 		}
 		return false, stdErr
@@ -386,7 +386,7 @@ type numBinOp struct {
 	floatOp func(float64, float64) float64
 }
 
-func (nbo *numBinOp) Eval(input tuple.Value) (v tuple.Value, err error) {
+func (nbo *numBinOp) Eval(input data.Value) (v data.Value, err error) {
 	defer func() {
 		// catch panic from (say) integer division by 0
 		if r := recover(); r != nil {
@@ -408,27 +408,27 @@ func (nbo *numBinOp) Eval(input tuple.Value) (v tuple.Value, err error) {
 		switch leftType {
 		default:
 			return nil, stdErr
-		case tuple.TypeInt:
-			l, _ := tuple.AsInt(leftVal)
-			r, _ := tuple.AsInt(rightVal)
-			return tuple.Int(nbo.intOp(l, r)), nil
-		case tuple.TypeFloat:
-			l, _ := tuple.AsFloat(leftVal)
-			r, _ := tuple.AsFloat(rightVal)
-			return tuple.Float(nbo.floatOp(l, r)), nil
+		case data.TypeInt:
+			l, _ := data.AsInt(leftVal)
+			r, _ := data.AsInt(rightVal)
+			return data.Int(nbo.intOp(l, r)), nil
+		case data.TypeFloat:
+			l, _ := data.AsFloat(leftVal)
+			r, _ := data.AsFloat(rightVal)
+			return data.Float(nbo.floatOp(l, r)), nil
 		}
-	} else if leftType == tuple.TypeInt && rightType == tuple.TypeFloat {
+	} else if leftType == data.TypeInt && rightType == data.TypeFloat {
 		// left is integer
-		l, _ := tuple.AsInt(leftVal)
+		l, _ := data.AsInt(leftVal)
 		// right is float; also convert left to float, possibly losing precision
-		r, _ := tuple.AsFloat(rightVal)
-		return tuple.Float(nbo.floatOp(float64(l), r)), nil
-	} else if leftType == tuple.TypeFloat && rightType == tuple.TypeInt {
+		r, _ := data.AsFloat(rightVal)
+		return data.Float(nbo.floatOp(float64(l), r)), nil
+	} else if leftType == data.TypeFloat && rightType == data.TypeInt {
 		// left is float
-		l, _ := tuple.AsFloat(leftVal)
+		l, _ := data.AsFloat(leftVal)
 		// right is int; convert right to float, possibly losing precision
-		r, _ := tuple.AsInt(rightVal)
-		return tuple.Float(nbo.floatOp(l, float64(r))), nil
+		r, _ := data.AsInt(rightVal)
+		return data.Float(nbo.floatOp(l, float64(r))), nil
 	}
 	return nil, stdErr
 }
@@ -496,7 +496,7 @@ type funcApp struct {
 	paramValues []reflect.Value
 }
 
-func (f *funcApp) Eval(input tuple.Value) (v tuple.Value, err error) {
+func (f *funcApp) Eval(input data.Value) (v data.Value, err error) {
 	// catch panic (e.g., in called function)
 	defer func() {
 		if r := recover(); r != nil {
@@ -524,7 +524,7 @@ func (f *funcApp) Eval(input tuple.Value) (v tuple.Value, err error) {
 		err := errVal.Interface().(error)
 		return nil, err
 	}
-	result := resultVal.Interface().(tuple.Value)
+	result := resultVal.Interface().(data.Value)
 	return result, nil
 }
 
@@ -546,17 +546,17 @@ func FuncApp(name string, f udf.UDF, ctx *core.Context, params []Evaluator) Eval
 // of them will appear in the output, but it is undefined which.
 type Wildcard struct{}
 
-func (w *Wildcard) Eval(input tuple.Value) (tuple.Value, error) {
-	aMap, err := tuple.AsMap(input)
+func (w *Wildcard) Eval(input data.Value) (data.Value, error) {
+	aMap, err := data.AsMap(input)
 	if err != nil {
 		return nil, err
 	}
-	output := tuple.Map{}
+	output := data.Map{}
 	for alias, subElement := range aMap {
 		if strings.Contains(alias, ":meta:") {
 			continue
 		}
-		subMap, err := tuple.AsMap(subElement)
+		subMap, err := data.AsMap(subElement)
 		if err != nil {
 			return nil, err
 		}

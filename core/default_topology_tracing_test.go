@@ -2,7 +2,7 @@ package core
 
 import (
 	. "github.com/smartystreets/goconvey/convey"
-	"pfi/sensorbee/sensorbee/tuple"
+	"pfi/sensorbee/sensorbee/data"
 	"strings"
 	"testing"
 	"time"
@@ -15,8 +15,8 @@ func TestDefaultTopologyTupleTracingConfiguration(t *testing.T) {
 		config := Configuration{TupleTraceEnabled: 0}
 		ctx := newTestContext(config)
 		tup := Tuple{
-			Data: tuple.Map{
-				"int": tuple.Int(1),
+			Data: data.Map{
+				"int": data.Int(1),
 			},
 			Timestamp:     time.Date(2015, time.May, 1, 11, 18, 0, 0, time.UTC),
 			ProcTimestamp: time.Date(2015, time.May, 1, 11, 18, 0, 0, time.UTC),
@@ -69,8 +69,8 @@ func TestDefaultTopologyTupleTracing(t *testing.T) {
 	Convey("Given a complex topology with distribution and aggregation", t, func() {
 
 		tup1 := Tuple{
-			Data: tuple.Map{
-				"int": tuple.Int(1),
+			Data: data.Map{
+				"int": data.Int(1),
 			},
 			Timestamp:     time.Date(2015, time.April, 10, 10, 23, 0, 0, time.UTC),
 			ProcTimestamp: time.Date(2015, time.April, 10, 10, 24, 0, 0, time.UTC),
@@ -78,8 +78,8 @@ func TestDefaultTopologyTupleTracing(t *testing.T) {
 			Trace:         []TraceEvent{},
 		}
 		tup2 := Tuple{
-			Data: tuple.Map{
-				"int": tuple.Int(2),
+			Data: data.Map{
+				"int": data.Int(2),
 			},
 			Timestamp:     time.Date(2015, time.April, 10, 10, 23, 1, 0, time.UTC),
 			ProcTimestamp: time.Date(2015, time.April, 10, 10, 24, 1, 0, time.UTC),

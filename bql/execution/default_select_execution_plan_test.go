@@ -6,7 +6,7 @@ import (
 	"pfi/sensorbee/sensorbee/bql/parser"
 	"pfi/sensorbee/sensorbee/bql/udf"
 	"pfi/sensorbee/sensorbee/core"
-	"pfi/sensorbee/sensorbee/tuple"
+	"pfi/sensorbee/sensorbee/data"
 	"sort"
 	"testing"
 	"time"
@@ -16,8 +16,8 @@ func getTuples(num int) []*core.Tuple {
 	tuples := make([]*core.Tuple, 0, num)
 	for i := 0; i < num; i++ {
 		tup := core.Tuple{
-			Data: tuple.Map{
-				"int": tuple.Int(i + 1),
+			Data: data.Map{
+				"int": data.Int(i + 1),
 			},
 			InputName:     "src",
 			Timestamp:     time.Date(2015, time.April, 10, 10, 23, i, 0, time.UTC),
@@ -60,7 +60,7 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 					if idx == 0 {
 						So(len(out), ShouldEqual, 1)
 						So(out[0], ShouldResemble,
-							tuple.Map{"col_1": tuple.Int(2)})
+							data.Map{"col_1": data.Int(2)})
 					} else {
 						// nothing should be emitted because no new
 						// data appears
@@ -87,7 +87,7 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 				Convey(fmt.Sprintf("Then those values should appear in %v", idx), func() {
 					So(len(out), ShouldEqual, 1)
 					So(out[0], ShouldResemble,
-						tuple.Map{"int": tuple.Int(idx + 1)})
+						data.Map{"int": data.Int(idx + 1)})
 				})
 			}
 
@@ -108,7 +108,7 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 				Convey(fmt.Sprintf("Then those values should appear in %v", idx), func() {
 					So(len(out), ShouldEqual, 1)
 					So(out[0], ShouldResemble,
-						tuple.Map{"int": tuple.Int(idx + 1)})
+						data.Map{"int": data.Int(idx + 1)})
 				})
 			}
 
@@ -130,7 +130,7 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 				Convey(fmt.Sprintf("Then those values should appear in %v", idx), func() {
 					So(len(out), ShouldEqual, 1)
 					So(out[0], ShouldResemble,
-						tuple.Map{"ts": tuple.Timestamp(time.Date(2015, time.April, 10,
+						data.Map{"ts": data.Timestamp(time.Date(2015, time.April, 10,
 							10, 23, idx, 0, time.UTC))})
 				})
 			}
@@ -184,7 +184,7 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 				Convey(fmt.Sprintf("Then those values should appear in %v", idx), func() {
 					So(len(out), ShouldEqual, 1)
 					So(out[0], ShouldResemble,
-						tuple.Map{"col_1": tuple.Int(2), "int": tuple.Int(idx + 1)})
+						data.Map{"col_1": data.Int(2), "int": data.Int(idx + 1)})
 				})
 			}
 
@@ -206,7 +206,7 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 				Convey(fmt.Sprintf("Then those values should appear in %v", idx), func() {
 					So(len(out), ShouldEqual, 1)
 					So(out[0], ShouldResemble,
-						tuple.Map{"col_1": tuple.Int(2), "int": tuple.Int(idx + 1)})
+						data.Map{"col_1": data.Int(2), "int": data.Int(idx + 1)})
 				})
 			}
 
@@ -229,7 +229,7 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 				Convey(fmt.Sprintf("Then those values should appear in %v", idx), func() {
 					So(len(out), ShouldEqual, 1)
 					So(out[0], ShouldResemble,
-						tuple.Map{"col_1": tuple.Int(2), "int": tuple.Int(idx + 1)})
+						data.Map{"col_1": data.Int(2), "int": data.Int(idx + 1)})
 				})
 			}
 
@@ -251,7 +251,7 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 				Convey(fmt.Sprintf("Then those values should appear in %v", idx), func() {
 					So(len(out), ShouldEqual, 1)
 					So(out[0], ShouldResemble,
-						tuple.Map{"a": tuple.Int(idx), "b": tuple.Int(idx + 1)})
+						data.Map{"a": data.Int(idx), "b": data.Int(idx + 1)})
 				})
 			}
 
@@ -273,7 +273,7 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 				Convey(fmt.Sprintf("Then those values should appear in %v", idx), func() {
 					So(len(out), ShouldEqual, 1)
 					So(out[0], ShouldResemble,
-						tuple.Map{"int": tuple.Int(idx + 1)})
+						data.Map{"int": data.Int(idx + 1)})
 				})
 			}
 
@@ -294,7 +294,7 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 				Convey(fmt.Sprintf("Then those values should appear in %v", idx), func() {
 					So(len(out), ShouldEqual, 1)
 					So(out[0], ShouldResemble,
-						tuple.Map{"int": tuple.Int(2 * idx)})
+						data.Map{"int": data.Int(2 * idx)})
 				})
 			}
 
@@ -315,7 +315,7 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 				Convey(fmt.Sprintf("Then those values should appear in %v", idx), func() {
 					So(len(out), ShouldEqual, 1)
 					So(out[0], ShouldResemble,
-						tuple.Map{"int": tuple.Int(idx + 1)})
+						data.Map{"int": data.Int(idx + 1)})
 				})
 			}
 
@@ -336,7 +336,7 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 				Convey(fmt.Sprintf("Then those values should appear in %v", idx), func() {
 					So(len(out), ShouldEqual, 1)
 					So(out[0], ShouldResemble,
-						tuple.Map{"col_2": tuple.Int(2 * idx), "x": tuple.Map{"int": tuple.Int(idx + 1)}})
+						data.Map{"col_2": data.Int(2 * idx), "x": data.Map{"int": data.Int(idx + 1)}})
 				})
 			}
 
@@ -360,7 +360,7 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 					if (idx+1)%2 == 0 {
 						So(len(out), ShouldEqual, 1)
 						So(out[0], ShouldResemble,
-							tuple.Map{"b": tuple.Int(idx + 1)})
+							data.Map{"b": data.Int(idx + 1)})
 					} else {
 						So(len(out), ShouldEqual, 0)
 					}
@@ -393,7 +393,7 @@ func TestDefaultSelectExecutionPlanEmitters(t *testing.T) {
 						So(err, ShouldBeNil)
 						So(len(out), ShouldEqual, 1)
 						So(out[0], ShouldResemble,
-							tuple.Map{"int": tuple.Int(idx + 1)})
+							data.Map{"int": data.Int(idx + 1)})
 					})
 				} else if idx == 1 || idx == 2 {
 					// In the idx==1 run, the window contains item 0 and item 1,
@@ -410,9 +410,9 @@ func TestDefaultSelectExecutionPlanEmitters(t *testing.T) {
 						So(err, ShouldBeNil)
 						So(len(out), ShouldEqual, 2)
 						So(out[0], ShouldResemble,
-							tuple.Map{"int": tuple.Int(idx)})
+							data.Map{"int": data.Int(idx)})
 						So(out[1], ShouldResemble,
-							tuple.Map{"int": tuple.Int(idx + 1)})
+							data.Map{"int": data.Int(idx + 1)})
 					})
 				}
 			}
@@ -440,7 +440,7 @@ func TestDefaultSelectExecutionPlanEmitters(t *testing.T) {
 						So(err, ShouldBeNil)
 						So(len(out), ShouldEqual, 1)
 						So(out[0], ShouldResemble,
-							tuple.Map{"int": tuple.Int(idx + 1)})
+							data.Map{"int": data.Int(idx + 1)})
 					})
 				} else if idx == 1 || idx == 2 {
 					// In the idx==1 run, the window contains item 0 and item 1,
@@ -458,9 +458,9 @@ func TestDefaultSelectExecutionPlanEmitters(t *testing.T) {
 						So(err, ShouldBeNil)
 						So(len(out), ShouldEqual, 2)
 						So(out[0], ShouldResemble,
-							tuple.Map{"int": tuple.Int(idx)})
+							data.Map{"int": data.Int(idx)})
 						So(out[1], ShouldResemble,
-							tuple.Map{"int": tuple.Int(idx + 1)})
+							data.Map{"int": data.Int(idx + 1)})
 					})
 				} else {
 					// In later runs, we have recovered from the error in item 1
@@ -469,7 +469,7 @@ func TestDefaultSelectExecutionPlanEmitters(t *testing.T) {
 						So(err, ShouldBeNil)
 						So(len(out), ShouldEqual, 1)
 						So(out[0], ShouldResemble,
-							tuple.Map{"int": tuple.Int(idx + 1)})
+							data.Map{"int": data.Int(idx + 1)})
 					})
 				}
 			}
@@ -511,7 +511,7 @@ func TestDefaultSelectExecutionPlanEmitters(t *testing.T) {
 						So(err, ShouldBeNil)
 						So(len(out), ShouldEqual, 1)
 						So(out[0], ShouldResemble,
-							tuple.Map{"int": tuple.Int(1)})
+							data.Map{"int": data.Int(1)})
 					})
 				} else {
 					// In later runs, we have recovered from the error in item 1
@@ -520,7 +520,7 @@ func TestDefaultSelectExecutionPlanEmitters(t *testing.T) {
 						So(err, ShouldBeNil)
 						So(len(out), ShouldEqual, 1)
 						So(out[0], ShouldResemble,
-							tuple.Map{"int": tuple.Int(idx - 1)})
+							data.Map{"int": data.Int(idx - 1)})
 					})
 				}
 			}
@@ -536,7 +536,7 @@ func TestDefaultSelectExecutionPlanEmitters(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		Convey("When feeding it with tuples", func() {
-			output := [][]tuple.Map{}
+			output := [][]data.Map{}
 			for _, inTup := range tuples {
 				out, err := plan.Process(inTup)
 				So(err, ShouldBeNil)
@@ -546,18 +546,18 @@ func TestDefaultSelectExecutionPlanEmitters(t *testing.T) {
 			Convey("Then the whole state should be emitted", func() {
 				So(len(output), ShouldEqual, 4)
 				So(len(output[0]), ShouldEqual, 1)
-				So(output[0][0], ShouldResemble, tuple.Map{"a": tuple.Int(2)})
+				So(output[0][0], ShouldResemble, data.Map{"a": data.Int(2)})
 				So(len(output[1]), ShouldEqual, 2)
-				So(output[1][0], ShouldResemble, tuple.Map{"a": tuple.Int(2)})
-				So(output[1][1], ShouldResemble, tuple.Map{"a": tuple.Int(2)})
+				So(output[1][0], ShouldResemble, data.Map{"a": data.Int(2)})
+				So(output[1][1], ShouldResemble, data.Map{"a": data.Int(2)})
 				So(len(output[2]), ShouldEqual, 3)
-				So(output[2][0], ShouldResemble, tuple.Map{"a": tuple.Int(2)})
-				So(output[2][1], ShouldResemble, tuple.Map{"a": tuple.Int(2)})
-				So(output[2][2], ShouldResemble, tuple.Map{"a": tuple.Int(2)})
+				So(output[2][0], ShouldResemble, data.Map{"a": data.Int(2)})
+				So(output[2][1], ShouldResemble, data.Map{"a": data.Int(2)})
+				So(output[2][2], ShouldResemble, data.Map{"a": data.Int(2)})
 				So(len(output[3]), ShouldEqual, 3)
-				So(output[3][0], ShouldResemble, tuple.Map{"a": tuple.Int(2)})
-				So(output[3][1], ShouldResemble, tuple.Map{"a": tuple.Int(2)})
-				So(output[3][2], ShouldResemble, tuple.Map{"a": tuple.Int(2)})
+				So(output[3][0], ShouldResemble, data.Map{"a": data.Int(2)})
+				So(output[3][1], ShouldResemble, data.Map{"a": data.Int(2)})
+				So(output[3][2], ShouldResemble, data.Map{"a": data.Int(2)})
 			})
 
 		})
@@ -570,7 +570,7 @@ func TestDefaultSelectExecutionPlanEmitters(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		Convey("When feeding it with tuples", func() {
-			output := [][]tuple.Map{}
+			output := [][]data.Map{}
 			for _, inTup := range tuples {
 				out, err := plan.Process(inTup)
 				So(err, ShouldBeNil)
@@ -580,18 +580,18 @@ func TestDefaultSelectExecutionPlanEmitters(t *testing.T) {
 			Convey("Then the whole state should be emitted", func() {
 				So(len(output), ShouldEqual, 4)
 				So(len(output[0]), ShouldEqual, 1)
-				So(output[0][0], ShouldResemble, tuple.Map{"a": tuple.Int(1)})
+				So(output[0][0], ShouldResemble, data.Map{"a": data.Int(1)})
 				So(len(output[1]), ShouldEqual, 2)
-				So(output[1][0], ShouldResemble, tuple.Map{"a": tuple.Int(1)})
-				So(output[1][1], ShouldResemble, tuple.Map{"a": tuple.Int(2)})
+				So(output[1][0], ShouldResemble, data.Map{"a": data.Int(1)})
+				So(output[1][1], ShouldResemble, data.Map{"a": data.Int(2)})
 				So(len(output[2]), ShouldEqual, 3)
-				So(output[2][0], ShouldResemble, tuple.Map{"a": tuple.Int(1)})
-				So(output[2][1], ShouldResemble, tuple.Map{"a": tuple.Int(2)})
-				So(output[2][2], ShouldResemble, tuple.Map{"a": tuple.Int(3)})
+				So(output[2][0], ShouldResemble, data.Map{"a": data.Int(1)})
+				So(output[2][1], ShouldResemble, data.Map{"a": data.Int(2)})
+				So(output[2][2], ShouldResemble, data.Map{"a": data.Int(3)})
 				So(len(output[3]), ShouldEqual, 3)
-				So(output[3][0], ShouldResemble, tuple.Map{"a": tuple.Int(2)})
-				So(output[3][1], ShouldResemble, tuple.Map{"a": tuple.Int(3)})
-				So(output[3][2], ShouldResemble, tuple.Map{"a": tuple.Int(4)})
+				So(output[3][0], ShouldResemble, data.Map{"a": data.Int(2)})
+				So(output[3][1], ShouldResemble, data.Map{"a": data.Int(3)})
+				So(output[3][2], ShouldResemble, data.Map{"a": data.Int(4)})
 			})
 
 		})
@@ -605,7 +605,7 @@ func TestDefaultSelectExecutionPlanEmitters(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		Convey("When feeding it with tuples", func() {
-			output := [][]tuple.Map{}
+			output := [][]data.Map{}
 			for _, inTup := range tuples {
 				out, err := plan.Process(inTup)
 				So(err, ShouldBeNil)
@@ -615,16 +615,16 @@ func TestDefaultSelectExecutionPlanEmitters(t *testing.T) {
 			Convey("Then the whole state should be emitted", func() {
 				So(len(output), ShouldEqual, 4)
 				So(len(output[0]), ShouldEqual, 1)
-				So(output[0][0], ShouldResemble, tuple.Map{"a": tuple.Int(2)})
+				So(output[0][0], ShouldResemble, data.Map{"a": data.Int(2)})
 				So(len(output[1]), ShouldEqual, 2)
-				So(output[1][0], ShouldResemble, tuple.Map{"a": tuple.Int(2)})
-				So(output[1][1], ShouldResemble, tuple.Map{"a": tuple.Int(2)})
+				So(output[1][0], ShouldResemble, data.Map{"a": data.Int(2)})
+				So(output[1][1], ShouldResemble, data.Map{"a": data.Int(2)})
 				So(len(output[2]), ShouldEqual, 2)
-				So(output[2][0], ShouldResemble, tuple.Map{"a": tuple.Int(2)})
-				So(output[2][1], ShouldResemble, tuple.Map{"a": tuple.Int(2)})
+				So(output[2][0], ShouldResemble, data.Map{"a": data.Int(2)})
+				So(output[2][1], ShouldResemble, data.Map{"a": data.Int(2)})
 				So(len(output[3]), ShouldEqual, 2)
-				So(output[3][0], ShouldResemble, tuple.Map{"a": tuple.Int(2)})
-				So(output[3][1], ShouldResemble, tuple.Map{"a": tuple.Int(2)})
+				So(output[3][0], ShouldResemble, data.Map{"a": data.Int(2)})
+				So(output[3][1], ShouldResemble, data.Map{"a": data.Int(2)})
 			})
 
 		})
@@ -637,7 +637,7 @@ func TestDefaultSelectExecutionPlanEmitters(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		Convey("When feeding it with tuples", func() {
-			output := [][]tuple.Map{}
+			output := [][]data.Map{}
 			for _, inTup := range tuples {
 				out, err := plan.Process(inTup)
 				So(err, ShouldBeNil)
@@ -647,16 +647,16 @@ func TestDefaultSelectExecutionPlanEmitters(t *testing.T) {
 			Convey("Then the whole window state should be emitted", func() {
 				So(len(output), ShouldEqual, 4)
 				So(len(output[0]), ShouldEqual, 1)
-				So(output[0][0], ShouldResemble, tuple.Map{"a": tuple.Int(1)})
+				So(output[0][0], ShouldResemble, data.Map{"a": data.Int(1)})
 				So(len(output[1]), ShouldEqual, 2)
-				So(output[1][0], ShouldResemble, tuple.Map{"a": tuple.Int(1)})
-				So(output[1][1], ShouldResemble, tuple.Map{"a": tuple.Int(2)})
+				So(output[1][0], ShouldResemble, data.Map{"a": data.Int(1)})
+				So(output[1][1], ShouldResemble, data.Map{"a": data.Int(2)})
 				So(len(output[2]), ShouldEqual, 2)
-				So(output[2][0], ShouldResemble, tuple.Map{"a": tuple.Int(2)})
-				So(output[2][1], ShouldResemble, tuple.Map{"a": tuple.Int(3)})
+				So(output[2][0], ShouldResemble, data.Map{"a": data.Int(2)})
+				So(output[2][1], ShouldResemble, data.Map{"a": data.Int(3)})
 				So(len(output[3]), ShouldEqual, 2)
-				So(output[3][0], ShouldResemble, tuple.Map{"a": tuple.Int(3)})
-				So(output[3][1], ShouldResemble, tuple.Map{"a": tuple.Int(4)})
+				So(output[3][0], ShouldResemble, data.Map{"a": data.Int(3)})
+				So(output[3][1], ShouldResemble, data.Map{"a": data.Int(4)})
 			})
 
 		})
@@ -670,7 +670,7 @@ func TestDefaultSelectExecutionPlanEmitters(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		Convey("When feeding it with tuples", func() {
-			output := [][]tuple.Map{}
+			output := [][]data.Map{}
 			for _, inTup := range tuples {
 				out, err := plan.Process(inTup)
 				So(err, ShouldBeNil)
@@ -680,7 +680,7 @@ func TestDefaultSelectExecutionPlanEmitters(t *testing.T) {
 			Convey("Then new items in state should be emitted", func() {
 				So(len(output), ShouldEqual, 4)
 				So(len(output[0]), ShouldEqual, 1)
-				So(output[0][0], ShouldResemble, tuple.Map{"a": tuple.Int(2)})
+				So(output[0][0], ShouldResemble, data.Map{"a": data.Int(2)})
 				So(len(output[1]), ShouldEqual, 0)
 				So(len(output[2]), ShouldEqual, 0)
 				So(len(output[3]), ShouldEqual, 0)
@@ -696,7 +696,7 @@ func TestDefaultSelectExecutionPlanEmitters(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		Convey("When feeding it with tuples", func() {
-			output := [][]tuple.Map{}
+			output := [][]data.Map{}
 			for _, inTup := range tuples {
 				out, err := plan.Process(inTup)
 				So(err, ShouldBeNil)
@@ -706,13 +706,13 @@ func TestDefaultSelectExecutionPlanEmitters(t *testing.T) {
 			Convey("Then new items in state should be emitted", func() {
 				So(len(output), ShouldEqual, 4)
 				So(len(output[0]), ShouldEqual, 1)
-				So(output[0][0], ShouldResemble, tuple.Map{"a": tuple.Int(1)})
+				So(output[0][0], ShouldResemble, data.Map{"a": data.Int(1)})
 				So(len(output[1]), ShouldEqual, 1)
-				So(output[1][0], ShouldResemble, tuple.Map{"a": tuple.Int(2)})
+				So(output[1][0], ShouldResemble, data.Map{"a": data.Int(2)})
 				So(len(output[2]), ShouldEqual, 1)
-				So(output[2][0], ShouldResemble, tuple.Map{"a": tuple.Int(3)})
+				So(output[2][0], ShouldResemble, data.Map{"a": data.Int(3)})
 				So(len(output[3]), ShouldEqual, 1)
-				So(output[3][0], ShouldResemble, tuple.Map{"a": tuple.Int(4)})
+				So(output[3][0], ShouldResemble, data.Map{"a": data.Int(4)})
 			})
 
 		})
@@ -726,7 +726,7 @@ func TestDefaultSelectExecutionPlanEmitters(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		Convey("When feeding it with tuples", func() {
-			output := [][]tuple.Map{}
+			output := [][]data.Map{}
 			for _, inTup := range tuples {
 				out, err := plan.Process(inTup)
 				So(err, ShouldBeNil)
@@ -736,7 +736,7 @@ func TestDefaultSelectExecutionPlanEmitters(t *testing.T) {
 			Convey("Then new items in state should be emitted", func() {
 				So(len(output), ShouldEqual, 4)
 				So(len(output[0]), ShouldEqual, 1)
-				So(output[0][0], ShouldResemble, tuple.Map{"a": tuple.Int(2)})
+				So(output[0][0], ShouldResemble, data.Map{"a": data.Int(2)})
 				So(len(output[1]), ShouldEqual, 0)
 				So(len(output[2]), ShouldEqual, 0)
 				So(len(output[3]), ShouldEqual, 0)
@@ -752,7 +752,7 @@ func TestDefaultSelectExecutionPlanEmitters(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		Convey("When feeding it with tuples", func() {
-			output := [][]tuple.Map{}
+			output := [][]data.Map{}
 			for _, inTup := range tuples {
 				out, err := plan.Process(inTup)
 				So(err, ShouldBeNil)
@@ -762,13 +762,13 @@ func TestDefaultSelectExecutionPlanEmitters(t *testing.T) {
 			Convey("Then new items in state should be emitted", func() {
 				So(len(output), ShouldEqual, 4)
 				So(len(output[0]), ShouldEqual, 1)
-				So(output[0][0], ShouldResemble, tuple.Map{"a": tuple.Int(1)})
+				So(output[0][0], ShouldResemble, data.Map{"a": data.Int(1)})
 				So(len(output[1]), ShouldEqual, 1)
-				So(output[1][0], ShouldResemble, tuple.Map{"a": tuple.Int(2)})
+				So(output[1][0], ShouldResemble, data.Map{"a": data.Int(2)})
 				So(len(output[2]), ShouldEqual, 1)
-				So(output[2][0], ShouldResemble, tuple.Map{"a": tuple.Int(3)})
+				So(output[2][0], ShouldResemble, data.Map{"a": data.Int(3)})
 				So(len(output[3]), ShouldEqual, 1)
-				So(output[3][0], ShouldResemble, tuple.Map{"a": tuple.Int(4)})
+				So(output[3][0], ShouldResemble, data.Map{"a": data.Int(4)})
 			})
 
 		})
@@ -782,7 +782,7 @@ func TestDefaultSelectExecutionPlanEmitters(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		Convey("When feeding it with tuples", func() {
-			output := [][]tuple.Map{}
+			output := [][]data.Map{}
 			for _, inTup := range tuples {
 				out, err := plan.Process(inTup)
 				So(err, ShouldBeNil)
@@ -807,7 +807,7 @@ func TestDefaultSelectExecutionPlanEmitters(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		Convey("When feeding it with tuples", func() {
-			output := [][]tuple.Map{}
+			output := [][]data.Map{}
 			for _, inTup := range tuples {
 				out, err := plan.Process(inTup)
 				So(err, ShouldBeNil)
@@ -820,7 +820,7 @@ func TestDefaultSelectExecutionPlanEmitters(t *testing.T) {
 				So(len(output[1]), ShouldEqual, 0)
 				So(len(output[2]), ShouldEqual, 0)
 				So(len(output[3]), ShouldEqual, 1)
-				So(output[3][0], ShouldResemble, tuple.Map{"a": tuple.Int(1)})
+				So(output[3][0], ShouldResemble, data.Map{"a": data.Int(1)})
 			})
 
 		})
@@ -834,7 +834,7 @@ func TestDefaultSelectExecutionPlanEmitters(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		Convey("When feeding it with tuples", func() {
-			output := [][]tuple.Map{}
+			output := [][]data.Map{}
 			for _, inTup := range tuples {
 				out, err := plan.Process(inTup)
 				So(err, ShouldBeNil)
@@ -859,7 +859,7 @@ func TestDefaultSelectExecutionPlanEmitters(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		Convey("When feeding it with tuples", func() {
-			output := [][]tuple.Map{}
+			output := [][]data.Map{}
 			for _, inTup := range tuples {
 				out, err := plan.Process(inTup)
 				So(err, ShouldBeNil)
@@ -871,9 +871,9 @@ func TestDefaultSelectExecutionPlanEmitters(t *testing.T) {
 				So(len(output[0]), ShouldEqual, 0)
 				So(len(output[1]), ShouldEqual, 0)
 				So(len(output[2]), ShouldEqual, 1)
-				So(output[2][0], ShouldResemble, tuple.Map{"a": tuple.Int(1)})
+				So(output[2][0], ShouldResemble, data.Map{"a": data.Int(1)})
 				So(len(output[3]), ShouldEqual, 1)
-				So(output[3][0], ShouldResemble, tuple.Map{"a": tuple.Int(2)})
+				So(output[3][0], ShouldResemble, data.Map{"a": data.Int(2)})
 			})
 
 		})
@@ -889,7 +889,7 @@ func TestDefaultSelectExecutionPlanEmitters(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		Convey("When feeding it with tuples", func() {
-			output := [][]tuple.Map{}
+			output := [][]data.Map{}
 			for _, inTup := range tuples {
 				out, err := plan.Process(inTup)
 				So(err, ShouldBeNil)
@@ -900,18 +900,18 @@ func TestDefaultSelectExecutionPlanEmitters(t *testing.T) {
 				So(len(output), ShouldEqual, 6)
 				So(len(output[0]), ShouldEqual, 0) // skip
 				So(len(output[1]), ShouldEqual, 2)
-				So(output[1][0], ShouldResemble, tuple.Map{"a": tuple.Int(2)})
-				So(output[1][1], ShouldResemble, tuple.Map{"a": tuple.Int(2)})
+				So(output[1][0], ShouldResemble, data.Map{"a": data.Int(2)})
+				So(output[1][1], ShouldResemble, data.Map{"a": data.Int(2)})
 				So(len(output[2]), ShouldEqual, 0) // skip
 				So(len(output[3]), ShouldEqual, 3)
-				So(output[3][0], ShouldResemble, tuple.Map{"a": tuple.Int(2)})
-				So(output[3][1], ShouldResemble, tuple.Map{"a": tuple.Int(2)})
-				So(output[3][2], ShouldResemble, tuple.Map{"a": tuple.Int(2)})
+				So(output[3][0], ShouldResemble, data.Map{"a": data.Int(2)})
+				So(output[3][1], ShouldResemble, data.Map{"a": data.Int(2)})
+				So(output[3][2], ShouldResemble, data.Map{"a": data.Int(2)})
 				So(len(output[4]), ShouldEqual, 0) // skip
 				So(len(output[5]), ShouldEqual, 3)
-				So(output[5][0], ShouldResemble, tuple.Map{"a": tuple.Int(2)})
-				So(output[5][1], ShouldResemble, tuple.Map{"a": tuple.Int(2)})
-				So(output[5][2], ShouldResemble, tuple.Map{"a": tuple.Int(2)})
+				So(output[5][0], ShouldResemble, data.Map{"a": data.Int(2)})
+				So(output[5][1], ShouldResemble, data.Map{"a": data.Int(2)})
+				So(output[5][2], ShouldResemble, data.Map{"a": data.Int(2)})
 			})
 
 		})
@@ -924,7 +924,7 @@ func TestDefaultSelectExecutionPlanEmitters(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		Convey("When feeding it with tuples", func() {
-			output := [][]tuple.Map{}
+			output := [][]data.Map{}
 			for _, inTup := range tuples {
 				out, err := plan.Process(inTup)
 				So(err, ShouldBeNil)
@@ -935,18 +935,18 @@ func TestDefaultSelectExecutionPlanEmitters(t *testing.T) {
 				So(len(output), ShouldEqual, 6)
 				So(len(output[0]), ShouldEqual, 0) // skip
 				So(len(output[1]), ShouldEqual, 2)
-				So(output[1][0], ShouldResemble, tuple.Map{"a": tuple.Int(1)})
-				So(output[1][1], ShouldResemble, tuple.Map{"a": tuple.Int(2)})
+				So(output[1][0], ShouldResemble, data.Map{"a": data.Int(1)})
+				So(output[1][1], ShouldResemble, data.Map{"a": data.Int(2)})
 				So(len(output[2]), ShouldEqual, 0) // skip
 				So(len(output[3]), ShouldEqual, 3)
-				So(output[3][0], ShouldResemble, tuple.Map{"a": tuple.Int(2)})
-				So(output[3][1], ShouldResemble, tuple.Map{"a": tuple.Int(3)})
-				So(output[3][2], ShouldResemble, tuple.Map{"a": tuple.Int(4)})
+				So(output[3][0], ShouldResemble, data.Map{"a": data.Int(2)})
+				So(output[3][1], ShouldResemble, data.Map{"a": data.Int(3)})
+				So(output[3][2], ShouldResemble, data.Map{"a": data.Int(4)})
 				So(len(output[4]), ShouldEqual, 0) // skip
 				So(len(output[5]), ShouldEqual, 3)
-				So(output[5][0], ShouldResemble, tuple.Map{"a": tuple.Int(4)})
-				So(output[5][1], ShouldResemble, tuple.Map{"a": tuple.Int(5)})
-				So(output[5][2], ShouldResemble, tuple.Map{"a": tuple.Int(6)})
+				So(output[5][0], ShouldResemble, data.Map{"a": data.Int(4)})
+				So(output[5][1], ShouldResemble, data.Map{"a": data.Int(5)})
+				So(output[5][2], ShouldResemble, data.Map{"a": data.Int(6)})
 			})
 		})
 	})
@@ -958,7 +958,7 @@ func TestDefaultSelectExecutionPlanEmitters(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		Convey("When feeding it with tuples", func() {
-			output := [][]tuple.Map{}
+			output := [][]data.Map{}
 			for _, inTup := range tuples {
 				out, err := plan.Process(inTup)
 				So(err, ShouldBeNil)
@@ -970,15 +970,15 @@ func TestDefaultSelectExecutionPlanEmitters(t *testing.T) {
 				So(len(output[0]), ShouldEqual, 0) // skip
 				So(len(output[1]), ShouldEqual, 0) // skip
 				So(len(output[2]), ShouldEqual, 3)
-				So(output[2][0], ShouldResemble, tuple.Map{"a": tuple.Int(1)})
-				So(output[2][1], ShouldResemble, tuple.Map{"a": tuple.Int(2)})
-				So(output[2][2], ShouldResemble, tuple.Map{"a": tuple.Int(3)})
+				So(output[2][0], ShouldResemble, data.Map{"a": data.Int(1)})
+				So(output[2][1], ShouldResemble, data.Map{"a": data.Int(2)})
+				So(output[2][2], ShouldResemble, data.Map{"a": data.Int(3)})
 				So(len(output[3]), ShouldEqual, 0) // skip
 				So(len(output[4]), ShouldEqual, 0) // skip
 				So(len(output[5]), ShouldEqual, 3)
-				So(output[5][0], ShouldResemble, tuple.Map{"a": tuple.Int(4)})
-				So(output[5][1], ShouldResemble, tuple.Map{"a": tuple.Int(5)})
-				So(output[5][2], ShouldResemble, tuple.Map{"a": tuple.Int(6)})
+				So(output[5][0], ShouldResemble, data.Map{"a": data.Int(4)})
+				So(output[5][1], ShouldResemble, data.Map{"a": data.Int(5)})
+				So(output[5][2], ShouldResemble, data.Map{"a": data.Int(6)})
 			})
 		})
 	})
@@ -991,7 +991,7 @@ func TestDefaultSelectExecutionPlanEmitters(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		Convey("When feeding it with tuples", func() {
-			output := [][]tuple.Map{}
+			output := [][]data.Map{}
 			for _, inTup := range tuples {
 				out, err := plan.Process(inTup)
 				So(err, ShouldBeNil)
@@ -1002,12 +1002,12 @@ func TestDefaultSelectExecutionPlanEmitters(t *testing.T) {
 				So(len(output), ShouldEqual, 4)
 				So(len(output[0]), ShouldEqual, 0) // skip
 				So(len(output[1]), ShouldEqual, 2)
-				So(output[1][0], ShouldResemble, tuple.Map{"a": tuple.Int(2)})
-				So(output[1][1], ShouldResemble, tuple.Map{"a": tuple.Int(2)})
+				So(output[1][0], ShouldResemble, data.Map{"a": data.Int(2)})
+				So(output[1][1], ShouldResemble, data.Map{"a": data.Int(2)})
 				So(len(output[2]), ShouldEqual, 0) // skip
 				So(len(output[3]), ShouldEqual, 2)
-				So(output[3][0], ShouldResemble, tuple.Map{"a": tuple.Int(2)})
-				So(output[3][1], ShouldResemble, tuple.Map{"a": tuple.Int(2)})
+				So(output[3][0], ShouldResemble, data.Map{"a": data.Int(2)})
+				So(output[3][1], ShouldResemble, data.Map{"a": data.Int(2)})
 			})
 
 		})
@@ -1020,7 +1020,7 @@ func TestDefaultSelectExecutionPlanEmitters(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		Convey("When feeding it with tuples", func() {
-			output := [][]tuple.Map{}
+			output := [][]data.Map{}
 			for _, inTup := range tuples {
 				out, err := plan.Process(inTup)
 				So(err, ShouldBeNil)
@@ -1031,12 +1031,12 @@ func TestDefaultSelectExecutionPlanEmitters(t *testing.T) {
 				So(len(output), ShouldEqual, 4)
 				So(len(output[0]), ShouldEqual, 0) // skip
 				So(len(output[1]), ShouldEqual, 2)
-				So(output[1][0], ShouldResemble, tuple.Map{"a": tuple.Int(1)})
-				So(output[1][1], ShouldResemble, tuple.Map{"a": tuple.Int(2)})
+				So(output[1][0], ShouldResemble, data.Map{"a": data.Int(1)})
+				So(output[1][1], ShouldResemble, data.Map{"a": data.Int(2)})
 				So(len(output[2]), ShouldEqual, 0) // skip
 				So(len(output[3]), ShouldEqual, 2)
-				So(output[3][0], ShouldResemble, tuple.Map{"a": tuple.Int(3)})
-				So(output[3][1], ShouldResemble, tuple.Map{"a": tuple.Int(4)})
+				So(output[3][0], ShouldResemble, data.Map{"a": data.Int(3)})
+				So(output[3][1], ShouldResemble, data.Map{"a": data.Int(4)})
 			})
 
 		})
@@ -1049,7 +1049,7 @@ func TestDefaultSelectExecutionPlanEmitters(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		Convey("When feeding it with tuples", func() {
-			output := [][]tuple.Map{}
+			output := [][]data.Map{}
 			for _, inTup := range tuples {
 				out, err := plan.Process(inTup)
 				So(err, ShouldBeNil)
@@ -1061,13 +1061,13 @@ func TestDefaultSelectExecutionPlanEmitters(t *testing.T) {
 				So(len(output[0]), ShouldEqual, 0) // skip
 				So(len(output[1]), ShouldEqual, 0) // skip
 				So(len(output[2]), ShouldEqual, 2)
-				So(output[2][0], ShouldResemble, tuple.Map{"a": tuple.Int(2)})
-				So(output[2][1], ShouldResemble, tuple.Map{"a": tuple.Int(3)})
+				So(output[2][0], ShouldResemble, data.Map{"a": data.Int(2)})
+				So(output[2][1], ShouldResemble, data.Map{"a": data.Int(3)})
 				So(len(output[3]), ShouldEqual, 0) // skip
 				So(len(output[4]), ShouldEqual, 0) // skip
 				So(len(output[5]), ShouldEqual, 2)
-				So(output[5][0], ShouldResemble, tuple.Map{"a": tuple.Int(5)})
-				So(output[5][1], ShouldResemble, tuple.Map{"a": tuple.Int(6)})
+				So(output[5][0], ShouldResemble, data.Map{"a": data.Int(5)})
+				So(output[5][1], ShouldResemble, data.Map{"a": data.Int(6)})
 			})
 
 		})
@@ -1081,7 +1081,7 @@ func TestDefaultSelectExecutionPlanEmitters(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		Convey("When feeding it with tuples", func() {
-			output := [][]tuple.Map{}
+			output := [][]data.Map{}
 			for _, inTup := range tuples {
 				out, err := plan.Process(inTup)
 				So(err, ShouldBeNil)
@@ -1092,8 +1092,8 @@ func TestDefaultSelectExecutionPlanEmitters(t *testing.T) {
 				So(len(output), ShouldEqual, 6)
 				So(len(output[0]), ShouldEqual, 0) // skip
 				So(len(output[1]), ShouldEqual, 2)
-				So(output[1][0], ShouldResemble, tuple.Map{"a": tuple.Int(2)})
-				So(output[1][1], ShouldResemble, tuple.Map{"a": tuple.Int(2)})
+				So(output[1][0], ShouldResemble, data.Map{"a": data.Int(2)})
+				So(output[1][1], ShouldResemble, data.Map{"a": data.Int(2)})
 				So(len(output[2]), ShouldEqual, 0) // skip
 				So(len(output[3]), ShouldEqual, 0)
 				So(len(output[4]), ShouldEqual, 0) // skip
@@ -1110,7 +1110,7 @@ func TestDefaultSelectExecutionPlanEmitters(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		Convey("When feeding it with tuples", func() {
-			output := [][]tuple.Map{}
+			output := [][]data.Map{}
 			for _, inTup := range tuples {
 				out, err := plan.Process(inTup)
 				So(err, ShouldBeNil)
@@ -1121,16 +1121,16 @@ func TestDefaultSelectExecutionPlanEmitters(t *testing.T) {
 				So(len(output), ShouldEqual, 6)
 				So(len(output[0]), ShouldEqual, 0) // skip
 				So(len(output[1]), ShouldEqual, 2)
-				So(output[1][0], ShouldResemble, tuple.Map{"a": tuple.Int(1)})
-				So(output[1][1], ShouldResemble, tuple.Map{"a": tuple.Int(2)})
+				So(output[1][0], ShouldResemble, data.Map{"a": data.Int(1)})
+				So(output[1][1], ShouldResemble, data.Map{"a": data.Int(2)})
 				So(len(output[2]), ShouldEqual, 0) // skip
 				So(len(output[3]), ShouldEqual, 2)
-				So(output[3][0], ShouldResemble, tuple.Map{"a": tuple.Int(3)})
-				So(output[3][1], ShouldResemble, tuple.Map{"a": tuple.Int(4)})
+				So(output[3][0], ShouldResemble, data.Map{"a": data.Int(3)})
+				So(output[3][1], ShouldResemble, data.Map{"a": data.Int(4)})
 				So(len(output[4]), ShouldEqual, 0) // skip
 				So(len(output[5]), ShouldEqual, 2)
-				So(output[5][0], ShouldResemble, tuple.Map{"a": tuple.Int(5)})
-				So(output[5][1], ShouldResemble, tuple.Map{"a": tuple.Int(6)})
+				So(output[5][0], ShouldResemble, data.Map{"a": data.Int(5)})
+				So(output[5][1], ShouldResemble, data.Map{"a": data.Int(6)})
 			})
 
 		})
@@ -1143,7 +1143,7 @@ func TestDefaultSelectExecutionPlanEmitters(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		Convey("When feeding it with tuples", func() {
-			output := [][]tuple.Map{}
+			output := [][]data.Map{}
 			for _, inTup := range tuples {
 				out, err := plan.Process(inTup)
 				So(err, ShouldBeNil)
@@ -1155,15 +1155,15 @@ func TestDefaultSelectExecutionPlanEmitters(t *testing.T) {
 				So(len(output[0]), ShouldEqual, 0) // skip
 				So(len(output[1]), ShouldEqual, 0) // skip
 				So(len(output[2]), ShouldEqual, 3)
-				So(output[2][0], ShouldResemble, tuple.Map{"a": tuple.Int(1)})
-				So(output[2][1], ShouldResemble, tuple.Map{"a": tuple.Int(2)})
-				So(output[2][2], ShouldResemble, tuple.Map{"a": tuple.Int(3)})
+				So(output[2][0], ShouldResemble, data.Map{"a": data.Int(1)})
+				So(output[2][1], ShouldResemble, data.Map{"a": data.Int(2)})
+				So(output[2][2], ShouldResemble, data.Map{"a": data.Int(3)})
 				So(len(output[3]), ShouldEqual, 0) // skip
 				So(len(output[4]), ShouldEqual, 0) // skip
 				So(len(output[5]), ShouldEqual, 3)
-				So(output[5][0], ShouldResemble, tuple.Map{"a": tuple.Int(4)})
-				So(output[5][1], ShouldResemble, tuple.Map{"a": tuple.Int(5)})
-				So(output[5][2], ShouldResemble, tuple.Map{"a": tuple.Int(6)})
+				So(output[5][0], ShouldResemble, data.Map{"a": data.Int(4)})
+				So(output[5][1], ShouldResemble, data.Map{"a": data.Int(5)})
+				So(output[5][2], ShouldResemble, data.Map{"a": data.Int(6)})
 			})
 
 		})
@@ -1177,7 +1177,7 @@ func TestDefaultSelectExecutionPlanEmitters(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		Convey("When feeding it with tuples", func() {
-			output := [][]tuple.Map{}
+			output := [][]data.Map{}
 			for _, inTup := range tuples {
 				out, err := plan.Process(inTup)
 				So(err, ShouldBeNil)
@@ -1188,8 +1188,8 @@ func TestDefaultSelectExecutionPlanEmitters(t *testing.T) {
 				So(len(output), ShouldEqual, 6)
 				So(len(output[0]), ShouldEqual, 0) // skip
 				So(len(output[1]), ShouldEqual, 2)
-				So(output[1][0], ShouldResemble, tuple.Map{"a": tuple.Int(2)})
-				So(output[1][1], ShouldResemble, tuple.Map{"a": tuple.Int(2)})
+				So(output[1][0], ShouldResemble, data.Map{"a": data.Int(2)})
+				So(output[1][1], ShouldResemble, data.Map{"a": data.Int(2)})
 				So(len(output[2]), ShouldEqual, 0) // skip
 				So(len(output[3]), ShouldEqual, 0)
 				So(len(output[4]), ShouldEqual, 0) // skip
@@ -1206,7 +1206,7 @@ func TestDefaultSelectExecutionPlanEmitters(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		Convey("When feeding it with tuples", func() {
-			output := [][]tuple.Map{}
+			output := [][]data.Map{}
 			for _, inTup := range tuples {
 				out, err := plan.Process(inTup)
 				So(err, ShouldBeNil)
@@ -1217,16 +1217,16 @@ func TestDefaultSelectExecutionPlanEmitters(t *testing.T) {
 				So(len(output), ShouldEqual, 6)
 				So(len(output[0]), ShouldEqual, 0) // skip
 				So(len(output[1]), ShouldEqual, 2)
-				So(output[1][0], ShouldResemble, tuple.Map{"a": tuple.Int(1)})
-				So(output[1][1], ShouldResemble, tuple.Map{"a": tuple.Int(2)})
+				So(output[1][0], ShouldResemble, data.Map{"a": data.Int(1)})
+				So(output[1][1], ShouldResemble, data.Map{"a": data.Int(2)})
 				So(len(output[2]), ShouldEqual, 0) // skip
 				So(len(output[3]), ShouldEqual, 2)
-				So(output[3][0], ShouldResemble, tuple.Map{"a": tuple.Int(3)})
-				So(output[3][1], ShouldResemble, tuple.Map{"a": tuple.Int(4)})
+				So(output[3][0], ShouldResemble, data.Map{"a": data.Int(3)})
+				So(output[3][1], ShouldResemble, data.Map{"a": data.Int(4)})
 				So(len(output[4]), ShouldEqual, 0) // skip
 				So(len(output[5]), ShouldEqual, 2)
-				So(output[5][0], ShouldResemble, tuple.Map{"a": tuple.Int(5)})
-				So(output[5][1], ShouldResemble, tuple.Map{"a": tuple.Int(6)})
+				So(output[5][0], ShouldResemble, data.Map{"a": data.Int(5)})
+				So(output[5][1], ShouldResemble, data.Map{"a": data.Int(6)})
 			})
 		})
 	})
@@ -1238,7 +1238,7 @@ func TestDefaultSelectExecutionPlanEmitters(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		Convey("When feeding it with tuples", func() {
-			output := [][]tuple.Map{}
+			output := [][]data.Map{}
 			for _, inTup := range tuples {
 				out, err := plan.Process(inTup)
 				So(err, ShouldBeNil)
@@ -1250,13 +1250,13 @@ func TestDefaultSelectExecutionPlanEmitters(t *testing.T) {
 				So(len(output[0]), ShouldEqual, 0) // skip
 				So(len(output[1]), ShouldEqual, 0) // skip
 				So(len(output[2]), ShouldEqual, 2)
-				So(output[2][0], ShouldResemble, tuple.Map{"a": tuple.Int(2)})
-				So(output[2][1], ShouldResemble, tuple.Map{"a": tuple.Int(3)})
+				So(output[2][0], ShouldResemble, data.Map{"a": data.Int(2)})
+				So(output[2][1], ShouldResemble, data.Map{"a": data.Int(3)})
 				So(len(output[3]), ShouldEqual, 0) // skip
 				So(len(output[4]), ShouldEqual, 0) // skip
 				So(len(output[5]), ShouldEqual, 2)
-				So(output[5][0], ShouldResemble, tuple.Map{"a": tuple.Int(5)})
-				So(output[5][1], ShouldResemble, tuple.Map{"a": tuple.Int(6)})
+				So(output[5][0], ShouldResemble, data.Map{"a": data.Int(5)})
+				So(output[5][1], ShouldResemble, data.Map{"a": data.Int(6)})
 			})
 
 		})
@@ -1270,7 +1270,7 @@ func TestDefaultSelectExecutionPlanEmitters(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		Convey("When feeding it with tuples", func() {
-			output := [][]tuple.Map{}
+			output := [][]data.Map{}
 			for _, inTup := range tuples {
 				out, err := plan.Process(inTup)
 				So(err, ShouldBeNil)
@@ -1297,7 +1297,7 @@ func TestDefaultSelectExecutionPlanEmitters(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		Convey("When feeding it with tuples", func() {
-			output := [][]tuple.Map{}
+			output := [][]data.Map{}
 			for _, inTup := range tuples {
 				out, err := plan.Process(inTup)
 				So(err, ShouldBeNil)
@@ -1310,11 +1310,11 @@ func TestDefaultSelectExecutionPlanEmitters(t *testing.T) {
 				So(len(output[1]), ShouldEqual, 0)
 				So(len(output[2]), ShouldEqual, 0) // skip
 				So(len(output[3]), ShouldEqual, 1)
-				So(output[3][0], ShouldResemble, tuple.Map{"a": tuple.Int(1)})
+				So(output[3][0], ShouldResemble, data.Map{"a": data.Int(1)})
 				So(len(output[4]), ShouldEqual, 0) // skip
 				So(len(output[5]), ShouldEqual, 2)
-				So(output[5][0], ShouldResemble, tuple.Map{"a": tuple.Int(2)})
-				So(output[5][1], ShouldResemble, tuple.Map{"a": tuple.Int(3)})
+				So(output[5][0], ShouldResemble, data.Map{"a": data.Int(2)})
+				So(output[5][1], ShouldResemble, data.Map{"a": data.Int(3)})
 			})
 
 		})
@@ -1327,7 +1327,7 @@ func TestDefaultSelectExecutionPlanEmitters(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		Convey("When feeding it with tuples", func() {
-			output := [][]tuple.Map{}
+			output := [][]data.Map{}
 			for _, inTup := range tuples {
 				out, err := plan.Process(inTup)
 				So(err, ShouldBeNil)
@@ -1342,9 +1342,9 @@ func TestDefaultSelectExecutionPlanEmitters(t *testing.T) {
 				So(len(output[3]), ShouldEqual, 0) // skip
 				So(len(output[4]), ShouldEqual, 0) // skip
 				So(len(output[5]), ShouldEqual, 3)
-				So(output[5][0], ShouldResemble, tuple.Map{"a": tuple.Int(1)})
-				So(output[5][1], ShouldResemble, tuple.Map{"a": tuple.Int(2)})
-				So(output[5][2], ShouldResemble, tuple.Map{"a": tuple.Int(3)})
+				So(output[5][0], ShouldResemble, data.Map{"a": data.Int(1)})
+				So(output[5][1], ShouldResemble, data.Map{"a": data.Int(2)})
+				So(output[5][2], ShouldResemble, data.Map{"a": data.Int(3)})
 				So(len(output[6]), ShouldEqual, 0) // skip
 				So(len(output[7]), ShouldEqual, 0) // skip
 			})
@@ -1360,7 +1360,7 @@ func TestDefaultSelectExecutionPlanEmitters(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		Convey("When feeding it with tuples", func() {
-			output := [][]tuple.Map{}
+			output := [][]data.Map{}
 			for _, inTup := range tuples {
 				out, err := plan.Process(inTup)
 				So(err, ShouldBeNil)
@@ -1389,7 +1389,7 @@ func TestDefaultSelectExecutionPlanEmitters(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		Convey("When feeding it with tuples", func() {
-			output := [][]tuple.Map{}
+			output := [][]data.Map{}
 			for _, inTup := range tuples {
 				out, err := plan.Process(inTup)
 				So(err, ShouldBeNil)
@@ -1402,16 +1402,16 @@ func TestDefaultSelectExecutionPlanEmitters(t *testing.T) {
 				So(len(output[1]), ShouldEqual, 0)
 				So(len(output[2]), ShouldEqual, 0) // skip
 				So(len(output[3]), ShouldEqual, 2)
-				So(output[3][0], ShouldResemble, tuple.Map{"a": tuple.Int(1)})
-				So(output[3][1], ShouldResemble, tuple.Map{"a": tuple.Int(2)})
+				So(output[3][0], ShouldResemble, data.Map{"a": data.Int(1)})
+				So(output[3][1], ShouldResemble, data.Map{"a": data.Int(2)})
 				So(len(output[4]), ShouldEqual, 0) // skip
 				So(len(output[5]), ShouldEqual, 2)
-				So(output[5][0], ShouldResemble, tuple.Map{"a": tuple.Int(3)})
-				So(output[5][1], ShouldResemble, tuple.Map{"a": tuple.Int(4)})
+				So(output[5][0], ShouldResemble, data.Map{"a": data.Int(3)})
+				So(output[5][1], ShouldResemble, data.Map{"a": data.Int(4)})
 				So(len(output[6]), ShouldEqual, 0) // skip
 				So(len(output[7]), ShouldEqual, 2)
-				So(output[7][0], ShouldResemble, tuple.Map{"a": tuple.Int(5)})
-				So(output[7][1], ShouldResemble, tuple.Map{"a": tuple.Int(6)})
+				So(output[7][0], ShouldResemble, data.Map{"a": data.Int(5)})
+				So(output[7][1], ShouldResemble, data.Map{"a": data.Int(6)})
 			})
 
 		})
@@ -1424,7 +1424,7 @@ func TestDefaultSelectExecutionPlanEmitters(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		Convey("When feeding it with tuples", func() {
-			output := [][]tuple.Map{}
+			output := [][]data.Map{}
 			for _, inTup := range tuples {
 				out, err := plan.Process(inTup)
 				So(err, ShouldBeNil)
@@ -1439,8 +1439,8 @@ func TestDefaultSelectExecutionPlanEmitters(t *testing.T) {
 				So(len(output[3]), ShouldEqual, 0) // skip
 				So(len(output[4]), ShouldEqual, 0) // skip
 				So(len(output[5]), ShouldEqual, 2)
-				So(output[5][0], ShouldResemble, tuple.Map{"a": tuple.Int(2)})
-				So(output[5][1], ShouldResemble, tuple.Map{"a": tuple.Int(3)})
+				So(output[5][0], ShouldResemble, data.Map{"a": data.Int(2)})
+				So(output[5][1], ShouldResemble, data.Map{"a": data.Int(3)})
 				So(len(output[6]), ShouldEqual, 0) // skip
 				So(len(output[7]), ShouldEqual, 0) // skip
 			})
@@ -1451,7 +1451,7 @@ func TestDefaultSelectExecutionPlanEmitters(t *testing.T) {
 // sortedMapString computes a reliable string representation,
 // i.e., always with the same order
 // (does not work with nested maps)
-func sortedMapString(inMap tuple.Map) string {
+func sortedMapString(inMap data.Map) string {
 	// get the keys in correct order
 	keys := make(sort.StringSlice, 0, len(inMap))
 	for key := range inMap {
@@ -1470,9 +1470,9 @@ func sortedMapString(inMap tuple.Map) string {
 	return out
 }
 
-// tupleList implements sort.Interface for []tuple.Map based on
+// tupleList implements sort.Interface for []data.Map based on
 // its string representation as per sortedMapString().
-type tupleList []tuple.Map
+type tupleList []data.Map
 
 func (tl tupleList) Len() int {
 	return len(tl)
@@ -1491,10 +1491,10 @@ func TestDefaultSelectExecutionPlanJoin(t *testing.T) {
 		for i, t := range tuples {
 			if i%2 == 0 {
 				t.InputName = "src1"
-				t.Data["l"] = tuple.String(fmt.Sprintf("l%d", i))
+				t.Data["l"] = data.String(fmt.Sprintf("l%d", i))
 			} else {
 				t.InputName = "src2"
-				t.Data["r"] = tuple.String(fmt.Sprintf("r%d", i))
+				t.Data["r"] = data.String(fmt.Sprintf("r%d", i))
 			}
 		}
 		s := `CREATE STREAM box AS SELECT ISTREAM src1:l, src2:r FROM src1 [RANGE 2 TUPLES], src2 [RANGE 2 TUPLES]`
@@ -1514,37 +1514,37 @@ func TestDefaultSelectExecutionPlanJoin(t *testing.T) {
 						So(len(out), ShouldEqual, 0)
 					} else if idx == 1 {
 						So(len(out), ShouldEqual, 1)
-						So(out[0], ShouldResemble, tuple.Map{
-							"l": tuple.String("l0"),
-							"r": tuple.String("r1"),
+						So(out[0], ShouldResemble, data.Map{
+							"l": data.String("l0"),
+							"r": data.String("r1"),
 						})
 					} else if idx == 2 {
 						So(len(out), ShouldEqual, 1)
-						So(out[0], ShouldResemble, tuple.Map{
-							"l": tuple.String("l2"),
-							"r": tuple.String("r1"),
+						So(out[0], ShouldResemble, data.Map{
+							"l": data.String("l2"),
+							"r": data.String("r1"),
 						})
 					} else if idx%2 == 1 {
 						// a tuple from src2 (=right) was just added
 						So(len(out), ShouldEqual, 2)
-						So(out[0], ShouldResemble, tuple.Map{
-							"l": tuple.String(fmt.Sprintf("l%d", idx-3)),
-							"r": tuple.String(fmt.Sprintf("r%d", idx)),
+						So(out[0], ShouldResemble, data.Map{
+							"l": data.String(fmt.Sprintf("l%d", idx-3)),
+							"r": data.String(fmt.Sprintf("r%d", idx)),
 						})
-						So(out[1], ShouldResemble, tuple.Map{
-							"l": tuple.String(fmt.Sprintf("l%d", idx-1)),
-							"r": tuple.String(fmt.Sprintf("r%d", idx)),
+						So(out[1], ShouldResemble, data.Map{
+							"l": data.String(fmt.Sprintf("l%d", idx-1)),
+							"r": data.String(fmt.Sprintf("r%d", idx)),
 						})
 					} else {
 						// a tuple from src1 (=left) was just added
 						So(len(out), ShouldEqual, 2)
-						So(out[0], ShouldResemble, tuple.Map{
-							"l": tuple.String(fmt.Sprintf("l%d", idx)),
-							"r": tuple.String(fmt.Sprintf("r%d", idx-3)),
+						So(out[0], ShouldResemble, data.Map{
+							"l": data.String(fmt.Sprintf("l%d", idx)),
+							"r": data.String(fmt.Sprintf("r%d", idx-3)),
 						})
-						So(out[1], ShouldResemble, tuple.Map{
-							"l": tuple.String(fmt.Sprintf("l%d", idx)),
-							"r": tuple.String(fmt.Sprintf("r%d", idx-1)),
+						So(out[1], ShouldResemble, data.Map{
+							"l": data.String(fmt.Sprintf("l%d", idx)),
+							"r": data.String(fmt.Sprintf("r%d", idx-1)),
 						})
 					}
 				})
@@ -1558,10 +1558,10 @@ func TestDefaultSelectExecutionPlanJoin(t *testing.T) {
 		for i, t := range tuples {
 			if i%2 == 0 {
 				t.InputName = "src1"
-				t.Data["l"] = tuple.String(fmt.Sprintf("l%d", i))
+				t.Data["l"] = data.String(fmt.Sprintf("l%d", i))
 			} else {
 				t.InputName = "src2"
-				t.Data["r"] = tuple.String(fmt.Sprintf("r%d", i))
+				t.Data["r"] = data.String(fmt.Sprintf("r%d", i))
 			}
 		}
 		s := `CREATE STREAM box AS SELECT RSTREAM src1:l, src2:r FROM src1 [RANGE 1 TUPLES], src2 [RANGE 5 SECONDS]`
@@ -1581,77 +1581,77 @@ func TestDefaultSelectExecutionPlanJoin(t *testing.T) {
 						So(len(out), ShouldEqual, 0)
 					} else if idx == 1 { // r1
 						So(len(out), ShouldEqual, 1)
-						So(out[0], ShouldResemble, tuple.Map{
-							"l": tuple.String("l0"),
-							"r": tuple.String("r1"),
+						So(out[0], ShouldResemble, data.Map{
+							"l": data.String("l0"),
+							"r": data.String("r1"),
 						})
 					} else if idx == 2 { // l2
 						So(len(out), ShouldEqual, 1)
-						So(out[0], ShouldResemble, tuple.Map{
-							"l": tuple.String("l2"),
-							"r": tuple.String("r1"),
+						So(out[0], ShouldResemble, data.Map{
+							"l": data.String("l2"),
+							"r": data.String("r1"),
 						})
 					} else if idx == 3 { // r3
 						So(len(out), ShouldEqual, 2)
-						So(out[0], ShouldResemble, tuple.Map{
-							"l": tuple.String("l2"),
-							"r": tuple.String("r1"),
+						So(out[0], ShouldResemble, data.Map{
+							"l": data.String("l2"),
+							"r": data.String("r1"),
 						})
-						So(out[1], ShouldResemble, tuple.Map{
-							"l": tuple.String("l2"),
-							"r": tuple.String("r3"),
+						So(out[1], ShouldResemble, data.Map{
+							"l": data.String("l2"),
+							"r": data.String("r3"),
 						})
 					} else if idx == 4 { // l4
 						So(len(out), ShouldEqual, 2)
-						So(out[0], ShouldResemble, tuple.Map{
-							"l": tuple.String("l4"),
-							"r": tuple.String("r1"),
+						So(out[0], ShouldResemble, data.Map{
+							"l": data.String("l4"),
+							"r": data.String("r1"),
 						})
-						So(out[1], ShouldResemble, tuple.Map{
-							"l": tuple.String("l4"),
-							"r": tuple.String("r3"),
+						So(out[1], ShouldResemble, data.Map{
+							"l": data.String("l4"),
+							"r": data.String("r3"),
 						})
 					} else if idx == 5 { // r5
 						So(len(out), ShouldEqual, 3)
-						So(out[0], ShouldResemble, tuple.Map{
-							"l": tuple.String("l4"),
-							"r": tuple.String("r1"),
+						So(out[0], ShouldResemble, data.Map{
+							"l": data.String("l4"),
+							"r": data.String("r1"),
 						})
-						So(out[1], ShouldResemble, tuple.Map{
-							"l": tuple.String("l4"),
-							"r": tuple.String("r3"),
+						So(out[1], ShouldResemble, data.Map{
+							"l": data.String("l4"),
+							"r": data.String("r3"),
 						})
-						So(out[2], ShouldResemble, tuple.Map{
-							"l": tuple.String("l4"),
-							"r": tuple.String("r5"),
+						So(out[2], ShouldResemble, data.Map{
+							"l": data.String("l4"),
+							"r": data.String("r5"),
 						})
 					} else if idx == 6 { // l6
 						So(len(out), ShouldEqual, 3)
-						So(out[0], ShouldResemble, tuple.Map{
-							"l": tuple.String("l6"),
-							"r": tuple.String("r1"),
+						So(out[0], ShouldResemble, data.Map{
+							"l": data.String("l6"),
+							"r": data.String("r1"),
 						})
-						So(out[1], ShouldResemble, tuple.Map{
-							"l": tuple.String("l6"),
-							"r": tuple.String("r3"),
+						So(out[1], ShouldResemble, data.Map{
+							"l": data.String("l6"),
+							"r": data.String("r3"),
 						})
-						So(out[2], ShouldResemble, tuple.Map{
-							"l": tuple.String("l6"),
-							"r": tuple.String("r5"),
+						So(out[2], ShouldResemble, data.Map{
+							"l": data.String("l6"),
+							"r": data.String("r5"),
 						})
 					} else if idx == 7 { // r7
 						So(len(out), ShouldEqual, 3)
-						So(out[0], ShouldResemble, tuple.Map{
-							"l": tuple.String("l6"),
-							"r": tuple.String("r3"),
+						So(out[0], ShouldResemble, data.Map{
+							"l": data.String("l6"),
+							"r": data.String("r3"),
 						})
-						So(out[1], ShouldResemble, tuple.Map{
-							"l": tuple.String("l6"),
-							"r": tuple.String("r5"),
+						So(out[1], ShouldResemble, data.Map{
+							"l": data.String("l6"),
+							"r": data.String("r5"),
 						})
-						So(out[2], ShouldResemble, tuple.Map{
-							"l": tuple.String("l6"),
-							"r": tuple.String("r7"),
+						So(out[2], ShouldResemble, data.Map{
+							"l": data.String("l6"),
+							"r": data.String("r7"),
 						})
 					}
 				})
@@ -1665,10 +1665,10 @@ func TestDefaultSelectExecutionPlanJoin(t *testing.T) {
 		for i, t := range tuples {
 			if i%2 == 0 {
 				t.InputName = "src1"
-				t.Data["a"] = tuple.Int(i/2 + 1)
+				t.Data["a"] = data.Int(i/2 + 1)
 			} else {
 				t.InputName = "src2"
-				t.Data["b"] = tuple.Int(i/2 + 1)
+				t.Data["b"] = data.Int(i/2 + 1)
 			}
 		}
 		s := `CREATE STREAM box AS SELECT
@@ -1680,7 +1680,7 @@ func TestDefaultSelectExecutionPlanJoin(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		Convey("When feeding it with tuples", func() {
-			output := [][]tuple.Map{}
+			output := [][]data.Map{}
 			for _, inTup := range tuples {
 				out, err := plan.Process(inTup)
 				So(err, ShouldBeNil)
@@ -1695,50 +1695,50 @@ func TestDefaultSelectExecutionPlanJoin(t *testing.T) {
 				So(len(output[0]), ShouldEqual, 0) // skip
 				So(len(output[1]), ShouldEqual, 0) // skip
 				So(len(output[2]), ShouldEqual, 2)
-				So(output[2], ShouldResemble, []tuple.Map{
-					{"l": tuple.Int(1), "r": tuple.Int(1)},
-					{"l": tuple.Int(2), "r": tuple.Int(1)},
+				So(output[2], ShouldResemble, []data.Map{
+					{"l": data.Int(1), "r": data.Int(1)},
+					{"l": data.Int(2), "r": data.Int(1)},
 				})
 				So(len(output[3]), ShouldEqual, 0) // skip
 				So(len(output[4]), ShouldEqual, 0) // skip
 				So(len(output[5]), ShouldEqual, 6)
-				So(output[5], ShouldResemble, []tuple.Map{
-					{"l": tuple.Int(1), "r": tuple.Int(2)},
-					{"l": tuple.Int(1), "r": tuple.Int(3)},
-					{"l": tuple.Int(2), "r": tuple.Int(2)},
-					{"l": tuple.Int(2), "r": tuple.Int(3)},
-					{"l": tuple.Int(3), "r": tuple.Int(2)},
-					{"l": tuple.Int(3), "r": tuple.Int(3)},
+				So(output[5], ShouldResemble, []data.Map{
+					{"l": data.Int(1), "r": data.Int(2)},
+					{"l": data.Int(1), "r": data.Int(3)},
+					{"l": data.Int(2), "r": data.Int(2)},
+					{"l": data.Int(2), "r": data.Int(3)},
+					{"l": data.Int(3), "r": data.Int(2)},
+					{"l": data.Int(3), "r": data.Int(3)},
 				})
 				So(len(output[6]), ShouldEqual, 6)
-				So(output[6], ShouldResemble, []tuple.Map{
-					{"l": tuple.Int(2), "r": tuple.Int(2)},
-					{"l": tuple.Int(2), "r": tuple.Int(3)},
-					{"l": tuple.Int(3), "r": tuple.Int(2)},
-					{"l": tuple.Int(3), "r": tuple.Int(3)},
-					{"l": tuple.Int(4), "r": tuple.Int(2)},
-					{"l": tuple.Int(4), "r": tuple.Int(3)},
+				So(output[6], ShouldResemble, []data.Map{
+					{"l": data.Int(2), "r": data.Int(2)},
+					{"l": data.Int(2), "r": data.Int(3)},
+					{"l": data.Int(3), "r": data.Int(2)},
+					{"l": data.Int(3), "r": data.Int(3)},
+					{"l": data.Int(4), "r": data.Int(2)},
+					{"l": data.Int(4), "r": data.Int(3)},
 				})
 				So(len(output[7]), ShouldEqual, 0) // skip
 				So(len(output[8]), ShouldEqual, 0) // skip
 				So(len(output[9]), ShouldEqual, 0) // skip
 				So(len(output[10]), ShouldEqual, 6)
-				So(output[10], ShouldResemble, []tuple.Map{
-					{"l": tuple.Int(4), "r": tuple.Int(4)},
-					{"l": tuple.Int(4), "r": tuple.Int(5)},
-					{"l": tuple.Int(5), "r": tuple.Int(4)},
-					{"l": tuple.Int(5), "r": tuple.Int(5)},
-					{"l": tuple.Int(6), "r": tuple.Int(4)},
-					{"l": tuple.Int(6), "r": tuple.Int(5)},
+				So(output[10], ShouldResemble, []data.Map{
+					{"l": data.Int(4), "r": data.Int(4)},
+					{"l": data.Int(4), "r": data.Int(5)},
+					{"l": data.Int(5), "r": data.Int(4)},
+					{"l": data.Int(5), "r": data.Int(5)},
+					{"l": data.Int(6), "r": data.Int(4)},
+					{"l": data.Int(6), "r": data.Int(5)},
 				})
 				So(len(output[11]), ShouldEqual, 6)
-				So(output[11], ShouldResemble, []tuple.Map{
-					{"l": tuple.Int(4), "r": tuple.Int(5)},
-					{"l": tuple.Int(4), "r": tuple.Int(6)},
-					{"l": tuple.Int(5), "r": tuple.Int(5)},
-					{"l": tuple.Int(5), "r": tuple.Int(6)},
-					{"l": tuple.Int(6), "r": tuple.Int(5)},
-					{"l": tuple.Int(6), "r": tuple.Int(6)},
+				So(output[11], ShouldResemble, []data.Map{
+					{"l": data.Int(4), "r": data.Int(5)},
+					{"l": data.Int(4), "r": data.Int(6)},
+					{"l": data.Int(5), "r": data.Int(5)},
+					{"l": data.Int(5), "r": data.Int(6)},
+					{"l": data.Int(6), "r": data.Int(5)},
+					{"l": data.Int(6), "r": data.Int(6)},
 				})
 			})
 		})
@@ -1750,10 +1750,10 @@ func TestDefaultSelectExecutionPlanJoin(t *testing.T) {
 		for i, t := range tuples {
 			if i%2 == 0 {
 				t.InputName = "src1"
-				t.Data["a"] = tuple.Int(i/2 + 1)
+				t.Data["a"] = data.Int(i/2 + 1)
 			} else {
 				t.InputName = "src2"
-				t.Data["b"] = tuple.Int(i/2 + 1)
+				t.Data["b"] = data.Int(i/2 + 1)
 			}
 		}
 		s := `CREATE STREAM box AS SELECT
@@ -1765,7 +1765,7 @@ func TestDefaultSelectExecutionPlanJoin(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		Convey("When feeding it with tuples", func() {
-			output := [][]tuple.Map{}
+			output := [][]data.Map{}
 			for _, inTup := range tuples {
 				out, err := plan.Process(inTup)
 				So(err, ShouldBeNil)
@@ -1783,13 +1783,13 @@ func TestDefaultSelectExecutionPlanJoin(t *testing.T) {
 				So(len(output[3]), ShouldEqual, 0) // skip
 				So(len(output[4]), ShouldEqual, 0) // skip
 				So(len(output[5]), ShouldEqual, 6)
-				So(output[5], ShouldResemble, []tuple.Map{
-					{"l": tuple.Int(1), "r": tuple.Int(2)},
-					{"l": tuple.Int(1), "r": tuple.Int(3)},
-					{"l": tuple.Int(2), "r": tuple.Int(2)},
-					{"l": tuple.Int(2), "r": tuple.Int(3)},
-					{"l": tuple.Int(3), "r": tuple.Int(2)},
-					{"l": tuple.Int(3), "r": tuple.Int(3)},
+				So(output[5], ShouldResemble, []data.Map{
+					{"l": data.Int(1), "r": data.Int(2)},
+					{"l": data.Int(1), "r": data.Int(3)},
+					{"l": data.Int(2), "r": data.Int(2)},
+					{"l": data.Int(2), "r": data.Int(3)},
+					{"l": data.Int(3), "r": data.Int(2)},
+					{"l": data.Int(3), "r": data.Int(3)},
 				})
 				So(len(output[6]), ShouldEqual, 0)  // skip
 				So(len(output[7]), ShouldEqual, 0)  // skip
@@ -1797,13 +1797,13 @@ func TestDefaultSelectExecutionPlanJoin(t *testing.T) {
 				So(len(output[9]), ShouldEqual, 0)  // skip
 				So(len(output[10]), ShouldEqual, 0) // skip
 				So(len(output[11]), ShouldEqual, 6)
-				So(output[11], ShouldResemble, []tuple.Map{
-					{"l": tuple.Int(4), "r": tuple.Int(5)},
-					{"l": tuple.Int(4), "r": tuple.Int(6)},
-					{"l": tuple.Int(5), "r": tuple.Int(5)},
-					{"l": tuple.Int(5), "r": tuple.Int(6)},
-					{"l": tuple.Int(6), "r": tuple.Int(5)},
-					{"l": tuple.Int(6), "r": tuple.Int(6)},
+				So(output[11], ShouldResemble, []data.Map{
+					{"l": data.Int(4), "r": data.Int(5)},
+					{"l": data.Int(4), "r": data.Int(6)},
+					{"l": data.Int(5), "r": data.Int(5)},
+					{"l": data.Int(5), "r": data.Int(6)},
+					{"l": data.Int(6), "r": data.Int(5)},
+					{"l": data.Int(6), "r": data.Int(6)},
 				})
 			})
 		})
@@ -1815,10 +1815,10 @@ func TestDefaultSelectExecutionPlanJoin(t *testing.T) {
 		for i, t := range tuples {
 			if i%2 == 0 {
 				t.InputName = "src1"
-				t.Data["a"] = tuple.Int(i/2 + 1)
+				t.Data["a"] = data.Int(i/2 + 1)
 			} else {
 				t.InputName = "src2"
-				t.Data["b"] = tuple.Int(i/2 + 1)
+				t.Data["b"] = data.Int(i/2 + 1)
 			}
 		}
 		s := `CREATE STREAM box AS SELECT
@@ -1830,7 +1830,7 @@ func TestDefaultSelectExecutionPlanJoin(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		Convey("When feeding it with tuples", func() {
-			output := [][]tuple.Map{}
+			output := [][]data.Map{}
 			for _, inTup := range tuples {
 				out, err := plan.Process(inTup)
 				So(err, ShouldBeNil)
@@ -1845,43 +1845,43 @@ func TestDefaultSelectExecutionPlanJoin(t *testing.T) {
 				So(len(output[0]), ShouldEqual, 0) // skip
 				So(len(output[1]), ShouldEqual, 0) // skip
 				So(len(output[2]), ShouldEqual, 2)
-				So(output[2], ShouldResemble, []tuple.Map{
-					{"l": tuple.Int(1), "r": tuple.Int(1)},
-					{"l": tuple.Int(2), "r": tuple.Int(1)},
+				So(output[2], ShouldResemble, []data.Map{
+					{"l": data.Int(1), "r": data.Int(1)},
+					{"l": data.Int(2), "r": data.Int(1)},
 				})
 				So(len(output[3]), ShouldEqual, 0) // skip
 				So(len(output[4]), ShouldEqual, 0) // skip
 				So(len(output[5]), ShouldEqual, 6)
-				So(output[5], ShouldResemble, []tuple.Map{
-					{"l": tuple.Int(1), "r": tuple.Int(2)},
-					{"l": tuple.Int(1), "r": tuple.Int(3)},
-					{"l": tuple.Int(2), "r": tuple.Int(2)},
-					{"l": tuple.Int(2), "r": tuple.Int(3)},
-					{"l": tuple.Int(3), "r": tuple.Int(2)},
-					{"l": tuple.Int(3), "r": tuple.Int(3)},
+				So(output[5], ShouldResemble, []data.Map{
+					{"l": data.Int(1), "r": data.Int(2)},
+					{"l": data.Int(1), "r": data.Int(3)},
+					{"l": data.Int(2), "r": data.Int(2)},
+					{"l": data.Int(2), "r": data.Int(3)},
+					{"l": data.Int(3), "r": data.Int(2)},
+					{"l": data.Int(3), "r": data.Int(3)},
 				})
 				So(len(output[6]), ShouldEqual, 2)
-				So(output[6], ShouldResemble, []tuple.Map{
-					{"l": tuple.Int(4), "r": tuple.Int(2)},
-					{"l": tuple.Int(4), "r": tuple.Int(3)},
+				So(output[6], ShouldResemble, []data.Map{
+					{"l": data.Int(4), "r": data.Int(2)},
+					{"l": data.Int(4), "r": data.Int(3)},
 				})
 				So(len(output[7]), ShouldEqual, 0) // skip
 				So(len(output[8]), ShouldEqual, 0) // skip
 				So(len(output[9]), ShouldEqual, 0) // skip
 				So(len(output[10]), ShouldEqual, 6)
-				So(output[10], ShouldResemble, []tuple.Map{
-					{"l": tuple.Int(4), "r": tuple.Int(4)},
-					{"l": tuple.Int(4), "r": tuple.Int(5)},
-					{"l": tuple.Int(5), "r": tuple.Int(4)},
-					{"l": tuple.Int(5), "r": tuple.Int(5)},
-					{"l": tuple.Int(6), "r": tuple.Int(4)},
-					{"l": tuple.Int(6), "r": tuple.Int(5)},
+				So(output[10], ShouldResemble, []data.Map{
+					{"l": data.Int(4), "r": data.Int(4)},
+					{"l": data.Int(4), "r": data.Int(5)},
+					{"l": data.Int(5), "r": data.Int(4)},
+					{"l": data.Int(5), "r": data.Int(5)},
+					{"l": data.Int(6), "r": data.Int(4)},
+					{"l": data.Int(6), "r": data.Int(5)},
 				})
 				So(len(output[11]), ShouldEqual, 3)
-				So(output[11], ShouldResemble, []tuple.Map{
-					{"l": tuple.Int(4), "r": tuple.Int(6)},
-					{"l": tuple.Int(5), "r": tuple.Int(6)},
-					{"l": tuple.Int(6), "r": tuple.Int(6)},
+				So(output[11], ShouldResemble, []data.Map{
+					{"l": data.Int(4), "r": data.Int(6)},
+					{"l": data.Int(5), "r": data.Int(6)},
+					{"l": data.Int(6), "r": data.Int(6)},
 				})
 			})
 		})
@@ -1893,10 +1893,10 @@ func TestDefaultSelectExecutionPlanJoin(t *testing.T) {
 		for i, t := range tuples {
 			if i%2 == 0 {
 				t.InputName = "src1"
-				t.Data["a"] = tuple.Int(i/2 + 1)
+				t.Data["a"] = data.Int(i/2 + 1)
 			} else {
 				t.InputName = "src2"
-				t.Data["b"] = tuple.Int(i/2 + 1)
+				t.Data["b"] = data.Int(i/2 + 1)
 			}
 		}
 		s := `CREATE STREAM box AS SELECT
@@ -1908,7 +1908,7 @@ func TestDefaultSelectExecutionPlanJoin(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		Convey("When feeding it with tuples", func() {
-			output := [][]tuple.Map{}
+			output := [][]data.Map{}
 			for _, inTup := range tuples {
 				out, err := plan.Process(inTup)
 				So(err, ShouldBeNil)
@@ -1926,32 +1926,32 @@ func TestDefaultSelectExecutionPlanJoin(t *testing.T) {
 				So(len(output[3]), ShouldEqual, 0) // skip
 				So(len(output[4]), ShouldEqual, 0) // skip
 				So(len(output[5]), ShouldEqual, 2)
-				So(output[5], ShouldResemble, []tuple.Map{
-					{"l": tuple.Int(1), "r": tuple.Int(1)},
-					{"l": tuple.Int(2), "r": tuple.Int(1)},
+				So(output[5], ShouldResemble, []data.Map{
+					{"l": data.Int(1), "r": data.Int(1)},
+					{"l": data.Int(2), "r": data.Int(1)},
 				})
 				So(len(output[6]), ShouldEqual, 2)
-				So(output[6], ShouldResemble, []tuple.Map{
-					{"l": tuple.Int(1), "r": tuple.Int(2)},
-					{"l": tuple.Int(1), "r": tuple.Int(3)},
+				So(output[6], ShouldResemble, []data.Map{
+					{"l": data.Int(1), "r": data.Int(2)},
+					{"l": data.Int(1), "r": data.Int(3)},
 				})
 				So(len(output[7]), ShouldEqual, 0) // skip
 				So(len(output[8]), ShouldEqual, 0) // skip
 				So(len(output[9]), ShouldEqual, 0) // skip
 				So(len(output[10]), ShouldEqual, 6)
-				So(output[10], ShouldResemble, []tuple.Map{
-					{"l": tuple.Int(2), "r": tuple.Int(2)},
-					{"l": tuple.Int(2), "r": tuple.Int(3)},
-					{"l": tuple.Int(3), "r": tuple.Int(2)},
-					{"l": tuple.Int(3), "r": tuple.Int(3)},
-					{"l": tuple.Int(4), "r": tuple.Int(2)},
-					{"l": tuple.Int(4), "r": tuple.Int(3)},
+				So(output[10], ShouldResemble, []data.Map{
+					{"l": data.Int(2), "r": data.Int(2)},
+					{"l": data.Int(2), "r": data.Int(3)},
+					{"l": data.Int(3), "r": data.Int(2)},
+					{"l": data.Int(3), "r": data.Int(3)},
+					{"l": data.Int(4), "r": data.Int(2)},
+					{"l": data.Int(4), "r": data.Int(3)},
 				})
 				So(len(output[11]), ShouldEqual, 3)
-				So(output[11], ShouldResemble, []tuple.Map{
-					{"l": tuple.Int(4), "r": tuple.Int(4)},
-					{"l": tuple.Int(5), "r": tuple.Int(4)},
-					{"l": tuple.Int(6), "r": tuple.Int(4)},
+				So(output[11], ShouldResemble, []data.Map{
+					{"l": data.Int(4), "r": data.Int(4)},
+					{"l": data.Int(5), "r": data.Int(4)},
+					{"l": data.Int(6), "r": data.Int(4)},
 				})
 			})
 		})
@@ -1963,10 +1963,10 @@ func TestDefaultSelectExecutionPlanJoin(t *testing.T) {
 		for i, t := range tuples {
 			if i%2 == 0 {
 				t.InputName = "src1"
-				t.Data["l"] = tuple.String(fmt.Sprintf("l%d", i))
+				t.Data["l"] = data.String(fmt.Sprintf("l%d", i))
 			} else {
 				t.InputName = "src2"
-				t.Data["r"] = tuple.String(fmt.Sprintf("r%d", i))
+				t.Data["r"] = data.String(fmt.Sprintf("r%d", i))
 			}
 		}
 		s := `CREATE STREAM box AS SELECT ISTREAM src1:l, src2:r FROM src1 [RANGE 2 TUPLES], src2 [RANGE 2 TUPLES] ` +
@@ -1987,18 +1987,18 @@ func TestDefaultSelectExecutionPlanJoin(t *testing.T) {
 						So(len(out), ShouldEqual, 0)
 					} else if idx == 1 {
 						So(len(out), ShouldEqual, 1)
-						So(out[0], ShouldResemble, tuple.Map{
-							"l": tuple.String("l0"), // int: 1
-							"r": tuple.String("r1"), // int: 2
+						So(out[0], ShouldResemble, data.Map{
+							"l": data.String("l0"), // int: 1
+							"r": data.String("r1"), // int: 2
 						})
 					} else if idx == 2 {
 						So(len(out), ShouldEqual, 0)
 					} else if idx%2 == 1 {
 						// a tuple from src2 (=right) was just added
 						So(len(out), ShouldEqual, 1)
-						So(out[0], ShouldResemble, tuple.Map{
-							"l": tuple.String(fmt.Sprintf("l%d", idx-1)), // int: x
-							"r": tuple.String(fmt.Sprintf("r%d", idx)),   // int: x+1
+						So(out[0], ShouldResemble, data.Map{
+							"l": data.String(fmt.Sprintf("l%d", idx-1)), // int: x
+							"r": data.String(fmt.Sprintf("r%d", idx)),   // int: x+1
 						})
 					} else {
 						// a tuple from src1 (=left) was just added

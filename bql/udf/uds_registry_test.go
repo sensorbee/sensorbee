@@ -3,7 +3,7 @@ package udf
 import (
 	. "github.com/smartystreets/goconvey/convey"
 	"pfi/sensorbee/sensorbee/core"
-	"pfi/sensorbee/sensorbee/tuple"
+	"pfi/sensorbee/sensorbee/data"
 	"testing"
 )
 
@@ -31,7 +31,7 @@ func TestEmptyDefaultUDSCreatorRegistry(t *testing.T) {
 		r := NewDefaultUDSCreatorRegistry()
 
 		Convey("When adding a creator function", func() {
-			err := r.Register("test_state_func", UDSCreatorFunc(func(ctx *core.Context, params tuple.Map) (core.SharedState, error) {
+			err := r.Register("test_state_func", UDSCreatorFunc(func(ctx *core.Context, params data.Map) (core.SharedState, error) {
 				return &testSharedState{}, nil
 			}))
 
@@ -78,15 +78,15 @@ func TestDefaultUDSCreatorRegistry(t *testing.T) {
 
 	Convey("Given an default UDS registry having two types", t, func() {
 		r := NewDefaultUDSCreatorRegistry()
-		So(r.Register("test_state_func", UDSCreatorFunc(func(ctx *core.Context, params tuple.Map) (core.SharedState, error) {
+		So(r.Register("test_state_func", UDSCreatorFunc(func(ctx *core.Context, params data.Map) (core.SharedState, error) {
 			return &testSharedState{}, nil
 		})), ShouldBeNil)
-		So(r.Register("test_state_func2", UDSCreatorFunc(func(ctx *core.Context, params tuple.Map) (core.SharedState, error) {
+		So(r.Register("test_state_func2", UDSCreatorFunc(func(ctx *core.Context, params data.Map) (core.SharedState, error) {
 			return &testSharedState{}, nil
 		})), ShouldBeNil)
 
 		Convey("When adding a new type having the registered type name", func() {
-			err := r.Register("test_state_func", UDSCreatorFunc(func(ctx *core.Context, params tuple.Map) (core.SharedState, error) {
+			err := r.Register("test_state_func", UDSCreatorFunc(func(ctx *core.Context, params data.Map) (core.SharedState, error) {
 				return &testSharedState{}, nil
 			}))
 

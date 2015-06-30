@@ -1,7 +1,7 @@
 package core
 
 import (
-	"pfi/sensorbee/sensorbee/tuple"
+	"pfi/sensorbee/sensorbee/data"
 	"time"
 )
 
@@ -9,7 +9,7 @@ import (
 // that is processed is stored in tuples.
 type Tuple struct {
 	// Data is the actual data that is processed.
-	Data tuple.Map
+	Data data.Map
 
 	// InputName can be used to identify the sender of a tuple when a
 	// Box processes data from multiple inputs. It will be set before

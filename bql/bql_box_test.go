@@ -4,7 +4,7 @@ import (
 	"fmt"
 	. "github.com/smartystreets/goconvey/convey"
 	"pfi/sensorbee/sensorbee/core"
-	"pfi/sensorbee/sensorbee/tuple"
+	"pfi/sensorbee/sensorbee/data"
 	"testing"
 )
 
@@ -53,8 +53,8 @@ func TestBasicBqlBoxConnectivity(t *testing.T) {
 		si := sin.Sink().(*tupleCollectorSink)
 
 		Convey("When 4 tuples are emitted by the source", func() {
-			tup2.Data["x"] = tuple.String(fmt.Sprintf("%d", ((2 + 1) % 3)))
-			tup4.Data["x"] = tuple.String(fmt.Sprintf("%d", ((4 + 1) % 3)))
+			tup2.Data["x"] = data.String(fmt.Sprintf("%d", ((2 + 1) % 3)))
+			tup4.Data["x"] = data.String(fmt.Sprintf("%d", ((4 + 1) % 3)))
 
 			Convey("Then the sink receives 2 tuples", func() {
 				si.Wait(2)

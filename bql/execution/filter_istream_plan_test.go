@@ -5,7 +5,7 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 	"pfi/sensorbee/sensorbee/bql/parser"
 	"pfi/sensorbee/sensorbee/bql/udf"
-	"pfi/sensorbee/sensorbee/tuple"
+	"pfi/sensorbee/sensorbee/data"
 	"testing"
 )
 
@@ -304,7 +304,7 @@ func TestFilterIstreamPlan(t *testing.T) {
 						So(err, ShouldBeNil)
 						So(len(out), ShouldEqual, 1)
 						So(out[0], ShouldResemble,
-							tuple.Map{"int": tuple.Int(idx + 1)})
+							data.Map{"int": data.Int(idx + 1)})
 					})
 				} else if idx == 1 || idx == 2 {
 					// In the idx==1 run, the window contains item 0 and item 1,
@@ -322,9 +322,9 @@ func TestFilterIstreamPlan(t *testing.T) {
 						So(err, ShouldBeNil)
 						So(len(out), ShouldEqual, 2)
 						So(out[0], ShouldResemble,
-							tuple.Map{"int": tuple.Int(idx)})
+							data.Map{"int": data.Int(idx)})
 						So(out[1], ShouldResemble,
-							tuple.Map{"int": tuple.Int(idx + 1)})
+							data.Map{"int": data.Int(idx + 1)})
 					})
 				} else {
 					// In later runs, we have recovered from the error in item 1
@@ -333,7 +333,7 @@ func TestFilterIstreamPlan(t *testing.T) {
 						So(err, ShouldBeNil)
 						So(len(out), ShouldEqual, 1)
 						So(out[0], ShouldResemble,
-							tuple.Map{"int": tuple.Int(idx + 1)})
+							data.Map{"int": data.Int(idx + 1)})
 					})
 				}
 			}
@@ -351,7 +351,7 @@ func TestFilterIstreamPlan(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		Convey("When feeding it with tuples", func() {
-			output := [][]tuple.Map{}
+			output := [][]data.Map{}
 			for _, inTup := range tuples {
 				out, err := plan.Process(inTup.Copy())
 				So(err, ShouldBeNil)
@@ -362,7 +362,7 @@ func TestFilterIstreamPlan(t *testing.T) {
 			Convey("Then new items in state should be emitted", func() {
 				So(len(output), ShouldEqual, 4)
 				So(len(output[0]), ShouldEqual, 1)
-				So(output[0][0], ShouldResemble, tuple.Map{"a": tuple.Int(2)})
+				So(output[0][0], ShouldResemble, data.Map{"a": data.Int(2)})
 				So(len(output[1]), ShouldEqual, 0)
 				So(len(output[2]), ShouldEqual, 0)
 				So(len(output[3]), ShouldEqual, 0)
@@ -377,7 +377,7 @@ func TestFilterIstreamPlan(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		Convey("When feeding it with tuples", func() {
-			output := [][]tuple.Map{}
+			output := [][]data.Map{}
 			for _, inTup := range tuples {
 				out, err := plan.Process(inTup.Copy())
 				So(err, ShouldBeNil)
@@ -387,13 +387,13 @@ func TestFilterIstreamPlan(t *testing.T) {
 			Convey("Then new items in state should be emitted", func() {
 				So(len(output), ShouldEqual, 4)
 				So(len(output[0]), ShouldEqual, 1)
-				So(output[0][0], ShouldResemble, tuple.Map{"a": tuple.Int(1)})
+				So(output[0][0], ShouldResemble, data.Map{"a": data.Int(1)})
 				So(len(output[1]), ShouldEqual, 1)
-				So(output[1][0], ShouldResemble, tuple.Map{"a": tuple.Int(2)})
+				So(output[1][0], ShouldResemble, data.Map{"a": data.Int(2)})
 				So(len(output[2]), ShouldEqual, 1)
-				So(output[2][0], ShouldResemble, tuple.Map{"a": tuple.Int(3)})
+				So(output[2][0], ShouldResemble, data.Map{"a": data.Int(3)})
 				So(len(output[3]), ShouldEqual, 1)
-				So(output[3][0], ShouldResemble, tuple.Map{"a": tuple.Int(4)})
+				So(output[3][0], ShouldResemble, data.Map{"a": data.Int(4)})
 			})
 		})
 	})

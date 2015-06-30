@@ -1,4 +1,4 @@
-package tuple
+package data
 
 import (
 	"encoding/json"
