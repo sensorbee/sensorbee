@@ -41,12 +41,16 @@ func (r *pipeReceiver) close() {
 }
 
 type pipeSender struct {
-	inputName   string
-	out         chan<- *Tuple
-	inputClosed <-chan struct{}
+	inputName string
+	out       chan<- *Tuple
 
 	// rwm protects out from write-close conflicts.
-	rwm    sync.RWMutex
+	rwm sync.RWMutex
+
+	registeredDsts []struct {
+		registeredName string
+		dst            *dataDestinations
+	}
 	closed bool
 }
 
@@ -82,6 +86,27 @@ func (s *pipeSender) close() {
 	}
 	s.closed = true
 	close(s.out)
+
+	// Remove the sender from all destinations to notify owners of
+	// dataDestinations that a sender is removed from them. Without this,
+	// a notification won't be sent until someone write a tuple to
+	// dataDestination.
+	for _, d := range s.registeredDsts {
+		// There can be a circular recursive call like pipeSender.close ->
+		// dataDestinations.remove -> pipeSender.close. So, this should be
+		// called via goroutine.
+		go d.dst.remove(d.registeredName)
+	}
+	s.registeredDsts = nil
+}
+
+func (s *pipeSender) registered(name string, dst *dataDestinations) {
+	s.rwm.Lock()
+	defer s.rwm.Unlock()
+	s.registeredDsts = append(s.registeredDsts, struct {
+		registeredName string
+		dst            *dataDestinations
+	}{name, dst})
 }
 
 type dataSources struct {
@@ -490,7 +515,21 @@ type dataDestinations struct {
 	cond     *sync.Cond
 	dsts     map[string]*pipeSender
 	paused   bool
+
+	callback func(ddEvent)
 }
+
+type ddEvent int
+
+const (
+	// ddeNewConn is sent when a new connection is added. When this event is
+	// sent, the callback must not call any method of dataDestinations.
+	ddeNewConn ddEvent = iota
+
+	// ddeDisconnect is sent when all connections are closed. When this event
+	// is sent, the callback can safely call other methods of dataDestinations.
+	ddeDisconnect
+)
 
 func newDataDestinations(nodeName string) *dataDestinations {
 	d := &dataDestinations{
@@ -512,18 +551,42 @@ func (d *dataDestinations) add(name string, s *pipeSender) error {
 		return fmt.Errorf("node '%v' already has the destination '%v'", d.nodeName, name)
 	}
 	d.dsts[name] = s
+	s.registered(name, d)
+	if d.callback != nil {
+		// This isn't called via goroutine because calling it via goroutine
+		// might result in inconsistent ordering (e.g. ddeDisconnect can be
+		// sent before the first ddeNewConn). As a consequence, callbacks
+		// receiving ddeNewConn must not call any method of dataDestinations
+		// to avoid deadlocks.
+		d.callback(ddeNewConn)
+	}
 	return nil
 }
 
 func (d *dataDestinations) remove(name string) {
 	d.rwm.Lock()
 	defer d.rwm.Unlock()
+	if d.dsts == nil {
+		return
+	}
+
 	dst, ok := d.dsts[name]
 	if !ok {
 		return
 	}
 	delete(d.dsts, name)
 	dst.close()
+	if len(d.dsts) == 0 && d.callback != nil {
+		// This is called by a goroutine so that callback can call other methods
+		// of this dataDestinations without being deadlocked.
+		go d.callback(ddeDisconnect)
+	}
+}
+
+func (d *dataDestinations) len() int {
+	d.rwm.RLock()
+	defer d.rwm.RUnlock()
+	return len(d.dsts)
 }
 
 // Write writes tuples to destinations. It doesn't return any error including
@@ -582,6 +645,12 @@ func (d *dataDestinations) Write(ctx *Context, t *Tuple) error {
 		defer d.rwm.Unlock()
 		for _, n := range closed {
 			delete(d.dsts, n)
+		}
+		if len(d.dsts) == 0 && d.callback != nil {
+			// This has to be called asynchronously because Write may be called
+			// from dataSources.pour and callback would be able to call
+			// dataSources.stop, which might end up with a dead-lock.
+			go d.callback(ddeDisconnect)
 		}
 	}
 	return nil
