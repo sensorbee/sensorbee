@@ -2,7 +2,6 @@ package core
 
 import (
 	"fmt"
-	"pfi/sensorbee/sensorbee/tuple"
 	"sync"
 )
 
@@ -38,7 +37,7 @@ type SharedState interface {
 	// Write method might be called after Terminate method is called. When it
 	// occurs, Write should return an error. Also, Write and Terminate can be
 	// called concurrently
-	Write(ctx *Context, t *tuple.Tuple) error
+	Write(ctx *Context, t *Tuple) error
 
 	// Terminate finalizes the state. The state can no longer be used after
 	// this method is called. This method doesn't have to be idempotent.

@@ -11,10 +11,10 @@ import (
 // mkTuples creates a slice of `num` Tuples with increasing
 // timestamp and Data that holds a strictly increasing int
 // value at the "int" key.
-func mkTuples(num int) []*tuple.Tuple {
-	tuples := make([]*tuple.Tuple, 0, num)
+func mkTuples(num int) []*core.Tuple {
+	tuples := make([]*core.Tuple, 0, num)
 	for i := 0; i < num; i++ {
-		tup := tuple.Tuple{
+		tup := core.Tuple{
 			Data: tuple.Map{
 				"int": tuple.Int(i + 1),
 			},
@@ -56,7 +56,7 @@ func createDummySource(ctx *core.Context, params tuple.Map) (core.Source, error)
 // tupleEmitterSource is a source that emits all tuples in the given
 // slice when GenerateStream is called.
 type tupleEmitterSource struct {
-	Tuples []*tuple.Tuple
+	Tuples []*core.Tuple
 	m      sync.Mutex
 	c      *sync.Cond
 
@@ -116,12 +116,12 @@ func createCollectorSink(ctx *core.Context, params tuple.Map) (core.Sink, error)
 }
 
 type tupleCollectorSink struct {
-	Tuples []*tuple.Tuple
+	Tuples []*core.Tuple
 	m      sync.Mutex
 	c      *sync.Cond
 }
 
-func (s *tupleCollectorSink) Write(ctx *core.Context, t *tuple.Tuple) error {
+func (s *tupleCollectorSink) Write(ctx *core.Context, t *core.Tuple) error {
 	if s.c == nil { // This is for old tests
 		s.Tuples = append(s.Tuples, t)
 		return nil

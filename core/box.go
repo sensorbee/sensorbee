@@ -2,7 +2,6 @@ package core
 
 import (
 	"fmt"
-	"pfi/sensorbee/sensorbee/tuple"
 	"strings"
 )
 
@@ -52,7 +51,7 @@ type Box interface {
 	// in tuples. Then, a caller invoked B.Process with a tuple t. If B.Process
 	// with t returned a temporary error, the count B has shouldn't be changed
 	// until the retry succeeds.
-	Process(ctx *Context, t *tuple.Tuple, w Writer) error
+	Process(ctx *Context, t *Tuple, w Writer) error
 }
 
 // StatefulBox is a Box having an internal state that needs to be initialized
@@ -105,22 +104,22 @@ type NamedInputBox interface {
 
 // BoxFunc can be used to add all methods required to fulfill the Box
 // interface to a normal function with the signature
-//   func(ctx *Context, t *tuple.Tuple, s Writer) error
+//   func(ctx *Context, t *Tuple, s Writer) error
 //
 // Example:
 //
-//     forward := func(ctx *Context, t *tuple.Tuple, w Writer) error {
+//     forward := func(ctx *Context, t *Tuple, w Writer) error {
 //         w.Write(ctx, t)
 //         return nil
 //     }
 //     var box Box = BoxFunc(forward)
-func BoxFunc(b func(ctx *Context, t *tuple.Tuple, w Writer) error) Box {
+func BoxFunc(b func(ctx *Context, t *Tuple, w Writer) error) Box {
 	return boxFunc(b)
 }
 
-type boxFunc func(ctx *Context, t *tuple.Tuple, w Writer) error
+type boxFunc func(ctx *Context, t *Tuple, w Writer) error
 
-func (b boxFunc) Process(ctx *Context, t *tuple.Tuple, w Writer) error {
+func (b boxFunc) Process(ctx *Context, t *Tuple, w Writer) error {
 	return b(ctx, t, w)
 }
 
@@ -166,12 +165,12 @@ func newBoxWriterAdapter(b Box, name string, dst WriteCloser) *boxWriterAdapter 
 		box:  b,
 		name: name,
 		// An output traces is written just after the box Process writes a tuple.
-		dst: newTraceWriter(dst, tuple.Output, name),
+		dst: newTraceWriter(dst, Output, name),
 	}
 }
 
-func (wa *boxWriterAdapter) Write(ctx *Context, t *tuple.Tuple) error {
-	tracing(t, ctx, tuple.Input, wa.name)
+func (wa *boxWriterAdapter) Write(ctx *Context, t *Tuple) error {
+	tracing(t, ctx, Input, wa.name)
 	return wa.box.Process(ctx, t, wa.dst)
 }
 

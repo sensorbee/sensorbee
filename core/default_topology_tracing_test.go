@@ -14,21 +14,21 @@ func TestDefaultTopologyTupleTracingConfiguration(t *testing.T) {
 	Convey("Given a simple topology with tracing disabled", t, func() {
 		config := Configuration{TupleTraceEnabled: 0}
 		ctx := newTestContext(config)
-		tup := tuple.Tuple{
+		tup := Tuple{
 			Data: tuple.Map{
 				"int": tuple.Int(1),
 			},
 			Timestamp:     time.Date(2015, time.May, 1, 11, 18, 0, 0, time.UTC),
 			ProcTimestamp: time.Date(2015, time.May, 1, 11, 18, 0, 0, time.UTC),
 			BatchID:       7,
-			Trace:         []tuple.TraceEvent{},
+			Trace:         []TraceEvent{},
 		}
 
 		t := NewDefaultTopology(ctx, "test")
 		Reset(func() {
 			t.Stop()
 		})
-		so1 := NewTupleIncrementalEmitterSource([]*tuple.Tuple{tup.Copy(), tup.Copy(), tup.Copy()})
+		so1 := NewTupleIncrementalEmitterSource([]*Tuple{tup.Copy(), tup.Copy(), tup.Copy()})
 		_, err := t.AddSource("so1", so1, nil)
 		So(err, ShouldBeNil)
 
@@ -68,23 +68,23 @@ func TestDefaultTopologyTupleTracing(t *testing.T) {
 	ctx := newTestContext(config)
 	Convey("Given a complex topology with distribution and aggregation", t, func() {
 
-		tup1 := tuple.Tuple{
+		tup1 := Tuple{
 			Data: tuple.Map{
 				"int": tuple.Int(1),
 			},
 			Timestamp:     time.Date(2015, time.April, 10, 10, 23, 0, 0, time.UTC),
 			ProcTimestamp: time.Date(2015, time.April, 10, 10, 24, 0, 0, time.UTC),
 			BatchID:       7,
-			Trace:         []tuple.TraceEvent{},
+			Trace:         []TraceEvent{},
 		}
-		tup2 := tuple.Tuple{
+		tup2 := Tuple{
 			Data: tuple.Map{
 				"int": tuple.Int(2),
 			},
 			Timestamp:     time.Date(2015, time.April, 10, 10, 23, 1, 0, time.UTC),
 			ProcTimestamp: time.Date(2015, time.April, 10, 10, 24, 1, 0, time.UTC),
 			BatchID:       7,
-			Trace:         []tuple.TraceEvent{},
+			Trace:         []TraceEvent{},
 		}
 		/*
 		 *   so1 \        /--> b2 \        /-*--> si1
@@ -96,7 +96,7 @@ func TestDefaultTopologyTupleTracing(t *testing.T) {
 			t.Stop()
 		})
 		so1 := &TupleEmitterSource{
-			Tuples: []*tuple.Tuple{&tup1},
+			Tuples: []*Tuple{&tup1},
 		}
 		son1, err := t.AddSource("so1", so1, &SourceConfig{
 			PausedOnStartup: true,
@@ -104,7 +104,7 @@ func TestDefaultTopologyTupleTracing(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		so2 := &TupleEmitterSource{
-			Tuples: []*tuple.Tuple{&tup2},
+			Tuples: []*Tuple{&tup2},
 		}
 		son2, err := t.AddSource("so2", so2, &SourceConfig{
 			PausedOnStartup: true,

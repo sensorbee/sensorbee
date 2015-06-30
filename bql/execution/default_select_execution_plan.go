@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"pfi/sensorbee/sensorbee/bql/parser"
 	"pfi/sensorbee/sensorbee/bql/udf"
+	"pfi/sensorbee/sensorbee/core"
 	"pfi/sensorbee/sensorbee/tuple"
 	"reflect"
 	"time"
@@ -29,7 +30,7 @@ type defaultSelectExecutionPlan struct {
 }
 
 type inputBuffer struct {
-	tuples     []*tuple.Tuple
+	tuples     []*core.Tuple
 	windowSize int64
 	windowType parser.IntervalUnit
 }
@@ -68,13 +69,13 @@ func NewDefaultSelectExecutionPlan(lp *LogicalPlan, reg udf.FunctionRegistry) (E
 	// initialize buffers (one per declared input relation)
 	buffers := make(map[string]*inputBuffer, len(lp.Relations))
 	for _, rel := range lp.Relations {
-		var tuples []*tuple.Tuple
+		var tuples []*core.Tuple
 		rangeValue := rel.Value
 		rangeUnit := rel.Unit
 		if rangeUnit == parser.Tuples {
 			// we already know the required capacity of this buffer
 			// if we work with absolute numbers
-			tuples = make([]*tuple.Tuple, 0, rangeValue+1)
+			tuples = make([]*core.Tuple, 0, rangeValue+1)
 		}
 		// the alias of the relation is the key of the buffer
 		buffers[rel.Alias] = &inputBuffer{
@@ -115,7 +116,7 @@ func NewDefaultSelectExecutionPlan(lp *LogicalPlan, reg udf.FunctionRegistry) (E
 // correspond to the results of the query represented by this execution
 // plan. Note that the order of items in the returned slice is undefined
 // and cannot be relied on.
-func (ep *defaultSelectExecutionPlan) Process(input *tuple.Tuple) ([]tuple.Map, error) {
+func (ep *defaultSelectExecutionPlan) Process(input *core.Tuple) ([]tuple.Map, error) {
 	// stream-to-relation:
 	// updates the internal buffer with correct window data
 	if err := ep.addTupleToBuffer(input); err != nil {
@@ -146,7 +147,7 @@ func (ep *defaultSelectExecutionPlan) Process(input *tuple.Tuple) ([]tuple.Map, 
 // Note that after calling this function, these buffers may hold more
 // items than allowed by the window specification, so a call to
 // removeOutdatedTuplesFromBuffer is necessary afterwards.
-func (ep *defaultSelectExecutionPlan) addTupleToBuffer(t *tuple.Tuple) error {
+func (ep *defaultSelectExecutionPlan) addTupleToBuffer(t *core.Tuple) error {
 	// we need to append this tuple to all buffers where the input name
 	// matches the relation name, so first we count the those buffers
 	// (for `FROM a AS left, a AS right`, this tuple will be
@@ -203,7 +204,7 @@ func (ep *defaultSelectExecutionPlan) removeOutdatedTuplesFromBuffer(curTupTime 
 		} else if buffer.windowType == parser.Seconds { // time-based window
 			// copy all "sufficiently new" tuples to new buffer
 			// TODO avoid the reallocation here
-			newBuf := make([]*tuple.Tuple, 0, curBufSize)
+			newBuf := make([]*core.Tuple, 0, curBufSize)
 			for _, tup := range buffer.tuples {
 				dur := curTupTime.Sub(tup.Timestamp)
 				if dur.Seconds() <= float64(buffer.windowSize) {
@@ -221,7 +222,7 @@ func (ep *defaultSelectExecutionPlan) removeOutdatedTuplesFromBuffer(curTupTime 
 
 // shouldEmitNow returns true if the input tuple should trigger
 // computation of output values.
-func (ep *defaultSelectExecutionPlan) shouldEmitNow(t *tuple.Tuple) bool {
+func (ep *defaultSelectExecutionPlan) shouldEmitNow(t *core.Tuple) bool {
 	// first check if we have a stream-independent rule
 	// (e.g., `RSTREAM` or `RSTREAM [EVERY 2 TUPLES]`)
 	if interval, ok := ep.emitterRules["*"]; ok {
@@ -253,7 +254,7 @@ func (ep *defaultSelectExecutionPlan) shouldEmitNow(t *tuple.Tuple) bool {
 
 // performQueryOnBuffer executes a SELECT query on the data of the tuples
 // currently stored in the buffer. The query results (which is a set of
-// tuple.Value, not tuple.Tuple) is stored in ep.curResults. The data
+// tuple.Value, not core.Tuple) is stored in ep.curResults. The data
 // that was stored in ep.curResults before this method was called is
 // moved to ep.prevResults. Note that the order of values in ep.curResults
 // is undefined.

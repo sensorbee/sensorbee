@@ -8,8 +8,8 @@ import (
 	"testing"
 )
 
-func freshTuples() []*tuple.Tuple {
-	tup1 := &tuple.Tuple{
+func freshTuples() []*Tuple {
+	tup1 := &Tuple{
 		Data: tuple.Map{
 			"seq": tuple.Int(1),
 		},
@@ -29,7 +29,7 @@ func freshTuples() []*tuple.Tuple {
 	tup7.Data["seq"] = tuple.Int(7)
 	tup8 := tup1.Copy()
 	tup8.Data["seq"] = tuple.Int(8)
-	return []*tuple.Tuple{tup1, tup2, tup3, tup4,
+	return []*Tuple{tup1, tup2, tup3, tup4,
 		tup5, tup6, tup7, tup8}
 }
 
@@ -70,7 +70,7 @@ type sinkCloseChecker struct {
 	closeCnt int32
 }
 
-func (s *sinkCloseChecker) Write(ctx *Context, t *tuple.Tuple) error {
+func (s *sinkCloseChecker) Write(ctx *Context, t *Tuple) error {
 	return s.s.Write(ctx, t)
 }
 

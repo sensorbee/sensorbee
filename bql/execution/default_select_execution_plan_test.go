@@ -5,16 +5,17 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 	"pfi/sensorbee/sensorbee/bql/parser"
 	"pfi/sensorbee/sensorbee/bql/udf"
+	"pfi/sensorbee/sensorbee/core"
 	"pfi/sensorbee/sensorbee/tuple"
 	"sort"
 	"testing"
 	"time"
 )
 
-func getTuples(num int) []*tuple.Tuple {
-	tuples := make([]*tuple.Tuple, 0, num)
+func getTuples(num int) []*core.Tuple {
+	tuples := make([]*core.Tuple, 0, num)
 	for i := 0; i < num; i++ {
-		tup := tuple.Tuple{
+		tup := core.Tuple{
 			Data: tuple.Map{
 				"int": tuple.Int(i + 1),
 			},

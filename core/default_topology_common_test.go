@@ -2,7 +2,6 @@ package core
 
 import (
 	"fmt"
-	"pfi/sensorbee/sensorbee/tuple"
 	"sync"
 )
 
@@ -39,7 +38,7 @@ type DoesNothingBox struct {
 	dummy int
 }
 
-func (b *DoesNothingBox) Process(ctx *Context, t *tuple.Tuple, s Writer) error {
+func (b *DoesNothingBox) Process(ctx *Context, t *Tuple, s Writer) error {
 	return nil
 }
 
@@ -60,7 +59,7 @@ func (b *ProxyBox) Init(ctx *Context) error {
 	return nil
 }
 
-func (b *ProxyBox) Process(ctx *Context, t *tuple.Tuple, s Writer) error {
+func (b *ProxyBox) Process(ctx *Context, t *Tuple, s Writer) error {
 	return b.b.Process(ctx, t, s)
 }
 
@@ -88,7 +87,7 @@ type DoesNothingSink struct {
 	dummy int
 }
 
-func (s *DoesNothingSink) Write(ctx *Context, t *tuple.Tuple) error {
+func (s *DoesNothingSink) Write(ctx *Context, t *Tuple) error {
 	return nil
 }
 func (s *DoesNothingSink) Close(ctx *Context) error {
@@ -100,7 +99,7 @@ func (s *DoesNothingSink) Close(ctx *Context) error {
 // TupleEmitterSource is a source that emits all tuples in the given
 // slice once when GenerateStream is called.
 type TupleEmitterSource struct {
-	Tuples []*tuple.Tuple
+	Tuples []*Tuple
 	m      sync.Mutex
 	c      *sync.Cond
 
@@ -108,7 +107,7 @@ type TupleEmitterSource struct {
 	state int
 }
 
-func NewTupleEmitterSource(ts []*tuple.Tuple) *TupleEmitterSource {
+func NewTupleEmitterSource(ts []*Tuple) *TupleEmitterSource {
 	s := &TupleEmitterSource{
 		Tuples: ts,
 	}
@@ -153,7 +152,7 @@ func (s *TupleEmitterSource) Stop(ctx *Context) error {
 }
 
 type TupleIncrementalEmitterSource struct {
-	Tuples []*tuple.Tuple
+	Tuples []*Tuple
 
 	m     sync.Mutex
 	state *topologyStateHolder
@@ -164,7 +163,7 @@ var (
 	_ ResumableNode = &TupleIncrementalEmitterSource{}
 )
 
-func NewTupleIncrementalEmitterSource(ts []*tuple.Tuple) *TupleIncrementalEmitterSource {
+func NewTupleIncrementalEmitterSource(ts []*Tuple) *TupleIncrementalEmitterSource {
 	s := &TupleIncrementalEmitterSource{
 		Tuples: ts,
 	}
@@ -281,7 +280,7 @@ func (b *BlockingForwardBox) Init(ctx *Context) error {
 	return nil
 }
 
-func (b *BlockingForwardBox) Process(ctx *Context, t *tuple.Tuple, w Writer) error {
+func (b *BlockingForwardBox) Process(ctx *Context, t *Tuple, w Writer) error {
 	b.m.Lock()
 	defer b.m.Unlock()
 	for b.cnt == 0 {
@@ -308,7 +307,7 @@ func (b *BlockingForwardBox) Terminate(ctx *Context) error {
 }
 
 type TupleCollectorSink struct {
-	Tuples []*tuple.Tuple
+	Tuples []*Tuple
 	m      sync.Mutex
 	c      *sync.Cond
 }
@@ -319,7 +318,7 @@ func NewTupleCollectorSink() *TupleCollectorSink {
 	return s
 }
 
-func (s *TupleCollectorSink) Write(ctx *Context, t *tuple.Tuple) error {
+func (s *TupleCollectorSink) Write(ctx *Context, t *Tuple) error {
 	if s.c == nil { // This is for old tests
 		s.Tuples = append(s.Tuples, t)
 		return nil
@@ -349,7 +348,7 @@ type stubForwardBox struct {
 	proc func() error
 }
 
-func (c *stubForwardBox) Process(ctx *Context, t *tuple.Tuple, w Writer) error {
+func (c *stubForwardBox) Process(ctx *Context, t *Tuple, w Writer) error {
 	if c.proc != nil {
 		if err := c.proc(); err != nil {
 			return err
@@ -361,7 +360,7 @@ func (c *stubForwardBox) Process(ctx *Context, t *tuple.Tuple, w Writer) error {
 // forwardBox sends an input Tuple to the given Writer without
 // modification. It can be wrapped with BoxFunc to match the Box
 // interface.
-func forwardBox(ctx *Context, t *tuple.Tuple, w Writer) error {
+func forwardBox(ctx *Context, t *Tuple, w Writer) error {
 	w.Write(ctx, t)
 	return nil
 }
