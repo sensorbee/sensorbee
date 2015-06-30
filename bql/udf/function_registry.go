@@ -3,14 +3,14 @@ package udf
 import (
 	"fmt"
 	"pfi/sensorbee/sensorbee/core"
-	"pfi/sensorbee/sensorbee/tuple"
+	"pfi/sensorbee/sensorbee/data"
 	"sync"
 )
 
 // UDF is an interface having a user defined function.
 type UDF interface {
 	// Call calls the UDF.
-	Call(*core.Context, ...tuple.Value) (tuple.Value, error)
+	Call(*core.Context, ...data.Value) (data.Value, error)
 
 	// Accept checks if the function accepts the given number of arguments
 	// excluding core.Context.
@@ -18,11 +18,11 @@ type UDF interface {
 }
 
 type function struct {
-	f     func(*core.Context, ...tuple.Value) (tuple.Value, error)
+	f     func(*core.Context, ...data.Value) (data.Value, error)
 	arity int
 }
 
-func (f *function) Call(ctx *core.Context, args ...tuple.Value) (tuple.Value, error) {
+func (f *function) Call(ctx *core.Context, args ...data.Value) (data.Value, error) {
 	return f.f(ctx, args...)
 }
 
@@ -34,23 +34,23 @@ func (f *function) Accept(arity int) bool {
 }
 
 // VariadicFunc creates a UDF based on a function receiving the variadic number
-// of tuple.Values.
-func VariadicFunc(f func(*core.Context, ...tuple.Value) (tuple.Value, error)) UDF {
+// of data.Values.
+func VariadicFunc(f func(*core.Context, ...data.Value) (data.Value, error)) UDF {
 	return &function{
 		f:     f,
 		arity: -1,
 	}
 }
 
-func Func(f func(*core.Context, ...tuple.Value) (tuple.Value, error), arity int) UDF {
+func Func(f func(*core.Context, ...data.Value) (data.Value, error), arity int) UDF {
 	return &function{
 		f:     f,
 		arity: arity,
 	}
 }
 
-func NullaryFunc(f func(*core.Context) (tuple.Value, error)) UDF {
-	genFunc := func(ctx *core.Context, vs ...tuple.Value) (tuple.Value, error) {
+func NullaryFunc(f func(*core.Context) (data.Value, error)) UDF {
+	genFunc := func(ctx *core.Context, vs ...data.Value) (data.Value, error) {
 		if len(vs) != 0 {
 			return nil, fmt.Errorf("the function should be used as nullary")
 		}
@@ -59,8 +59,8 @@ func NullaryFunc(f func(*core.Context) (tuple.Value, error)) UDF {
 	return Func(genFunc, 0)
 }
 
-func UnaryFunc(f func(*core.Context, tuple.Value) (tuple.Value, error)) UDF {
-	genFunc := func(ctx *core.Context, vs ...tuple.Value) (tuple.Value, error) {
+func UnaryFunc(f func(*core.Context, data.Value) (data.Value, error)) UDF {
+	genFunc := func(ctx *core.Context, vs ...data.Value) (data.Value, error) {
 		if len(vs) != 1 {
 			return nil, fmt.Errorf("the function should be used as unary")
 		}
@@ -69,8 +69,8 @@ func UnaryFunc(f func(*core.Context, tuple.Value) (tuple.Value, error)) UDF {
 	return Func(genFunc, 1)
 }
 
-func BinaryFunc(f func(*core.Context, tuple.Value, tuple.Value) (tuple.Value, error)) UDF {
-	genFunc := func(ctx *core.Context, vs ...tuple.Value) (tuple.Value, error) {
+func BinaryFunc(f func(*core.Context, data.Value, data.Value) (data.Value, error)) UDF {
+	genFunc := func(ctx *core.Context, vs ...data.Value) (data.Value, error) {
 		if len(vs) != 2 {
 			return nil, fmt.Errorf("the function should be used as binary")
 		}
@@ -79,8 +79,8 @@ func BinaryFunc(f func(*core.Context, tuple.Value, tuple.Value) (tuple.Value, er
 	return Func(genFunc, 2)
 }
 
-func TernaryFunc(f func(*core.Context, tuple.Value, tuple.Value, tuple.Value) (tuple.Value, error)) UDF {
-	genFunc := func(ctx *core.Context, vs ...tuple.Value) (tuple.Value, error) {
+func TernaryFunc(f func(*core.Context, data.Value, data.Value, data.Value) (data.Value, error)) UDF {
+	genFunc := func(ctx *core.Context, vs ...data.Value) (data.Value, error) {
 		if len(vs) != 3 {
 			return nil, fmt.Errorf("the function should be used as ternary")
 		}
@@ -90,7 +90,7 @@ func TernaryFunc(f func(*core.Context, tuple.Value, tuple.Value, tuple.Value) (t
 }
 
 // TODO: Add magic UDF generator func NewUDF(f interface{}) (UDF, error)
-//       It accepts any function whose arguments are convertible to tuple.Value.
+//       It accepts any function whose arguments are convertible to data.Value.
 //       For example, NewUDF(func(*core.Context, a, b int) (int, error) {return a + b}).
 //       Even NewUDF(func(a, b int) int {return a + b}) could be valid
 //       (i.e. Context and error can be optional)
@@ -191,8 +191,8 @@ func CopyGlobalUDFRegistry(ctx *core.Context) FunctionManager {
 
 func init() {
 	// register some standard functions
-	toString := func(ctx *core.Context, v tuple.Value) (tuple.Value, error) {
-		return tuple.String(v.String()), nil
+	toString := func(ctx *core.Context, v data.Value) (data.Value, error) {
+		return data.String(v.String()), nil
 	}
 	globalUDFRegistry.Register("str", UnaryFunc(toString))
 }

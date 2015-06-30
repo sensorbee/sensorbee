@@ -4,7 +4,7 @@ import (
 	"fmt"
 	. "github.com/smartystreets/goconvey/convey"
 	"pfi/sensorbee/sensorbee/core"
-	"pfi/sensorbee/sensorbee/tuple"
+	"pfi/sensorbee/sensorbee/data"
 	"strings"
 	"testing"
 )
@@ -49,9 +49,9 @@ func TestGenericFunc(t *testing.T) {
 				So(err, ShouldBeNil)
 
 				Convey("Then the udf should return a correct value", func() {
-					v, err := f.Call(ctx, tuple.Int(1), tuple.Float(1.5))
+					v, err := f.Call(ctx, data.Int(1), data.Float(1.5))
 					So(err, ShouldBeNil)
-					res, err := tuple.ToFloat(v)
+					res, err := data.ToFloat(v)
 					So(err, ShouldBeNil)
 					So(res, ShouldEqual, 2.5)
 				})
@@ -105,40 +105,40 @@ func TestGenericFunc(t *testing.T) {
 
 					Convey("Then it should succeed", func() {
 						So(err, ShouldBeNil)
-						s, err := tuple.AsString(res)
+						s, err := data.AsString(res)
 						So(err, ShouldBeNil)
 						So(s, ShouldBeBlank)
 					})
 				})
 
 				Convey("And passing one arguments", func() {
-					res, err := f.Call(ctx, tuple.String("a"))
+					res, err := f.Call(ctx, data.String("a"))
 
 					Convey("Then it should succeed", func() {
 						So(err, ShouldBeNil)
-						s, err := tuple.AsString(res)
+						s, err := data.AsString(res)
 						So(err, ShouldBeNil)
 						So(s, ShouldEqual, "a")
 					})
 				})
 
 				Convey("And passing many arguments", func() {
-					res, err := f.Call(ctx, tuple.String("a"), tuple.String("b"), tuple.String("c"), tuple.String("d"), tuple.String("e"))
+					res, err := f.Call(ctx, data.String("a"), data.String("b"), data.String("c"), data.String("d"), data.String("e"))
 
 					Convey("Then it should succeed", func() {
 						So(err, ShouldBeNil)
-						s, err := tuple.AsString(res)
+						s, err := data.AsString(res)
 						So(err, ShouldBeNil)
 						So(s, ShouldEqual, "abcde")
 					})
 				})
 
 				Convey("And passing a convertible value", func() {
-					res, err := f.Call(ctx, tuple.String("a"), tuple.Int(1), tuple.String("c"))
+					res, err := f.Call(ctx, data.String("a"), data.Int(1), data.String("c"))
 
 					Convey("Then it should succeed", func() {
 						So(err, ShouldBeNil)
-						s, err := tuple.AsString(res)
+						s, err := data.AsString(res)
 						So(err, ShouldBeNil)
 						So(s, ShouldEqual, "a1c")
 					})
@@ -197,44 +197,44 @@ func TestGenericFunc(t *testing.T) {
 				})
 
 				Convey("And only passing required arguments", func() {
-					res, err := f.Call(ctx, tuple.Int(1))
+					res, err := f.Call(ctx, data.Int(1))
 
 					Convey("Then it should succeed", func() {
 						So(err, ShouldBeNil)
-						s, err := tuple.AsString(res)
+						s, err := data.AsString(res)
 						So(err, ShouldBeNil)
 						So(s, ShouldEqual, "")
 					})
 				})
 
 				Convey("And passing one argument", func() {
-					res, err := f.Call(ctx, tuple.Int(5), tuple.String("a"))
+					res, err := f.Call(ctx, data.Int(5), data.String("a"))
 
 					Convey("Then it should succeed", func() {
 						So(err, ShouldBeNil)
-						s, err := tuple.AsString(res)
+						s, err := data.AsString(res)
 						So(err, ShouldBeNil)
 						So(s, ShouldEqual, "aaaaa")
 					})
 				})
 
 				Convey("And passing many arguments", func() {
-					res, err := f.Call(ctx, tuple.Int(2), tuple.String("a"), tuple.String("b"), tuple.String("c"), tuple.String("d"), tuple.String("e"))
+					res, err := f.Call(ctx, data.Int(2), data.String("a"), data.String("b"), data.String("c"), data.String("d"), data.String("e"))
 
 					Convey("Then it should succeed", func() {
 						So(err, ShouldBeNil)
-						s, err := tuple.AsString(res)
+						s, err := data.AsString(res)
 						So(err, ShouldBeNil)
 						So(s, ShouldEqual, "abcdeabcde")
 					})
 				})
 
 				Convey("And passing a convertible value", func() {
-					res, err := f.Call(ctx, tuple.Int(3), tuple.String("a"), tuple.Int(1), tuple.String("c"))
+					res, err := f.Call(ctx, data.Int(3), data.String("a"), data.Int(1), data.String("c"))
 
 					Convey("Then it should succeed", func() {
 						So(err, ShouldBeNil)
-						s, err := tuple.AsString(res)
+						s, err := data.AsString(res)
 						So(err, ShouldBeNil)
 						So(s, ShouldEqual, "a1ca1ca1c")
 					})
@@ -265,8 +265,8 @@ func TestGenericFunc(t *testing.T) {
 
 func TestGenericFuncInvalidCases(t *testing.T) {
 	ctx := &core.Context{}
-	toArgs := func(vs ...interface{}) tuple.Array {
-		a, err := tuple.NewArray(vs)
+	toArgs := func(vs ...interface{}) data.Array {
+		a, err := data.NewArray(vs)
 		if err != nil {
 			t.Fatal(err) // don't want to increase So's count unnecessarily
 		}
@@ -301,7 +301,7 @@ func TestGenericFuncInvalidCases(t *testing.T) {
 		callCases := []struct {
 			title string
 			f     interface{}
-			args  tuple.Array
+			args  data.Array
 		}{
 			{
 				title: "When calling a function with too few arguments",
@@ -315,18 +315,18 @@ func TestGenericFuncInvalidCases(t *testing.T) {
 			},
 			{
 				title: "When calling a function with inconvertible arguments",
-				f:     func(tuple.Map) int { return 0 },
+				f:     func(data.Map) int { return 0 },
 				args:  toArgs("hoge"),
 			},
 			{
 				title: "When calling a variadic function with inconvertible regular arguments",
-				f:     func(tuple.Array, ...tuple.Map) int { return 0 },
-				args:  toArgs("owata", tuple.Map{}, tuple.Map{}),
+				f:     func(data.Array, ...data.Map) int { return 0 },
+				args:  toArgs("owata", data.Map{}, data.Map{}),
 			},
 			{
 				title: "When calling a variadic function with inconvertible variadic arguments",
-				f:     func(tuple.Array, ...tuple.Map) int { return 0 },
-				args:  toArgs(tuple.Array{}, tuple.Map{}, "damepo", tuple.Map{}),
+				f:     func(data.Array, ...data.Map) int { return 0 },
+				args:  toArgs(data.Array{}, data.Map{}, "damepo", data.Map{}),
 			},
 		}
 
@@ -355,11 +355,11 @@ func TestIntGenericInt8Func(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		Convey("When passing a valid value", func() {
-			v, err := f.Call(ctx, tuple.Int(10))
+			v, err := f.Call(ctx, data.Int(10))
 			So(err, ShouldBeNil)
 
 			Convey("Then it should be doubled", func() {
-				i, err := tuple.ToInt(v)
+				i, err := data.ToInt(v)
 				So(err, ShouldBeNil)
 				So(i, ShouldEqual, 20)
 			})

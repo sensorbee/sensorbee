@@ -1,9 +1,5 @@
 package core
 
-import (
-	"pfi/sensorbee/sensorbee/tuple"
-)
-
 type defaultSinkNode struct {
 	*defaultNode
 	srcs *dataSources
@@ -60,7 +56,7 @@ func (ds *defaultSinkNode) run() error {
 		}
 	}()
 	ds.state.Set(TSRunning)
-	return ds.srcs.pour(ds.topology.ctx, newTraceWriter(ds.sink, tuple.Input, ds.name), 1)
+	return ds.srcs.pour(ds.topology.ctx, newTraceWriter(ds.sink, ETInput, ds.name), 1)
 }
 
 func (ds *defaultSinkNode) Stop() error {

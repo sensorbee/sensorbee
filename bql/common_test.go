@@ -4,7 +4,7 @@ import (
 	"pfi/sensorbee/sensorbee/bql/parser"
 	"pfi/sensorbee/sensorbee/bql/udf"
 	"pfi/sensorbee/sensorbee/core"
-	"pfi/sensorbee/sensorbee/tuple"
+	"pfi/sensorbee/sensorbee/data"
 )
 
 func newTestContext(config core.Configuration) *core.Context {
@@ -41,10 +41,10 @@ type dummyUDS struct {
 	num int64
 }
 
-func newDummyUDS(ctx *core.Context, params tuple.Map) (core.SharedState, error) {
+func newDummyUDS(ctx *core.Context, params data.Map) (core.SharedState, error) {
 	s := &dummyUDS{}
 	if v, ok := params["num"]; ok {
-		if n, err := tuple.ToInt(v); err != nil {
+		if n, err := data.ToInt(v); err != nil {
 			return nil, err
 		} else {
 			s.num = n
@@ -61,7 +61,7 @@ func (s *dummyUDS) Init(ctx *core.Context) error {
 	return nil
 }
 
-func (s *dummyUDS) Write(ctx *core.Context, t *tuple.Tuple) error {
+func (s *dummyUDS) Write(ctx *core.Context, t *core.Tuple) error {
 	return nil
 }
 

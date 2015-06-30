@@ -3,7 +3,7 @@ package core
 import (
 	"fmt"
 	. "github.com/smartystreets/goconvey/convey"
-	"pfi/sensorbee/sensorbee/tuple"
+	"pfi/sensorbee/sensorbee/data"
 	"sync/atomic"
 	"testing"
 )
@@ -33,7 +33,7 @@ func (s *stubSharedState) Init(ctx *Context) error {
 	return nil
 }
 
-func (s *stubSharedState) Write(ctx *Context, t *tuple.Tuple) error {
+func (s *stubSharedState) Write(ctx *Context, t *Tuple) error {
 	return nil
 }
 
@@ -229,8 +229,8 @@ func (c *countingSharedState) Init(ctx *Context) error {
 	return nil
 }
 
-func (c *countingSharedState) Write(ctx *Context, t *tuple.Tuple) error {
-	i, _ := tuple.ToInt(t.Data["n"])
+func (c *countingSharedState) Write(ctx *Context, t *Tuple) error {
+	i, _ := data.ToInt(t.Data["n"])
 	atomic.AddInt32(&c.cnt, int32(i))
 	return nil
 }
@@ -252,11 +252,11 @@ func TestSharedStateInTopology(t *testing.T) {
 			t.Stop()
 		})
 
-		ts := []*tuple.Tuple{}
+		ts := []*Tuple{}
 		for i := 0; i < 4; i++ {
-			ts = append(ts, &tuple.Tuple{
-				Data: tuple.Map{
-					"n": tuple.Int(i + 1),
+			ts = append(ts, &Tuple{
+				Data: data.Map{
+					"n": data.Int(i + 1),
 				},
 			})
 		}
@@ -266,7 +266,7 @@ func TestSharedStateInTopology(t *testing.T) {
 		})
 		So(err, ShouldBeNil)
 
-		b1 := BoxFunc(func(ctx *Context, t *tuple.Tuple, w Writer) error {
+		b1 := BoxFunc(func(ctx *Context, t *Tuple, w Writer) error {
 			s, err := ctx.GetSharedState("test_counter")
 			if err != nil {
 				return err
@@ -278,7 +278,7 @@ func TestSharedStateInTopology(t *testing.T) {
 		So(err, ShouldBeNil)
 		So(bn1.Input("source", nil), ShouldBeNil)
 
-		b2 := BoxFunc(func(ctx *Context, t *tuple.Tuple, w Writer) error {
+		b2 := BoxFunc(func(ctx *Context, t *Tuple, w Writer) error {
 			s, err := ctx.GetSharedState("test_counter")
 			if err != nil {
 				return err
@@ -291,7 +291,7 @@ func TestSharedStateInTopology(t *testing.T) {
 				return fmt.Errorf("cannot convert a state to a counter")
 			}
 
-			t.Data["cur_cnt"] = tuple.Int(atomic.LoadInt32(&c.cnt))
+			t.Data["cur_cnt"] = data.Int(atomic.LoadInt32(&c.cnt))
 			return w.Write(ctx, t)
 		})
 		bn2, err := t.AddBox("box2", b2, nil)

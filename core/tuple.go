@@ -1,6 +1,7 @@
-package tuple
+package core
 
 import (
+	"pfi/sensorbee/sensorbee/data"
 	"time"
 )
 
@@ -8,7 +9,7 @@ import (
 // that is processed is stored in tuples.
 type Tuple struct {
 	// Data is the actual data that is processed.
-	Data Map
+	Data data.Map
 
 	// InputName can be used to identify the sender of a tuple when a
 	// Box processes data from multiple inputs. It will be set before
@@ -62,17 +63,18 @@ func (t *Tuple) Copy() *Tuple {
 	return &out
 }
 
+// EventType has a type of an event related to Tuple processing.
 type EventType int
 
 const (
-	// Input represents an event where a tuple entered some
+	// ETInput represents an event where a tuple entered some
 	// processing unit (e.g., a Box)
-	Input EventType = iota
-	// Output represents an event where a tuple left some
+	ETInput EventType = iota
+	// ETOutput represents an event where a tuple left some
 	// processing unit (e.g., a Box)
-	Output
-	// Other represents any other event
-	Other
+	ETOutput
+	// ETOther represents any other event
+	ETOther
 )
 
 // A TraceEvent represents an event in the processing lifecycle of a
@@ -96,11 +98,11 @@ type TraceEvent struct {
 
 func (t EventType) String() string {
 	switch t {
-	case Input:
+	case ETInput:
 		return "INPUT"
-	case Output:
+	case ETOutput:
 		return "OUTPUT"
-	case Other:
+	case ETOther:
 		return "OTHER"
 	default:
 		return "unknown"

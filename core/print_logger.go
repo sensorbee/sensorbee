@@ -5,7 +5,6 @@ import (
 	"io"
 	"log"
 	"os"
-	"pfi/sensorbee/sensorbee/tuple"
 )
 
 // NewConsolePrintLogger creates a LogManager that will write
@@ -31,6 +30,6 @@ func (l *simplePrintLogger) Log(level LogLevel, msg string, a ...interface{}) {
 	l.logger.Printf("[%-7v] %v", level.String(), fmt.Sprintf(msg, a...))
 }
 
-func (l *simplePrintLogger) DroppedTuple(t *tuple.Tuple, msg string, a ...interface{}) {
+func (l *simplePrintLogger) DroppedTuple(t *Tuple, msg string, a ...interface{}) {
 	l.logger.Printf("[DROPPED] Tuple Batch ID is %v, %v", t.BatchID, fmt.Sprintf(msg, a...))
 }

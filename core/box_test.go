@@ -2,14 +2,13 @@ package core
 
 import (
 	. "github.com/smartystreets/goconvey/convey"
-	"pfi/sensorbee/sensorbee/tuple"
 	"testing"
 )
 
 func TestBox(t *testing.T) {
 	Convey("Given return nil BoxFunc implementation", t, func() {
 
-		a := func(ctx *Context, t *tuple.Tuple, s Writer) error {
+		a := func(ctx *Context, t *Tuple, s Writer) error {
 			return nil
 		}
 		bf := boxFunc(a)

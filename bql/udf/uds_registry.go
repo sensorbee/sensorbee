@@ -3,7 +3,7 @@ package udf
 import (
 	"fmt"
 	"pfi/sensorbee/sensorbee/core"
-	"pfi/sensorbee/sensorbee/tuple"
+	"pfi/sensorbee/sensorbee/data"
 	"sync"
 )
 
@@ -11,17 +11,17 @@ import (
 type UDSCreator interface {
 	// CreateState creates an instance of the state type. CreateState must not
 	// call core.SharedState.Init.
-	CreateState(ctx *core.Context, params tuple.Map) (core.SharedState, error)
+	CreateState(ctx *core.Context, params data.Map) (core.SharedState, error)
 }
 
-type udsCreatorFunc func(*core.Context, tuple.Map) (core.SharedState, error)
+type udsCreatorFunc func(*core.Context, data.Map) (core.SharedState, error)
 
-func (f udsCreatorFunc) CreateState(ctx *core.Context, params tuple.Map) (core.SharedState, error) {
+func (f udsCreatorFunc) CreateState(ctx *core.Context, params data.Map) (core.SharedState, error) {
 	return f(ctx, params)
 }
 
 // UDSCreatorFunc creates a UDSCreator from a function.
-func UDSCreatorFunc(f func(*core.Context, tuple.Map) (core.SharedState, error)) UDSCreator {
+func UDSCreatorFunc(f func(*core.Context, data.Map) (core.SharedState, error)) UDSCreator {
 	return udsCreatorFunc(f)
 }
 

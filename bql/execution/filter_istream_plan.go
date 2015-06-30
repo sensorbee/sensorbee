@@ -3,7 +3,8 @@ package execution
 import (
 	"pfi/sensorbee/sensorbee/bql/parser"
 	"pfi/sensorbee/sensorbee/bql/udf"
-	"pfi/sensorbee/sensorbee/tuple"
+	"pfi/sensorbee/sensorbee/core"
+	"pfi/sensorbee/sensorbee/data"
 	"reflect"
 )
 
@@ -11,7 +12,7 @@ type filterIstreamPlan struct {
 	commonExecutionPlan
 	relAlias    string
 	windowSize  int64
-	prevResults []tuple.Map
+	prevResults []data.Map
 	procItems   int64
 }
 
@@ -48,10 +49,10 @@ func NewFilterIstreamPlan(lp *LogicalPlan, reg udf.FunctionRegistry) (ExecutionP
 	return &filterIstreamPlan{commonExecutionPlan{
 		projections: projs,
 		filter:      filter,
-	}, lp.Relations[0].Alias, rangeValue, make([]tuple.Map, 0, rangeValue), 0}, nil
+	}, lp.Relations[0].Alias, rangeValue, make([]data.Map, 0, rangeValue), 0}, nil
 }
 
-func (ep *filterIstreamPlan) Process(input *tuple.Tuple) ([]tuple.Map, error) {
+func (ep *filterIstreamPlan) Process(input *core.Tuple) ([]data.Map, error) {
 	// remove the oldest item from prevResults after it has once
 	// been filled completely
 	if ep.procItems >= ep.windowSize {
@@ -63,7 +64,7 @@ func (ep *filterIstreamPlan) Process(input *tuple.Tuple) ([]tuple.Map, error) {
 	}
 
 	// nest the data in a one-element map using the alias as the key
-	input.Data = tuple.Map{ep.relAlias: input.Data}
+	input.Data = data.Map{ep.relAlias: input.Data}
 	setMetadata(input.Data, ep.relAlias, input)
 
 	// evaluate filter condition and convert to bool
@@ -72,7 +73,7 @@ func (ep *filterIstreamPlan) Process(input *tuple.Tuple) ([]tuple.Map, error) {
 		if err != nil {
 			return nil, err
 		}
-		filterResultBool, err := tuple.ToBool(filterResult)
+		filterResultBool, err := data.ToBool(filterResult)
 		if err != nil {
 			return nil, err
 		}
@@ -82,7 +83,7 @@ func (ep *filterIstreamPlan) Process(input *tuple.Tuple) ([]tuple.Map, error) {
 		}
 	}
 	// otherwise, compute all the expressions
-	result := tuple.Map(make(map[string]tuple.Value, len(ep.projections)))
+	result := data.Map(make(map[string]data.Value, len(ep.projections)))
 	for _, proj := range ep.projections {
 		value, err := proj.evaluator.Eval(input.Data)
 		if err != nil {
@@ -105,5 +106,5 @@ func (ep *filterIstreamPlan) Process(input *tuple.Tuple) ([]tuple.Map, error) {
 	if alreadyEmitted {
 		return nil, nil
 	}
-	return []tuple.Map{result}, nil
+	return []data.Map{result}, nil
 }

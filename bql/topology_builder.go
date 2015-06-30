@@ -5,7 +5,7 @@ import (
 	"pfi/sensorbee/sensorbee/bql/parser"
 	"pfi/sensorbee/sensorbee/bql/udf"
 	"pfi/sensorbee/sensorbee/core"
-	"pfi/sensorbee/sensorbee/tuple"
+	"pfi/sensorbee/sensorbee/data"
 	"sync/atomic"
 )
 
@@ -225,8 +225,8 @@ func (tb *TopologyBuilder) AddStmt(stmt interface{}) (core.Node, error) {
 	return nil, fmt.Errorf("statement of type %T is unimplemented", stmt)
 }
 
-func (tb *TopologyBuilder) mkParamsMap(params []parser.SourceSinkParamAST) tuple.Map {
-	paramsMap := make(tuple.Map, len(params))
+func (tb *TopologyBuilder) mkParamsMap(params []parser.SourceSinkParamAST) data.Map {
+	paramsMap := make(data.Map, len(params))
 	for _, kv := range params {
 		paramsMap[string(kv.Key)] = kv.Value
 	}

@@ -3,21 +3,21 @@ package bql
 import (
 	"fmt"
 	"pfi/sensorbee/sensorbee/core"
-	"pfi/sensorbee/sensorbee/tuple"
+	"pfi/sensorbee/sensorbee/data"
 	"sync"
 )
 
 type SinkCreator interface {
-	CreateSink(ctx *core.Context, params tuple.Map) (core.Sink, error)
+	CreateSink(ctx *core.Context, params data.Map) (core.Sink, error)
 }
 
-type sinkCreatorFunc func(*core.Context, tuple.Map) (core.Sink, error)
+type sinkCreatorFunc func(*core.Context, data.Map) (core.Sink, error)
 
-func (f sinkCreatorFunc) CreateSink(ctx *core.Context, params tuple.Map) (core.Sink, error) {
+func (f sinkCreatorFunc) CreateSink(ctx *core.Context, params data.Map) (core.Sink, error) {
 	return f(ctx, params)
 }
 
-func SinkCreatorFunc(f func(*core.Context, tuple.Map) (core.Sink, error)) SinkCreator {
+func SinkCreatorFunc(f func(*core.Context, data.Map) (core.Sink, error)) SinkCreator {
 	return sinkCreatorFunc(f)
 }
 

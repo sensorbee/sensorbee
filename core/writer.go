@@ -1,9 +1,5 @@
 package core
 
-import (
-	"pfi/sensorbee/sensorbee/tuple"
-)
-
 // Writer describes an object that tuples can be written to
 // as the output for a Box. Note that this interface was chosen
 // because it also allows a Box to write multiple (or none)
@@ -11,7 +7,7 @@ import (
 // points to the same Context that was used by the Box that
 // called Write.
 type Writer interface {
-	Write(ctx *Context, t *tuple.Tuple) error
+	Write(ctx *Context, t *Tuple) error
 }
 
 // WriteCloser add a capability of closing to Writer.

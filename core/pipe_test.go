@@ -3,7 +3,7 @@ package core
 import (
 	"fmt"
 	. "github.com/smartystreets/goconvey/convey"
-	"pfi/sensorbee/sensorbee/tuple"
+	"pfi/sensorbee/sensorbee/data"
 	"testing"
 )
 
@@ -16,8 +16,8 @@ func BenchmarkPipe(b *testing.B) {
 		}
 	}()
 
-	t := &tuple.Tuple{}
-	t.Data = tuple.Map{}
+	t := &Tuple{}
+	t.Data = data.Map{}
 
 	b.ResetTimer()
 	b.RunParallel(func(pb *testing.PB) {
@@ -39,10 +39,10 @@ func TestPipe(t *testing.T) {
 	Convey("Given a pipe", t, func() {
 		// Use small capacity to check the sender never blocks.
 		r, s := newPipe("test", 1)
-		t := &tuple.Tuple{
+		t := &Tuple{
 			InputName: "hoge",
-			Data: tuple.Map{
-				"v": tuple.Int(1),
+			Data: data.Map{
+				"v": data.Int(1),
 			},
 		}
 
@@ -54,7 +54,7 @@ func TestPipe(t *testing.T) {
 				rt := <-r.in
 
 				Convey("And its value should be correct", func() {
-					So(rt.Data["v"], ShouldEqual, tuple.Int(1))
+					So(rt.Data["v"], ShouldEqual, data.Int(1))
 				})
 
 				Convey("And its input name should be overwritten", func() {
@@ -118,10 +118,10 @@ func TestDataSources(t *testing.T) {
 		srcs := newDataSources("test_component")
 		si := NewTupleCollectorSink()
 
-		t := &tuple.Tuple{
+		t := &Tuple{
 			InputName: "some_component",
-			Data: tuple.Map{
-				"v": tuple.Int(1),
+			Data: data.Map{
+				"v": data.Int(1),
 			},
 		}
 
@@ -176,10 +176,10 @@ func TestDataSources(t *testing.T) {
 		})
 		si := NewTupleCollectorSink()
 
-		t := &tuple.Tuple{
+		t := &Tuple{
 			InputName: "some_component",
-			Data: tuple.Map{
-				"v": tuple.Int(1),
+			Data: data.Map{
+				"v": data.Int(1),
 			},
 		}
 
@@ -336,10 +336,10 @@ func TestDataDestinations(t *testing.T) {
 
 	Convey("Given an empty data destination", t, func() {
 		dsts := newDataDestinations("test_component")
-		t := &tuple.Tuple{
+		t := &Tuple{
 			InputName: "test_component",
-			Data: tuple.Map{
-				"v": tuple.Int(1),
+			Data: data.Map{
+				"v": data.Int(1),
 			},
 		}
 
@@ -363,10 +363,10 @@ func TestDataDestinations(t *testing.T) {
 			recvs[i] = r
 			dsts.add(fmt.Sprint("test_node_", i+1), s)
 		}
-		t := &tuple.Tuple{
+		t := &Tuple{
 			InputName: "test_component",
-			Data: tuple.Map{
-				"v": tuple.Int(1),
+			Data: data.Map{
+				"v": data.Int(1),
 			},
 		}
 

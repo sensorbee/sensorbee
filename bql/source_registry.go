@@ -3,21 +3,21 @@ package bql
 import (
 	"fmt"
 	"pfi/sensorbee/sensorbee/core"
-	"pfi/sensorbee/sensorbee/tuple"
+	"pfi/sensorbee/sensorbee/data"
 	"sync"
 )
 
 type SourceCreator interface {
-	CreateSource(ctx *core.Context, params tuple.Map) (core.Source, error)
+	CreateSource(ctx *core.Context, params data.Map) (core.Source, error)
 }
 
-type sourceCreatorFunc func(*core.Context, tuple.Map) (core.Source, error)
+type sourceCreatorFunc func(*core.Context, data.Map) (core.Source, error)
 
-func (f sourceCreatorFunc) CreateSource(ctx *core.Context, params tuple.Map) (core.Source, error) {
+func (f sourceCreatorFunc) CreateSource(ctx *core.Context, params data.Map) (core.Source, error) {
 	return f(ctx, params)
 }
 
-func SourceCreatorFunc(f func(*core.Context, tuple.Map) (core.Source, error)) SourceCreator {
+func SourceCreatorFunc(f func(*core.Context, data.Map) (core.Source, error)) SourceCreator {
 	return sourceCreatorFunc(f)
 }
 

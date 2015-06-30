@@ -3,7 +3,6 @@ package core
 import (
 	"fmt"
 	. "github.com/smartystreets/goconvey/convey"
-	"pfi/sensorbee/sensorbee/tuple"
 	"sync"
 	"testing"
 )
@@ -80,7 +79,7 @@ type panicBox struct {
 	writeCnt     int
 }
 
-func (b *panicBox) Process(ctx *Context, t *tuple.Tuple, w Writer) error {
+func (b *panicBox) Process(ctx *Context, t *Tuple, w Writer) error {
 	b.m.Lock()
 	defer b.m.Unlock()
 	b.writeCnt++
