@@ -8,9 +8,9 @@ import (
 	"time"
 )
 
-// TestDefaultStaticTopologyTupleTracingConfiguration tests that tracing
+// TestDefaultTopologyTupleTracingConfiguration tests that tracing
 // information is added according to Configuration.
-func TestDefaultStaticTopologyTupleTracingConfiguration(t *testing.T) {
+func TestDefaultTopologyTupleTracingConfiguration(t *testing.T) {
 	Convey("Given a simple topology with tracing disabled", t, func() {
 		config := Configuration{TupleTraceEnabled: 0}
 		ctx := newTestContext(config)
@@ -61,9 +61,9 @@ func TestDefaultStaticTopologyTupleTracingConfiguration(t *testing.T) {
 	})
 }
 
-// TestDefaultStaticTopologyTupleTracing tests that tracing information is
+// TestDefaultTopologyTupleTracing tests that tracing information is
 // correctly added to tuples in a complex topology.
-func TestDefaultStaticTopologyTupleTracing(t *testing.T) {
+func TestDefaultTopologyTupleTracing(t *testing.T) {
 	config := Configuration{TupleTraceEnabled: 1}
 	ctx := newTestContext(config)
 	Convey("Given a complex topology with distribution and aggregation", t, func() {
