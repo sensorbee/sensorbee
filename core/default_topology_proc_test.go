@@ -49,7 +49,7 @@ func TestDefaultTopologyTupleProcessing(t *testing.T) {
 		bn, err := t.AddBox("aBox", ToUpperBox, nil)
 		So(err, ShouldBeNil)
 		So(bn.Input("source1", nil), ShouldBeNil)
-		bn.StopOnDisconnect()
+		bn.StopOnDisconnect(Inbound)
 
 		si := &TupleContentsCollectorSink{}
 		sin, err := t.AddSink("si", si, nil)
@@ -118,7 +118,7 @@ func TestDefaultTopologyTupleProcessing(t *testing.T) {
 		So(err, ShouldBeNil)
 		So(bn.Input("source1", nil), ShouldBeNil)
 		So(bn.Input("source2", nil), ShouldBeNil)
-		bn.StopOnDisconnect()
+		bn.StopOnDisconnect(Inbound)
 
 		si := &TupleContentsCollectorSink{}
 		sin, err := t.AddSink("si", si, nil)
@@ -162,12 +162,12 @@ func TestDefaultTopologyTupleProcessing(t *testing.T) {
 		bn1, err := t.AddBox("aBox", ToUpperBox, nil)
 		So(err, ShouldBeNil)
 		So(bn1.Input("source1", nil), ShouldBeNil)
-		bn1.StopOnDisconnect()
+		bn1.StopOnDisconnect(Inbound)
 
 		bn2, err := t.AddBox("bBox", AddSuffixBox, nil)
 		So(err, ShouldBeNil)
 		So(bn2.Input("source1", nil), ShouldBeNil)
-		bn2.StopOnDisconnect()
+		bn2.StopOnDisconnect(Inbound)
 
 		si := &TupleContentsCollectorSink{}
 		sin, err := t.AddSink("si", si, nil)
@@ -207,7 +207,7 @@ func TestDefaultTopologyTupleProcessing(t *testing.T) {
 		bn, err := t.AddBox("aBox", ToUpperBox, nil)
 		So(err, ShouldBeNil)
 		So(bn.Input("source1", nil), ShouldBeNil)
-		bn.StopOnDisconnect()
+		bn.StopOnDisconnect(Inbound)
 
 		si1 := &TupleContentsCollectorSink{}
 		sin1, err := t.AddSink("si1", si1, nil)

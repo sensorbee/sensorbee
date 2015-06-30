@@ -86,11 +86,32 @@ type BoxNode interface {
 	EnableGracefulStop()
 
 	// StopOnDisconnect tells the Box that it may automatically stop when all
-	// incoming connections (channels or pipes) are closed. After calling this
-	// method, the Box can automatically stop even if Stop method isn't
-	// explicitly called.
-	StopOnDisconnect()
+	// inbound or outbound connections (channels or pipes) are closed. After
+	// calling this method, the Box can automatically stop even if Stop method
+	// isn't explicitly called.
+	//
+	// connDir can be InboundConnection, OutboundConnnection, or bitwise-or of
+	// them. When both InboundConnection and OutboundConnection is specified,
+	// the Box stops if all inbound connections are closed OR all outbound
+	// connections are closed. For example, when a Box has two inbound
+	// connections and one outbound connections, it stops if the outbound
+	// connections is closed while two inbound connections are active.
+	//
+	// Currently, there's no way to disable StopOnDisconnect once it's enabled.
+	// Also, it simply overwrites the direction flag as follows, so Inbound and
+	// Outbound can be set separately:
+	//
+	//	boxNode.StopOnDisconnect(core.Inbound | core.Outbound)
+	//	boxNode.StopOnDisconnect(core.Outbound) // core.Inbound is still enabled.
+	StopOnDisconnect(dir ConnDir)
 }
+
+type ConnDir int
+
+const (
+	Inbound ConnDir = 1 << iota
+	Outbound
+)
 
 // BoxInputConfig has parameters to customize input behavior of a Box on each
 // input pipe.
