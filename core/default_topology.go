@@ -142,6 +142,7 @@ func (t *defaultTopology) AddBox(name string, b Box, config *BoxConfig) (BoxNode
 		box:         b,
 		dsts:        newDataDestinations(name),
 	}
+	db.dsts.callback = db.dstCallback
 	t.boxes[name] = db
 
 	go func() {
