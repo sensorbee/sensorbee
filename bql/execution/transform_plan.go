@@ -5,7 +5,7 @@ import (
 	"pfi/sensorbee/sensorbee/bql/parser"
 	"pfi/sensorbee/sensorbee/bql/udf"
 	"pfi/sensorbee/sensorbee/core"
-	"pfi/sensorbee/sensorbee/tuple"
+	"pfi/sensorbee/sensorbee/data"
 	"strings"
 )
 
@@ -35,14 +35,14 @@ type LogicalPlan struct {
 // stream when a new tuple arrives in the input stream.
 type ExecutionPlan interface {
 	// Process must be called whenever a new tuple arrives in
-	// the input stream. It will return a list of tuple.Map
+	// the input stream. It will return a list of data.Map
 	// items where each of these items is to be emitted as
 	// a tuple. It is the caller's task to create those tuples
 	// and set appropriate meta information such as timestamps.
 	//
 	// NB. Process is not thread-safe, i.e., it must be called in
 	// a single-threaded context.
-	Process(input *core.Tuple) ([]tuple.Map, error)
+	Process(input *core.Tuple) ([]data.Map, error)
 }
 
 func Analyze(s parser.CreateStreamAsSelectStmt) (*LogicalPlan, error) {

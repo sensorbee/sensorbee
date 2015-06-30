@@ -3,7 +3,7 @@ package core
 import (
 	"fmt"
 	. "github.com/smartystreets/goconvey/convey"
-	"pfi/sensorbee/sensorbee/tuple"
+	"pfi/sensorbee/sensorbee/data"
 	"sync/atomic"
 	"testing"
 )
@@ -230,7 +230,7 @@ func (c *countingSharedState) Init(ctx *Context) error {
 }
 
 func (c *countingSharedState) Write(ctx *Context, t *Tuple) error {
-	i, _ := tuple.ToInt(t.Data["n"])
+	i, _ := data.ToInt(t.Data["n"])
 	atomic.AddInt32(&c.cnt, int32(i))
 	return nil
 }
@@ -255,8 +255,8 @@ func TestSharedStateInTopology(t *testing.T) {
 		ts := []*Tuple{}
 		for i := 0; i < 4; i++ {
 			ts = append(ts, &Tuple{
-				Data: tuple.Map{
-					"n": tuple.Int(i + 1),
+				Data: data.Map{
+					"n": data.Int(i + 1),
 				},
 			})
 		}
@@ -291,7 +291,7 @@ func TestSharedStateInTopology(t *testing.T) {
 				return fmt.Errorf("cannot convert a state to a counter")
 			}
 
-			t.Data["cur_cnt"] = tuple.Int(atomic.LoadInt32(&c.cnt))
+			t.Data["cur_cnt"] = data.Int(atomic.LoadInt32(&c.cnt))
 			return w.Write(ctx, t)
 		})
 		bn2, err := t.AddBox("box2", b2, nil)

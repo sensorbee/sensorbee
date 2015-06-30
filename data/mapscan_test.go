@@ -1,4 +1,4 @@
-package tuple
+package data
 
 import (
 	. "github.com/smartystreets/goconvey/convey"
@@ -122,7 +122,7 @@ func TestScanMap(t *testing.T) {
 			err := scanMap(testData, "string[0]", &v)
 			Convey("Then lookup should fail", func() {
 				So(err, ShouldNotBeNil)
-				So(err.Error(), ShouldEqual, "cannot access a tuple.String using index 0")
+				So(err.Error(), ShouldEqual, "cannot access a data.String using index 0")
 			})
 		})
 		Convey("When accessing only an array key", func() {
@@ -130,7 +130,7 @@ func TestScanMap(t *testing.T) {
 			err := scanMap(testData, "[0]", &v)
 			Convey("Then lookup should fail", func() {
 				So(err, ShouldNotBeNil)
-				So(err.Error(), ShouldEqual, "cannot access a tuple.Map using index 0")
+				So(err.Error(), ShouldEqual, "cannot access a data.Map using index 0")
 			})
 		})
 		Convey("When accessing an out-of-range index", func() {
