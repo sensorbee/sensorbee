@@ -49,20 +49,11 @@ func ConvertGeneric(function interface{}) (UDF, error) {
 		g.hasError = hasError
 	}
 
-	convs := make([]argumentConverter, 0, g.arity)
-	for i := t.NumIn() - g.arity; i < t.NumIn(); i++ {
-		arg := t.In(i)
-		if i == t.NumIn()-1 && g.variadic {
-			arg = arg.Elem()
-		}
-
-		c, err := genericFuncArgumentConverter(arg)
-		if err != nil {
-			return nil, err
-		}
-		convs = append(convs, c)
+	if convs, err := createGenericConverters(t, t.NumIn()-g.arity); err != nil {
+		return nil, err
+	} else {
+		g.converters = convs
 	}
-	g.converters = convs
 	return g, nil
 }
 
@@ -94,6 +85,9 @@ func checkGenericFuncReturnTypes(t reflect.Type) (bool, error) {
 			}
 		}
 		if _, err := data.NewValue(reflect.Zero(t.Out(0)).Interface()); err != nil {
+			// TODO: this doesn't work for interfaces because they'll always be
+			// converted data.Null due to reflect.Zero. The only interface which
+			// can be returned should be data.Value.
 			return false, fmt.Errorf("the return value isn't convertible to data.Value")
 		}
 
@@ -109,6 +103,24 @@ func genericFuncHasContext(t reflect.Type) bool {
 	}
 	c := t.In(0)
 	return reflect.TypeOf(&core.Context{}).AssignableTo(c)
+}
+
+func createGenericConverters(t reflect.Type, argStart int) ([]argumentConverter, error) {
+	variadic := t.IsVariadic()
+	convs := make([]argumentConverter, 0, t.NumIn()-argStart)
+	for i := argStart; i < t.NumIn(); i++ {
+		arg := t.In(i)
+		if i == t.NumIn()-1 && variadic {
+			arg = arg.Elem()
+		}
+
+		c, err := genericFuncArgumentConverter(arg)
+		if err != nil {
+			return nil, err
+		}
+		convs = append(convs, c)
+	}
+	return convs, nil
 }
 
 type argumentConverter func(data.Value) (interface{}, error)
@@ -378,24 +390,19 @@ func (g *genericFunc) call(ctx *core.Context, args ...data.Value) ([]reflect.Val
 		in = append(in, reflect.ValueOf(ctx))
 	}
 
-	noVariadic := g.arity
+	variadicBegin := g.arity
 	if g.variadic {
-		noVariadic--
+		variadicBegin--
 	}
 
-	for i := 0; i < noVariadic; i++ {
+	for i := 0; i < variadicBegin; i++ {
 		v, err := g.converters[i](args[i])
 		if err != nil {
 			return nil, err
 		}
 		in = append(in, reflect.ValueOf(v))
 	}
-
-	if !g.variadic {
-		return g.function.Call(in), nil
-	}
-
-	for i := noVariadic; i < len(args); i++ {
+	for i := variadicBegin; i < len(args); i++ {
 		v, err := g.converters[len(g.converters)-1](args[i])
 		if err != nil {
 			return nil, err
