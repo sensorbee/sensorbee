@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-// GenericFunc creates a new UDF from various form of functions. Arguments
+// ConvertGeneric creates a new UDF from various form of functions. Arguments
 // of the function don't have to be tuple types, but some standard types are
 // allowed. The UDF returned provide a weak type conversion, that is it uses
 // data.To{Type} function to convert values. Therefore, a string may be
@@ -26,7 +26,7 @@ import (
 //	- data.Bool, data.Int, data.Float, data.String, data.Blob,
 //	  data.Timestamp, data.Array, data.Map, data.Value
 //	- a slice of types above
-func GenericFunc(function interface{}) (UDF, error) {
+func ConvertGeneric(function interface{}) (UDF, error) {
 	t := reflect.TypeOf(function)
 	if t.Kind() != reflect.Func {
 		return nil, errors.New("the argument must be a function")
@@ -64,6 +64,14 @@ func GenericFunc(function interface{}) (UDF, error) {
 	}
 	g.converters = convs
 	return g, nil
+}
+
+func MustConvertGeneric(function interface{}) UDF {
+	f, err := ConvertGeneric(function)
+	if err != nil {
+		panic(err)
+	}
+	return f
 }
 
 func checkGenericFuncReturnTypes(t reflect.Type) (bool, error) {
