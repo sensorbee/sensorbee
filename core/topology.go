@@ -89,13 +89,27 @@ type SourceConfig struct {
 	// source. If it is true, the source is paused. Otherwise, source runs just
 	// after it is added to a topology.
 	PausedOnStartup bool
+
+	// Meta contains meta information of the source. This field won't be used
+	// by core package and application can store any form of information
+	// related to the source.
+	Meta map[string]interface{}
 }
 
 // BoxConfig has configuration parameters of a Box node.
 type BoxConfig struct {
 	// TODO: parallelism
+
+	// Meta contains meta information of the box. This field won't be used
+	// by core package and application can store any form of information
+	// related to the box.
+	Meta map[string]interface{}
 }
 
 // SinkConfig has configuration parameters of a Sink node.
 type SinkConfig struct {
+	// Meta contains meta information of the sink. This field won't be used
+	// by core package and application can store any form of information
+	// related to the sink.
+	Meta map[string]interface{}
 }
