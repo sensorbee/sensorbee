@@ -19,3 +19,14 @@ type WriteCloser interface {
 	// idempotent.
 	Close(ctx *Context) error
 }
+
+type writerFunc func(ctx *Context, t *Tuple) error
+
+// WriterFunc creates a Writer from a function.
+func WriterFunc(f func(ctx *Context, t *Tuple) error) Writer {
+	return writerFunc(f)
+}
+
+func (w writerFunc) Write(ctx *Context, t *Tuple) error {
+	return w(ctx, t)
+}
