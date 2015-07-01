@@ -173,16 +173,3 @@ func (wa *boxWriterAdapter) Write(ctx *Context, t *Tuple) error {
 	tracing(t, ctx, ETInput, wa.name)
 	return wa.box.Process(ctx, t, wa.dst)
 }
-
-func (wa *boxWriterAdapter) Close(ctx *Context) error {
-	// TODO: handle panics
-	var errb error
-	if sbox, ok := wa.box.(StatefulBox); ok {
-		errb = sbox.Terminate(ctx)
-	}
-	errw := wa.dst.w.Close(ctx)
-	if errb != nil {
-		return errb // An error from the Box is considered more important.
-	}
-	return errw
-}
