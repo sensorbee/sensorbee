@@ -17,12 +17,12 @@ func TestRelationChecker(t *testing.T) {
 	r := parser.IntervalAST{parser.NumericLiteral{2}, parser.Tuples}
 	singleFrom := parser.WindowedFromAST{
 		[]parser.AliasedStreamWindowAST{
-			{parser.StreamWindowAST{parser.Stream{"t"}, r}, ""},
+			{parser.StreamWindowAST{parser.Stream{parser.ActualStream, "t", nil}, r}, ""},
 		},
 	}
 	singleFromAlias := parser.WindowedFromAST{
 		[]parser.AliasedStreamWindowAST{
-			{parser.StreamWindowAST{parser.Stream{"s"}, r}, "t"},
+			{parser.StreamWindowAST{parser.Stream{parser.ActualStream, "s", nil}, r}, "t"},
 		},
 	}
 	two := parser.NumericLiteral{2}
@@ -317,7 +317,7 @@ func TestRelationChecker(t *testing.T) {
 		// SELECT ISTREAM [EVERY 2 SECONDS]                    a FROM t -> OK
 		{&parser.SelectStmt{
 			EmitterAST: parser.EmitterAST{parser.Istream, []parser.StreamEmitIntervalAST{
-				{parser.IntervalAST{parser.NumericLiteral{2}, parser.Seconds}, parser.Stream{"*"}},
+				{parser.IntervalAST{parser.NumericLiteral{2}, parser.Seconds}, parser.Stream{parser.ActualStream, "*", nil}},
 			}},
 			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{a}},
 			WindowedFromAST: singleFrom,
@@ -325,7 +325,7 @@ func TestRelationChecker(t *testing.T) {
 		// SELECT ISTREAM [EVERY 2 TUPLES]                     a FROM t -> OK
 		{&parser.SelectStmt{
 			EmitterAST: parser.EmitterAST{parser.Istream, []parser.StreamEmitIntervalAST{
-				{parser.IntervalAST{parser.NumericLiteral{2}, parser.Tuples}, parser.Stream{"*"}},
+				{parser.IntervalAST{parser.NumericLiteral{2}, parser.Tuples}, parser.Stream{parser.ActualStream, "*", nil}},
 			}},
 			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{a}},
 			WindowedFromAST: singleFrom,
@@ -333,7 +333,7 @@ func TestRelationChecker(t *testing.T) {
 		// SELECT ISTREAM [EVERY 2 TUPLES IN t]                a FROM t -> OK
 		{&parser.SelectStmt{
 			EmitterAST: parser.EmitterAST{parser.Istream, []parser.StreamEmitIntervalAST{
-				{parser.IntervalAST{parser.NumericLiteral{2}, parser.Tuples}, parser.Stream{"t"}},
+				{parser.IntervalAST{parser.NumericLiteral{2}, parser.Tuples}, parser.Stream{parser.ActualStream, "t", nil}},
 			}},
 			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{a}},
 			WindowedFromAST: singleFrom,
@@ -341,7 +341,7 @@ func TestRelationChecker(t *testing.T) {
 		// SELECT ISTREAM [EVERY 2 TUPLES IN x]                a FROM t -> NG
 		{&parser.SelectStmt{
 			EmitterAST: parser.EmitterAST{parser.Istream, []parser.StreamEmitIntervalAST{
-				{parser.IntervalAST{parser.NumericLiteral{2}, parser.Tuples}, parser.Stream{"x"}},
+				{parser.IntervalAST{parser.NumericLiteral{2}, parser.Tuples}, parser.Stream{parser.ActualStream, "x", nil}},
 			}},
 			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{a}},
 			WindowedFromAST: singleFrom,
@@ -349,7 +349,7 @@ func TestRelationChecker(t *testing.T) {
 		// SELECT ISTREAM [EVERY 2 TUPLES IN x]             FROM t AS x -> NG
 		{&parser.SelectStmt{
 			EmitterAST: parser.EmitterAST{parser.Istream, []parser.StreamEmitIntervalAST{
-				{parser.IntervalAST{parser.NumericLiteral{2}, parser.Tuples}, parser.Stream{"x"}},
+				{parser.IntervalAST{parser.NumericLiteral{2}, parser.Tuples}, parser.Stream{parser.ActualStream, "x", nil}},
 			}},
 			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{a}},
 			WindowedFromAST: singleFrom,
@@ -357,7 +357,7 @@ func TestRelationChecker(t *testing.T) {
 		// SELECT ISTREAM [EVERY 2 TUPLES IN t, 3 TUPLES in x] a FROM t -> NG
 		{&parser.SelectStmt{
 			EmitterAST: parser.EmitterAST{parser.Istream, []parser.StreamEmitIntervalAST{
-				{parser.IntervalAST{parser.NumericLiteral{2}, parser.Tuples}, parser.Stream{"x"}},
+				{parser.IntervalAST{parser.NumericLiteral{2}, parser.Tuples}, parser.Stream{parser.ActualStream, "x", nil}},
 			}},
 			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{a}},
 			WindowedFromAST: singleFrom,
@@ -365,8 +365,8 @@ func TestRelationChecker(t *testing.T) {
 		// SELECT ISTREAM [EVERY 2 TUPLES IN t, 3 TUPLES in t] a FROM t -> NG
 		{&parser.SelectStmt{
 			EmitterAST: parser.EmitterAST{parser.Istream, []parser.StreamEmitIntervalAST{
-				{parser.IntervalAST{parser.NumericLiteral{2}, parser.Tuples}, parser.Stream{"t"}},
-				{parser.IntervalAST{parser.NumericLiteral{2}, parser.Tuples}, parser.Stream{"t"}},
+				{parser.IntervalAST{parser.NumericLiteral{2}, parser.Tuples}, parser.Stream{parser.ActualStream, "t", nil}},
+				{parser.IntervalAST{parser.NumericLiteral{2}, parser.Tuples}, parser.Stream{parser.ActualStream, "t", nil}},
 			}},
 			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{a}},
 			WindowedFromAST: singleFrom,
@@ -462,7 +462,7 @@ func TestRelationAliasing(t *testing.T) {
 			ProjectionsAST: proj,
 			WindowedFromAST: parser.WindowedFromAST{
 				[]parser.AliasedStreamWindowAST{
-					{parser.StreamWindowAST{parser.Stream{"a"}, r}, ""},
+					{parser.StreamWindowAST{parser.Stream{parser.ActualStream, "a", nil}, r}, ""},
 				}},
 		}, ""},
 		// SELECT 2 FROM a AS b         -> OK
@@ -470,7 +470,7 @@ func TestRelationAliasing(t *testing.T) {
 			ProjectionsAST: proj,
 			WindowedFromAST: parser.WindowedFromAST{
 				[]parser.AliasedStreamWindowAST{
-					{parser.StreamWindowAST{parser.Stream{"a"}, r}, "b"},
+					{parser.StreamWindowAST{parser.Stream{parser.ActualStream, "a", nil}, r}, "b"},
 				}},
 		}, ""},
 		// SELECT 2 FROM a AS b, a      -> OK
@@ -478,8 +478,8 @@ func TestRelationAliasing(t *testing.T) {
 			ProjectionsAST: proj,
 			WindowedFromAST: parser.WindowedFromAST{
 				[]parser.AliasedStreamWindowAST{
-					{parser.StreamWindowAST{parser.Stream{"a"}, r}, "b"},
-					{parser.StreamWindowAST{parser.Stream{"a"}, r}, ""},
+					{parser.StreamWindowAST{parser.Stream{parser.ActualStream, "a", nil}, r}, "b"},
+					{parser.StreamWindowAST{parser.Stream{parser.ActualStream, "a", nil}, r}, ""},
 				}},
 		}, ""},
 		// SELECT 2 FROM a AS b, c AS a -> OK
@@ -487,8 +487,8 @@ func TestRelationAliasing(t *testing.T) {
 			ProjectionsAST: proj,
 			WindowedFromAST: parser.WindowedFromAST{
 				[]parser.AliasedStreamWindowAST{
-					{parser.StreamWindowAST{parser.Stream{"a"}, r}, "b"},
-					{parser.StreamWindowAST{parser.Stream{"c"}, r}, "a"},
+					{parser.StreamWindowAST{parser.Stream{parser.ActualStream, "a", nil}, r}, "b"},
+					{parser.StreamWindowAST{parser.Stream{parser.ActualStream, "c", nil}, r}, "a"},
 				}},
 		}, ""},
 		// SELECT 2 FROM a, a           -> NG
@@ -496,8 +496,8 @@ func TestRelationAliasing(t *testing.T) {
 			ProjectionsAST: proj,
 			WindowedFromAST: parser.WindowedFromAST{
 				[]parser.AliasedStreamWindowAST{
-					{parser.StreamWindowAST{parser.Stream{"a"}, r}, ""},
-					{parser.StreamWindowAST{parser.Stream{"a"}, r}, ""},
+					{parser.StreamWindowAST{parser.Stream{parser.ActualStream, "a", nil}, r}, ""},
+					{parser.StreamWindowAST{parser.Stream{parser.ActualStream, "a", nil}, r}, ""},
 				}},
 		}, "cannot use relations"},
 		// SELECT 2 FROM a, b AS a      -> NG
@@ -505,8 +505,8 @@ func TestRelationAliasing(t *testing.T) {
 			ProjectionsAST: proj,
 			WindowedFromAST: parser.WindowedFromAST{
 				[]parser.AliasedStreamWindowAST{
-					{parser.StreamWindowAST{parser.Stream{"a"}, r}, ""},
-					{parser.StreamWindowAST{parser.Stream{"b"}, r}, "a"},
+					{parser.StreamWindowAST{parser.Stream{parser.ActualStream, "a", nil}, r}, ""},
+					{parser.StreamWindowAST{parser.Stream{parser.ActualStream, "b", nil}, r}, "a"},
 				}},
 		}, "cannot use relations"},
 	}
