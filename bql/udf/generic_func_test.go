@@ -45,7 +45,7 @@ func TestGenericFunc(t *testing.T) {
 		for _, c := range normalCases {
 			c := c
 			Convey(c.title, func() {
-				f, err := GenericFunc(c.f)
+				f, err := ConvertGeneric(c.f)
 				So(err, ShouldBeNil)
 
 				Convey("Then the udf should return a correct value", func() {
@@ -97,7 +97,7 @@ func TestGenericFunc(t *testing.T) {
 		for _, c := range variadicCases {
 			c := c
 			Convey(c.title, func() {
-				f, err := GenericFunc(c.f)
+				f, err := ConvertGeneric(c.f)
 				So(err, ShouldBeNil)
 
 				Convey("And passing no arguments", func() {
@@ -185,7 +185,7 @@ func TestGenericFunc(t *testing.T) {
 		for _, c := range variadicExtraCases {
 			c := c
 			Convey(c.title, func() {
-				f, err := GenericFunc(c.f)
+				f, err := ConvertGeneric(c.f)
 				So(err, ShouldBeNil)
 
 				Convey("And passing no arguments", func() {
@@ -249,7 +249,7 @@ func TestGenericFunc(t *testing.T) {
 		}
 
 		Convey("When creating a function returning an error", func() {
-			f, err := GenericFunc(func() (int, error) {
+			f, err := ConvertGeneric(func() (int, error) {
 				return 0, fmt.Errorf("test failure")
 			})
 			So(err, ShouldBeNil)
@@ -258,6 +258,22 @@ func TestGenericFunc(t *testing.T) {
 				_, err := f.Call(ctx)
 				So(err, ShouldNotBeNil)
 				So(err.Error(), ShouldEqual, "test failure")
+			})
+		})
+
+		Convey("When creating a valid UDF with MustConvertGeneric", func() {
+			Convey("Then it shouldn't panic", func() {
+				So(func() {
+					MustConvertGeneric(func() int { return 0 })
+				}, ShouldNotPanic)
+			})
+		})
+
+		Convey("When creating a invalid UDF with MustConvertGeneric", func() {
+			Convey("Then it should panic", func() {
+				So(func() {
+					MustConvertGeneric(func() {})
+				}, ShouldPanic)
 			})
 		})
 	})
@@ -290,7 +306,7 @@ func TestGenericFuncInvalidCases(t *testing.T) {
 		for _, c := range genCases {
 			c := c
 			Convey("When passing a function "+c.title, func() {
-				_, err := GenericFunc(c.f)
+				_, err := ConvertGeneric(c.f)
 
 				Convey("Then it should fail", func() {
 					So(err, ShouldNotBeNil)
@@ -333,7 +349,7 @@ func TestGenericFuncInvalidCases(t *testing.T) {
 		for _, c := range callCases {
 			c := c
 			Convey(c.title, func() {
-				f, err := GenericFunc(c.f)
+				f, err := ConvertGeneric(c.f)
 				So(err, ShouldBeNil)
 
 				Convey("Then it should fail", func() {
@@ -349,7 +365,7 @@ func TestIntGenericInt8Func(t *testing.T) {
 	ctx := &core.Context{} // not used in this test
 
 	Convey("Given a function receiving int8", t, func() {
-		f, err := GenericFunc(func(i int8) int8 {
+		f, err := ConvertGeneric(func(i int8) int8 {
 			return i * 2
 		})
 		So(err, ShouldBeNil)
