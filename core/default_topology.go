@@ -73,7 +73,7 @@ func (t *defaultTopology) AddSource(name string, s Source, config *SourceConfig)
 	}
 
 	ds := &defaultSourceNode{
-		defaultNode:     newdefaultNode(t, name),
+		defaultNode:     newDefaultNode(t, name, config.Meta),
 		source:          s,
 		dsts:            newDataDestinations(name),
 		pausedOnStartup: config.PausedOnStartup,
@@ -122,6 +122,10 @@ func (t *defaultTopology) AddBox(name string, b Box, config *BoxConfig) (BoxNode
 		return nil, err
 	}
 
+	if config == nil {
+		config = &BoxConfig{}
+	}
+
 	t.nodeMutex.Lock()
 	defer t.nodeMutex.Unlock()
 	if t.state.Get() >= TSStopping {
@@ -139,7 +143,7 @@ func (t *defaultTopology) AddBox(name string, b Box, config *BoxConfig) (BoxNode
 	}
 
 	db := &defaultBoxNode{
-		defaultNode: newdefaultNode(t, name),
+		defaultNode: newDefaultNode(t, name, config.Meta),
 		srcs:        newDataSources(name),
 		box:         b,
 		dsts:        newDataDestinations(name),
@@ -161,6 +165,10 @@ func (t *defaultTopology) AddSink(name string, s Sink, config *SinkConfig) (Sink
 		return nil, err
 	}
 
+	if config == nil {
+		config = &SinkConfig{}
+	}
+
 	t.nodeMutex.Lock()
 	defer t.nodeMutex.Unlock()
 	if t.state.Get() >= TSStopping {
@@ -172,7 +180,7 @@ func (t *defaultTopology) AddSink(name string, s Sink, config *SinkConfig) (Sink
 	}
 
 	ds := &defaultSinkNode{
-		defaultNode: newdefaultNode(t, name),
+		defaultNode: newDefaultNode(t, name, config.Meta),
 		srcs:        newDataSources(name),
 		sink:        s,
 	}
@@ -418,12 +426,18 @@ type defaultNode struct {
 	name       string
 	state      *topologyStateHolder
 	stateMutex sync.Mutex
+
+	meta map[string]interface{}
 }
 
-func newdefaultNode(t *defaultTopology, name string) *defaultNode {
+func newDefaultNode(t *defaultTopology, name string, meta map[string]interface{}) *defaultNode {
+	if meta == nil {
+		meta = map[string]interface{}{}
+	}
 	dn := &defaultNode{
 		topology: t,
 		name:     name,
+		meta:     meta,
 	}
 	dn.state = newTopologyStateHolder(&dn.stateMutex)
 	return dn
@@ -435,6 +449,10 @@ func (dn *defaultNode) Name() string {
 
 func (dn *defaultNode) State() TopologyStateHolder {
 	return dn.state
+}
+
+func (dn *defaultNode) Meta() map[string]interface{} {
+	return dn.meta
 }
 
 func (dn *defaultNode) checkAndPrepareForRunning(nodeType string) error {
