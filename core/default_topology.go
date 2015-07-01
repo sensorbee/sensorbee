@@ -28,8 +28,6 @@ type defaultTopology struct {
 // NewDefaultTopology creates a topology having a simple graph
 // structure.
 func NewDefaultTopology(ctx *Context, name string) Topology {
-	// TODO: validate name
-
 	t := &defaultTopology{
 		ctx:  ctx,
 		name: name,
@@ -48,7 +46,9 @@ func (t *defaultTopology) Context() *Context {
 }
 
 func (t *defaultTopology) AddSource(name string, s Source, config *SourceConfig) (SourceNode, error) {
-	// TODO: validate the name
+	if err := ValidateNodeName(name); err != nil {
+		return nil, err
+	}
 
 	if config == nil {
 		config = &SourceConfig{}
@@ -101,8 +101,6 @@ func (t *defaultTopology) AddSource(name string, s Source, config *SourceConfig)
 	return ds, nil
 }
 
-// TODO: Add method to validate a node name
-
 // checkNodeNameDuplication checks if the given name is unique in the topology.
 // This method doesn't acquire the lock and it's the caller's responsibility
 // to do it before calling this method.
@@ -120,6 +118,10 @@ func (t *defaultTopology) checkNodeNameDuplication(name string) error {
 }
 
 func (t *defaultTopology) AddBox(name string, b Box, config *BoxConfig) (BoxNode, error) {
+	if err := ValidateNodeName(name); err != nil {
+		return nil, err
+	}
+
 	t.nodeMutex.Lock()
 	defer t.nodeMutex.Unlock()
 	if t.state.Get() >= TSStopping {
@@ -155,6 +157,10 @@ func (t *defaultTopology) AddBox(name string, b Box, config *BoxConfig) (BoxNode
 }
 
 func (t *defaultTopology) AddSink(name string, s Sink, config *SinkConfig) (SinkNode, error) {
+	if err := ValidateNodeName(name); err != nil {
+		return nil, err
+	}
+
 	t.nodeMutex.Lock()
 	defer t.nodeMutex.Unlock()
 	if t.state.Get() >= TSStopping {
