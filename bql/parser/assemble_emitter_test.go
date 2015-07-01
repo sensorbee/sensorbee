@@ -59,9 +59,9 @@ func TestAssembleEmitter(t *testing.T) {
 			ps.PushComponent(0, 4, Raw{"PRE"})
 			ps.PushComponent(4, 6, Istream)
 			ps.PushComponent(6, 8,
-				StreamEmitIntervalAST{IntervalAST{NumericLiteral{2}, Tuples}, Stream{"x"}})
+				StreamEmitIntervalAST{IntervalAST{NumericLiteral{2}, Tuples}, Stream{ActualStream, "x", nil}})
 			ps.PushComponent(8, 9,
-				StreamEmitIntervalAST{IntervalAST{NumericLiteral{3}, Tuples}, Stream{"y"}})
+				StreamEmitIntervalAST{IntervalAST{NumericLiteral{3}, Tuples}, Stream{ActualStream, "y", nil}})
 			ps.AssembleEmitter(6, 9)
 
 			Convey("Then AssembleEmitter transforms it into one item", func() {
@@ -92,9 +92,9 @@ func TestAssembleEmitter(t *testing.T) {
 		Convey("When the stack contains a wrong emitter item and correct interval specs", func() {
 			ps.PushComponent(0, 4, Raw{"wrong"})
 			ps.PushComponent(6, 8,
-				StreamEmitIntervalAST{IntervalAST{NumericLiteral{2}, Tuples}, Stream{"x"}})
+				StreamEmitIntervalAST{IntervalAST{NumericLiteral{2}, Tuples}, Stream{ActualStream, "x", nil}})
 			ps.PushComponent(8, 9,
-				StreamEmitIntervalAST{IntervalAST{NumericLiteral{3}, Tuples}, Stream{"y"}})
+				StreamEmitIntervalAST{IntervalAST{NumericLiteral{3}, Tuples}, Stream{ActualStream, "y", nil}})
 			f := func() {
 				ps.AssembleEmitter(6, 9)
 			}
@@ -109,7 +109,7 @@ func TestAssembleEmitter(t *testing.T) {
 			ps.PushComponent(4, 6, Istream)
 			ps.PushComponent(6, 8, Raw{"wrong"})
 			ps.PushComponent(8, 9,
-				StreamEmitIntervalAST{IntervalAST{NumericLiteral{3}, Tuples}, Stream{"y"}})
+				StreamEmitIntervalAST{IntervalAST{NumericLiteral{3}, Tuples}, Stream{ActualStream, "y", nil}})
 			f := func() {
 				ps.AssembleEmitter(6, 9)
 			}
@@ -162,7 +162,7 @@ func TestAssembleEmitter(t *testing.T) {
 				So(comp.Name, ShouldEqual, "x")
 				So(comp.EmitterType, ShouldEqual, Istream)
 				So(comp.EmitIntervals, ShouldResemble, []StreamEmitIntervalAST{
-					{IntervalAST{NumericLiteral{3}, Seconds}, Stream{"*"}},
+					{IntervalAST{NumericLiteral{3}, Seconds}, Stream{ActualStream, "*", nil}},
 				})
 			})
 		})
@@ -185,7 +185,7 @@ func TestAssembleEmitter(t *testing.T) {
 				So(comp.Name, ShouldEqual, "x")
 				So(comp.EmitterType, ShouldEqual, Istream)
 				So(comp.EmitIntervals, ShouldResemble, []StreamEmitIntervalAST{
-					{IntervalAST{NumericLiteral{3}, Tuples}, Stream{"*"}},
+					{IntervalAST{NumericLiteral{3}, Tuples}, Stream{ActualStream, "*", nil}},
 				})
 			})
 		})
@@ -208,7 +208,7 @@ func TestAssembleEmitter(t *testing.T) {
 				So(comp.Name, ShouldEqual, "x")
 				So(comp.EmitterType, ShouldEqual, Istream)
 				So(comp.EmitIntervals, ShouldResemble, []StreamEmitIntervalAST{
-					{IntervalAST{NumericLiteral{3}, Tuples}, Stream{"x"}},
+					{IntervalAST{NumericLiteral{3}, Tuples}, Stream{ActualStream, "x", nil}},
 				})
 			})
 		})
@@ -231,8 +231,8 @@ func TestAssembleEmitter(t *testing.T) {
 				So(comp.Name, ShouldEqual, "x")
 				So(comp.EmitterType, ShouldEqual, Istream)
 				So(comp.EmitIntervals, ShouldResemble, []StreamEmitIntervalAST{
-					{IntervalAST{NumericLiteral{3}, Tuples}, Stream{"x"}},
-					{IntervalAST{NumericLiteral{2}, Tuples}, Stream{"y"}},
+					{IntervalAST{NumericLiteral{3}, Tuples}, Stream{ActualStream, "x", nil}},
+					{IntervalAST{NumericLiteral{2}, Tuples}, Stream{ActualStream, "y", nil}},
 				})
 			})
 		})

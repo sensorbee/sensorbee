@@ -102,6 +102,11 @@ func (tb *TopologyBuilder) AddStmt(stmt interface{}) (core.Node, error) {
 			return nil, err
 		}
 		for _, rel := range stmt.Relations {
+			if rel.Type != parser.ActualStream {
+				// TODO deal with UDSF
+				return nil, fmt.Errorf("input stream of type %s not implemented",
+					rel.Type)
+			}
 			if err := dbox.Input(rel.Name, &core.BoxInputConfig{
 				InputName: rel.Name,
 			}); err != nil {

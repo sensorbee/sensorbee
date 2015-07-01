@@ -194,11 +194,13 @@ type ExpressionsAST struct {
 // initialization in the .peg file.
 
 type Stream struct {
-	Name string
+	Type   StreamType
+	Name   string
+	Params []data.Value
 }
 
 func NewStream(s string) Stream {
-	return Stream{s}
+	return Stream{ActualStream, s, nil}
 }
 
 type Wildcard struct {
@@ -380,6 +382,25 @@ func (e Emitter) String() string {
 		s = "DSTREAM"
 	case Rstream:
 		s = "RSTREAM"
+	}
+	return s
+}
+
+type StreamType int
+
+const (
+	UnknownStreamType StreamType = iota
+	ActualStream
+	USDFStream
+)
+
+func (st StreamType) String() string {
+	s := "UNKNOWN"
+	switch st {
+	case ActualStream:
+		s = "ActualStream"
+	case USDFStream:
+		s = "USDFStream"
 	}
 	return s
 }

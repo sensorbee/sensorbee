@@ -11,7 +11,7 @@ func TestAssembleAliasedStreamWindow(t *testing.T) {
 
 		Convey("When the stack contains two correct items", func() {
 			ps.PushComponent(0, 6, Raw{"PRE"})
-			ps.PushComponent(6, 7, StreamWindowAST{Stream{"a"},
+			ps.PushComponent(6, 7, StreamWindowAST{Stream{ActualStream, "a", nil},
 				IntervalAST{NumericLiteral{2}, Seconds}})
 			ps.PushComponent(7, 8, Identifier("out"))
 			ps.AssembleAliasedStreamWindow()
@@ -29,7 +29,8 @@ func TestAssembleAliasedStreamWindow(t *testing.T) {
 					Convey("And it contains the previous data", func() {
 						comp := top.comp.(AliasedStreamWindowAST)
 						So(comp.StreamWindowAST, ShouldResemble,
-							StreamWindowAST{Stream{"a"}, IntervalAST{NumericLiteral{2}, Seconds}})
+							StreamWindowAST{Stream{ActualStream, "a", nil},
+								IntervalAST{NumericLiteral{2}, Seconds}})
 						So(comp.Alias, ShouldEqual, "out")
 					})
 				})
