@@ -74,6 +74,11 @@ type Node interface {
 	//
 	// The node will not be removed from the topology after it stopped.
 	Stop() error
+
+	// Meta returns meta information of the node. The meta information can be
+	// updated by changing the return value. However, the meta information is
+	// not protected from concurrent writes and the caller has to care about it.
+	Meta() map[string]interface{}
 }
 
 // SourceNode is a Source registered to a topology.
