@@ -175,7 +175,7 @@ func TestAssembleSelect(t *testing.T) {
 		p := &bqlPeg{}
 
 		Convey("When doing a full SELECT", func() {
-			p.Buffer = "SELECT ISTREAM '日本語', b FROM c [RANGE 3 TUPLES], d [RANGE 2 SECONDS] AS x WHERE e GROUP BY f, g HAVING h"
+			p.Buffer = "SELECT ISTREAM '日本語', b FROM c [RANGE 3 TUPLES], d('state', 7) [RANGE 2 SECONDS] AS x WHERE e GROUP BY f, g HAVING h"
 			p.Init()
 
 			Convey("Then the statement should be parsed correctly", func() {
@@ -194,11 +194,17 @@ func TestAssembleSelect(t *testing.T) {
 				So(comp.Projections[0], ShouldResemble, StringLiteral{"日本語"})
 				So(comp.Projections[1], ShouldResemble, RowValue{"", "b"})
 				So(len(comp.Relations), ShouldEqual, 2)
+				So(comp.Relations[0].Type, ShouldEqual, ActualStream)
 				So(comp.Relations[0].Name, ShouldEqual, "c")
+				So(len(comp.Relations[0].Params), ShouldEqual, 0)
 				So(comp.Relations[0].Value, ShouldEqual, 3)
 				So(comp.Relations[0].Unit, ShouldEqual, Tuples)
 				So(comp.Relations[0].Alias, ShouldEqual, "")
+				So(comp.Relations[1].Type, ShouldEqual, USDFStream)
 				So(comp.Relations[1].Name, ShouldEqual, "d")
+				So(len(comp.Relations[1].Params), ShouldEqual, 2)
+				So(comp.Relations[1].Params[0], ShouldResemble, StringLiteral{"state"})
+				So(comp.Relations[1].Params[1], ShouldResemble, NumericLiteral{7})
 				So(comp.Relations[1].Value, ShouldEqual, 2)
 				So(comp.Relations[1].Unit, ShouldEqual, Seconds)
 				So(comp.Relations[1].Alias, ShouldEqual, "x")

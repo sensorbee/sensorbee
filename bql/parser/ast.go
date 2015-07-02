@@ -193,10 +193,14 @@ type ExpressionsAST struct {
 // because we cannot use curly brackets for Expr{...} style
 // initialization in the .peg file.
 
+// It seems not possible in Go to have a variable that says "this is
+// either struct A or struct B or struct C", so we build one struct
+// that serves both for "real" streams (as in `FROM x`) and stream-
+// generating functions (as in `FROM series(1, 5)`).
 type Stream struct {
 	Type   StreamType
 	Name   string
-	Params []data.Value
+	Params []Expression
 }
 
 func NewStream(s string) Stream {
