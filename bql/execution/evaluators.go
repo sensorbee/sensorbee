@@ -28,6 +28,23 @@ type Evaluator interface {
 	Eval(input data.Value) (data.Value, error)
 }
 
+// EvaluateFoldable evaluates a foldable expression, i.e., one that
+// is independent from the input row. Note that foldable is not
+// necessarily equivalent to constant (e.g., the expression `random()`
+// is foldable, but not constant), and also note that this function
+// should not be used for frequent evaluation of the same expression
+// due to performance reasons.
+func EvaluateFoldable(expr parser.Expression, reg udf.FunctionRegistry) (data.Value, error) {
+	if !expr.Foldable() {
+		return nil, fmt.Errorf("expression is not foldable: %s", expr)
+	}
+	evaluator, err := ExpressionToEvaluator(expr, reg)
+	if err != nil {
+		return nil, err
+	}
+	return evaluator.Eval(nil)
+}
+
 // ExpressionToEvaluator takes one of the Expression structs that result
 // from parsing a BQL Expression (see parser/ast.go) and turns it into
 // an Evaluator that can be used to evaluate an expression given a particular

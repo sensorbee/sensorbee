@@ -9,6 +9,7 @@ import (
 type Expression interface {
 	ReferencedRelations() map[string]bool
 	RenameReferencedRelation(string, string) Expression
+	Foldable() bool
 }
 
 // This file holds a set of structs that make up the Abstract
@@ -100,6 +101,10 @@ func (a AliasAST) RenameReferencedRelation(from, to string) Expression {
 	return AliasAST{a.Expr.RenameReferencedRelation(from, to), a.Alias}
 }
 
+func (a AliasAST) Foldable() bool {
+	return a.Expr.Foldable()
+}
+
 type WindowedFromAST struct {
 	Relations []AliasedStreamWindowAST
 }
@@ -160,6 +165,10 @@ func (b BinaryOpAST) RenameReferencedRelation(from, to string) Expression {
 		b.Right.RenameReferencedRelation(from, to)}
 }
 
+func (b BinaryOpAST) Foldable() bool {
+	return b.Left.Foldable() && b.Right.Foldable()
+}
+
 type FuncAppAST struct {
 	Function FuncName
 	ExpressionsAST
@@ -183,6 +192,17 @@ func (f FuncAppAST) RenameReferencedRelation(from, to string) Expression {
 	return FuncAppAST{f.Function, ExpressionsAST{newExprs}}
 }
 
+func (f FuncAppAST) Foldable() bool {
+	foldable := true
+	for _, expr := range f.Expressions {
+		if !expr.Foldable() {
+			foldable = false
+			break
+		}
+	}
+	return foldable
+}
+
 type ExpressionsAST struct {
 	Expressions []Expression
 }
@@ -193,12 +213,18 @@ type ExpressionsAST struct {
 // because we cannot use curly brackets for Expr{...} style
 // initialization in the .peg file.
 
+// It seems not possible in Go to have a variable that says "this is
+// either struct A or struct B or struct C", so we build one struct
+// that serves both for "real" streams (as in `FROM x`) and stream-
+// generating functions (as in `FROM series(1, 5)`).
 type Stream struct {
-	Name string
+	Type   StreamType
+	Name   string
+	Params []Expression
 }
 
 func NewStream(s string) Stream {
-	return Stream{s}
+	return Stream{ActualStream, s, nil}
 }
 
 type Wildcard struct {
@@ -210,6 +236,10 @@ func (w Wildcard) ReferencedRelations() map[string]bool {
 
 func (w Wildcard) RenameReferencedRelation(from, to string) Expression {
 	return Wildcard{}
+}
+
+func (w Wildcard) Foldable() bool {
+	return false
 }
 
 func NewWildcard() Wildcard {
@@ -230,6 +260,10 @@ func (rv RowValue) RenameReferencedRelation(from, to string) Expression {
 		return RowValue{to, rv.Column}
 	}
 	return rv
+}
+
+func (rv RowValue) Foldable() bool {
+	return false
 }
 
 func NewRowValue(s string) RowValue {
@@ -259,6 +293,10 @@ func (rm RowMeta) RenameReferencedRelation(from, to string) Expression {
 		return RowMeta{to, rm.MetaType}
 	}
 	return rm
+}
+
+func (rm RowMeta) Foldable() bool {
+	return false
 }
 
 func NewRowMeta(s string, t MetaInformation) RowMeta {
@@ -291,6 +329,10 @@ func (l NumericLiteral) RenameReferencedRelation(from, to string) Expression {
 	return l
 }
 
+func (l NumericLiteral) Foldable() bool {
+	return true
+}
+
 func NewNumericLiteral(s string) NumericLiteral {
 	val, err := strconv.ParseInt(s, 10, 64)
 	if err != nil {
@@ -309,6 +351,10 @@ func (l FloatLiteral) ReferencedRelations() map[string]bool {
 
 func (l FloatLiteral) RenameReferencedRelation(from, to string) Expression {
 	return l
+}
+
+func (l FloatLiteral) Foldable() bool {
+	return true
 }
 
 func NewFloatLiteral(s string) FloatLiteral {
@@ -331,6 +377,10 @@ func (l BoolLiteral) RenameReferencedRelation(from, to string) Expression {
 	return l
 }
 
+func (l BoolLiteral) Foldable() bool {
+	return true
+}
+
 func NewBoolLiteral(b bool) BoolLiteral {
 	return BoolLiteral{b}
 }
@@ -345,6 +395,10 @@ func (l StringLiteral) ReferencedRelations() map[string]bool {
 
 func (l StringLiteral) RenameReferencedRelation(from, to string) Expression {
 	return l
+}
+
+func (l StringLiteral) Foldable() bool {
+	return true
 }
 
 func NewStringLiteral(s string) StringLiteral {
@@ -380,6 +434,25 @@ func (e Emitter) String() string {
 		s = "DSTREAM"
 	case Rstream:
 		s = "RSTREAM"
+	}
+	return s
+}
+
+type StreamType int
+
+const (
+	UnknownStreamType StreamType = iota
+	ActualStream
+	UDSFStream
+)
+
+func (st StreamType) String() string {
+	s := "UNKNOWN"
+	switch st {
+	case ActualStream:
+		s = "ActualStream"
+	case UDSFStream:
+		s = "UDSFStream"
 	}
 	return s
 }

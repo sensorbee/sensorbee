@@ -12,7 +12,7 @@ func TestAssembleStreamEmitInterval(t *testing.T) {
 		Convey("When the stack contains two correct items", func() {
 			ps.PushComponent(0, 6, Raw{"PRE"})
 			ps.PushComponent(6, 7, IntervalAST{NumericLiteral{2}, Seconds})
-			ps.PushComponent(7, 8, Stream{"x"})
+			ps.PushComponent(7, 8, Stream{ActualStream, "x", nil})
 			ps.AssembleStreamEmitInterval()
 
 			Convey("Then AssembleStreamEmitInterval replaces them with a new item", func() {

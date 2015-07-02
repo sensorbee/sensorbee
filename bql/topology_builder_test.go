@@ -115,6 +115,28 @@ func TestCreateStreamAsSelectStmt(t *testing.T) {
 			})
 		})
 
+		Convey("When running CREATE STREAM AS SELECT with a UDSF", func() {
+			Convey("If all parameters are foldable", func() {
+				err := addBQLToTopology(tb, `CREATE STREAM t AS SELECT ISTREAM int FROM
+                series(1, 5) [RANGE 2 SECONDS] WHERE int=2`)
+
+				// TODO after implementation there should really be no error
+				SkipConvey("Then there should be no error", func() {
+					So(err, ShouldBeNil)
+				})
+			})
+
+			Convey("If not all parameters are foldable", func() {
+				err := addBQLToTopology(tb, `CREATE STREAM t AS SELECT ISTREAM int FROM
+                series(1, a) [RANGE 2 SECONDS] WHERE int=2`)
+
+				Convey("Then there should be an error", func() {
+					So(err, ShouldNotBeNil)
+					So(err.Error(), ShouldEqual, "expression is not foldable: { a}")
+				})
+			})
+		})
+
 		Convey("When running CREATE STREAM AS SELECT on a non-existing stream", func() {
 			err := addBQLToTopology(tb, `CREATE STREAM t AS SELECT ISTREAM int FROM
                 bar [RANGE 2 SECONDS] WHERE int=2`)
