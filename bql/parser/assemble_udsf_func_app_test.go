@@ -30,7 +30,7 @@ func TestAssembleUDSFFuncApp(t *testing.T) {
 
 					Convey("And it contains the previous data", func() {
 						comp := top.comp.(Stream)
-						So(comp.Type, ShouldEqual, USDFStream)
+						So(comp.Type, ShouldEqual, UDSFStream)
 						So(comp.Name, ShouldEqual, "add")
 						So(len(comp.Params), ShouldEqual, 2)
 						So(comp.Params[0], ShouldResemble, NumericLiteral{2})

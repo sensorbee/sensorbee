@@ -200,7 +200,7 @@ func TestAssembleSelect(t *testing.T) {
 				So(comp.Relations[0].Value, ShouldEqual, 3)
 				So(comp.Relations[0].Unit, ShouldEqual, Tuples)
 				So(comp.Relations[0].Alias, ShouldEqual, "")
-				So(comp.Relations[1].Type, ShouldEqual, USDFStream)
+				So(comp.Relations[1].Type, ShouldEqual, UDSFStream)
 				So(comp.Relations[1].Name, ShouldEqual, "d")
 				So(len(comp.Relations[1].Params), ShouldEqual, 2)
 				So(comp.Relations[1].Params[0], ShouldResemble, StringLiteral{"state"})

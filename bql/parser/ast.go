@@ -395,7 +395,7 @@ type StreamType int
 const (
 	UnknownStreamType StreamType = iota
 	ActualStream
-	USDFStream
+	UDSFStream
 )
 
 func (st StreamType) String() string {
@@ -403,8 +403,8 @@ func (st StreamType) String() string {
 	switch st {
 	case ActualStream:
 		s = "ActualStream"
-	case USDFStream:
-		s = "USDFStream"
+	case UDSFStream:
+		s = "UDSFStream"
 	}
 	return s
 }

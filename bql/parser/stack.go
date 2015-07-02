@@ -569,14 +569,14 @@ func (ps *parseStack) AssembleStreamWindow() {
 //
 //  FuncAppAST{Function, ExpressionsAST}
 //   =>
-//  Stream{USDFStream, Function, ExpressionAST.Expressions}
+//  Stream{UDSFStream, Function, ExpressionAST.Expressions}
 func (ps *parseStack) AssembleUDSFFuncApp() {
 	_fun := ps.Pop()
 
 	fun := _fun.comp.(FuncAppAST)
 
 	se := ParsedComponent{_fun.begin, _fun.end,
-		Stream{USDFStream, string(fun.Function), fun.Expressions}}
+		Stream{UDSFStream, string(fun.Function), fun.Expressions}}
 	ps.Push(&se)
 }
 
