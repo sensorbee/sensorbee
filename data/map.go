@@ -117,3 +117,17 @@ func (m Map) Get(path string) (Value, error) {
 	err := scanMap(m, path, &v)
 	return v, err
 }
+
+// Set sets a value in a structured Map as addressed by the
+// given path expression. It is possible to set items even
+// if the parent levels do not exist (`mkdir -p` behavior),
+// i.e., you can set an item at "stores[17].owner.name" also
+// when there is no "stores" key in the top-level Map. If a
+// list index is higher than the current length, intermediate
+// items will be created as Null items.
+// Set returns an error when the path expression is invalid or
+// when one of the intermediate components already exists
+// but is not a map/list.
+func (m Map) Set(path string, val Value) error {
+	return setInMap(m, path, val)
+}
