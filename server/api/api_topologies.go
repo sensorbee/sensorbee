@@ -157,14 +157,13 @@ func (tc *TopologiesContext) Queries(rw web.ResponseWriter, req *web.Request) {
 
 	tb, ok := topologyBuilderMap[tc.tenantName]
 	if !ok {
-		// TODO get context configuration from BQL
-		logManagment := core.NewConsolePrintLogger()
 		conf := core.Configuration{
-			TupleTraceEnabled: 1,
+			TupleTraceEnabled: 0,
 		}
 		ctx := core.Context{
-			Logger: logManagment,
-			Config: conf,
+			Logger:       core.NewConsolePrintLogger(),
+			Config:       conf,
+			SharedStates: core.NewDefaultSharedStateRegistry(),
 		}
 		tp := core.NewDefaultTopology(&ctx, tc.tenantName)
 		topologyMap[tc.tenantName] = tp
