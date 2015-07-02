@@ -34,7 +34,7 @@ func setupTopology(stmt string) (core.Topology, error) {
 	return dt, err
 }
 
-func TestBasicBqlBoxConnectivity(t *testing.T) {
+func TestBasicBQLBoxConnectivity(t *testing.T) {
 	tuples := mkTuples(4)
 	tup2 := *tuples[1]
 	tup4 := *tuples[3]
@@ -70,6 +70,27 @@ func TestBasicBqlBoxConnectivity(t *testing.T) {
 					si.Tuples[1].InputName = "input"
 					So(*si.Tuples[1], ShouldResemble, tup4)
 				})
+			})
+		})
+	})
+}
+
+func TestBQLBoxUDSF(t *testing.T) {
+	Convey("Given a topology using UDSF", t, func() {
+		dt, err := setupTopology(`CREATE STREAM box AS SELECT ISTREAM duplicate:int FROM duplicate('source', 3) [RANGE 1 TUPLES]`)
+		So(err, ShouldBeNil)
+		Reset(func() {
+			dt.Stop()
+		})
+
+		sin, err := dt.Sink("snk")
+		So(err, ShouldBeNil)
+		si := sin.Sink().(*tupleCollectorSink)
+
+		Convey("When 4 tuples are emitted by the source", func() {
+			Convey("Then the sink should receive 12 tuples", func() {
+				si.Wait(12)
+				So(len(si.Tuples), ShouldEqual, 12)
 			})
 		})
 	})
