@@ -118,9 +118,8 @@ func TestCreateStreamAsSelectStmt(t *testing.T) {
 		Convey("When running CREATE STREAM AS SELECT with a UDSF", func() {
 			Convey("If all parameters are foldable", func() {
 				err := addBQLToTopology(tb, `CREATE STREAM t AS SELECT ISTREAM int FROM
-                series(1, 5) [RANGE 2 SECONDS] WHERE int=2`)
+                duplicate('s', 2) [RANGE 2 SECONDS] WHERE int=2`)
 
-				// TODO after implementation there should really be no error
 				SkipConvey("Then there should be no error", func() {
 					So(err, ShouldBeNil)
 				})
@@ -128,11 +127,51 @@ func TestCreateStreamAsSelectStmt(t *testing.T) {
 
 			Convey("If not all parameters are foldable", func() {
 				err := addBQLToTopology(tb, `CREATE STREAM t AS SELECT ISTREAM int FROM
-                series(1, a) [RANGE 2 SECONDS] WHERE int=2`)
+                duplicate('s', int) [RANGE 2 SECONDS] WHERE int=2`)
 
 				Convey("Then there should be an error", func() {
 					So(err, ShouldNotBeNil)
-					So(err.Error(), ShouldEqual, "expression is not foldable: { a}")
+					So(err.Error(), ShouldContainSubstring, "not foldable")
+				})
+			})
+
+			Convey("If the UDSF is called with the wrong number of arguments", func() {
+				err := addBQLToTopology(tb, `CREATE STREAM t AS SELECT ISTREAM int FROM
+                duplicate('s', 1, 2) [RANGE 2 SECONDS] WHERE int=2`)
+
+				Convey("Then there should be an error", func() {
+					So(err, ShouldNotBeNil)
+					So(err.Error(), ShouldContainSubstring, "arity")
+				})
+			})
+
+			Convey("If the UDSF doesn't depend on an input", func() {
+				err := addBQLToTopology(tb, `CREATE STREAM t AS SELECT ISTREAM int FROM
+                no_input_duplicate('s', 2) [RANGE 2 SECONDS] WHERE int=2`)
+
+				Convey("Then there should be an error", func() {
+					So(err, ShouldNotBeNil)
+					So(err.Error(), ShouldContainSubstring, "at least")
+				})
+			})
+
+			Convey("If creating the UDSF fails", func() {
+				err := addBQLToTopology(tb, `CREATE STREAM t AS SELECT ISTREAM int FROM
+                failing_duplicate('s', 2) [RANGE 2 SECONDS] WHERE int=2`)
+
+				Convey("Then there should be an error", func() {
+					So(err, ShouldNotBeNil)
+					So(err.Error(), ShouldContainSubstring, "test UDSF creation failed")
+				})
+			})
+
+			Convey("If the UDSF isn't registered", func() {
+				err := addBQLToTopology(tb, `CREATE STREAM t AS SELECT ISTREAM int FROM
+                serial(1, 5) [RANGE 2 SECONDS] WHERE int=2`)
+
+				Convey("Then there should be an error", func() {
+					So(err, ShouldNotBeNil)
+					So(err.Error(), ShouldContainSubstring, "not registered")
 				})
 			})
 		})
