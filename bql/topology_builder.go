@@ -2,6 +2,7 @@ package bql
 
 import (
 	"fmt"
+	"pfi/sensorbee/sensorbee/bql/execution"
 	"pfi/sensorbee/sensorbee/bql/parser"
 	"pfi/sensorbee/sensorbee/bql/udf"
 	"pfi/sensorbee/sensorbee/core"
@@ -102,14 +103,37 @@ func (tb *TopologyBuilder) AddStmt(stmt interface{}) (core.Node, error) {
 			return nil, err
 		}
 		for _, rel := range stmt.Relations {
-			if rel.Type != parser.ActualStream {
-				// TODO deal with UDSF
-				return nil, fmt.Errorf("input stream of type %s not implemented",
+			var err error
+			if rel.Type == parser.ActualStream {
+				err = dbox.Input(rel.Name, &core.BoxInputConfig{
+					InputName: rel.Name,
+				})
+			} else if rel.Type == parser.UDSFStream {
+				// Compute the values of the UDSF parameters (if there was
+				// an unusable parameter, as in `udsf(7, col)` this will fail).
+				// Note: it doesn't feel exactly right to do this kind of
+				// validation here after parsing has been done "successfully",
+				// on the other hand the parser should not evaluate expressions
+				// (and cannot import the execution package) or make too many
+				// semantical checks, so we leave this here for the moment.
+				params := make([]data.Value, len(rel.Params))
+				for i, expr := range rel.Params {
+					params[i], err = execution.EvaluateFoldable(expr, tb.Reg)
+					if err != nil {
+						break
+					}
+				}
+				if err == nil {
+					// TODO deal with UDSF with name rel.Name
+					err = fmt.Errorf("cannot use UDSF '%s' with parameters %v (not implemented)",
+						rel.Name, params)
+				}
+			} else {
+				err = fmt.Errorf("input stream of type %s not implemented",
 					rel.Type)
 			}
-			if err := dbox.Input(rel.Name, &core.BoxInputConfig{
-				InputName: rel.Name,
-			}); err != nil {
+			// clean up if we had an error
+			if err != nil {
 				tb.topology.Remove(outName)
 				return nil, err
 			}
