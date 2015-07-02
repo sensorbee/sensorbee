@@ -13,6 +13,7 @@ import (
 type TopologyBuilder struct {
 	topology       core.Topology
 	Reg            udf.FunctionManager
+	UDSFCreators   udf.UDSFCreatorRegistry
 	UDSCreators    udf.UDSCreatorRegistry
 	SourceCreators SourceCreatorRegistry
 	SinkCreators   SinkCreatorRegistry
@@ -30,6 +31,11 @@ type TopologyBuilder struct {
 // only the node created from the first statement is registered to the topology
 // and it starts to generate tuples. Others won't be registered.
 func NewTopologyBuilder(t core.Topology) (*TopologyBuilder, error) {
+	udsfs, err := udf.CopyGlobalUDSFCreatorRegistry()
+	if err != nil {
+		return nil, err
+	}
+
 	udss, err := udf.CopyGlobalUDSCreatorRegistry()
 	if err != nil {
 		return nil, err
@@ -48,6 +54,7 @@ func NewTopologyBuilder(t core.Topology) (*TopologyBuilder, error) {
 	tb := &TopologyBuilder{
 		topology:       t,
 		Reg:            udf.CopyGlobalUDFRegistry(t.Context()),
+		UDSFCreators:   udsfs,
 		UDSCreators:    udss,
 		SourceCreators: srcs,
 		SinkCreators:   sinks,
@@ -94,52 +101,7 @@ func (tb *TopologyBuilder) AddStmt(stmt interface{}) (core.Node, error) {
 		})
 
 	case parser.CreateStreamAsSelectStmt:
-		// insert a bqlBox that executes the SELECT statement
-		outName := string(stmt.Name)
-		box := NewBQLBox(&stmt, tb.Reg)
-		// add all the referenced relations as named inputs
-		dbox, err := tb.topology.AddBox(outName, box, nil)
-		if err != nil {
-			return nil, err
-		}
-		for _, rel := range stmt.Relations {
-			var err error
-			if rel.Type == parser.ActualStream {
-				err = dbox.Input(rel.Name, &core.BoxInputConfig{
-					InputName: rel.Name,
-				})
-			} else if rel.Type == parser.UDSFStream {
-				// Compute the values of the UDSF parameters (if there was
-				// an unusable parameter, as in `udsf(7, col)` this will fail).
-				// Note: it doesn't feel exactly right to do this kind of
-				// validation here after parsing has been done "successfully",
-				// on the other hand the parser should not evaluate expressions
-				// (and cannot import the execution package) or make too many
-				// semantical checks, so we leave this here for the moment.
-				params := make([]data.Value, len(rel.Params))
-				for i, expr := range rel.Params {
-					params[i], err = execution.EvaluateFoldable(expr, tb.Reg)
-					if err != nil {
-						break
-					}
-				}
-				if err == nil {
-					// TODO deal with UDSF with name rel.Name
-					err = fmt.Errorf("cannot use UDSF '%s' with parameters %v (not implemented)",
-						rel.Name, params)
-				}
-			} else {
-				err = fmt.Errorf("input stream of type %s not implemented",
-					rel.Type)
-			}
-			// clean up if we had an error
-			if err != nil {
-				tb.topology.Remove(outName)
-				return nil, err
-			}
-		}
-		dbox.(core.BoxNode).StopOnDisconnect(core.Inbound)
-		return dbox, nil
+		return tb.createStreamAsSelectStmt(&stmt)
 
 	case parser.CreateSinkStmt:
 		// load params into map for faster access
@@ -252,6 +214,154 @@ func (tb *TopologyBuilder) AddStmt(stmt interface{}) (core.Node, error) {
 	// TODO: case parser.RewindSourceStmt
 
 	return nil, fmt.Errorf("statement of type %T is unimplemented", stmt)
+}
+
+type udsfBox struct {
+	f udf.UDSF
+}
+
+var (
+	_ core.StatefulBox = &udsfBox{}
+)
+
+func newUDSFBox(f udf.UDSF) *udsfBox {
+	return &udsfBox{
+		f: f,
+	}
+}
+
+func (b *udsfBox) Init(ctx *core.Context) error {
+	return nil
+}
+
+func (b *udsfBox) Process(ctx *core.Context, t *core.Tuple, w core.Writer) error {
+	return b.f.Process(ctx, t, w)
+}
+
+func (b *udsfBox) Terminate(ctx *core.Context) error {
+	return b.f.Terminate(ctx)
+}
+
+func (tb *TopologyBuilder) createStreamAsSelectStmt(stmt *parser.CreateStreamAsSelectStmt) (core.Node, error) {
+	// insert a bqlBox that executes the SELECT statement
+	outName := string(stmt.Name)
+	box := NewBQLBox(stmt, tb.Reg)
+	// add all the referenced relations as named inputs
+	dbox, err := tb.topology.AddBox(outName, box, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	removeNodes := true
+	var temporaryNodes []string
+	defer func() {
+		if !removeNodes {
+			return
+		}
+
+		for _, n := range temporaryNodes {
+			tb.topology.Remove(n)
+		}
+		tb.topology.Remove(outName)
+	}()
+
+	for _, rel := range stmt.Relations {
+		switch rel.Type {
+		case parser.ActualStream:
+			if err := dbox.Input(rel.Name, &core.BoxInputConfig{
+				InputName: rel.Name, // TODO: this must be rel.Alias
+			}); err != nil {
+				return nil, err
+			}
+
+		case parser.UDSFStream:
+			// Compute the values of the UDSF parameters (if there was
+			// an unusable parameter, as in `udsf(7, col)` this will fail).
+			// Note: it doesn't feel exactly right to do this kind of
+			// validation here after parsing has been done "successfully",
+			// on the other hand the parser should not evaluate expressions
+			// (and cannot import the execution package) or make too many
+			// semantical checks, so we leave this here for the moment.
+			params := make([]data.Value, len(rel.Params))
+			for i, expr := range rel.Params {
+				p, err := execution.EvaluateFoldable(expr, tb.Reg)
+				if err != nil {
+					return nil, err
+				}
+				params[i] = p
+			}
+
+			udsfc, err := tb.UDSFCreators.Lookup(rel.Name, len(params))
+			if err != nil {
+				return nil, err
+			}
+
+			decl := udf.NewUDSFDeclarer()
+			udsf, err := func() (f udf.UDSF, err error) {
+				defer func() {
+					if e := recover(); e != nil {
+						if er, ok := e.(error); ok {
+							err = er
+						} else {
+							err = fmt.Errorf("cannot create a UDSF: %v", e)
+						}
+					}
+				}()
+				return udsfc.CreateUDSF(tb.topology.Context(), decl, params...)
+			}()
+			if err != nil {
+				return nil, err
+			}
+			if len(decl.ListInputs()) == 0 {
+				func() {
+					defer func() {
+						if e := recover(); e != nil {
+							tb.topology.Context().Logger.Log(core.Error, "Cannot terminate the UDSF '%v' due to panic: %v", rel.Name, err)
+						}
+					}()
+					if err := udsf.Terminate(tb.topology.Context()); err != nil {
+						tb.topology.Context().Logger.Log(core.Error, "Cannot terminate the UDSF '%v': %v", rel.Name, err)
+					}
+				}()
+				return nil, fmt.Errorf("a UDSF '%v' must have at least one input", rel.Name)
+			}
+
+			temporaryName := fmt.Sprintf("sensorbee_tmp_udsf_%v", topologyBuilderNextTemporaryID())
+			bn, err := tb.topology.AddBox(temporaryName, newUDSFBox(udsf), &core.BoxConfig{
+			// TODO: add information of the statement
+			})
+			if err != nil {
+				return nil, err
+			}
+			temporaryNodes = append(temporaryNodes, temporaryName)
+
+			for input, config := range decl.ListInputs() {
+				if err := bn.Input(input, &core.BoxInputConfig{
+					InputName: config.InputName,
+				}); err != nil {
+					return nil, err
+				}
+			}
+
+			alias := rel.Alias
+			if alias == "" {
+				alias = rel.Name
+			}
+			if err := dbox.Input(temporaryName, &core.BoxInputConfig{
+				InputName: alias,
+			}); err != nil {
+				return nil, err
+			}
+			bn.StopOnDisconnect(core.Inbound | core.Outbound)
+
+		default:
+			return nil, fmt.Errorf("input stream of type %s not implemented",
+				rel.Type)
+		}
+	}
+	dbox.(core.BoxNode).StopOnDisconnect(core.Inbound)
+	removeNodes = false
+	return dbox, nil
 }
 
 func (tb *TopologyBuilder) mkParamsMap(params []parser.SourceSinkParamAST) data.Map {

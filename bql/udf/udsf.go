@@ -15,7 +15,10 @@ type UDSFCreator interface {
 	// arguments passed to the UDSF in a BQL statement. The caller will call
 	// UDSF.Terminate when the UDSF becomes unnecessary.
 	//
-	// UDSF will be discarded if it doesn't have any input.
+	// UDSF must have at least one input from existing stream. A UDSF having no
+	// input should be implemented as core.Source and created via CREATE SOURCE
+	// statement. Creating a UDSF which acts like a Source might be going to
+	// be supported in the future version.
 	CreateUDSF(ctx *core.Context, decl UDSFDeclarer, args ...data.Value) (UDSF, error)
 
 	// Accept returns true if the UDSF supports the given arity.
@@ -177,6 +180,10 @@ type UDSFDeclarer interface {
 	// have an input. For example, there can be a UDSF which generates
 	// sequential numbers and doesn't depend on any stream.
 	Input(name string, config *UDSFInputConfig) error
+
+	// ListInputs returns all inputs declared by a UDSF. The caller can safely
+	// modify the map returned from this method.
+	ListInputs() map[string]*UDSFInputConfig
 }
 
 // UDSFInputConfig has input configuration parameters for UDSF.
@@ -184,32 +191,6 @@ type UDSFInputConfig struct {
 	// InputName is a custom name attached to incoming tuples. If this name is
 	// empty, "*" will be used.
 	InputName string
-}
-
-type udsfBox struct {
-	f UDSF
-}
-
-var (
-	_ core.StatefulBox = &udsfBox{}
-)
-
-func newUDSFBox(f UDSF) *udsfBox {
-	return &udsfBox{
-		f: f,
-	}
-}
-
-func (b *udsfBox) Init(ctx *core.Context) error {
-	return nil
-}
-
-func (b *udsfBox) Process(ctx *core.Context, t *core.Tuple, w core.Writer) error {
-	return b.f.Process(ctx, t, w)
-}
-
-func (b *udsfBox) Terminate(ctx *core.Context) error {
-	return b.f.Terminate(ctx)
 }
 
 type udsfDeclarer struct {
@@ -222,6 +203,11 @@ func newUDSFDeclarer() *udsfDeclarer {
 	}
 }
 
+// NewUDSFDeclarer creates a new declarer.
+func NewUDSFDeclarer() UDSFDeclarer {
+	return newUDSFDeclarer()
+}
+
 func (d *udsfDeclarer) Input(name string, config *UDSFInputConfig) error {
 	if _, ok := d.inputs[name]; ok {
 		return fmt.Errorf("the input is already added: %v", name)
@@ -231,4 +217,12 @@ func (d *udsfDeclarer) Input(name string, config *UDSFInputConfig) error {
 	}
 	d.inputs[name] = config
 	return nil
+}
+
+func (d *udsfDeclarer) ListInputs() map[string]*UDSFInputConfig {
+	m := make(map[string]*UDSFInputConfig, len(d.inputs))
+	for i, c := range d.inputs {
+		m[i] = c
+	}
+	return m
 }
