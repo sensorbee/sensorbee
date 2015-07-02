@@ -563,6 +563,23 @@ func (ps *parseStack) AssembleStreamWindow() {
 	ps.PushComponent(_rel.begin, _range.end, StreamWindowAST{rel, rangeAst})
 }
 
+// AssembleUDSFFuncApp takes the topmost elements from the stack,
+// assuming they are components of a UDFS clause, and
+// replaces them by a single Stream element.
+//
+//  FuncAppAST{Function, ExpressionsAST}
+//   =>
+//  Stream{UDSFStream, Function, ExpressionAST.Expressions}
+func (ps *parseStack) AssembleUDSFFuncApp() {
+	_fun := ps.Pop()
+
+	fun := _fun.comp.(FuncAppAST)
+
+	se := ParsedComponent{_fun.begin, _fun.end,
+		Stream{UDSFStream, string(fun.Function), fun.Expressions}}
+	ps.Push(&se)
+}
+
 // AssembleSourceSinkSpecs takes the elements from the stack that
 // correspond to the input[begin:end] string, makes sure
 // they are all SourceSinkParamAST elements and wraps a SourceSinkSpecsAST

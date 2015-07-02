@@ -195,12 +195,18 @@ DefAliasedStreamWindow <- DefStreamWindow sp "AS" sp Identifier {
         p.AssembleAliasedStreamWindow()
     }
 
-StreamWindow <- Stream sp '[' sp "RANGE" sp Interval sp ']' {
+StreamWindow <- StreamLike sp '[' sp "RANGE" sp Interval sp ']' {
         p.AssembleStreamWindow()
     }
 
-DefStreamWindow <- Stream (sp '[' sp "RANGE" sp Interval sp ']')? {
+DefStreamWindow <- StreamLike (sp '[' sp "RANGE" sp Interval sp ']')? {
         p.AssembleStreamWindow()
+    }
+
+StreamLike <- UDSFFuncApp / Stream
+
+UDSFFuncApp <- FuncApp {
+        p.AssembleUDSFFuncApp()
     }
 
 SourceSinkSpecs <- < ("WITH" sp SourceSinkParam sp (',' sp SourceSinkParam)*)? > {
