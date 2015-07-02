@@ -61,6 +61,102 @@ func TestEvaluators(t *testing.T) {
 	}
 }
 
+func TestFoldableExecution(t *testing.T) {
+	testCases := []struct {
+		ast      parser.Expression
+		foldable bool
+		result   data.Value
+	}{
+		// Literals should always be independent of the input data
+		{parser.NumericLiteral{23},
+			true, data.Int(23)},
+		{parser.FloatLiteral{3.14},
+			true, data.Float(3.14)},
+		{parser.BoolLiteral{true},
+			true, data.Bool(true)},
+		{parser.StringLiteral{"foo"},
+			true, data.String("foo")},
+		// Access to column data should always be false
+		{parser.RowMeta{"s", parser.TimestampMeta},
+			false, nil},
+		{parser.RowValue{"", "a"},
+			false, nil},
+		// Comparison operations
+		{parser.BinaryOpAST{parser.Or, parser.RowValue{"", "a"}, parser.RowValue{"", "b"}},
+			false, nil},
+		{parser.BinaryOpAST{parser.Or, parser.BoolLiteral{false}, parser.BoolLiteral{true}},
+			true, data.Bool(true)},
+		{parser.BinaryOpAST{parser.And, parser.RowValue{"", "a"}, parser.RowValue{"", "b"}},
+			false, nil},
+		{parser.BinaryOpAST{parser.And, parser.BoolLiteral{false}, parser.BoolLiteral{true}},
+			true, data.Bool(false)},
+		{parser.BinaryOpAST{parser.Equal, parser.RowValue{"", "a"}, parser.RowValue{"", "b"}},
+			false, nil},
+		{parser.BinaryOpAST{parser.Equal, parser.NumericLiteral{7}, parser.NumericLiteral{7}},
+			true, data.Bool(true)},
+		{parser.BinaryOpAST{parser.Less, parser.RowValue{"", "a"}, parser.RowValue{"", "b"}},
+			false, nil},
+		{parser.BinaryOpAST{parser.Less, parser.FloatLiteral{5.5}, parser.NumericLiteral{6}},
+			true, data.Bool(true)},
+		// Computational Operations
+		{parser.BinaryOpAST{parser.Plus, parser.RowValue{"", "a"}, parser.RowValue{"", "b"}},
+			false, nil},
+		{parser.BinaryOpAST{parser.Plus, parser.NumericLiteral{7}, parser.NumericLiteral{5}},
+			true, data.Int(12)},
+		{parser.BinaryOpAST{parser.Minus, parser.RowValue{"", "a"}, parser.RowValue{"", "b"}},
+			false, nil},
+		{parser.BinaryOpAST{parser.Minus, parser.NumericLiteral{7}, parser.NumericLiteral{5}},
+			true, data.Int(2)},
+		{parser.BinaryOpAST{parser.Multiply, parser.RowValue{"", "a"}, parser.RowValue{"", "b"}},
+			false, nil},
+		{parser.BinaryOpAST{parser.Multiply, parser.NumericLiteral{7}, parser.NumericLiteral{5}},
+			true, data.Int(35)},
+		{parser.BinaryOpAST{parser.Divide, parser.RowValue{"", "a"}, parser.RowValue{"", "b"}},
+			false, nil},
+		{parser.BinaryOpAST{parser.Divide, parser.NumericLiteral{6}, parser.NumericLiteral{2}},
+			true, data.Int(3)},
+		{parser.BinaryOpAST{parser.Modulo, parser.RowValue{"", "a"}, parser.RowValue{"", "b"}},
+			false, nil},
+		{parser.BinaryOpAST{parser.Modulo, parser.NumericLiteral{7}, parser.NumericLiteral{3}},
+			true, data.Int(1)},
+		// Other
+		{parser.AliasAST{parser.RowValue{"", "a"}, "hoge"},
+			false, nil},
+		{parser.AliasAST{parser.NumericLiteral{7}, "hoge"},
+			true, data.Int(7)},
+		{parser.FuncAppAST{parser.FuncName("plusone"),
+			parser.ExpressionsAST{[]parser.Expression{parser.RowValue{"", "a"}}}},
+			false, nil},
+		{parser.FuncAppAST{parser.FuncName("plusone"),
+			parser.ExpressionsAST{[]parser.Expression{parser.NumericLiteral{7}}}},
+			true, data.Int(8)},
+	}
+
+	reg := &testFuncRegistry{ctx: newTestContext()}
+
+	for _, testCase := range testCases {
+		testCase := testCase
+		Convey(fmt.Sprintf("Given the AST Expression %v", testCase.ast), t, func() {
+
+			Convey("Then the expression has the right foldability", func() {
+				So(testCase.ast.Foldable(), ShouldEqual, testCase.foldable)
+
+				Convey("And the executed result is correct", func() {
+					res, err := EvaluateFoldable(testCase.ast, reg)
+
+					if testCase.foldable {
+						So(err, ShouldBeNil)
+						So(res, ShouldEqual, testCase.result)
+					} else {
+						So(err, ShouldNotBeNil)
+					}
+				})
+
+			})
+		})
+	}
+}
+
 func TestFuncAppConversion(t *testing.T) {
 	Convey("Given a function registry", t, func() {
 		reg := &testFuncRegistry{ctx: newTestContext()}
