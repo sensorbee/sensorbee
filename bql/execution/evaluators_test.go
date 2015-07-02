@@ -353,6 +353,12 @@ func getTestCases() []struct {
 				{data.String(""), data.Bool(false)},
 			},
 		},
+		{parser.StringLiteral{"foo"},
+			[]evalTest{
+				{data.Int(17), data.String("foo")},
+				{data.String(""), data.String("foo")},
+			},
+		},
 		// Extracting the timestamp should find the timestamp at the
 		// correct position
 		{parser.RowMeta{"s", parser.TimestampMeta},

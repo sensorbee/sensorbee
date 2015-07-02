@@ -50,6 +50,8 @@ func ExpressionToEvaluator(ast interface{}, reg udf.FunctionRegistry) (Evaluator
 		return &FloatConstant{obj.Value}, nil
 	case parser.BoolLiteral:
 		return &BoolConstant{obj.Value}, nil
+	case parser.StringLiteral:
+		return &StringConstant{obj.Value}, nil
 	case parser.BinaryOpAST:
 		// recurse
 		left, err := ExpressionToEvaluator(obj.Left, reg)
@@ -147,6 +149,16 @@ type BoolConstant struct {
 
 func (b *BoolConstant) Eval(input data.Value) (data.Value, error) {
 	return data.Bool(b.value), nil
+}
+
+// StringConstant always returns the same string value, independent
+// of the input.
+type StringConstant struct {
+	value string
+}
+
+func (s *StringConstant) Eval(input data.Value) (data.Value, error) {
+	return data.String(s.value), nil
 }
 
 // PathAccess only works for maps and returns the Value at the given
