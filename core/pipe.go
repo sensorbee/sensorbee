@@ -2,8 +2,10 @@ package core
 
 import (
 	"fmt"
+	"pfi/sensorbee/sensorbee/data"
 	"reflect"
 	"sync"
+	"sync/atomic"
 )
 
 func newPipe(inputName string, capacity int) (*pipeReceiver, *pipeSender) {
@@ -52,6 +54,14 @@ type pipeSender struct {
 		dst            *dataDestinations
 	}
 	closed bool
+
+	// cnt is the number of tuples written to this pipe. This value may not
+	// be accurate when the sender is registered to multiple destinations.
+	// This can be solved by sharing the same chan with multiple pipe instances.
+	// To support it, we should create a sharedChan which manages the chan with
+	// reference counting. registeredDsts won't have to be a slice after
+	// applying this change.
+	cnt int64
 }
 
 // Write outputs the given tuple to the pipe. This method only returns
@@ -66,6 +76,7 @@ func (s *pipeSender) Write(ctx *Context, t *Tuple) error {
 
 	t.InputName = s.inputName
 	s.out <- t
+	atomic.AddInt64(&s.cnt, 1)
 	return nil
 }
 
@@ -107,6 +118,25 @@ func (s *pipeSender) registered(name string, dst *dataDestinations) {
 		registeredName string
 		dst            *dataDestinations
 	}{name, dst})
+}
+
+func (s *pipeSender) count() int64 {
+	return atomic.LoadInt64(&s.cnt)
+}
+
+func (s *pipeSender) queueStatus() (int, int) {
+	s.rwm.RLock()
+	defer s.rwm.RUnlock()
+	if s.closed {
+		return 0, 0
+	}
+	return len(s.out), cap(s.out)
+}
+
+func (s *pipeSender) isClosed() bool {
+	s.rwm.RLock()
+	defer s.rwm.RUnlock()
+	return s.closed
 }
 
 type dataSources struct {
@@ -505,6 +535,27 @@ func (s *dataSources) stop(ctx *Context) {
 	s.state.waitWithoutLock(TSStopped)
 }
 
+func (s *dataSources) status() data.Map {
+	// mutex of the dataSources doesn't block reading tuples from a channel.
+	s.m.Lock()
+	defer s.m.Unlock()
+	m := make(data.Map, len(s.recvs))
+	for name, recv := range s.recvs {
+		if recv.sender.isClosed() {
+			delete(s.recvs, name)
+			continue
+		}
+
+		l, c := recv.sender.queueStatus()
+		m[name] = data.Map{
+			"num_sent":   data.Int(recv.sender.count() - int64(l)),
+			"queue_size": data.Int(c),
+			"num_queued": data.Int(l),
+		}
+	}
+	return m
+}
+
 // dataDestinations have writers connected to multiple destination nodes and
 // distributes tuples to them.
 type dataDestinations struct {
@@ -685,4 +736,19 @@ func (d *dataDestinations) Close(ctx *Context) error {
 	d.dsts = nil
 	d.setPaused(false)
 	return nil
+}
+
+func (d *dataDestinations) status() data.Map {
+	d.rwm.RLock()
+	defer d.rwm.RUnlock()
+	m := make(data.Map, len(d.dsts))
+	for name, dst := range d.dsts {
+		l, c := dst.queueStatus()
+		m[name] = data.Map{
+			"num_sent":   data.Int(dst.count()),
+			"queue_size": data.Int(c),
+			"num_queued": data.Int(l),
+		}
+	}
+	return m
 }
