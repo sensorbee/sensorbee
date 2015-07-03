@@ -2,90 +2,96 @@ package main
 
 import (
 	"bytes"
-	"flag"
 	"fmt"
+	"github.com/codegangsta/cli"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"text/template"
 )
 
-var (
-	pluginYAMLFilePath   string
-	outputMainGoDir      string
-	outputMainGoFileName string
-)
-
-type PluginPath struct {
-	Paths []string
-}
-
-func init() {
-	flags()
-}
-
-func flags() {
-	// default that plugin.yaml and this main.go are in same directory,
-	// or using customize file path with flag
-	//  build_sensorbee -in=/hoge/plugin.yaml
-	flag.StringVar(&pluginYAMLFilePath, "in", "plugin.yaml", "The file path of plugin.yaml.")
-	// default that main go file are in "sensorbee" directory to create "sensorbee"
-	// binary, or using customize directory name with flag
-	//  build_sensorbee -outdir=sensorbee2
-	flag.StringVar(&outputMainGoDir, "outdir", "sensorbee", "The output file directory of customized main.go.")
-	// default that main go file name is "customized_main.go",
-	// or using customize output file name with flag
-	//  build_sensorbee -outname=foo_main.go
-	flag.StringVar(&outputMainGoFileName, "outname", "customized_main.go", "The output file name of customized main.go.")
-}
-
 func main() {
-	flag.Parse()
+	app := cli.NewApp()
+	app.Name = "build_sensorbee"
+	app.Usage = "Build an custom sensorbee command"
+	app.Flags = []cli.Flag{
+		cli.StringFlag{
+			Name:  "config, c",
+			Value: "build.yaml",
+			Usage: "path to a config file",
+		},
+		cli.StringFlag{
+			Name:  "output-dir",
+			Value: "sensorbee",
+			Usage: "the output directory in which the generated source code is written",
+		},
+		cli.StringFlag{
+			Name:  "output-filename",
+			Value: "customized_main.go",
+			Usage: "the name of the filename containing func main()",
+		},
 
-	b, err := ioutil.ReadFile(pluginYAMLFilePath)
-	if err != nil {
-		panic(err)
+		// TODO: an bool option to run go build (this should be true by default, so maybe --no-build should be provided)
+		// TODO: add option to go get plugins (maybe fetch-plugins or something like that?)
 	}
-
-	m := map[string]interface{}{}
-	if err := yaml.Unmarshal(b, &m); err != nil {
-		panic(err)
-	}
-
-	paths, ok := m["Plugins"]
-	if !ok {
-		fmt.Fprintf(os.Stdout, "not found plug-in list\n")
-	}
-	pathList, ok := paths.([]interface{})
-	if !ok || len(pathList) < 1 {
-		fmt.Fprintf(os.Stdout, "plug-in list is not list style or empty\n")
-	}
-	pluginPaths := []string{}
-	for _, path := range pathList {
-		pluginPaths = append(pluginPaths, path.(string))
-	}
-	create(PluginPath{
-		Paths: pluginPaths,
-	})
-
-	os.Exit(0)
+	app.Action = action
+	app.Run(os.Args)
 }
 
-func create(pluginPaths PluginPath) {
+func action(c *cli.Context) {
+	func() {
+		if e := recover(); e != nil {
+			fmt.Fprintln(os.Stderr, e)
+			os.Exit(1)
+		}
+	}()
+	if fn := c.String("output-filename"); fn != filepath.Base(fn) {
+		panic(fmt.Errorf("the output file name must only contain a filename: %v", fn))
+	}
+
+	config := loadConfig(c.String("config"))
+
+	// TODO: go get all plugins if option is specified
+
+	create(c, config)
+}
+
+type Config struct {
+	PluginPaths []string `yaml:"plugins"`
+}
+
+func loadConfig(path string) *Config {
+	b, err := ioutil.ReadFile(path)
+	if err != nil {
+		panic(fmt.Errorf("cannot load the config file '%v': %v\n", path, err))
+	}
+
+	config := &Config{}
+	if err := yaml.Unmarshal(b, config); err != nil {
+		panic(fmt.Errorf("cannot parse the config file '%v': %v\n", path, err))
+	}
+
+	// TODO: validation
+	return config
+}
+
+func create(c *cli.Context, config *Config) {
 	tpl := template.Must(template.New("tpl").Parse(mainGoTemplate))
 	var b bytes.Buffer
-	if err := tpl.Execute(&b, pluginPaths); err != nil {
-		panic(err)
+	if err := tpl.Execute(&b, config); err != nil {
+		panic(fmt.Errorf("cannot generate a template source code: %v\n", err))
 	}
 
 	// file output
-	if err := os.MkdirAll(outputMainGoDir, os.ModePerm); err != nil {
-		panic(err)
+	outputDir := c.String("output-dir")
+	if err := os.MkdirAll(outputDir, os.ModePerm); err != nil {
+		panic(fmt.Errorf("cannot create a directory '%v': %v", outputDir, err))
 	}
-	outFilePath := outputMainGoDir + string(os.PathSeparator) + outputMainGoFileName
-	if err := ioutil.WriteFile(outFilePath, b.Bytes(), os.ModePerm); err != nil {
-		panic(err)
+	outFilePath := filepath.Join(outputDir, c.String("output-filename"))
+	if err := ioutil.WriteFile(outFilePath, b.Bytes(), 0644); err != nil {
+		panic(fmt.Errorf("cannot generate an output file '%v': %v", outFilePath, err))
 	}
 
 	// go fmt
@@ -93,8 +99,10 @@ func create(pluginPaths PluginPath) {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
-		panic(err)
+		panic(fmt.Errorf("cannot apply go fmt to the generated file: %v", err))
 	}
+
+	// TODO: build the command if the option is given
 }
 
 const (
@@ -106,7 +114,7 @@ import (
     "pfi/sensorbee/sensorbee/client"
     "pfi/sensorbee/sensorbee/server"
     "time"
-{{range $_, $path := .Paths}}    _ "{{$path}}"
+{{range $_, $path := .PluginPaths}}    _ "{{$path}}"
 {{end}})
 
 type commandGenerator func() cli.Command
