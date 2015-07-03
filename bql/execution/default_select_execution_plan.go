@@ -142,6 +142,18 @@ func (ep *defaultSelectExecutionPlan) Process(input *core.Tuple) ([]data.Map, er
 	return nil, nil
 }
 
+// relationKey computes the InputName that belongs to a relation.
+// For a real stream this equals the stream's name (independent of)
+// the alias, but for a UDSF we need to use the same method that
+// was used in topologyBuilder.
+func (ep *defaultSelectExecutionPlan) relationKey(rel *parser.AliasedStreamWindowAST) string {
+	if rel.Type == parser.ActualStream {
+		return rel.Name
+	} else {
+		return fmt.Sprintf("%s/%s", rel.Name, rel.Alias)
+	}
+}
+
 // addTupleToBuffer appends the received tuple to all internal buffers that
 // are associated to the tuple's input name (more than one on self-join).
 // Note that after calling this function, these buffers may hold more
@@ -154,7 +166,7 @@ func (ep *defaultSelectExecutionPlan) addTupleToBuffer(t *core.Tuple) error {
 	// appended to the two buffers for `left` and `right`)
 	numAppends := 0
 	for _, rel := range ep.relations {
-		if t.InputName == rel.Name {
+		if t.InputName == ep.relationKey(&rel) {
 			numAppends += 1
 		}
 	}
@@ -169,7 +181,7 @@ func (ep *defaultSelectExecutionPlan) addTupleToBuffer(t *core.Tuple) error {
 			"can only deal with %v", t.InputName, knownRelNames)
 	}
 	for _, rel := range ep.relations {
-		if t.InputName == rel.Name {
+		if t.InputName == ep.relationKey(&rel) {
 			// if we have numAppends > 1 (meaning: this tuple is used in a
 			// self-join) we should work with a copy, otherwise we can use
 			// the original item
