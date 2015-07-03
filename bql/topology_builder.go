@@ -370,7 +370,17 @@ func (tb *TopologyBuilder) createStreamAsSelectStmt(stmt *parser.CreateStreamAsS
 				alias = rel.Name
 			}
 			if err := dbox.Input(temporaryName, &core.BoxInputConfig{
-				InputName: alias,
+				// As opposed to actual streams, for `usdf('s') AS a, usdf('s') AS b`,
+				// there will be *multiple* boxes and we will have one connection to
+				// usdf 1 (the one aliased to `a`) and usdf 2 (the one aliased to `b`).
+				// Therefore we need to have different InputNames for them. Note that
+				// we cannot just take the alias, as there would be the danger of
+				// overriding an input stream with that same name, as in
+				// `FROM x AS b, usdf('s') AS x`, and we should also use a string
+				// that does not possibly conflict with any input name.
+				// Note that `addTupleToBuffer` in defaultSelectExecutionPlan needs
+				// to use that same method.
+				InputName: fmt.Sprintf("%s/%s", rel.Name, alias),
 			}); err != nil {
 				return nil, err
 			}

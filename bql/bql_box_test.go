@@ -75,6 +75,57 @@ func TestBasicBQLBoxConnectivity(t *testing.T) {
 	})
 }
 
+func TestBQLBoxJoinCapability(t *testing.T) {
+	tuples := mkTuples(4)
+
+	Convey("Given an RSTREAM statement with a lot of joins", t, func() {
+		s := `CREATE STREAM box AS SELECT RSTREAM
+		source:int AS a, s2:int AS b, duplicate:int AS c, d2:int AS d
+		FROM source [RANGE 1 TUPLES],
+		     source [RANGE 1 TUPLES] AS s2,
+		     duplicate('source', 3) [RANGE 1 TUPLES],
+		     duplicate('source', 2) [RANGE 1 TUPLES] AS d2
+		`
+		dt, err := setupTopology(s)
+		So(err, ShouldBeNil)
+		Reset(func() {
+			dt.Stop()
+		})
+
+		sin, err := dt.Sink("snk")
+		So(err, ShouldBeNil)
+		si := sin.Sink().(*tupleCollectorSink)
+
+		Convey("When 4 tuples are emitted by the source", func() {
+			Convey("Then the sink receives a number of tuples", func() {
+				si.Wait(2)
+				So(si.Tuples, ShouldNotBeNil)
+				So(len(si.Tuples), ShouldBeGreaterThanOrEqualTo, 2)
+
+				// the number and order or result tuples varies,
+				// so there is not a lot of stuff we can check...
+				Convey("And all tuples should have keys a,b,c,d", func() {
+					t := si.Tuples[0]
+					// the first tuple should definitely have the same timestamp
+					// as the first tuple in the input set
+					So(t.Timestamp, ShouldResemble, tuples[0].Timestamp)
+
+					for _, tup := range si.Tuples {
+						_, hasA := tup.Data["a"]
+						So(hasA, ShouldBeTrue)
+						_, hasB := tup.Data["d"]
+						So(hasB, ShouldBeTrue)
+						_, hasC := tup.Data["c"]
+						So(hasC, ShouldBeTrue)
+						_, hasD := tup.Data["d"]
+						So(hasD, ShouldBeTrue)
+					}
+				})
+			})
+		})
+	})
+}
+
 func TestBQLBoxUDSF(t *testing.T) {
 	Convey("Given a topology using UDSF", t, func() {
 		dt, err := setupTopology(`CREATE STREAM box AS SELECT ISTREAM duplicate:int FROM duplicate('source', 3) [RANGE 1 TUPLES]`)
