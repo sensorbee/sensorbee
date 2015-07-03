@@ -1,2 +1,2 @@
-//go:generate build_sensorbee -in=plugin.yaml -outdir=./ -outname=default_main.go
+//go:generate build_sensorbee --output-dir=. --output-filename=default_main.go
 package main
