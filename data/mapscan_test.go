@@ -1,6 +1,7 @@
 package data
 
 import (
+	"fmt"
 	. "github.com/smartystreets/goconvey/convey"
 	"testing"
 )
@@ -61,6 +62,81 @@ func TestMapscanDocstrings(t *testing.T) {
 		for input, expected := range examples {
 			actual := getArrayIndex([]rune(input), 5)
 			So(actual, ShouldResemble, expected)
+		}
+	})
+}
+
+func TestSetInMap(t *testing.T) {
+	testCases := []struct {
+		key    string
+		val    Value
+		errmsg string
+	}{
+		/// successes
+		// set top-level element
+		{"store", Int(13), ""},
+		// add top-level element
+		{"string", Int(27), ""},
+		// set second-level element
+		{"store.name", Int(13), ""},
+		// add second-level element
+		{"store.id", Int(27), ""},
+		// set item in list
+		{"store.book[0]", Int(27), ""},
+		// change item in list
+		{"store.book[0].title", Int(27), ""},
+		{"store.book[0].hoge", Int(13), ""},
+		// append item to list
+		{"store.book[1]", Int(27), ""},
+		// add item to list with null-padding
+		{"store.book[5]", Int(27), ""},
+		// create parent map
+		{"store.owner.name", String("bar foo"), ""},
+		// create parent list
+		{"store.owners[1].nickname", String("ore"), ""},
+		/// fails
+		// TODO add support for nested lists
+		{"store.owners[1][2]", String("ore"), "invalid path component: owners[1][2]"},
+		// fail: add element below non-map
+		{"store.name.hoge", Int(13), "cannot access a data.String using key \"hoge\""},
+		// fail: set index in map
+		{"store.book.hoge", Int(13), "cannot access a data.Array using key \"hoge\""},
+		// fail: set key in array
+		{"store[5]", Int(27), "cannot access a data.Map using index 5"},
+	}
+
+	Convey("Given a Map with values in it", t, func() {
+		testData := Map{
+			"store": Map{
+				"name": String("store name"),
+				"book": Array([]Value{
+					Map{
+						"title": String("book name"),
+					},
+				}),
+			}}
+
+		for _, testCase := range testCases {
+			tc := testCase
+			Convey(fmt.Sprintf("When setting the value at '%s' to %v", tc.key, tc.val), func() {
+				err := testData.Set(tc.key, tc.val)
+				if tc.errmsg == "" {
+					Convey("There should be no error", func() {
+						So(err, ShouldBeNil)
+
+						Convey("And Get() should get back the result", func() {
+							getVal, err := testData.Get(tc.key)
+							So(err, ShouldBeNil)
+							So(getVal, ShouldResemble, tc.val)
+						})
+					})
+				} else {
+					Convey("There should be an error", func() {
+						So(err, ShouldNotBeNil)
+						So(err.Error(), ShouldEqual, tc.errmsg)
+					})
+				}
+			})
 		}
 	})
 }

@@ -99,7 +99,7 @@ func assignOutputValue(where data.Map, key string, value data.Value) error {
 			where[k] = v
 		}
 	} else {
-		where[key] = value
+		return where.Set(key, value)
 	}
 	return nil
 }
