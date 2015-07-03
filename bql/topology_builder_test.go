@@ -95,6 +95,24 @@ func TestCreateStreamAsSelectStmt(t *testing.T) {
 				So(err, ShouldBeNil)
 			})
 
+			Convey("And when joining source and stream", func() {
+				err := addBQLToTopology(tb, `CREATE STREAM x AS SELECT ISTREAM s:int FROM
+                s [RANGE 2 SECONDS], t [RANGE 3 TUPLES]`)
+
+				Convey("Then there should be no error", func() {
+					So(err, ShouldBeNil)
+				})
+			})
+
+			Convey("And when self-joining the stream", func() {
+				err := addBQLToTopology(tb, `CREATE STREAM x AS SELECT ISTREAM s:int FROM
+                t [RANGE 2 SECONDS] AS s, t [RANGE 3 TUPLES]`)
+
+				Convey("Then there should be no error", func() {
+					So(err, ShouldBeNil)
+				})
+			})
+
 			Convey("And when running another CREATE STREAM AS SELECT with the same name", func() {
 				err := addBQLToTopology(tb, `CREATE STREAM t AS SELECT ISTREAM int FROM
                 s [RANGE 1 TUPLES] WHERE int=1`)
@@ -122,6 +140,24 @@ func TestCreateStreamAsSelectStmt(t *testing.T) {
 
 				SkipConvey("Then there should be no error", func() {
 					So(err, ShouldBeNil)
+				})
+
+				Convey("And when joining source and UDSF", func() {
+					err := addBQLToTopology(tb, `CREATE STREAM x AS SELECT ISTREAM s:int FROM
+                s [RANGE 2 SECONDS], duplicate('s', 2) [RANGE 3 TUPLES]`)
+
+					Convey("Then there should be no error", func() {
+						So(err, ShouldBeNil)
+					})
+				})
+
+				Convey("And when self-joining the UDSF", func() {
+					err := addBQLToTopology(tb, `CREATE STREAM x AS SELECT ISTREAM s:int FROM
+                duplicate('s', 2) [RANGE 2 SECONDS] AS s, duplicate('s', 4) [RANGE 3 TUPLES] AS t`)
+
+					Convey("Then there should be no error", func() {
+						So(err, ShouldBeNil)
+					})
 				})
 			})
 
