@@ -265,14 +265,36 @@ func (tb *TopologyBuilder) createStreamAsSelectStmt(stmt *parser.CreateStreamAsS
 		tb.topology.Remove(outName)
 	}()
 
+	connected := map[string]bool{}
 	for _, rel := range stmt.Relations {
 		switch rel.Type {
 		case parser.ActualStream:
+			if connected[rel.Name] {
+				// this is a self-join (FROM x [RANGE ...] AS a, x [RANGE ...] AS b)
+				// and we already have connected x to this box before
+				continue
+			}
 			if err := dbox.Input(rel.Name, &core.BoxInputConfig{
-				InputName: rel.Name, // TODO: this must be rel.Alias
+				// For self-join statements like
+				//   ... FROM x AS a [RANGE 2 TUPLES],
+				//            x AS b [RANGE 3 TUPLES],
+				//            y AS c [RANGE 4 TUPLES] ...
+				// the bqlBox will have only *two* inputs:
+				//  - one is `x` with `InputName: x`,
+				//  - one is `y` with `InputName: y`.
+				//
+				// When a tuple arrives with `InputName: x`, it will be added
+				// to the input buffer for `a` and to the input buffer for `b`
+				// in the execution plan. When a tuple arrives with `InputName: y`,
+				// it will be added to the input buffer for `c`.
+				//
+				// If we used the rel.Alias here, then we would have to make multiple
+				// input connections to the same box, which is not possible.
+				InputName: rel.Name,
 			}); err != nil {
 				return nil, err
 			}
+			connected[rel.Name] = true
 
 		case parser.UDSFStream:
 			// Compute the values of the UDSF parameters (if there was
@@ -348,7 +370,17 @@ func (tb *TopologyBuilder) createStreamAsSelectStmt(stmt *parser.CreateStreamAsS
 				alias = rel.Name
 			}
 			if err := dbox.Input(temporaryName, &core.BoxInputConfig{
-				InputName: alias,
+				// As opposed to actual streams, for `usdf('s') AS a, usdf('s') AS b`,
+				// there will be *multiple* boxes and we will have one connection to
+				// usdf 1 (the one aliased to `a`) and usdf 2 (the one aliased to `b`).
+				// Therefore we need to have different InputNames for them. Note that
+				// we cannot just take the alias, as there would be the danger of
+				// overriding an input stream with that same name, as in
+				// `FROM x AS b, usdf('s') AS x`, and we should also use a string
+				// that does not possibly conflict with any input name.
+				// Note that `addTupleToBuffer` in defaultSelectExecutionPlan needs
+				// to use that same method.
+				InputName: fmt.Sprintf("%s/%s", rel.Name, alias),
 			}); err != nil {
 				return nil, err
 			}
