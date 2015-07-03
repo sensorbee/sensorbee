@@ -86,7 +86,7 @@ func create(c *cli.Context, config *Config) {
 
 	// file output
 	outputDir := c.String("output-dir")
-	if err := os.MkdirAll(outputDir, os.ModePerm); err != nil {
+	if err := os.MkdirAll(outputDir, 0755); err != nil {
 		panic(fmt.Errorf("cannot create a directory '%v': %v", outputDir, err))
 	}
 	outFilePath := filepath.Join(outputDir, c.String("output-filename"))
