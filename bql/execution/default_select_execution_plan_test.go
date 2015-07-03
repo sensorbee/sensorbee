@@ -258,6 +258,28 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 		})
 	})
 
+	Convey("Given a SELECT clause with a nested column alias", t, func() {
+		tuples := getTuples(4)
+		s := `CREATE STREAM box AS SELECT ISTREAM int-1 AS a.c, int+1 AS a["d"], int AS b[1] FROM src [RANGE 2 SECONDS]`
+		plan, err := createDefaultSelectPlan(s, t)
+		So(err, ShouldBeNil)
+
+		Convey("When feeding it with tuples", func() {
+			for idx, inTup := range tuples {
+				out, err := plan.Process(inTup)
+				So(err, ShouldBeNil)
+
+				Convey(fmt.Sprintf("Then those values should appear in %v", idx), func() {
+					So(len(out), ShouldEqual, 1)
+					So(out[0], ShouldResemble,
+						data.Map{"a": data.Map{"c": data.Int(idx), "d": data.Int(idx + 2)},
+							"b": data.Array{data.Null{}, data.Int(idx + 1)}})
+				})
+			}
+
+		})
+	})
+
 	// Use wildcard
 	Convey("Given a SELECT clause with a wildcard", t, func() {
 		tuples := getTuples(4)
