@@ -93,7 +93,7 @@ type SourceConfig struct {
 	// Meta contains meta information of the source. This field won't be used
 	// by core package and application can store any form of information
 	// related to the source.
-	Meta map[string]interface{}
+	Meta interface{}
 }
 
 // BoxConfig has configuration parameters of a Box node.
@@ -103,7 +103,7 @@ type BoxConfig struct {
 	// Meta contains meta information of the box. This field won't be used
 	// by core package and application can store any form of information
 	// related to the box.
-	Meta map[string]interface{}
+	Meta interface{}
 }
 
 // SinkConfig has configuration parameters of a Sink node.
@@ -111,5 +111,5 @@ type SinkConfig struct {
 	// Meta contains meta information of the sink. This field won't be used
 	// by core package and application can store any form of information
 	// related to the sink.
-	Meta map[string]interface{}
+	Meta interface{}
 }
