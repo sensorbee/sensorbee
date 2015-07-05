@@ -189,22 +189,22 @@ func TestNodeStatus(t *testing.T) {
 				bs := st["behaviors"].(data.Map)
 
 				Convey("And stop_on_inbound_disconnect should be true", func() {
-					So(bs["stop_on_inbound_disconnect"], ShouldEqual, data.Bool(true))
+					So(bs["stop_on_inbound_disconnect"], ShouldEqual, data.True)
 				})
 
 				Convey("And stop_on_outbound_disconnect should be false", func() {
-					So(bs["stop_on_outbound_disconnect"], ShouldEqual, data.Bool(false))
+					So(bs["stop_on_outbound_disconnect"], ShouldEqual, data.False)
 				})
 
 				Convey("And graceful_stop shouldn't be enabled", func() {
-					So(bs["graceful_stop"], ShouldEqual, data.Bool(false))
+					So(bs["graceful_stop"], ShouldEqual, data.False)
 				})
 
 				Convey("And graceful_stop should be true after enabling it", func() {
 					bn.EnableGracefulStop()
 					st := bn.Status()
 					v, _ := st.Get("behaviors.graceful_stop")
-					So(v, ShouldEqual, data.Bool(true))
+					So(v, ShouldEqual, data.True)
 				})
 			})
 
@@ -308,18 +308,18 @@ func TestNodeStatus(t *testing.T) {
 				bs := st["behaviors"].(data.Map)
 
 				Convey("And stop_disconnect should be true", func() {
-					So(bs["stop_on_disconnect"], ShouldEqual, data.Bool(true))
+					So(bs["stop_on_disconnect"], ShouldEqual, data.True)
 				})
 
 				Convey("And graceful_stop shouldn't be enabled", func() {
-					So(bs["graceful_stop"], ShouldEqual, data.Bool(false))
+					So(bs["graceful_stop"], ShouldEqual, data.False)
 				})
 
 				Convey("And graceful_stop should be true after enabling it", func() {
 					sin.EnableGracefulStop()
 					st := sin.Status()
 					v, _ := st.Get("behaviors.graceful_stop")
-					So(v, ShouldEqual, data.Bool(true))
+					So(v, ShouldEqual, data.True)
 				})
 			})
 
