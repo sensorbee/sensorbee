@@ -138,7 +138,7 @@ func TestCreateStreamAsSelectStmt(t *testing.T) {
 				err := addBQLToTopology(tb, `CREATE STREAM t AS SELECT ISTREAM int FROM
                 duplicate('s', 2) [RANGE 2 SECONDS] WHERE int=2`)
 
-				SkipConvey("Then there should be no error", func() {
+				Convey("Then there should be no error", func() {
 					So(err, ShouldBeNil)
 				})
 
