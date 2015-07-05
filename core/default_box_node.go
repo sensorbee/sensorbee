@@ -1,12 +1,18 @@
 package core
 
+import (
+	"pfi/sensorbee/sensorbee/data"
+)
+
 type defaultBoxNode struct {
 	*defaultNode
 	srcs *dataSources
 	box  Box
 	dsts *dataDestinations
 
-	stopOnOutboundDisconnect bool
+	gracefulStopEnabled bool
+	stopOnDisconnectDir ConnDir
+	runErr              error
 }
 
 func (db *defaultBoxNode) Type() NodeType {
@@ -61,7 +67,8 @@ func (db *defaultBoxNode) run() error {
 	}()
 	db.state.Set(TSRunning)
 	w := newBoxWriterAdapter(db.box, db.name, db.dsts)
-	return db.srcs.pour(db.topology.ctx, w, 1) // TODO: make parallelism configurable
+	db.runErr = db.srcs.pour(db.topology.ctx, w, 1) // TODO: make parallelism configurable
+	return db.runErr
 }
 
 func (db *defaultBoxNode) Stop() error {
@@ -70,17 +77,21 @@ func (db *defaultBoxNode) Stop() error {
 }
 
 func (db *defaultBoxNode) EnableGracefulStop() {
+	db.stateMutex.Lock()
+	db.gracefulStopEnabled = true
+	db.stateMutex.Unlock()
 	db.srcs.enableGracefulStop()
 }
 
 func (db *defaultBoxNode) StopOnDisconnect(dir ConnDir) {
+	db.stateMutex.Lock()
+	db.stopOnDisconnectDir |= dir
+	dir = db.stopOnDisconnectDir
+	db.stateMutex.Unlock()
+
 	if dir&Inbound != 0 {
 		db.srcs.stopOnDisconnect()
 	} else if dir&Outbound != 0 {
-		db.stateMutex.Lock()
-		db.stopOnOutboundDisconnect = true
-		db.stateMutex.Unlock()
-
 		if db.dsts.len() == 0 {
 			db.stop()
 		}
@@ -97,6 +108,32 @@ func (db *defaultBoxNode) stop() {
 	db.state.Wait(TSStopped)
 }
 
+func (db *defaultBoxNode) Status() data.Map {
+	db.stateMutex.Lock()
+	st := db.state.getWithoutLock()
+	gstop := db.gracefulStopEnabled
+	connDir := db.stopOnDisconnectDir
+	db.stateMutex.Unlock()
+
+	m := data.Map{
+		"state":        data.String(st.String()),
+		"input_stats":  db.srcs.status(),
+		"output_stats": db.dsts.status(),
+		"behaviors": data.Map{
+			"stop_on_inbound_disconnect":  data.Bool((connDir & Inbound) != 0),
+			"stop_on_outbound_disconnect": data.Bool((connDir & Outbound) != 0),
+			"graceful_stop":               data.Bool(gstop),
+		},
+	}
+	if st == TSStopped && db.runErr != nil {
+		m["error"] = data.String(db.runErr.Error())
+	}
+	if b, ok := db.box.(Statuser); ok {
+		m["box"] = b.Status()
+	}
+	return m
+}
+
 func (db *defaultBoxNode) destinations() *dataDestinations {
 	return db.dsts
 }
@@ -105,7 +142,7 @@ func (db *defaultBoxNode) dstCallback(e ddEvent) {
 	switch e {
 	case ddeDisconnect:
 		db.stateMutex.Lock()
-		shouldStop := db.stopOnOutboundDisconnect
+		shouldStop := (db.stopOnDisconnectDir & Outbound) != 0
 		db.stateMutex.Unlock()
 
 		if shouldStop {

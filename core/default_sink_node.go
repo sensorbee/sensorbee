@@ -1,9 +1,17 @@
 package core
 
+import (
+	"pfi/sensorbee/sensorbee/data"
+)
+
 type defaultSinkNode struct {
 	*defaultNode
 	srcs *dataSources
 	sink Sink
+
+	gracefulStopEnabled     bool
+	stopOnDisconnectEnabled bool
+	runErr                  error
 }
 
 func (ds *defaultSinkNode) Type() NodeType {
@@ -65,10 +73,16 @@ func (ds *defaultSinkNode) Stop() error {
 }
 
 func (ds *defaultSinkNode) EnableGracefulStop() {
+	ds.stateMutex.Lock()
+	ds.gracefulStopEnabled = true
+	ds.stateMutex.Unlock()
 	ds.srcs.enableGracefulStop()
 }
 
 func (ds *defaultSinkNode) StopOnDisconnect() {
+	ds.stateMutex.Lock()
+	ds.stopOnDisconnectEnabled = true
+	ds.stateMutex.Unlock()
 	ds.srcs.stopOnDisconnect()
 }
 
@@ -79,4 +93,28 @@ func (ds *defaultSinkNode) stop() {
 	ds.state.Set(TSStopping)
 	ds.srcs.stop(ds.topology.ctx)
 	ds.state.Wait(TSStopped)
+}
+
+func (ds *defaultSinkNode) Status() data.Map {
+	ds.stateMutex.Lock()
+	st := ds.state.getWithoutLock()
+	gstop := ds.gracefulStopEnabled
+	stopOnDisconnect := ds.stopOnDisconnectEnabled
+	ds.stateMutex.Unlock()
+
+	m := data.Map{
+		"state":       data.String(st.String()),
+		"input_stats": ds.srcs.status(),
+		"behaviors": data.Map{
+			"stop_on_disconnect": data.Bool(stopOnDisconnect),
+			"graceful_stop":      data.Bool(gstop),
+		},
+	}
+	if st == TSStopped && ds.runErr != nil {
+		m["error"] = data.String(ds.runErr.Error())
+	}
+	if s, ok := ds.sink.(Statuser); ok {
+		m["sink"] = s.Status()
+	}
+	return m
 }

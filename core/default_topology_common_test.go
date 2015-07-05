@@ -2,6 +2,7 @@ package core
 
 import (
 	"fmt"
+	"pfi/sensorbee/sensorbee/data"
 	"sync"
 )
 
@@ -262,6 +263,12 @@ func (s *TupleIncrementalEmitterSource) Resume(ctx *Context) error {
 	}
 	s.state.setWithoutLock(TSRunning)
 	return nil
+}
+
+func (s *TupleIncrementalEmitterSource) Status() data.Map {
+	return data.Map{
+		"test": data.String("test"),
+	}
 }
 
 // BlockingForwardBox blocks tuples in it and emit them at the timing required by users.
