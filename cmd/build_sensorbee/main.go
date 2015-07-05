@@ -32,9 +32,11 @@ func main() {
 			Value: "customized_main.go",
 			Usage: "the name of the filename containing func main()",
 		},
-
+		cli.BoolTFlag{
+			Name:  "download-plugins",
+			Usage: "download all plugins",
+		},
 		// TODO: an bool option to run go build (this should be true by default, so maybe --no-build should be provided)
-		// TODO: add option to go get plugins (maybe fetch-plugins or something like that?)
 	}
 	app.Action = action
 	app.Run(os.Args)
@@ -52,9 +54,7 @@ func action(c *cli.Context) {
 	}
 
 	config := loadConfig(c.String("config"))
-
-	// TODO: go get all plugins if option is specified
-
+	downloadPlugins(c, config)
 	create(c, config)
 }
 
@@ -75,6 +75,23 @@ func loadConfig(path string) *Config {
 
 	// TODO: validation
 	return config
+}
+
+func downloadPlugins(c *cli.Context, config *Config) {
+	if !c.BoolT("download-plugins") {
+		return
+	}
+
+	for _, p := range config.PluginPaths {
+		cmd := exec.Command("go", "get", "-u", p)
+		buf := bytes.NewBuffer(nil)
+		cmd.Stdout = buf
+		cmd.Stderr = buf
+		if err := cmd.Run(); err != nil {
+			b, _ := ioutil.ReadAll(buf)
+			panic(fmt.Errorf("cannot get a plugin '%v': %v \n\n%v\n", p, err, string(b)))
+		}
+	}
 }
 
 func create(c *cli.Context, config *Config) {
