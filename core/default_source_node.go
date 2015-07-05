@@ -2,6 +2,7 @@ package core
 
 import (
 	"fmt"
+	"pfi/sensorbee/sensorbee/data"
 )
 
 type defaultSourceNode struct {
@@ -9,6 +10,7 @@ type defaultSourceNode struct {
 	source          Source
 	dsts            *dataDestinations
 	pausedOnStartup bool
+	runErr          error
 }
 
 func (ds *defaultSourceNode) Type() NodeType {
@@ -46,7 +48,8 @@ func (ds *defaultSourceNode) run() error {
 		return err
 	}
 
-	return ds.source.GenerateStream(ds.topology.ctx, newTraceWriter(ds.dsts, ETOutput, ds.name))
+	ds.runErr = ds.source.GenerateStream(ds.topology.ctx, newTraceWriter(ds.dsts, ETOutput, ds.name))
+	return ds.runErr
 }
 
 func (ds *defaultSourceNode) Stop() error {
@@ -141,6 +144,22 @@ func (ds *defaultSourceNode) Resume() error {
 	ds.dsts.resume()
 	ds.state.setWithoutLock(TSRunning)
 	return nil
+}
+
+func (ds *defaultSourceNode) Status() data.Map {
+	st := ds.state.Get()
+
+	m := data.Map{
+		"state":        data.String(st.String()),
+		"output_stats": ds.dsts.status(),
+	}
+	if st == TSStopped && ds.runErr != nil {
+		m["error"] = data.String(ds.runErr.Error())
+	}
+	if s, ok := ds.source.(Statuser); ok {
+		m["source"] = s.Status()
+	}
+	return m
 }
 
 func (ds *defaultSourceNode) destinations() *dataDestinations {

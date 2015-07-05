@@ -2,6 +2,7 @@ package core
 
 import (
 	"fmt"
+	"pfi/sensorbee/sensorbee/data"
 	"regexp"
 )
 
@@ -75,6 +76,76 @@ type Node interface {
 	// The node will not be removed from the topology after it stopped.
 	Stop() error
 
+	// Status returns the status of the node. Each node type returns different
+	// status information.
+	//
+	// When the node is a Source, following information will be returned:
+	//
+	//	* state: the current state of the Source
+	//	* error: an error message of the Source if an error happened and it stopped the Source
+	//	* output_stats: statistical information of the Source's output
+	//	* source: the status of the Source if it implements Statuser
+	//
+	// When the node is a Box, following information will be returned:
+	//
+	//	* state: the current state of the Box
+	//	* error: an error message of the Box if an error happened and it stopped the Box
+	//	* input_stats: statistical information of the Source's output
+	//	* output_stats: statistical information of the Box's output
+	//	* behaviors:
+	//		* stop_on_inbound_disconnect: true if the Box stops when all inbound
+	//		                              connections are closed
+	//		* stop_on_outbound_disconnect: true if the Box stops when all
+	//		                               outbound connections are closed
+	//		* graceful_stop: true if the graceful_stop mode is enabled
+	//	* box: the status of the Box if it implements Statuser
+	//
+	// When the node is a Sink, following information will be returned:
+	//
+	//	* state: the current state of the Box
+	//	* error: an error message of the Sink if an error happened and it stopped the Sink
+	//	* input_stats: statistical information of the Source's output
+	//	* behaviors:
+	//		* stop_on_disconnected: true if the Sink stops when all inbound
+	//		                        connections are closed
+	//		* graceful_stop: true if the graceful_stop mode is enabled
+	//	* sink: the status of the Sink if it implements Statuser
+	//
+	// "input_stats" contains statistical information of the node's input. It
+	// has following fields:
+	//
+	//	* num_received_total: the total number of tuples the node received
+	//	* num_errors: the number of errors that the node failed to process tuples
+	//	              including temporary errors
+	//	* inputs: the information of data sources connected to the node
+	//
+	// "inputs" field in "input_stats" contains the input statistics of each
+	// data sources as data.Map. Each input has the following information:
+	//
+	//	* num_received: the number of tuples the node has received so far
+	//	* queue_size: the size of the queue connected to the node
+	//	* num_queued: the number of tuples buffered in the queue
+	//
+	// "output_stats" contains statistical information of the node's output. It
+	// has following fields:
+	//
+	//	* num_sent_total: the total number of tuples sent from this node including
+	//	                  the numbre of dropped tuples
+	//	* num_dropped: the number of tuples which have been dropped because no
+	//	               data destination is connected to the node
+	//	* outputs: the information of data destinations connected to the node
+	//
+	// "outputs" contains the output statistics of each data destinations as
+	// data.Map. Each output has following information:
+	//
+	//	* num_sent: the number of tuples the node has sent so far
+	//	* queue_size: the size of the queue connected to the node
+	//	* num_queued: the number of tuples buffered in the queue
+	//
+	// Numbers in inputs and outputs might not be accurate because they use
+	// loose synchronization for efficiency.
+	Status() data.Map
+
 	// Meta returns meta information of the node. The meta information can be
 	// updated by changing the return value. However, the meta information is
 	// not protected from concurrent writes and the caller has to care about it.
@@ -136,10 +207,14 @@ type BoxNode interface {
 	StopOnDisconnect(dir ConnDir)
 }
 
+// ConnDir shows a direction of a connection between nodes.
 type ConnDir int
 
 const (
+	// Inbound represents an inbound connection.
 	Inbound ConnDir = 1 << iota
+
+	// Outbound represents an outbound connection.
 	Outbound
 )
 

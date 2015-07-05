@@ -1,0 +1,369 @@
+package core
+
+import (
+	. "github.com/smartystreets/goconvey/convey"
+	"pfi/sensorbee/sensorbee/data"
+	"testing"
+)
+
+func TestNodeStatus(t *testing.T) {
+	config := Configuration{TupleTraceEnabled: 1}
+	ctx := newTestContext(config)
+
+	Convey("Given a topology having nodes", t, func() {
+		t := NewDefaultTopology(ctx, "test")
+		Reset(func() {
+			t.Stop()
+		})
+
+		so := NewTupleIncrementalEmitterSource(freshTuples())
+		son, err := t.AddSource("source", so, nil)
+		So(err, ShouldBeNil)
+		so.EmitTuples(2) // send before a box is connected
+
+		bn, err := t.AddBox("box", BoxFunc(forwardBox), nil)
+		So(err, ShouldBeNil)
+		So(bn.Input("source", nil), ShouldBeNil)
+		bn.StopOnDisconnect(Inbound)
+		so.EmitTuples(1) // send before a sink is connected
+
+		si := NewTupleCollectorSink()
+		sin, err := t.AddSink("sink", si, nil)
+		So(err, ShouldBeNil)
+		So(sin.Input("box", &SinkInputConfig{Capacity: 16}), ShouldBeNil)
+		sin.StopOnDisconnect()
+		so.EmitTuples(3)
+		si.Wait(3)
+
+		Convey("When getting status of the source while it's still running", func() {
+			st := son.Status()
+
+			Convey("Then it should have the running state", func() {
+				So(st["state"], ShouldEqual, "running")
+			})
+
+			Convey("Then it should have no error", func() {
+				// cannot use ShouldBeBlank because data.String isn't a standard string
+				So(st["error"], ShouldBeNil)
+			})
+
+			Convey("Then it should have output_stats", func() {
+				So(st["output_stats"], ShouldNotBeNil)
+				os := st["output_stats"].(data.Map)
+
+				Convey("And it should have the number of tuples sent from the source", func() {
+					So(os["num_sent_total"], ShouldEqual, 4)
+				})
+
+				Convey("And it should have the number of dropped tuples", func() {
+					So(os["num_dropped"], ShouldEqual, 2)
+				})
+
+				Convey("And it should have the statuses of connected nodes", func() {
+					So(os["outputs"], ShouldNotBeNil)
+					ns := os["outputs"].(data.Map)
+
+					So(len(ns), ShouldEqual, 1)
+					So(ns["box"], ShouldNotBeNil)
+
+					b := ns["box"].(data.Map)
+					So(b["num_sent"], ShouldEqual, 4)
+					So(b["queue_size"], ShouldBeGreaterThan, 0)
+					So(b["num_queued"], ShouldEqual, 0)
+				})
+			})
+
+			Convey("Then it should have the status of the source implementation", func() {
+				So(st["source"], ShouldNotBeNil)
+				v, _ := st.Get("source.test")
+				So(v, ShouldEqual, "test")
+			})
+		})
+
+		Convey("When getting status of the source after the source is stopped", func() {
+			so.EmitTuples(2)
+			si.Wait(5)
+
+			st := son.Status()
+
+			Convey("Then it should have the stopped state", func() {
+				So(st["state"], ShouldEqual, "stopped")
+			})
+
+			Convey("Then it should have no error", func() {
+				// cannot use ShouldBeBlank because data.String isn't a standard string
+				So(st["error"], ShouldBeNil)
+			})
+
+			Convey("Then it should have output_stats", func() {
+				So(st["output_stats"], ShouldNotBeNil)
+				os := st["output_stats"].(data.Map)
+
+				Convey("And it should have the number of tuples sent from the source", func() {
+					So(os["num_sent_total"], ShouldEqual, 6)
+				})
+
+				Convey("And it should have the number of dropped tuples", func() {
+					So(os["num_dropped"], ShouldEqual, 2)
+				})
+
+				Convey("And it shouldn't have any connections", func() {
+					So(os["outputs"], ShouldNotBeNil)
+					ns := os["outputs"].(data.Map)
+					So(ns, ShouldBeEmpty)
+				})
+			})
+
+			Convey("Then it should have the status of the source implementation", func() {
+				So(st["source"], ShouldNotBeNil)
+				v, _ := st.Get("source.test")
+				So(v, ShouldEqual, "test")
+			})
+		})
+
+		Convey("When getting status of the box while it's still running", func() {
+			st := bn.Status()
+
+			Convey("Then it should have the running state", func() {
+				So(st["state"], ShouldEqual, "running")
+			})
+
+			Convey("Then it should have no error", func() {
+				So(st["error"], ShouldBeNil)
+			})
+
+			Convey("Then it should have input_stats", func() {
+				So(st["input_stats"], ShouldNotBeNil)
+				is := st["input_stats"].(data.Map)
+
+				Convey("And it should have the number of tuples received", func() {
+					So(is["num_received_total"], ShouldEqual, 4)
+				})
+
+				Convey("And it should have the number of errors", func() {
+					So(is["num_errors"], ShouldEqual, 0)
+				})
+
+				Convey("And it should have the statuses of connected nodes", func() {
+					So(is["inputs"], ShouldNotBeNil)
+					ns := is["inputs"].(data.Map)
+
+					So(len(ns), ShouldEqual, 1)
+					So(ns["source"], ShouldNotBeNil)
+
+					s := ns["source"].(data.Map)
+					So(s["num_received"], ShouldEqual, 4)
+					So(s["queue_size"], ShouldBeGreaterThan, 0)
+					So(s["num_queued"], ShouldEqual, 0)
+				})
+			})
+
+			Convey("Then it should have output_stats", func() {
+				So(st["output_stats"], ShouldNotBeNil)
+				os := st["output_stats"].(data.Map)
+
+				Convey("And it should have the number of tuples sent from the source", func() {
+					So(os["num_sent_total"], ShouldEqual, 3)
+				})
+
+				Convey("And it should have the number of dropped tuples", func() {
+					So(os["num_dropped"], ShouldEqual, 1)
+				})
+
+				Convey("And it should have the statuses of connected nodes", func() {
+					So(os["outputs"], ShouldNotBeNil)
+					ns := os["outputs"].(data.Map)
+
+					So(len(ns), ShouldEqual, 1)
+					So(ns["sink"], ShouldNotBeNil)
+
+					b := ns["sink"].(data.Map)
+					So(b["num_sent"], ShouldEqual, 3)
+					So(b["queue_size"], ShouldEqual, 16)
+					So(b["num_queued"], ShouldEqual, 0)
+				})
+			})
+
+			Convey("Then it should have its behavior descriptions", func() {
+				So(st["behaviors"], ShouldNotBeNil)
+				bs := st["behaviors"].(data.Map)
+
+				Convey("And stop_on_inbound_disconnect should be true", func() {
+					So(bs["stop_on_inbound_disconnect"], ShouldEqual, data.Bool(true))
+				})
+
+				Convey("And stop_on_outbound_disconnect should be false", func() {
+					So(bs["stop_on_outbound_disconnect"], ShouldEqual, data.Bool(false))
+				})
+
+				Convey("And graceful_stop shouldn't be enabled", func() {
+					So(bs["graceful_stop"], ShouldEqual, data.Bool(false))
+				})
+
+				Convey("And graceful_stop should be true after enabling it", func() {
+					bn.EnableGracefulStop()
+					st := bn.Status()
+					v, _ := st.Get("behaviors.graceful_stop")
+					So(v, ShouldEqual, data.Bool(true))
+				})
+			})
+
+			// TODO: check st["box"]
+		})
+
+		Convey("When getting status of the box after the box is stopped", func() {
+			so.EmitTuples(2)
+			si.Wait(5)
+
+			st := bn.Status()
+
+			Convey("Then it should have the stopped state", func() {
+				So(st["state"], ShouldEqual, "stopped")
+			})
+
+			Convey("Then it should have no error", func() {
+				So(st["error"], ShouldBeNil)
+			})
+
+			Convey("Then it should have input_stats", func() {
+				So(st["input_stats"], ShouldNotBeNil)
+				is := st["input_stats"].(data.Map)
+
+				Convey("And it should have the number of tuples received", func() {
+					So(is["num_received_total"], ShouldEqual, 6)
+				})
+
+				Convey("And it should have the number of errors", func() {
+					So(is["num_errors"], ShouldEqual, 0)
+				})
+
+				Convey("And it should have no connected nodes", func() {
+					So(is["inputs"], ShouldNotBeNil)
+					ns := is["inputs"].(data.Map)
+					So(ns, ShouldBeEmpty)
+				})
+			})
+
+			Convey("Then it should have output_stats", func() {
+				So(st["output_stats"], ShouldNotBeNil)
+				os := st["output_stats"].(data.Map)
+
+				Convey("And it should have the number of tuples sent from the source", func() {
+					So(os["num_sent_total"], ShouldEqual, 5)
+				})
+
+				Convey("And it should have the number of dropped tuples", func() {
+					So(os["num_dropped"], ShouldEqual, 1)
+				})
+
+				Convey("And it should have no connected nodes", func() {
+					So(os["outputs"], ShouldNotBeNil)
+					ns := os["outputs"].(data.Map)
+					So(ns, ShouldBeEmpty)
+				})
+			})
+
+			// TODO: st["box"]
+		})
+
+		Convey("When getting status of the sink while it's still running", func() {
+			st := sin.Status()
+
+			Convey("Then it should have the running state", func() {
+				So(st["state"], ShouldEqual, "running")
+			})
+
+			Convey("Then it should have no error", func() {
+				So(st["error"], ShouldBeNil)
+			})
+
+			Convey("Then it should have input_stats", func() {
+				So(st["input_stats"], ShouldNotBeNil)
+				is := st["input_stats"].(data.Map)
+
+				Convey("And it should have the number of tuples received", func() {
+					So(is["num_received_total"], ShouldEqual, 3)
+				})
+
+				Convey("And it should have the number of errors", func() {
+					So(is["num_errors"], ShouldEqual, 0)
+				})
+
+				Convey("And it should have the statuses of connected nodes", func() {
+					So(is["inputs"], ShouldNotBeNil)
+					ns := is["inputs"].(data.Map)
+
+					So(len(ns), ShouldEqual, 1)
+					So(ns["box"], ShouldNotBeNil)
+
+					s := ns["box"].(data.Map)
+					So(s["num_received"], ShouldEqual, 3)
+					So(s["queue_size"], ShouldEqual, 16)
+					So(s["num_queued"], ShouldEqual, 0)
+				})
+			})
+
+			Convey("Then it should have its behavior descriptions", func() {
+				So(st["behaviors"], ShouldNotBeNil)
+				bs := st["behaviors"].(data.Map)
+
+				Convey("And stop_disconnect should be true", func() {
+					So(bs["stop_on_disconnect"], ShouldEqual, data.Bool(true))
+				})
+
+				Convey("And graceful_stop shouldn't be enabled", func() {
+					So(bs["graceful_stop"], ShouldEqual, data.Bool(false))
+				})
+
+				Convey("And graceful_stop should be true after enabling it", func() {
+					sin.EnableGracefulStop()
+					st := sin.Status()
+					v, _ := st.Get("behaviors.graceful_stop")
+					So(v, ShouldEqual, data.Bool(true))
+				})
+			})
+
+			// TODO: st["sink"]
+		})
+
+		Convey("When getting status of the sink after the sink is stopped", func() {
+			so.EmitTuples(2)
+			si.Wait(5)
+			sin.State().Wait(TSStopped)
+
+			st := sin.Status()
+
+			Convey("Then it should have the stopped state", func() {
+				So(st["state"], ShouldEqual, "stopped")
+			})
+
+			Convey("Then it should have no error", func() {
+				So(st["error"], ShouldBeNil)
+			})
+
+			Convey("Then it should have input_stats", func() {
+				So(st["input_stats"], ShouldNotBeNil)
+				is := st["input_stats"].(data.Map)
+
+				Convey("And it should have the number of tuples received", func() {
+					So(is["num_received_total"], ShouldEqual, 5)
+				})
+
+				Convey("And it should have the number of errors", func() {
+					So(is["num_errors"], ShouldEqual, 0)
+				})
+
+				Convey("And it should have no connected nodes", func() {
+					So(is["inputs"], ShouldNotBeNil)
+					ns := is["inputs"].(data.Map)
+					So(ns, ShouldBeEmpty)
+				})
+			})
+
+			// TODO: st["sink"]
+		})
+	})
+}
+
+// TODO: test run failures
+// TODO: test Write failures of Boxes and Sinks
