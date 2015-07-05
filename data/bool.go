@@ -7,6 +7,14 @@ import (
 
 type Bool bool
 
+const (
+	// True is a constant having true value of Bool type.
+	True Bool = true
+
+	// False is a constant having false value of Bool type.
+	False Bool = false
+)
+
 func (b Bool) Type() TypeID {
 	return TypeBool
 }
