@@ -151,6 +151,9 @@ type dataSources struct {
 	// msgChs is a slice of channels which are connected to goroutines
 	// pouring tuples. They receive controlling messages through this channel.
 	msgChs []chan<- *dataSourcesMessage
+
+	numReceived int64
+	numErrors   int64
 }
 
 func newDataSources(nodeName string) *dataSources {
@@ -471,8 +474,10 @@ receiveLoop:
 			break receiveLoop
 
 		default:
+			atomic.AddInt64(&s.numReceived, 1)
 			t, ok := v.Interface().(*Tuple)
 			if !ok {
+				atomic.AddInt64(&s.numErrors, 1)
 				ctx.Logger.Log(Error, "Cannot receive a tuple from a receiver due to a type error")
 				break
 			}
@@ -480,11 +485,13 @@ receiveLoop:
 			err := w.Write(ctx, t)
 			switch {
 			case IsFatalError(err):
+				atomic.AddInt64(&s.numErrors, 1)
 				// logging is done by pour method
 				retErr = err
 				return
 
 			case IsTemporaryError(err):
+				atomic.AddInt64(&s.numErrors, 1)
 				// TODO: retry
 
 			default:
@@ -539,6 +546,12 @@ func (s *dataSources) status() data.Map {
 	// mutex of the dataSources doesn't block reading tuples from a channel.
 	s.m.Lock()
 	defer s.m.Unlock()
+
+	st := data.Map{}
+	st["num_received_total"] = data.Int(atomic.LoadInt64(&s.numReceived))
+	st["num_errors"] = data.Int(atomic.LoadInt64(&s.numErrors))
+	// TODO: Add num_temporary_errors and num_retries.
+
 	m := make(data.Map, len(s.recvs))
 	for name, recv := range s.recvs {
 		if recv.sender.isClosed() {
@@ -553,7 +566,8 @@ func (s *dataSources) status() data.Map {
 			"num_queued": data.Int(l),
 		}
 	}
-	return m
+	st["inputs"] = m
+	return st
 }
 
 // dataDestinations have writers connected to multiple destination nodes and
@@ -568,6 +582,9 @@ type dataDestinations struct {
 	paused   bool
 
 	callback func(ddEvent)
+
+	numSent    int64
+	numDropped int64
 }
 
 type ddEvent int
@@ -669,6 +686,11 @@ func (d *dataDestinations) Write(ctx *Context, t *Tuple) error {
 	}
 	// It's safe even if Close method is called while waiting in the loop above.
 
+	if len(d.dsts) == 0 {
+		atomic.AddInt64(&d.numDropped, 1)
+		return nil
+	}
+
 	needsCopy := len(d.dsts) > 1
 	var closed []string
 	for name, dst := range d.dsts {
@@ -704,6 +726,7 @@ func (d *dataDestinations) Write(ctx *Context, t *Tuple) error {
 			go d.callback(ddeDisconnect)
 		}
 	}
+	atomic.AddInt64(&d.numSent, 1)
 	return nil
 }
 
@@ -741,6 +764,11 @@ func (d *dataDestinations) Close(ctx *Context) error {
 func (d *dataDestinations) status() data.Map {
 	d.rwm.RLock()
 	defer d.rwm.RUnlock()
+
+	st := data.Map{}
+	st["num_sent_total"] = data.Int(atomic.LoadInt64(&d.numSent))
+	st["num_dropped"] = data.Int(atomic.LoadInt64(&d.numDropped))
+
 	m := make(data.Map, len(d.dsts))
 	for name, dst := range d.dsts {
 		l, c := dst.queueStatus()
@@ -750,5 +778,6 @@ func (d *dataDestinations) status() data.Map {
 			"num_queued": data.Int(l),
 		}
 	}
-	return m
+	st["outputs"] = m
+	return st
 }
