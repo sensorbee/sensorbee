@@ -148,15 +148,18 @@ func (ds *defaultSourceNode) Resume() error {
 
 func (ds *defaultSourceNode) Status() data.Map {
 	st := ds.state.Get()
-	var errMsg string
-	if st == TSStopped {
-		errMsg = ds.runErr.Error()
-	}
-	return data.Map{
+
+	m := data.Map{
 		"state":        data.String(st.String()),
-		"error":        data.String(errMsg),
 		"output_stats": ds.dsts.status(),
 	}
+	if st == TSStopped && ds.runErr != nil {
+		m["error"] = data.String(ds.runErr.Error())
+	}
+	if s, ok := ds.source.(Statuser); ok {
+		m["source"] = s.Status()
+	}
+	return m
 }
 
 func (ds *defaultSourceNode) destinations() *dataDestinations {
