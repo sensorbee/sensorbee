@@ -561,9 +561,9 @@ func (s *dataSources) status() data.Map {
 
 		l, c := recv.sender.queueStatus()
 		m[name] = data.Map{
-			"num_sent":   data.Int(recv.sender.count() - int64(l)),
-			"queue_size": data.Int(c),
-			"num_queued": data.Int(l),
+			"num_received": data.Int(recv.sender.count() - int64(l)),
+			"queue_size":   data.Int(c),
+			"num_queued":   data.Int(l),
 		}
 	}
 	st["inputs"] = m

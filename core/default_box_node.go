@@ -112,23 +112,26 @@ func (db *defaultBoxNode) Status() data.Map {
 	db.stateMutex.Lock()
 	st := db.state.getWithoutLock()
 	gstop := db.gracefulStopEnabled
+	connDir := db.stopOnDisconnectDir
 	db.stateMutex.Unlock()
 
-	var errMsg string
-	if st == TSStopped {
-		errMsg = db.runErr.Error()
-	}
-	return data.Map{
+	m := data.Map{
 		"state":        data.String(st.String()),
-		"error":        data.String(errMsg),
 		"input_stats":  db.srcs.status(),
 		"output_stats": db.dsts.status(),
 		"behaviors": data.Map{
-			"stop_on_inbound_disconnect":  data.Bool((db.stopOnDisconnectDir & Inbound) != 0),
-			"stop_on_outbound_disconnect": data.Bool((db.stopOnDisconnectDir & Outbound) != 0),
+			"stop_on_inbound_disconnect":  data.Bool((connDir & Inbound) != 0),
+			"stop_on_outbound_disconnect": data.Bool((connDir & Outbound) != 0),
 			"graceful_stop":               data.Bool(gstop),
 		},
 	}
+	if st == TSStopped && db.runErr != nil {
+		m["error"] = data.String(db.runErr.Error())
+	}
+	if b, ok := db.box.(Statuser); ok {
+		m["box"] = b.Status()
+	}
+	return m
 }
 
 func (db *defaultBoxNode) destinations() *dataDestinations {

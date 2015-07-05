@@ -102,17 +102,19 @@ func (ds *defaultSinkNode) Status() data.Map {
 	stopOnDisconnect := ds.stopOnDisconnectEnabled
 	ds.stateMutex.Unlock()
 
-	var errMsg string
-	if st == TSStopped {
-		errMsg = ds.runErr.Error()
-	}
-	return data.Map{
+	m := data.Map{
 		"state":       data.String(st.String()),
-		"error":       data.String(errMsg),
 		"input_stats": ds.srcs.status(),
 		"behaviors": data.Map{
 			"stop_on_disconnect": data.Bool(stopOnDisconnect),
 			"graceful_stop":      data.Bool(gstop),
 		},
 	}
+	if st == TSStopped && ds.runErr != nil {
+		m["error"] = data.String(ds.runErr.Error())
+	}
+	if s, ok := ds.sink.(Statuser); ok {
+		m["sink"] = s.Status()
+	}
+	return m
 }

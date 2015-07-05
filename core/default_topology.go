@@ -231,7 +231,7 @@ func (t *defaultTopology) Stop() error {
 
 	var wg sync.WaitGroup
 	for _, b := range t.boxes {
-		b.srcs.stopOnDisconnect()
+		b.StopOnDisconnect(Inbound | Outbound)
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
@@ -240,7 +240,7 @@ func (t *defaultTopology) Stop() error {
 	}
 
 	for _, s := range t.sinks {
-		s.srcs.stopOnDisconnect()
+		s.StopOnDisconnect()
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
