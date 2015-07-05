@@ -427,10 +427,10 @@ type defaultNode struct {
 	state      *topologyStateHolder
 	stateMutex sync.Mutex
 
-	meta map[string]interface{}
+	meta interface{}
 }
 
-func newDefaultNode(t *defaultTopology, name string, meta map[string]interface{}) *defaultNode {
+func newDefaultNode(t *defaultTopology, name string, meta interface{}) *defaultNode {
 	if meta == nil {
 		meta = map[string]interface{}{}
 	}
@@ -451,7 +451,7 @@ func (dn *defaultNode) State() TopologyStateHolder {
 	return dn.state
 }
 
-func (dn *defaultNode) Meta() map[string]interface{} {
+func (dn *defaultNode) Meta() interface{} {
 	return dn.meta
 }
 

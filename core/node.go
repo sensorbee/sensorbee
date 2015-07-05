@@ -149,7 +149,7 @@ type Node interface {
 	// Meta returns meta information of the node. The meta information can be
 	// updated by changing the return value. However, the meta information is
 	// not protected from concurrent writes and the caller has to care about it.
-	Meta() map[string]interface{}
+	Meta() interface{}
 }
 
 // SourceNode is a Source registered to a topology.
