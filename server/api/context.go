@@ -7,8 +7,6 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
-	"pfi/sensorbee/sensorbee/bql"
-	"strings"
 	"sync/atomic"
 )
 
@@ -17,12 +15,10 @@ type BaseContext struct{}
 func (b *BaseContext) NotFoundHandler(rw web.ResponseWriter, req *web.Request) {
 	// TODO: logger
 
-	// If API request URL was not found, return error in JSON
-	if strings.HasPrefix(req.URL.Path, "/api/") {
-		rw.Header().Set("Content-Type", "application/json")
-		rw.WriteHeader(http.StatusNotFound)
-		// TODO: fix error code
-		rw.Write([]byte(`
+	rw.Header().Set("Content-Type", "application/json")
+	rw.WriteHeader(http.StatusNotFound)
+	// TODO: fix error code
+	rw.Write([]byte(`
 {
   "errors": [
     {
@@ -31,18 +27,6 @@ func (b *BaseContext) NotFoundHandler(rw web.ResponseWriter, req *web.Request) {
     }
   ]
 }`))
-		return
-	}
-
-	// The following code won't be executed as long as the user
-	// uses sensorbee server command to run this http API server because
-	// sensorbee server cmd_run.go routes requests based on requests paths.
-
-	// TODO: Render a better template
-	rw.WriteHeader(http.StatusNotFound)
-	if _, err := io.WriteString(rw, "404 Not Found"); err != nil {
-		// logging "Cannot return the 404 not found page: "
-	}
 }
 
 type Context struct {
@@ -57,7 +41,7 @@ type Context struct {
 	request    *web.Request
 	HTTPStatus int
 
-	topologies map[string]*bql.TopologyBuilder
+	topologies TopologyRegistry
 }
 
 var requestIDCounter uint64 = 0
@@ -85,10 +69,10 @@ func SetUpRouter(prefix string, parent *web.Router, middleware func(c *Context, 
 	return parent
 }
 
-// SetTopologyMap sets the registry of topologies to this context. This method
-// must be called in the middleware of Context.
-func (c *Context) SetTopologyMap(t map[string]*bql.TopologyBuilder) {
-	c.topologies = t
+// SetTopologyRegistry sets the registry of topologies to this context. This
+// method must be called in the middleware of Context.
+func (c *Context) SetTopologyRegistry(r TopologyRegistry) {
+	c.topologies = r
 }
 
 func (c *Context) extractOptionStringFromPath(key string, target *string) error {

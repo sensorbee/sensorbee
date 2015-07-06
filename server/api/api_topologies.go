@@ -2,12 +2,12 @@ package api
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/gocraft/web"
 	"io/ioutil"
 	"pfi/sensorbee/sensorbee/bql"
 	"pfi/sensorbee/sensorbee/bql/parser"
 	"pfi/sensorbee/sensorbee/core"
+	"pfi/sensorbee/sensorbee/data"
 )
 
 type TopologiesContext struct {
@@ -19,14 +19,11 @@ func SetUpTopologiesRouter(prefix string, router *web.Router) {
 	root := router.Subrouter(TopologiesContext{}, "/topologies")
 	root.Middleware((*TopologiesContext).extractName)
 	// TODO validation (root can validate with regex like "\w+")
+	root.Post("/", (*TopologiesContext).Create)
 	root.Get("/", (*TopologiesContext).Index)
 	root.Get(`/:tenantName`, (*TopologiesContext).Show)
-	root.Put(`/:tenantName`, (*TopologiesContext).Update)
+	root.Delete(`/:tenantName`, (*TopologiesContext).Destroy)
 	root.Post(`/:tenantName/queries`, (*TopologiesContext).Queries)
-
-	SetUpSourcesRouter(prefix, root)
-	SetUpStreamsRouter(prefix, root)
-	SetUpSinksRouter(prefix, root)
 }
 
 func (tc *TopologiesContext) extractName(rw web.ResponseWriter, req *web.Request, next web.NextMiddlewareFunc) {
@@ -36,12 +33,74 @@ func (tc *TopologiesContext) extractName(rw web.ResponseWriter, req *web.Request
 	next(rw, req)
 }
 
+// Create creates a new topology.
+func (tc *TopologiesContext) Create(rw web.ResponseWriter, req *web.Request) {
+	js, ctxErr := ParseJSONFromRequestBody(tc.Context)
+	if ctxErr != nil {
+		// TODO: log and render error json
+		return
+	}
+
+	// TODO: use mapstructure when parameters get too many
+	form, err := data.NewMap(js)
+	if err != nil {
+		// TODO: log and render error json
+		return
+	}
+
+	n, ok := form["name"]
+	if !ok {
+		// TODO: log and render error json
+		return
+	}
+	name, err := data.AsString(n)
+	if err != nil {
+		// TODO: log and render error json
+		return
+	}
+
+	// TODO: support other parameters
+
+	conf := core.Configuration{
+		TupleTraceEnabled: 0,
+	}
+	ctx := core.Context{
+		Logger:       core.NewConsolePrintLogger(), // TODO: set appropriate logger
+		Config:       conf,
+		SharedStates: core.NewDefaultSharedStateRegistry(),
+	}
+	tp := core.NewDefaultTopology(&ctx, tc.tenantName)
+	tb, err := bql.NewTopologyBuilder(tp)
+	if err != nil {
+		// TODO: log and render error json
+		return
+	}
+
+	if err := tc.topologies.Register(name, tb); err != nil {
+		// TODO: log and render error json
+		return
+	}
+	tc.RenderJSON(map[string]interface{}{
+		"topology": map[string]interface{}{
+			"name": name,
+		},
+	})
+}
+
 // Index returns registered tenant name list
 func (tc *TopologiesContext) Index(rw web.ResponseWriter, req *web.Request) {
 	tenants := []string{}
-	for k, _ := range tc.topologies {
+	ts, err := tc.topologies.List()
+	if err != nil {
+		// TODO: log and render error json
+		return
+	}
+
+	for k, _ := range ts {
 		tenants = append(tenants, k)
 	}
+
+	// TODO: return some statistics using Show's result
 	tc.RenderJSON(&map[string]interface{}{
 		"topologies": tenants,
 	})
@@ -49,79 +108,45 @@ func (tc *TopologiesContext) Index(rw web.ResponseWriter, req *web.Request) {
 
 // Show returns the information of topology
 func (tc *TopologiesContext) Show(rw web.ResponseWriter, req *web.Request) {
-	_, ok := tc.topologies[tc.tenantName]
-	var status string
-	if !ok {
-		status = "not initialized"
-	} else {
-		status = "initialized"
+	_, err := tc.topologies.Lookup(tc.tenantName)
+	if err != nil {
+		// TODO: log and render error json (404 if the error is "NotFound")
+		return
 	}
+
+	// TODO: return some statistics
 	tc.RenderJSON(&map[string]interface{}{
-		"name":          tc.tenantName,
-		"status":        status,
-		"topology info": "", // TODO add topology information
+		"topology": map[string]interface{}{
+			"name": tc.tenantName,
+		},
 	})
 }
 
-// Update nodes by BQLs
-func (tc *TopologiesContext) Update(rw web.ResponseWriter, req *web.Request) {
-	tb, ok := tc.topologies[tc.tenantName]
-	if !ok {
-		tc.RenderJSON(&map[string]interface{}{
-			"name":   tc.tenantName,
-			"status": "not initialized or running topology",
-		})
-		return
-	}
-	tp := tb.Topology()
+// TODO: provide Update action (change state of the topology, etc.)
 
-	// TODO should use ParseJSONFromRequestBoty (util.go)
-	b, err := ioutil.ReadAll(req.Body)
+func (tc *TopologiesContext) Destroy(rw web.ResponseWriter, req *web.Request) {
+	tb, err := tc.topologies.Unregister(tc.tenantName)
 	if err != nil {
-		tc.RenderJSON(&map[string]interface{}{
-			"name":   tc.tenantName,
-			"status": err.Error(),
-		})
+		// TODO: log and render error json
 		return
 	}
-	m := map[string]interface{}{}
-	err = json.Unmarshal(b, &m)
-	if err != nil {
-		tc.RenderJSON(&map[string]interface{}{
-			"name":       tc.tenantName,
-			"query byte": string(b),
-			"status":     err.Error(),
-		})
-		return
+	if tb != nil {
+		if err := tb.Topology().Stop(); err != nil {
+			// TODO: log and add warning to json
+		}
 	}
 
-	state, ok := m["state"].(string)
-	if !ok {
-		state = ""
-	}
-	switch state {
-	case "stop":
-		err = tp.Stop()
-	case "pause":
-	case "resume":
-	default:
-		err = fmt.Errorf("cannot update the state: %v", state)
-	}
-	if err != nil {
-		tc.RenderJSON(&map[string]interface{}{
-			"name":   tc.tenantName,
-			"status": err.Error(),
-		})
-	} else {
-		tc.RenderJSON(&map[string]interface{}{
-			"name":   tc.tenantName,
-			"status": "done",
-			"state":  state,
-		})
-	}
+	// TODO: return warning if the topology didn't stop correctly.
+	tc.RenderJSON(&map[string]interface{}{})
 }
 
 func (tc *TopologiesContext) Queries(rw web.ResponseWriter, req *web.Request) {
+	tb, err := tc.topologies.Lookup(tc.tenantName)
+	if err != nil {
+		// TODO: log and render error json
+		return
+	}
+
 	// TODO should use ParseJSONFromRequestBoty (util.go)
 	b, err := ioutil.ReadAll(req.Body)
 	if err != nil {
@@ -148,22 +173,6 @@ func (tc *TopologiesContext) Queries(rw web.ResponseWriter, req *web.Request) {
 			"status": "not support to execute empty query",
 		})
 		return
-	}
-
-	tb, ok := tc.topologies[tc.tenantName]
-	if !ok {
-		conf := core.Configuration{
-			TupleTraceEnabled: 0,
-		}
-		ctx := core.Context{
-			Logger:       core.NewConsolePrintLogger(),
-			Config:       conf,
-			SharedStates: core.NewDefaultSharedStateRegistry(),
-		}
-		tp := core.NewDefaultTopology(&ctx, tc.tenantName)
-		tb, _ = bql.NewTopologyBuilder(tp) // TODO: fix this by supporting Create action
-		tc.topologies[tc.tenantName] = tb
-
 	}
 
 	bp := parser.NewBQLParser()
