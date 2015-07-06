@@ -335,6 +335,8 @@ func (ep *defaultSelectExecutionPlan) performQueryOnBuffer() error {
 				return err
 			}
 			// if it evaluated to false, do not further process this tuple
+			// (ToBool also evalutes the NULL value to false, so we don't
+			// need to treat this specially)
 			if !filterResultBool {
 				return nil
 			}

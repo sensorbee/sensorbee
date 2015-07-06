@@ -68,6 +68,8 @@ func TestFoldableExecution(t *testing.T) {
 		result   data.Value
 	}{
 		// Literals should always be independent of the input data
+		{parser.NullLiteral{},
+			true, data.Null{}},
 		{parser.NumericLiteral{23},
 			true, data.Int(23)},
 		{parser.FloatLiteral{3.14},
@@ -146,7 +148,7 @@ func TestFoldableExecution(t *testing.T) {
 
 					if testCase.foldable {
 						So(err, ShouldBeNil)
-						So(res, ShouldEqual, testCase.result)
+						So(res, ShouldResemble, testCase.result)
 					} else {
 						So(err, ShouldNotBeNil)
 					}
@@ -233,10 +235,52 @@ func getTestCases() []struct {
 } {
 	now := time.Now()
 
+	// whatever binary operator we use (comparison or computation, but not
+	// boolean/logical), if NULL is involved then the result should also always
+	// be null
+	nullOps := []evalTest{
+		// null vs. *
+		{data.Map{"a": data.Null{},
+			"b": data.Null{}}, data.Null{}},
+		{data.Map{"a": data.Null{},
+			"b": data.Bool(true)}, data.Null{}},
+		{data.Map{"a": data.Null{},
+			"b": data.Int(3)}, data.Null{}},
+		{data.Map{"a": data.Null{},
+			"b": data.Float(3.14)}, data.Null{}},
+		{data.Map{"a": data.Null{},
+			"b": data.String("hoge")}, data.Null{}},
+		{data.Map{"a": data.Null{},
+			"b": data.Blob("hoge")}, data.Null{}},
+		{data.Map{"a": data.Null{},
+			"b": data.Timestamp(now)}, data.Null{}},
+		{data.Map{"a": data.Null{},
+			"b": data.Array{data.Int(2)}}, data.Null{}},
+		{data.Map{"a": data.Null{},
+			"b": data.Map{"b": data.Int(3)}}, data.Null{}},
+		// * vs. null
+		{data.Map{"a": data.Bool(true),
+			"b": data.Null{}}, data.Null{}},
+		{data.Map{"a": data.Int(3),
+			"b": data.Null{}}, data.Null{}},
+		{data.Map{"a": data.Float(3.14),
+			"b": data.Null{}}, data.Null{}},
+		{data.Map{"a": data.String("hoge"),
+			"b": data.Null{}}, data.Null{}},
+		{data.Map{"a": data.Blob("hoge"),
+			"b": data.Null{}}, data.Null{}},
+		{data.Map{"a": data.Timestamp(now),
+			"b": data.Null{}}, data.Null{}},
+		{data.Map{"a": data.Array{data.Int(2)},
+			"b": data.Null{}}, data.Null{}},
+		{data.Map{"a": data.Map{"b": data.Int(3)},
+			"b": data.Null{}}, data.Null{}},
+	}
+
 	// these are all type combinations that are so incompatible that
 	// they cannot be compared with respect to less/greater and also
 	// cannot be added etc.
-	incomparables := []evalTest{
+	incomparables := append([]evalTest{
 		// not a map:
 		{data.Int(17), nil},
 		// keys not present:
@@ -259,28 +303,7 @@ func getTestCases() []struct {
 		{data.Map{"b": data.Timestamp(now)}, nil},
 		{data.Map{"b": data.Array{data.Int(2)}}, nil},
 		{data.Map{"b": data.Map{"b": data.Int(3)}}, nil},
-		// null vs. *
-		{data.Map{"a": data.Null{},
-			"b": data.Null{}}, nil},
-		{data.Map{"a": data.Null{},
-			"b": data.Bool(true)}, nil},
-		{data.Map{"a": data.Null{},
-			"b": data.Int(3)}, nil},
-		{data.Map{"a": data.Null{},
-			"b": data.Float(3.14)}, nil},
-		{data.Map{"a": data.Null{},
-			"b": data.String("hoge")}, nil},
-		{data.Map{"a": data.Null{},
-			"b": data.Blob("hoge")}, nil},
-		{data.Map{"a": data.Null{},
-			"b": data.Timestamp(now)}, nil},
-		{data.Map{"a": data.Null{},
-			"b": data.Array{data.Int(2)}}, nil},
-		{data.Map{"a": data.Null{},
-			"b": data.Map{"b": data.Int(3)}}, nil},
 		// bool vs *
-		{data.Map{"a": data.Bool(true),
-			"b": data.Null{}}, nil},
 		{data.Map{"a": data.Bool(true),
 			"b": data.Int(3)}, nil},
 		{data.Map{"a": data.Bool(true),
@@ -297,8 +320,6 @@ func getTestCases() []struct {
 			"b": data.Map{"b": data.Int(3)}}, nil},
 		// int vs. *
 		{data.Map{"a": data.Int(3),
-			"b": data.Null{}}, nil},
-		{data.Map{"a": data.Int(3),
 			"b": data.Bool(true)}, nil},
 		{data.Map{"a": data.Int(3),
 			"b": data.String("hoge")}, nil},
@@ -312,8 +333,6 @@ func getTestCases() []struct {
 			"b": data.Map{"b": data.Int(3)}}, nil},
 		// float vs *
 		{data.Map{"a": data.Float(3.14),
-			"b": data.Null{}}, nil},
-		{data.Map{"a": data.Float(3.14),
 			"b": data.Bool(true)}, nil},
 		{data.Map{"a": data.Float(3.14),
 			"b": data.String("hoge")}, nil},
@@ -326,8 +345,6 @@ func getTestCases() []struct {
 		{data.Map{"a": data.Float(3.14),
 			"b": data.Map{"b": data.Int(3)}}, nil},
 		// string vs *
-		{data.Map{"a": data.String("hoge"),
-			"b": data.Null{}}, nil},
 		{data.Map{"a": data.String("hoge"),
 			"b": data.Bool(true)}, nil},
 		{data.Map{"a": data.String("hoge"),
@@ -343,8 +360,6 @@ func getTestCases() []struct {
 		{data.Map{"a": data.String("hoge"),
 			"b": data.Map{"b": data.Int(3)}}, nil},
 		// blob vs *
-		{data.Map{"a": data.Blob("hoge"),
-			"b": data.Null{}}, nil},
 		{data.Map{"a": data.Blob("hoge"),
 			"b": data.Bool(true)}, nil},
 		{data.Map{"a": data.Blob("hoge"),
@@ -363,8 +378,6 @@ func getTestCases() []struct {
 			"b": data.Map{"b": data.Int(3)}}, nil},
 		// timestamp vs *
 		{data.Map{"a": data.Timestamp(now),
-			"b": data.Null{}}, nil},
-		{data.Map{"a": data.Timestamp(now),
 			"b": data.Bool(true)}, nil},
 		{data.Map{"a": data.Timestamp(now),
 			"b": data.Int(3)}, nil},
@@ -379,8 +392,6 @@ func getTestCases() []struct {
 		{data.Map{"a": data.Timestamp(now),
 			"b": data.Map{"b": data.Int(3)}}, nil},
 		// array vs *
-		{data.Map{"a": data.Array{data.Int(2)},
-			"b": data.Null{}}, nil},
 		{data.Map{"a": data.Array{data.Int(2)},
 			"b": data.Bool(true)}, nil},
 		{data.Map{"a": data.Array{data.Int(2)},
@@ -399,8 +410,6 @@ func getTestCases() []struct {
 			"b": data.Map{"b": data.Int(3)}}, nil},
 		// map vs *
 		{data.Map{"a": data.Map{"b": data.Int(3)},
-			"b": data.Null{}}, nil},
-		{data.Map{"a": data.Map{"b": data.Int(3)},
 			"b": data.Bool(true)}, nil},
 		{data.Map{"a": data.Map{"b": data.Int(3)},
 			"b": data.Int(3)}, nil},
@@ -416,7 +425,7 @@ func getTestCases() []struct {
 			"b": data.Array{data.Int(2)}}, nil},
 		{data.Map{"a": data.Map{"b": data.Int(3)},
 			"b": data.Map{"b": data.Int(3)}}, nil},
-	}
+	}, nullOps...)
 
 	// we should check that every AST expression maps to
 	// an evaluator with the correct behavior
@@ -425,6 +434,12 @@ func getTestCases() []struct {
 		inputs []evalTest
 	}{
 		// Literals should always be independent of the input data
+		{parser.NullLiteral{},
+			[]evalTest{
+				{data.Int(17), data.Null{}},
+				{data.String(""), data.Null{}},
+			},
+		},
 		{parser.NumericLiteral{23},
 			[]evalTest{
 				{data.Int(17), data.Int(23)},
@@ -525,7 +540,6 @@ func getTestCases() []struct {
 				{data.Map{"a": data.Array{data.Int(2)}}, data.Bool(true)},
 				{data.Map{"a": data.Map{"b": data.Int(3)}}, data.Bool(true)},
 				// only left key present and evaluates to false => error
-				{data.Map{"a": data.Null{}}, nil},
 				{data.Map{"a": data.Bool(false)}, nil},
 				{data.Map{"a": data.Int(0)}, nil},
 				{data.Map{"a": data.Float(0.0)}, nil},
@@ -568,6 +582,15 @@ func getTestCases() []struct {
 					"b": data.Array{}}, data.Bool(false)},
 				{data.Map{"a": data.Int(0),
 					"b": data.Map{}}, data.Bool(false)},
+				// null comparison
+				{data.Map{"a": data.Bool(true),
+					"b": data.Null{}}, data.Bool(true)},
+				{data.Map{"a": data.Bool(false),
+					"b": data.Null{}}, data.Null{}},
+				{data.Map{"a": data.Null{},
+					"b": data.Bool(true)}, data.Bool(true)},
+				{data.Map{"a": data.Null{},
+					"b": data.Bool(false)}, data.Null{}},
 			},
 		},
 		// And
@@ -578,7 +601,6 @@ func getTestCases() []struct {
 				// keys not present:
 				{data.Map{"x": data.Int(17)}, nil},
 				// only left key present and evaluates to false => right is not necessary
-				{data.Map{"a": data.Null{}}, data.Bool(false)},
 				{data.Map{"a": data.Bool(false)}, data.Bool(false)},
 				{data.Map{"a": data.Int(0)}, data.Bool(false)},
 				{data.Map{"a": data.Float(0.0)}, data.Bool(false)},
@@ -630,12 +652,21 @@ func getTestCases() []struct {
 					"b": data.Array{}}, data.Bool(false)},
 				{data.Map{"a": data.Int(1),
 					"b": data.Map{}}, data.Bool(false)},
+				// null comparison
+				{data.Map{"a": data.Bool(true),
+					"b": data.Null{}}, data.Null{}},
+				{data.Map{"a": data.Bool(false),
+					"b": data.Null{}}, data.Bool(false)},
+				{data.Map{"a": data.Null{},
+					"b": data.Bool(true)}, data.Null{}},
+				{data.Map{"a": data.Null{},
+					"b": data.Bool(false)}, data.Bool(false)},
 			},
 		},
 		/// Comparison Operations
 		// Equal
 		{parser.BinaryOpAST{parser.Equal, parser.RowValue{"", "a"}, parser.RowValue{"", "b"}},
-			[]evalTest{
+			append([]evalTest{
 				// not a map:
 				{data.Int(17), nil},
 				// keys not present:
@@ -696,7 +727,7 @@ func getTestCases() []struct {
 					"b": data.Array{}}, data.Bool(false)},
 				{data.Map{"a": data.Int(1),
 					"b": data.Map{}}, data.Bool(false)},
-			},
+			}, nullOps...),
 		},
 		// Less
 		{parser.BinaryOpAST{parser.Less, parser.RowValue{"", "a"}, parser.RowValue{"", "b"}},
@@ -904,7 +935,7 @@ func getTestCases() []struct {
 		},
 		// NotEqual
 		{parser.BinaryOpAST{parser.NotEqual, parser.RowValue{"", "a"}, parser.RowValue{"", "b"}},
-			[]evalTest{
+			append([]evalTest{
 				// not a map:
 				{data.Int(17), nil},
 				// keys not present:
@@ -965,6 +996,46 @@ func getTestCases() []struct {
 					"b": data.Array{}}, data.Bool(true)},
 				{data.Map{"a": data.Int(1),
 					"b": data.Map{}}, data.Bool(true)},
+			}, nullOps...),
+		},
+		// IsNull
+		{parser.BinaryOpAST{parser.Is, parser.RowValue{"", "a"}, parser.NullLiteral{}},
+			[]evalTest{
+				// not a map:
+				{data.Int(17), nil},
+				// keys not present:
+				{data.Map{"x": data.Int(17)}, nil},
+				// left present and not null => false
+				{data.Map{"a": data.Bool(true)}, data.Bool(false)},
+				{data.Map{"a": data.Int(17)}, data.Bool(false)},
+				{data.Map{"a": data.Float(3.14)}, data.Bool(false)},
+				{data.Map{"a": data.String("日本語")}, data.Bool(false)},
+				{data.Map{"a": data.Blob("hoge")}, data.Bool(false)},
+				{data.Map{"a": data.Timestamp(now)}, data.Bool(false)},
+				{data.Map{"a": data.Array{data.Int(2)}}, data.Bool(false)},
+				{data.Map{"a": data.Map{"b": data.Int(3)}}, data.Bool(false)},
+				// left present and null => true
+				{data.Map{"a": data.Null{}}, data.Bool(true)},
+			},
+		},
+		// IsNotNull
+		{parser.BinaryOpAST{parser.IsNot, parser.RowValue{"", "a"}, parser.NullLiteral{}},
+			[]evalTest{
+				// not a map:
+				{data.Int(17), nil},
+				// keys not present:
+				{data.Map{"x": data.Int(17)}, nil},
+				// left present and not null => false
+				{data.Map{"a": data.Bool(true)}, data.Bool(true)},
+				{data.Map{"a": data.Int(17)}, data.Bool(true)},
+				{data.Map{"a": data.Float(3.14)}, data.Bool(true)},
+				{data.Map{"a": data.String("日本語")}, data.Bool(true)},
+				{data.Map{"a": data.Blob("hoge")}, data.Bool(true)},
+				{data.Map{"a": data.Timestamp(now)}, data.Bool(true)},
+				{data.Map{"a": data.Array{data.Int(2)}}, data.Bool(true)},
+				{data.Map{"a": data.Map{"b": data.Int(3)}}, data.Bool(true)},
+				// left present and null => true
+				{data.Map{"a": data.Null{}}, data.Bool(false)},
 			},
 		},
 		/// Computational Operations

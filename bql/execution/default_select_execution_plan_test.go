@@ -47,7 +47,7 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 	// Select constant
 	Convey("Given a SELECT clause with a constant", t, func() {
 		tuples := getTuples(4)
-		s := `CREATE STREAM box AS SELECT ISTREAM 2 FROM src [RANGE 2 SECONDS]`
+		s := `CREATE STREAM box AS SELECT ISTREAM 2, null FROM src [RANGE 2 SECONDS]`
 		plan, err := createDefaultSelectPlan(s, t)
 		So(err, ShouldBeNil)
 
@@ -60,7 +60,7 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 					if idx == 0 {
 						So(len(out), ShouldEqual, 1)
 						So(out[0], ShouldResemble,
-							data.Map{"col_1": data.Int(2)})
+							data.Map{"col_1": data.Int(2), "col_2": data.Null{}})
 					} else {
 						// nothing should be emitted because no new
 						// data appears
@@ -207,6 +207,53 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 					So(len(out), ShouldEqual, 1)
 					So(out[0], ShouldResemble,
 						data.Map{"col_1": data.Int(2), "int": data.Int(idx + 1)})
+				})
+			}
+
+		})
+	})
+
+	// Select NULL-related operations
+	Convey("Given a SELECT clause with NULL operations", t, func() {
+		tuples := getTuples(4)
+		s := `CREATE STREAM box AS SELECT ISTREAM null IS NULL, null + 2 = 2 FROM src [RANGE 2 SECONDS]`
+		plan, err := createDefaultSelectPlan(s, t)
+		So(err, ShouldBeNil)
+
+		Convey("When feeding it with tuples", func() {
+			for idx, inTup := range tuples {
+				out, err := plan.Process(inTup)
+				So(err, ShouldBeNil)
+
+				Convey(fmt.Sprintf("Then the null operations should be correct %v", idx), func() {
+					if idx == 0 {
+						So(len(out), ShouldEqual, 1)
+						So(out[0], ShouldResemble,
+							data.Map{"col_1": data.Bool(true), "col_2": data.Null{}})
+					} else {
+						// nothing should be emitted because no new
+						// data appears
+						So(len(out), ShouldEqual, 0)
+					}
+				})
+			}
+
+		})
+	})
+
+	Convey("Given a SELECT clause with NULL filter", t, func() {
+		tuples := getTuples(4)
+		s := `CREATE STREAM box AS SELECT ISTREAM int FROM src [RANGE 2 SECONDS] WHERE null`
+		plan, err := createDefaultSelectPlan(s, t)
+		So(err, ShouldBeNil)
+
+		Convey("When feeding it with tuples", func() {
+			for idx, inTup := range tuples {
+				out, err := plan.Process(inTup)
+				So(err, ShouldBeNil)
+
+				Convey(fmt.Sprintf("Then there should be no rows in the output %v", idx), func() {
+					So(len(out), ShouldEqual, 0)
 				})
 			}
 
