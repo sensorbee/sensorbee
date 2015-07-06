@@ -13,6 +13,8 @@ func TestExpressionParser(t *testing.T) {
 		"true":  {BoolLiteral{true}},
 		"TRUE":  {BoolLiteral{true}},
 		"false": {BoolLiteral{false}},
+		// NullLiteral
+		"NULL": {NullLiteral{}},
 		// Function Application
 		"f(a)": {FuncAppAST{FuncName("f"),
 			ExpressionsAST{[]Expression{RowValue{"", "a"}}}}},
