@@ -101,7 +101,7 @@ func (tc *TopologiesContext) Index(rw web.ResponseWriter, req *web.Request) {
 	}
 
 	// TODO: return some statistics using Show's result
-	tc.RenderJSON(&map[string]interface{}{
+	tc.RenderJSON(map[string]interface{}{
 		"topologies": tenants,
 	})
 }
@@ -115,7 +115,7 @@ func (tc *TopologiesContext) Show(rw web.ResponseWriter, req *web.Request) {
 	}
 
 	// TODO: return some statistics
-	tc.RenderJSON(&map[string]interface{}{
+	tc.RenderJSON(map[string]interface{}{
 		"topology": map[string]interface{}{
 			"name": tc.tenantName,
 		},
@@ -137,7 +137,7 @@ func (tc *TopologiesContext) Destroy(rw web.ResponseWriter, req *web.Request) {
 	}
 
 	// TODO: return warning if the topology didn't stop correctly.
-	tc.RenderJSON(&map[string]interface{}{})
+	tc.RenderJSON(map[string]interface{}{})
 }
 
 func (tc *TopologiesContext) Queries(rw web.ResponseWriter, req *web.Request) {
@@ -150,7 +150,7 @@ func (tc *TopologiesContext) Queries(rw web.ResponseWriter, req *web.Request) {
 	// TODO should use ParseJSONFromRequestBoty (util.go)
 	b, err := ioutil.ReadAll(req.Body)
 	if err != nil {
-		tc.RenderJSON(&map[string]interface{}{
+		tc.RenderJSON(map[string]interface{}{
 			"name":   tc.tenantName,
 			"status": err.Error(),
 		})
@@ -159,7 +159,7 @@ func (tc *TopologiesContext) Queries(rw web.ResponseWriter, req *web.Request) {
 	m := map[string]interface{}{}
 	err = json.Unmarshal(b, &m)
 	if err != nil {
-		tc.RenderJSON(&map[string]interface{}{
+		tc.RenderJSON(map[string]interface{}{
 			"name":       tc.tenantName,
 			"query byte": string(b),
 			"status":     err.Error(),
@@ -168,7 +168,7 @@ func (tc *TopologiesContext) Queries(rw web.ResponseWriter, req *web.Request) {
 	}
 	queries, ok := m["queries"].(string)
 	if !ok || queries == "" {
-		tc.RenderJSON(&map[string]interface{}{
+		tc.RenderJSON(map[string]interface{}{
 			"name":   tc.tenantName,
 			"status": "not support to execute empty query",
 		})
@@ -178,7 +178,7 @@ func (tc *TopologiesContext) Queries(rw web.ResponseWriter, req *web.Request) {
 	bp := parser.NewBQLParser()
 	stmts, err := bp.ParseStmts(queries)
 	if err != nil {
-		tc.RenderJSON(&map[string]interface{}{
+		tc.RenderJSON(map[string]interface{}{
 			"name":   tc.tenantName,
 			"status": err.Error(),
 		})
@@ -187,14 +187,14 @@ func (tc *TopologiesContext) Queries(rw web.ResponseWriter, req *web.Request) {
 	for _, stmt := range stmts {
 		_, err = tb.AddStmt(stmt) // TODO node identifier
 		if err != nil {
-			tc.RenderJSON(&map[string]interface{}{
+			tc.RenderJSON(map[string]interface{}{
 				"name":   tc.tenantName,
 				"status": err.Error(),
 			})
 			return // TODO return error detail
 		}
 	}
-	tc.RenderJSON(&map[string]interface{}{
+	tc.RenderJSON(map[string]interface{}{
 		"name":    tc.tenantName,
 		"status":  "running",
 		"queries": queries,
