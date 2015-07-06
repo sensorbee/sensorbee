@@ -967,6 +967,46 @@ func getTestCases() []struct {
 					"b": data.Map{}}, data.Bool(true)},
 			},
 		},
+		// IsNull
+		{parser.BinaryOpAST{parser.Is, parser.RowValue{"", "a"}, parser.NullLiteral{}},
+			[]evalTest{
+				// not a map:
+				{data.Int(17), nil},
+				// keys not present:
+				{data.Map{"x": data.Int(17)}, nil},
+				// left present and not null => false
+				{data.Map{"a": data.Bool(true)}, data.Bool(false)},
+				{data.Map{"a": data.Int(17)}, data.Bool(false)},
+				{data.Map{"a": data.Float(3.14)}, data.Bool(false)},
+				{data.Map{"a": data.String("日本語")}, data.Bool(false)},
+				{data.Map{"a": data.Blob("hoge")}, data.Bool(false)},
+				{data.Map{"a": data.Timestamp(now)}, data.Bool(false)},
+				{data.Map{"a": data.Array{data.Int(2)}}, data.Bool(false)},
+				{data.Map{"a": data.Map{"b": data.Int(3)}}, data.Bool(false)},
+				// left present and null => true
+				{data.Map{"a": data.Null{}}, data.Bool(true)},
+			},
+		},
+		// IsNotNull
+		{parser.BinaryOpAST{parser.IsNot, parser.RowValue{"", "a"}, parser.NullLiteral{}},
+			[]evalTest{
+				// not a map:
+				{data.Int(17), nil},
+				// keys not present:
+				{data.Map{"x": data.Int(17)}, nil},
+				// left present and not null => false
+				{data.Map{"a": data.Bool(true)}, data.Bool(true)},
+				{data.Map{"a": data.Int(17)}, data.Bool(true)},
+				{data.Map{"a": data.Float(3.14)}, data.Bool(true)},
+				{data.Map{"a": data.String("日本語")}, data.Bool(true)},
+				{data.Map{"a": data.Blob("hoge")}, data.Bool(true)},
+				{data.Map{"a": data.Timestamp(now)}, data.Bool(true)},
+				{data.Map{"a": data.Array{data.Int(2)}}, data.Bool(true)},
+				{data.Map{"a": data.Map{"b": data.Int(3)}}, data.Bool(true)},
+				// left present and null => true
+				{data.Map{"a": data.Null{}}, data.Bool(false)},
+			},
+		},
 		/// Computational Operations
 		// Plus
 		{parser.BinaryOpAST{parser.Plus, parser.RowValue{"", "a"}, parser.RowValue{"", "b"}},
