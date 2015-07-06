@@ -264,6 +264,7 @@ productExpr <- < baseExpr sp (MultDivOp sp baseExpr)? > {
 baseExpr <-
     ('(' sp Expression sp ')') /
     BooleanLiteral /
+    NullLiteral /
     FuncApp /
     RowMeta /
     RowValue /
