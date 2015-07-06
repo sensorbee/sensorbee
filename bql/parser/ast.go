@@ -365,6 +365,25 @@ func NewFloatLiteral(s string) FloatLiteral {
 	return FloatLiteral{val}
 }
 
+type NullLiteral struct {
+}
+
+func (l NullLiteral) ReferencedRelations() map[string]bool {
+	return nil
+}
+
+func (l NullLiteral) RenameReferencedRelation(from, to string) Expression {
+	return l
+}
+
+func (l NullLiteral) Foldable() bool {
+	return true
+}
+
+func NewNullLiteral() NullLiteral {
+	return NullLiteral{}
+}
+
 type BoolLiteral struct {
 	Value bool
 }
@@ -523,6 +542,8 @@ const (
 	Greater
 	GreaterOrEqual
 	NotEqual
+	Is
+	IsNot
 	Plus
 	Minus
 	Multiply
@@ -549,6 +570,10 @@ func (o Operator) String() string {
 		s = ">="
 	case NotEqual:
 		s = "!="
+	case Is:
+		s = "IS"
+	case IsNot:
+		s = "IS NOT"
 	case Plus:
 		s = "+"
 	case Minus:
