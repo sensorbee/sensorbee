@@ -38,6 +38,13 @@ func Launch(c *cli.Context) {
 	}
 	uri := host + c.String("version")
 
-	app := cmd.SetUpCommands(cmd.NewTopologiesCommands())
+	cmds := []cmd.Command{}
+	for _, c := range cmd.NewTopologiesCommands() {
+		cmds = append(cmds, c)
+	}
+	for _, c := range cmd.NewFileLoadCommands() {
+		cmds = append(cmds, c)
+	}
+	app := cmd.SetUpCommands(cmds)
 	app.Run(uri)
 }
