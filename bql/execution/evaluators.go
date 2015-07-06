@@ -61,6 +61,8 @@ func ExpressionToEvaluator(ast interface{}, reg udf.FunctionRegistry) (Evaluator
 		return &PathAccess{obj.Relation + "." + obj.Column}, nil
 	case parser.AliasAST:
 		return ExpressionToEvaluator(obj.Expr, reg)
+	case parser.NullLiteral:
+		return &NullConstant{}, nil
 	case parser.NumericLiteral:
 		return &IntConstant{obj.Value}, nil
 	case parser.FloatLiteral:
@@ -101,6 +103,18 @@ func ExpressionToEvaluator(ast interface{}, reg udf.FunctionRegistry) (Evaluator
 			return GreaterOrEqual(bo), nil
 		case parser.NotEqual:
 			return Not(Equal(bo)), nil
+		case parser.Is:
+			// at the moment there is only NULL allowed after IS,
+			// but maybe we want to allow other types later on
+			if obj.Right == (parser.NullLiteral{}) {
+				return IsNull(left), nil
+			}
+		case parser.IsNot:
+			// at the moment there is only NULL allowed after IS NOT,
+			// but maybe we want to allow other types later on
+			if obj.Right == (parser.NullLiteral{}) {
+				return Not(IsNull(left)), nil
+			}
 		case parser.Plus:
 			return Plus(bo), nil
 		case parser.Minus:
@@ -136,6 +150,15 @@ func ExpressionToEvaluator(ast interface{}, reg udf.FunctionRegistry) (Evaluator
 	}
 	err := fmt.Errorf("don't know how to evaluate type %#v", ast)
 	return nil, err
+}
+
+// NullConstant always returns the same null value, independent
+// of the input.
+type NullConstant struct {
+}
+
+func (n *NullConstant) Eval(input data.Value) (data.Value, error) {
+	return data.Null{}, nil
 }
 
 // IntConstant always returns the same integer value, independent
@@ -402,6 +425,24 @@ func GreaterOrEqual(bo binOp) Evaluator {
 
 func NotEqual(bo binOp) Evaluator {
 	return Not(Equal(bo))
+}
+
+/// A Unary Comparison Operation
+
+type isNull struct {
+	val Evaluator
+}
+
+func (n *isNull) Eval(input data.Value) (data.Value, error) {
+	val, err := n.val.Eval(input)
+	if err != nil {
+		return nil, err
+	}
+	return data.Bool(val.Type() == data.TypeNull), nil
+}
+
+func IsNull(e Evaluator) Evaluator {
+	return &isNull{e}
 }
 
 /// Binary Numerical Operations
