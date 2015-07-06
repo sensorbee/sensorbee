@@ -3,6 +3,7 @@ package api
 import (
 	"bytes"
 	"encoding/json"
+	"github.com/Sirupsen/logrus"
 	"github.com/gocraft/web"
 	"io/ioutil"
 	"net/http"
@@ -97,16 +98,15 @@ func createTestServer() *temporaryServer {
 func createTestServerWithCustomRoute(route func(prefix string, r *web.Router)) *temporaryServer {
 	s := &temporaryServer{}
 
+	logger := logrus.New()
+	logger.Level = logrus.DebugLevel
 	topologies := NewDefaultTopologyRegistry()
 
-	root := SetUpRouter("/", nil,
-		func(c *Context, rw web.ResponseWriter, req *web.Request, next web.NextMiddlewareFunc) {
-			c.topologies = topologies
-			next(rw, req)
-		},
-		func(prefix string, r *web.Router) {
-			SetUpAPIRouter(prefix, r, route)
-		})
+	root := SetUpRouter("/", ContextGlobalVariables{
+		Logger:     logger,
+		Topologies: topologies,
+	})
+	SetUpAPIRouter("/", root, route)
 
 	if testAPIWithRealHTTPServer {
 		s.Server.realServer = httptest.NewServer(root)
