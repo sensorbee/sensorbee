@@ -88,9 +88,9 @@ func ExpressionToEvaluator(ast interface{}, reg udf.FunctionRegistry) (Evaluator
 			err := fmt.Errorf("don't know how to evaluate binary operation %v", obj.Op)
 			return nil, err
 		case parser.Or:
-			return Or(bo), nil
+			return &Or{bo}, nil
 		case parser.And:
-			return And(bo), nil
+			return &And{bo}, nil
 		case parser.Equal:
 			return Equal(bo), nil
 		case parser.Less:
@@ -250,49 +250,124 @@ func (bo *binOp) evalLeftAndRight(input data.Value) (data.Value, data.Value, err
 
 /// Binary Logical Operations
 
-type logBinOp struct {
+type Or struct {
 	binOp
-	leftSidePreCondition bool
-	leftSidePreReturn    bool
 }
 
-func (lbo *logBinOp) Eval(input data.Value) (data.Value, error) {
-	leftRes, err := lbo.left.Eval(input)
+func (o *Or) Eval(input data.Value) (data.Value, error) {
+	leftRes, err := o.left.Eval(input)
 	if err != nil {
 		return nil, err
 	}
-	leftBool, err := data.ToBool(leftRes)
-	if err != nil {
-		return nil, err
+	if leftRes.Type() == data.TypeNull {
+		// if we continue here, the left side was NULL
+		rightRes, err := o.right.Eval(input)
+		if err != nil {
+			return nil, err
+		}
+		if rightRes.Type() == data.TypeNull {
+			// NULL OR NULL => NULL
+			return data.Null{}, nil
+		}
+		rightBool, err := data.ToBool(rightRes)
+		if err != nil {
+			return nil, err
+		}
+		if rightBool {
+			// NULL OR true => true
+			return data.Bool(true), nil
+		}
+		// NULL OR false => NULL
+		return data.Null{}, nil
+	} else {
+		leftBool, err := data.ToBool(leftRes)
+		if err != nil {
+			return nil, err
+		}
+		// support early return if the left side is true
+		if leftBool {
+			// true OR true => true
+			// true OR false => true
+			// true OR NULL => true
+			return data.Bool(true), nil
+		}
+		// if we continue here, the left side was false
+		rightRes, err := o.right.Eval(input)
+		if err != nil {
+			return nil, err
+		}
+		if rightRes.Type() == data.TypeNull {
+			// false OR NULL => NULL
+			return data.Null{}, nil
+		}
+		rightBool, err := data.ToBool(rightRes)
+		if err != nil {
+			return nil, err
+		}
+		// false OR true => true
+		// false OR false => false
+		return data.Bool(rightBool), nil
 	}
-	// support early return if the left side has a certain value
-	if leftBool == lbo.leftSidePreCondition {
-		return data.Bool(lbo.leftSidePreReturn), nil
-	}
-	rightRes, err := lbo.right.Eval(input)
-	if err != nil {
-		return nil, err
-	}
-	rightBool, err := data.ToBool(rightRes)
-	if err != nil {
-		return nil, err
-	}
-	if rightBool {
-		return data.Bool(true), nil
-	}
-	return data.Bool(false), nil
 }
 
-func Or(bo binOp) Evaluator {
-	return &logBinOp{bo,
-		// if the left side is true, we return true early
-		true, true}
+type And struct {
+	binOp
 }
 
-func And(bo binOp) Evaluator {
-	return &logBinOp{bo,
-		// if the left side is false, we return false early
-		false, false}
+func (a *And) Eval(input data.Value) (data.Value, error) {
+	leftRes, err := a.left.Eval(input)
+	if err != nil {
+		return nil, err
+	}
+	if leftRes.Type() == data.TypeNull {
+		// if we continue here, the left side was NULL
+		rightRes, err := a.right.Eval(input)
+		if err != nil {
+			return nil, err
+		}
+		if rightRes.Type() == data.TypeNull {
+			// NULL AND NULL => NULL
+			return data.Null{}, nil
+		}
+		rightBool, err := data.ToBool(rightRes)
+		if err != nil {
+			return nil, err
+		}
+		if rightBool {
+			// NULL AND true => NULL
+			return data.Null{}, nil
+		}
+		// NULL AND false => false
+		return data.Bool(false), nil
+	} else {
+		leftBool, err := data.ToBool(leftRes)
+		if err != nil {
+			return nil, err
+		}
+		// support early return if the left side is false
+		if !leftBool {
+			// false AND true => false
+			// false AND false => false
+			// false AND NULL => false
+			return data.Bool(false), nil
+		}
+		// if we continue here, the left side was true
+		rightRes, err := a.right.Eval(input)
+		if err != nil {
+			return nil, err
+		}
+		if rightRes.Type() == data.TypeNull {
+			// true AND NULL => NULL
+			return data.Null{}, nil
+		}
+		rightBool, err := data.ToBool(rightRes)
+		if err != nil {
+			return nil, err
+		}
+		// true AND true => true
+		// true AND false => false
+		return data.Bool(rightBool), nil
+	}
 }
 
 /// A Unary Logical Operation
@@ -305,6 +380,10 @@ func (n *not) Eval(input data.Value) (data.Value, error) {
 	neg, err := n.neg.Eval(input)
 	if err != nil {
 		return nil, err
+	}
+	// NULL propagation
+	if neg.Type() == data.TypeNull {
+		return data.Null{}, nil
 	}
 	negBool, err := data.AsBool(neg)
 	if err != nil {
@@ -329,6 +408,10 @@ func (cbo *compBinOp) Eval(input data.Value) (data.Value, error) {
 	leftVal, rightVal, err := cbo.evalLeftAndRight(input)
 	if err != nil {
 		return nil, err
+	}
+	// NULL propagation
+	if leftVal.Type() == data.TypeNull || rightVal.Type() == data.TypeNull {
+		return data.Null{}, nil
 	}
 	res, err := cbo.cmpOp(leftVal, rightVal)
 	if err != nil {
@@ -412,7 +495,7 @@ func Less(bo binOp) Evaluator {
 }
 
 func LessOrEqual(bo binOp) Evaluator {
-	return Or(binOp{Less(bo), Equal(bo)})
+	return &Or{binOp{Less(bo), Equal(bo)}}
 }
 
 func Greater(bo binOp) Evaluator {
@@ -471,6 +554,10 @@ func (nbo *numBinOp) Eval(input data.Value) (v data.Value, err error) {
 	}
 	leftType := leftVal.Type()
 	rightType := rightVal.Type()
+	// NULL propagation
+	if leftType == data.TypeNull || rightType == data.TypeNull {
+		return data.Null{}, nil
+	}
 	stdErr := fmt.Errorf("cannot %s %T and %T", nbo.verb, leftVal, rightVal)
 	// if we have same types (both int64 or both float64, apply
 	// the corresponding operation)
