@@ -225,7 +225,7 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 				out, err := plan.Process(inTup)
 				So(err, ShouldBeNil)
 
-				Convey(fmt.Sprintf("Then that constant should appear in %v", idx), func() {
+				Convey(fmt.Sprintf("Then the null operations should be correct %v", idx), func() {
 					if idx == 0 {
 						So(len(out), ShouldEqual, 1)
 						So(out[0], ShouldResemble,
@@ -235,6 +235,25 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 						// data appears
 						So(len(out), ShouldEqual, 0)
 					}
+				})
+			}
+
+		})
+	})
+
+	Convey("Given a SELECT clause with NULL filter", t, func() {
+		tuples := getTuples(4)
+		s := `CREATE STREAM box AS SELECT ISTREAM int FROM src [RANGE 2 SECONDS] WHERE null`
+		plan, err := createDefaultSelectPlan(s, t)
+		So(err, ShouldBeNil)
+
+		Convey("When feeding it with tuples", func() {
+			for idx, inTup := range tuples {
+				out, err := plan.Process(inTup)
+				So(err, ShouldBeNil)
+
+				Convey(fmt.Sprintf("Then there should be no rows in the output %v", idx), func() {
+					So(len(out), ShouldEqual, 0)
 				})
 			}
 
