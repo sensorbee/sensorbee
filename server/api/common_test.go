@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"pfi/sensorbee/sensorbee/bql"
 	"pfi/sensorbee/sensorbee/client/cmd"
 )
 
@@ -97,8 +98,11 @@ func createTestServer() *temporaryServer {
 func createTestServerWithCustomRoute(route func(prefix string, r *web.Router)) *temporaryServer {
 	s := &temporaryServer{}
 
+	topologies := map[string]*bql.TopologyBuilder{}
+
 	root := SetUpRouter("/", nil,
 		func(c *Context, rw web.ResponseWriter, req *web.Request, next web.NextMiddlewareFunc) {
+			c.topologies = topologies
 			next(rw, req)
 		},
 		func(prefix string, r *web.Router) {

@@ -74,6 +74,10 @@ func topologyBuilderNextTemporaryID() int64 {
 	return atomic.AddInt64(&topologyBuilderTemporaryID, 1)
 }
 
+func (tb *TopologyBuilder) Topology() core.Topology {
+	return tb.topology
+}
+
 // AddStmt add a node created from a statement to the topology. It returns
 // a created node. It returns a nil node when the statement is CREATE STATE.
 func (tb *TopologyBuilder) AddStmt(stmt interface{}) (core.Node, error) {

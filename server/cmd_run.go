@@ -6,6 +6,7 @@ import (
 	"github.com/gocraft/web"
 	"net/http"
 	"os"
+	"pfi/sensorbee/sensorbee/bql"
 	"pfi/sensorbee/sensorbee/server/api"
 	"strconv"
 	"strings"
@@ -33,7 +34,7 @@ func SetUpRunCommand() cli.Command {
 	return cmd
 }
 
-// RunRun HTTP server.
+// RunRun run the HTTP server.
 func RunRun(c *cli.Context) {
 
 	defer func() {
@@ -50,8 +51,11 @@ func RunRun(c *cli.Context) {
 		}
 	}()
 
+	topologies := map[string]*bql.TopologyBuilder{}
+
 	root := api.SetUpRouter("/", nil,
 		func(c *api.Context, rw web.ResponseWriter, req *web.Request, next web.NextMiddlewareFunc) {
+			c.SetTopologyMap(topologies)
 			next(rw, req)
 		},
 		func(prefix string, r *web.Router) {
