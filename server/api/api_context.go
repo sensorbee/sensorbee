@@ -8,11 +8,7 @@ type APIContext struct {
 	*Context
 }
 
-func SetUpAPIRouter(prefix string, router *web.Router) {
-	SetUpAPIRouterWithCustomRoute(prefix, router, nil)
-}
-
-func SetUpAPIRouterWithCustomRoute(prefix string, router *web.Router, route func(prefix string, r *web.Router)) {
+func SetUpAPIRouter(prefix string, router *web.Router, route func(prefix string, r *web.Router)) {
 	root := router.Subrouter(APIContext{}, "/api/v1")
 
 	SetUpTopologiesRouter(prefix, root)

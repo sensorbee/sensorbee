@@ -20,6 +20,7 @@ func (b *BaseContext) NotFoundHandler(rw web.ResponseWriter, req *web.Request) {
 	if strings.HasPrefix(req.URL.Path, "/api/") {
 		rw.Header().Set("Content-Type", "application/json")
 		rw.WriteHeader(http.StatusNotFound)
+		// TODO: fix error code
 		rw.Write([]byte(`
 {
   "errors": [
@@ -66,7 +67,7 @@ func (c *Context) setUpContext(rw web.ResponseWriter, req *web.Request, next web
 	next(rw, req)
 }
 
-func SetUpRouterWithCustomMiddleware(prefix string, parent *web.Router, middleware func(c *Context, rw web.ResponseWriter, req *web.Request, next web.NextMiddlewareFunc), callback func(string, *web.Router)) *web.Router {
+func SetUpRouter(prefix string, parent *web.Router, middleware func(c *Context, rw web.ResponseWriter, req *web.Request, next web.NextMiddlewareFunc), callback func(string, *web.Router)) *web.Router {
 	if parent == nil {
 		parent = web.New(BaseContext{})
 		parent.NotFound((*BaseContext).NotFoundHandler)

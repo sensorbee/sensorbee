@@ -97,12 +97,12 @@ func createTestServer() *temporaryServer {
 func createTestServerWithCustomRoute(route func(prefix string, r *web.Router)) *temporaryServer {
 	s := &temporaryServer{}
 
-	root := SetUpRouterWithCustomMiddleware("/", nil,
+	root := SetUpRouter("/", nil,
 		func(c *Context, rw web.ResponseWriter, req *web.Request, next web.NextMiddlewareFunc) {
 			next(rw, req)
 		},
 		func(prefix string, r *web.Router) {
-			SetUpAPIRouterWithCustomRoute(prefix, r, route)
+			SetUpAPIRouter(prefix, r, route)
 		})
 
 	if testAPIWithRealHTTPServer {

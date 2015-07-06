@@ -50,12 +50,12 @@ func RunRun(c *cli.Context) {
 		}
 	}()
 
-	root := api.SetUpRouterWithCustomMiddleware("/", nil,
+	root := api.SetUpRouter("/", nil,
 		func(c *api.Context, rw web.ResponseWriter, req *web.Request, next web.NextMiddlewareFunc) {
 			next(rw, req)
 		},
 		func(prefix string, r *web.Router) {
-			api.SetUpAPIRouter(prefix, r)
+			api.SetUpAPIRouter(prefix, r, nil)
 		})
 
 	handler := func(rw http.ResponseWriter, r *http.Request) {
