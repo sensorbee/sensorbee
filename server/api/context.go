@@ -7,6 +7,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"pfi/sensorbee/sensorbee/bql"
 	"strings"
 	"sync/atomic"
 )
@@ -55,6 +56,8 @@ type Context struct {
 	response   web.ResponseWriter
 	request    *web.Request
 	HTTPStatus int
+
+	topologies map[string]*bql.TopologyBuilder
 }
 
 var requestIDCounter uint64 = 0
@@ -80,6 +83,12 @@ func SetUpRouter(prefix string, parent *web.Router, middleware func(c *Context, 
 	root.Middleware((*Context).setUpContext)
 	callback(prefix, root)
 	return parent
+}
+
+// SetTopologyMap sets the registry of topologies to this context. This method
+// must be called in the middleware of Context.
+func (c *Context) SetTopologyMap(t map[string]*bql.TopologyBuilder) {
+	c.topologies = t
 }
 
 func (c *Context) extractOptionStringFromPath(key string, target *string) error {

@@ -10,12 +10,6 @@ import (
 	"pfi/sensorbee/sensorbee/core"
 )
 
-var (
-	topologyMap        = map[string]core.Topology{}
-	topologyBuilderMap = map[string]*bql.TopologyBuilder{}
-	bqlParser          = parser.NewBQLParser()
-)
-
 type TopologiesContext struct {
 	*APIContext
 	tenantName string
@@ -45,7 +39,7 @@ func (tc *TopologiesContext) extractName(rw web.ResponseWriter, req *web.Request
 // Index returns registered tenant name list
 func (tc *TopologiesContext) Index(rw web.ResponseWriter, req *web.Request) {
 	tenants := []string{}
-	for k, _ := range topologyBuilderMap {
+	for k, _ := range tc.topologies {
 		tenants = append(tenants, k)
 	}
 	tc.RenderJSON(&map[string]interface{}{
@@ -55,7 +49,7 @@ func (tc *TopologiesContext) Index(rw web.ResponseWriter, req *web.Request) {
 
 // Show returns the information of topology
 func (tc *TopologiesContext) Show(rw web.ResponseWriter, req *web.Request) {
-	_, ok := topologyBuilderMap[tc.tenantName]
+	_, ok := tc.topologies[tc.tenantName]
 	var status string
 	if !ok {
 		status = "not initialized"
@@ -71,7 +65,7 @@ func (tc *TopologiesContext) Show(rw web.ResponseWriter, req *web.Request) {
 
 // Update nodes by BQLs
 func (tc *TopologiesContext) Update(rw web.ResponseWriter, req *web.Request) {
-	tp, ok := topologyMap[tc.tenantName]
+	tb, ok := tc.topologies[tc.tenantName]
 	if !ok {
 		tc.RenderJSON(&map[string]interface{}{
 			"name":   tc.tenantName,
@@ -79,6 +73,7 @@ func (tc *TopologiesContext) Update(rw web.ResponseWriter, req *web.Request) {
 		})
 		return
 	}
+	tp := tb.Topology()
 
 	// TODO should use ParseJSONFromRequestBoty (util.go)
 	b, err := ioutil.ReadAll(req.Body)
@@ -155,7 +150,7 @@ func (tc *TopologiesContext) Queries(rw web.ResponseWriter, req *web.Request) {
 		return
 	}
 
-	tb, ok := topologyBuilderMap[tc.tenantName]
+	tb, ok := tc.topologies[tc.tenantName]
 	if !ok {
 		conf := core.Configuration{
 			TupleTraceEnabled: 0,
@@ -166,14 +161,13 @@ func (tc *TopologiesContext) Queries(rw web.ResponseWriter, req *web.Request) {
 			SharedStates: core.NewDefaultSharedStateRegistry(),
 		}
 		tp := core.NewDefaultTopology(&ctx, tc.tenantName)
-		topologyMap[tc.tenantName] = tp
-
 		tb, _ = bql.NewTopologyBuilder(tp) // TODO: fix this by supporting Create action
-		topologyBuilderMap[tc.tenantName] = tb
+		tc.topologies[tc.tenantName] = tb
 
 	}
 
-	stmts, err := bqlParser.ParseStmts(queries)
+	bp := parser.NewBQLParser()
+	stmts, err := bp.ParseStmts(queries)
 	if err != nil {
 		tc.RenderJSON(&map[string]interface{}{
 			"name":   tc.tenantName,
