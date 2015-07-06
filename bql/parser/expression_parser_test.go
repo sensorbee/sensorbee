@@ -54,6 +54,9 @@ func TestExpressionParser(t *testing.T) {
 		"a >= 2": {BinaryOpAST{GreaterOrEqual, RowValue{"", "a"}, NumericLiteral{2}}},
 		"a != 2": {BinaryOpAST{NotEqual, RowValue{"", "a"}, NumericLiteral{2}}},
 		"a <> 2": {BinaryOpAST{NotEqual, RowValue{"", "a"}, NumericLiteral{2}}},
+		// IS Expressions
+		"a IS NULL":     {BinaryOpAST{Is, RowValue{"", "a"}, NullLiteral{}}},
+		"a IS NOT NULL": {BinaryOpAST{IsNot, RowValue{"", "a"}, NullLiteral{}}},
 		// Plus/Minus Terms
 		"a + 2": {BinaryOpAST{Plus, RowValue{"", "a"}, NumericLiteral{2}}},
 		"a - 2": {BinaryOpAST{Minus, RowValue{"", "a"}, NumericLiteral{2}}},
@@ -74,6 +77,12 @@ func TestExpressionParser(t *testing.T) {
 		"2 - a * b": {BinaryOpAST{Minus,
 			NumericLiteral{2},
 			BinaryOpAST{Multiply, RowValue{"", "a"}, RowValue{"", "b"}}}},
+		"2 OR a IS NULL": {BinaryOpAST{Or,
+			NumericLiteral{2},
+			BinaryOpAST{Is, RowValue{"", "a"}, NullLiteral{}}}},
+		"2 + a IS NOT NULL": {BinaryOpAST{IsNot,
+			BinaryOpAST{Plus, NumericLiteral{2}, RowValue{"", "a"}},
+			NullLiteral{}}},
 		/// Overriding Operator Precedence
 		"a AND (b OR 2)": {BinaryOpAST{And,
 			RowValue{"", "a"},

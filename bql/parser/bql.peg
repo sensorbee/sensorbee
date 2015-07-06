@@ -245,7 +245,11 @@ andExpr <- < comparisonExpr sp (And sp comparisonExpr)? > {
         p.AssembleBinaryOperation(begin, end)
     }
 
-comparisonExpr <- < termExpr sp (ComparisonOp sp termExpr)? > {
+comparisonExpr <- < isExpr sp (ComparisonOp sp isExpr)? > {
+        p.AssembleBinaryOperation(begin, end)
+    }
+
+isExpr <- < termExpr sp (IsOp sp NullLiteral)? > {
         p.AssembleBinaryOperation(begin, end)
     }
 
@@ -278,6 +282,8 @@ Literal <-
 
 ComparisonOp <- Equal / NotEqual / LessOrEqual / Less /
         GreaterOrEqual / Greater / NotEqual
+
+IsOp <- IsNot / Is
 
 PlusMinusOp <- Plus / Minus
 
@@ -324,6 +330,10 @@ FloatLiteral <- < '-'? [0-9]+ '.' [0-9]+ > {
 Function <- < ident > {
         substr := string([]rune(buffer)[begin:end])
         p.PushComponent(begin, end, FuncName(substr))
+    }
+
+NullLiteral <- < "NULL" > {
+        p.PushComponent(begin, end, NewNullLiteral())
     }
 
 BooleanLiteral <- TRUE / FALSE
@@ -418,6 +428,14 @@ GreaterOrEqual <- < ">=" > {
 
 NotEqual <- < "!=" / "<>" > {
         p.PushComponent(begin, end, NotEqual)
+    }
+
+Is <- < "IS" > {
+        p.PushComponent(begin, end, Is)
+    }
+
+IsNot <- < "IS" sp "NOT" > {
+        p.PushComponent(begin, end, IsNot)
     }
 
 Plus <- < "+" > {
