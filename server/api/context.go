@@ -22,7 +22,7 @@ func (b *BaseContext) NotFoundHandler(rw web.ResponseWriter, req *web.Request) {
 {
   "errors": [
     {
-      "code": "E0008",
+      "code": "E0001",
       "message": "The request URL was not found."
     }
   ]
