@@ -3,6 +3,7 @@ package api
 import (
 	"bytes"
 	"encoding/json"
+	"github.com/Sirupsen/logrus"
 	"github.com/gocraft/web"
 	"io"
 	"io/ioutil"
@@ -10,28 +11,8 @@ import (
 	"sync/atomic"
 )
 
-type BaseContext struct{}
-
-func (b *BaseContext) NotFoundHandler(rw web.ResponseWriter, req *web.Request) {
-	// TODO: logger
-
-	rw.Header().Set("Content-Type", "application/json")
-	rw.WriteHeader(http.StatusNotFound)
-	// TODO: fix error code
-	rw.Write([]byte(`
-{
-  "errors": [
-    {
-      "code": "E0001",
-      "message": "The request URL was not found."
-    }
-  ]
-}`))
-}
-
+// Context is a context object for gocraft/web.
 type Context struct {
-	*BaseContext
-
 	body      []byte
 	bodyError error
 
@@ -41,7 +22,14 @@ type Context struct {
 	request    *web.Request
 	HTTPStatus int
 
+	logger     *logrus.Logger
 	topologies TopologyRegistry
+}
+
+// SetLogger sets the logger to the context. Must be set before any action
+// is invoked.
+func (c *Context) SetLogger(l *logrus.Logger) {
+	c.logger = l
 }
 
 var requestIDCounter uint64 = 0
@@ -54,25 +42,40 @@ func (c *Context) setUpContext(rw web.ResponseWriter, req *web.Request, next web
 	next(rw, req)
 }
 
-func SetUpRouter(prefix string, parent *web.Router, middleware func(c *Context, rw web.ResponseWriter, req *web.Request, next web.NextMiddlewareFunc), callback func(string, *web.Router)) *web.Router {
-	if parent == nil {
-		parent = web.New(BaseContext{})
-		parent.NotFound((*BaseContext).NotFoundHandler)
-	}
-
-	root := parent.Subrouter(Context{}, "/")
-	if middleware != nil {
-		root.Middleware(middleware)
-	}
-	root.Middleware((*Context).setUpContext)
-	callback(prefix, root)
-	return parent
-}
-
 // SetTopologyRegistry sets the registry of topologies to this context. This
 // method must be called in the middleware of Context.
 func (c *Context) SetTopologyRegistry(r TopologyRegistry) {
 	c.topologies = r
+}
+
+func (c *Context) NotFoundHandler(rw web.ResponseWriter, req *web.Request) {
+	c.logger.WithFields(logrus.Fields{
+		"method": req.Method,
+		"uri":    req.URL.RequestURI(),
+		"status": http.StatusNotFound,
+	}).Error("The request URL not found")
+
+	rw.Header().Set("Content-Type", "application/json")
+	rw.WriteHeader(http.StatusNotFound)
+	rw.Write([]byte(`
+{
+  "errors": [
+    {
+      "code": "E0001",
+      "message": "The request URL was not found."
+    }
+  ]
+}`))
+}
+
+func (c *Context) Log() *logrus.Entry {
+	return c.logger.WithFields(logrus.Fields{
+		"reqid": c.requestID,
+	})
+}
+
+func (c *Context) ErrLog(err error) *logrus.Entry {
+	return c.Log().WithField("err", err)
 }
 
 func (c *Context) extractOptionStringFromPath(key string, target *string) error {
@@ -157,4 +160,28 @@ func (c *Context) Body() ([]byte, error) {
 	c.body = body
 	c.bodyError = err
 	return body, err
+}
+
+// ContextGlobalVariables has fields which are shared through all contexts
+// allocated for each request.
+type ContextGlobalVariables struct {
+	// Logger is used to write log messages.
+	Logger *logrus.Logger
+
+	// Topologies is a registry which manages topologies to support multi
+	// tenancy.
+	Topologies TopologyRegistry
+}
+
+// SetUpRouter creates a root router of the API server.
+func SetUpRouter(prefix string, gvars ContextGlobalVariables) *web.Router {
+	root := web.NewWithPrefix(Context{}, prefix)
+	root.NotFound((*Context).NotFoundHandler)
+	root.Middleware(func(c *Context, rw web.ResponseWriter, req *web.Request, next web.NextMiddlewareFunc) {
+		c.logger = gvars.Logger
+		c.topologies = gvars.Topologies
+		next(rw, req)
+	})
+	root.Middleware((*Context).setUpContext)
+	return root
 }
