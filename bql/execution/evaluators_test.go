@@ -1205,6 +1205,31 @@ func getTestCases() []struct {
 				// left and right present and not comparable => error
 			}, incomparables...),
 		},
+		// Unary Minus
+		{parser.UnaryOpAST{parser.UnaryMinus, parser.RowValue{"", "a"}},
+			[]evalTest{
+				// not a map:
+				{data.Int(17), nil},
+				// keys not present:
+				{data.Map{"x": data.Int(17)}, nil},
+				// key present and number-like => negative
+				{data.Map{"a": data.Int(17)}, data.Int(-17)},
+				{data.Map{"a": data.Float(3.14)}, data.Float(-3.14)},
+				{data.Map{"a": data.Int(-17)}, data.Int(17)},
+				{data.Map{"a": data.Float(-3.14)}, data.Float(3.14)},
+				{data.Map{"a": data.Int(0)}, data.Int(0)},
+				{data.Map{"a": data.Float(0.0)}, data.Float(-0.0)},
+				// key present and other data type => error
+				{data.Map{"a": data.Bool(false)}, nil},
+				{data.Map{"a": data.String("日本語")}, nil},
+				{data.Map{"a": data.Blob("hoge")}, nil},
+				{data.Map{"a": data.Timestamp(now)}, nil},
+				{data.Map{"a": data.Array{data.Int(2)}}, nil},
+				{data.Map{"a": data.Map{"b": data.Int(3)}}, nil},
+				// null comparison
+				{data.Map{"a": data.Null{}}, data.Null{}},
+			},
+		},
 		/// Function Application
 		{parser.FuncAppAST{parser.FuncName("plusone"),
 			parser.ExpressionsAST{[]parser.Expression{parser.RowValue{"", "a"}}}},

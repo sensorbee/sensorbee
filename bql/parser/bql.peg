@@ -250,8 +250,12 @@ termExpr <- < productExpr sp (PlusMinusOp sp productExpr)? > {
         p.AssembleBinaryOperation(begin, end)
     }
 
-productExpr <- < baseExpr sp (MultDivOp sp baseExpr)? > {
+productExpr <- < minusExpr sp (MultDivOp sp minusExpr)? > {
         p.AssembleBinaryOperation(begin, end)
+    }
+
+minusExpr <- < (UnaryMinus sp)? baseExpr > {
+        p.AssembleUnaryPrefixOperation(begin, end)
     }
 
 baseExpr <-
@@ -454,6 +458,10 @@ Divide <- < "/" > {
 
 Modulo <- < "%" > {
         p.PushComponent(begin, end, Modulo)
+    }
+
+UnaryMinus <- < "-" > {
+        p.PushComponent(begin, end, UnaryMinus)
     }
 
 Identifier <- < ident > {

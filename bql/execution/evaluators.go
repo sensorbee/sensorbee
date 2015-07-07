@@ -135,10 +135,14 @@ func ExpressionToEvaluator(ast interface{}, reg udf.FunctionRegistry) (Evaluator
 		// combine child with the correct operator
 		switch obj.Op {
 		default:
-			err := fmt.Errorf("don't know how to evaluate binary operation %v", obj.Op)
+			err := fmt.Errorf("don't know how to evaluate unary operation %v", obj.Op)
 			return nil, err
 		case parser.Not:
 			return Not(expr), nil
+		case parser.UnaryMinus:
+			// implement negation as multiplication with -1
+			bo := binOp{expr, &IntConstant{-1}}
+			return Multiply(bo), nil
 		}
 	case parser.FuncAppAST:
 		// lookup function in function registry

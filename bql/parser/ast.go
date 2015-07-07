@@ -573,6 +573,7 @@ const (
 	Multiply
 	Divide
 	Modulo
+	UnaryMinus
 )
 
 func (o Operator) String() string {
@@ -610,6 +611,8 @@ func (o Operator) String() string {
 		s = "/"
 	case Modulo:
 		s = "%"
+	case UnaryMinus:
+		s = "-"
 	}
 	return s
 }
