@@ -62,6 +62,11 @@ type InsertIntoSelectStmt struct {
 	SelectStmt
 }
 
+type InsertIntoFromStmt struct {
+	Sink  StreamIdentifier
+	Input StreamIdentifier
+}
+
 type PauseSourceStmt struct {
 	Source StreamIdentifier
 }
