@@ -126,6 +126,20 @@ func ExpressionToEvaluator(ast interface{}, reg udf.FunctionRegistry) (Evaluator
 		case parser.Modulo:
 			return Modulo(bo), nil
 		}
+	case parser.UnaryOpAST:
+		// recurse
+		expr, err := ExpressionToEvaluator(obj.Expr, reg)
+		if err != nil {
+			return nil, err
+		}
+		// combine child with the correct operator
+		switch obj.Op {
+		default:
+			err := fmt.Errorf("don't know how to evaluate binary operation %v", obj.Op)
+			return nil, err
+		case parser.Not:
+			return Not(expr), nil
+		}
 	case parser.FuncAppAST:
 		// lookup function in function registry
 		// (the registry will decide if the requested function
