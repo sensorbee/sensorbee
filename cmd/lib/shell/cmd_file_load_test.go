@@ -1,7 +1,8 @@
-package cmd
+package shell
 
 import (
 	. "github.com/smartystreets/goconvey/convey"
+	"pfi/sensorbee/sensorbee/client"
 	"testing"
 )
 
@@ -23,7 +24,7 @@ SELECT foo FROM dummy;
 						"queries": expected,
 					}
 					reqType, uri, body := targetCmd.Eval()
-					So(reqType, ShouldEqual, PostRequest)
+					So(reqType, ShouldEqual, client.PostRequest)
 					So(uri, ShouldEqual, "/topologies//queries")
 					So(body, ShouldResemble, m)
 				})

@@ -1,17 +1,15 @@
-package client
+package shell
 
 import (
 	"github.com/codegangsta/cli"
-	"pfi/sensorbee/sensorbee/client/cmd"
 	"strings"
 )
 
-func SetUpCMDLineToolCommand() cli.Command {
+func SetUp() cli.Command {
 	cmd := cli.Command{
-		Name:        "cmd",
-		Usage:       "command line tool",
-		Description: "cmd command launch command line tool",
-		Action:      Launch,
+		Name:   "shell",
+		Usage:  "BQL shell",
+		Action: Launch,
 	}
 	cmd.Flags = []cli.Flag{
 		cli.StringFlag{
@@ -38,13 +36,13 @@ func Launch(c *cli.Context) {
 	}
 	uri := host + c.String("version")
 
-	cmds := []cmd.Command{}
-	for _, c := range cmd.NewTopologiesCommands() {
+	cmds := []Command{}
+	for _, c := range NewTopologiesCommands() {
 		cmds = append(cmds, c)
 	}
-	for _, c := range cmd.NewFileLoadCommands() {
+	for _, c := range NewFileLoadCommands() {
 		cmds = append(cmds, c)
 	}
-	app := cmd.SetUpCommands(cmds)
+	app := SetUpCommands(cmds)
 	app.Run(uri)
 }

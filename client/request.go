@@ -1,4 +1,4 @@
-package cmd
+package client
 
 import (
 	"bytes"
@@ -17,7 +17,7 @@ const (
 	PostRequest
 	PutRequest
 	DeleteRequest
-	otherRequest
+	OtherRequest
 )
 
 func (r RequestType) String() string {
@@ -30,7 +30,7 @@ func (r RequestType) String() string {
 		return "PUT"
 	case DeleteRequest:
 		return "DELETE"
-	case otherRequest:
+	case OtherRequest:
 		return "OTHER"
 	default:
 		return "unknown"
@@ -38,7 +38,7 @@ func (r RequestType) String() string {
 }
 
 func Request(reqType RequestType, uri string, bodyJSON interface{}) []byte {
-	if reqType == otherRequest {
+	if reqType == OtherRequest {
 		return []byte{}
 	}
 
