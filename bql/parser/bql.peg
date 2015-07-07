@@ -230,8 +230,12 @@ orExpr <- < andExpr sp (Or sp andExpr)? > {
         p.AssembleBinaryOperation(begin, end)
     }
 
-andExpr <- < comparisonExpr sp (And sp comparisonExpr)? > {
+andExpr <- < notExpr sp (And sp notExpr)? > {
         p.AssembleBinaryOperation(begin, end)
+    }
+
+notExpr <- < (Not sp)? comparisonExpr > {
+        p.AssembleUnaryPrefixOperation(begin, end)
     }
 
 comparisonExpr <- < isExpr sp (ComparisonOp sp isExpr)? > {
@@ -394,6 +398,10 @@ Or <- < "OR" > {
 
 And <- < "AND" > {
         p.PushComponent(begin, end, And)
+    }
+
+Not <- < "NOT" > {
+        p.PushComponent(begin, end, Not)
     }
 
 Equal <- < "=" > {

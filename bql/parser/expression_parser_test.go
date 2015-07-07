@@ -48,6 +48,8 @@ func TestExpressionParser(t *testing.T) {
 		"a OR 2": {BinaryOpAST{Or, RowValue{"", "a"}, NumericLiteral{2}}},
 		// AND
 		"a AND 2": {BinaryOpAST{And, RowValue{"", "a"}, NumericLiteral{2}}},
+		// NOT
+		"NOT a": {UnaryOpAST{Not, RowValue{"", "a"}}},
 		// Comparisons
 		"a = 2":  {BinaryOpAST{Equal, RowValue{"", "a"}, NumericLiteral{2}}},
 		"a < 2":  {BinaryOpAST{Less, RowValue{"", "a"}, NumericLiteral{2}}},
@@ -73,6 +75,12 @@ func TestExpressionParser(t *testing.T) {
 		"2 OR a AND b": {BinaryOpAST{Or,
 			NumericLiteral{2},
 			BinaryOpAST{And, RowValue{"", "a"}, RowValue{"", "b"}}}},
+		"NOT a AND b": {BinaryOpAST{And,
+			UnaryOpAST{Not, RowValue{"", "a"}},
+			RowValue{"", "b"}}},
+		"a AND NOT b": {BinaryOpAST{And,
+			RowValue{"", "a"},
+			UnaryOpAST{Not, RowValue{"", "b"}}}},
 		"a * b + 2": {BinaryOpAST{Plus,
 			BinaryOpAST{Multiply, RowValue{"", "a"}, RowValue{"", "b"}},
 			NumericLiteral{2}}},
@@ -92,6 +100,8 @@ func TestExpressionParser(t *testing.T) {
 		"(2 OR a) AND b": {BinaryOpAST{And,
 			BinaryOpAST{Or, NumericLiteral{2}, RowValue{"", "a"}},
 			RowValue{"", "b"}}},
+		"NOT (a AND b)": {UnaryOpAST{Not,
+			BinaryOpAST{And, RowValue{"", "a"}, RowValue{"", "b"}}}},
 		"a * (b + 2)": {BinaryOpAST{Multiply,
 			RowValue{"", "a"},
 			BinaryOpAST{Plus, RowValue{"", "b"}, NumericLiteral{2}}}},
