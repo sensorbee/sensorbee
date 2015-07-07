@@ -2,8 +2,8 @@ package server
 
 import (
 	"fmt"
+	"github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
-	"github.com/gocraft/web"
 	"net/http"
 	"os"
 	"pfi/sensorbee/sensorbee/server/api"
@@ -33,7 +33,7 @@ func SetUpRunCommand() cli.Command {
 	return cmd
 }
 
-// RunRun HTTP server.
+// RunRun run the HTTP server.
 func RunRun(c *cli.Context) {
 
 	defer func() {
@@ -50,13 +50,15 @@ func RunRun(c *cli.Context) {
 		}
 	}()
 
-	root := api.SetUpRouterWithCustomMiddleware("/", nil,
-		func(c *api.Context, rw web.ResponseWriter, req *web.Request, next web.NextMiddlewareFunc) {
-			next(rw, req)
-		},
-		func(prefix string, r *web.Router) {
-			api.SetUpAPIRouter(prefix, r)
-		})
+	logger := logrus.New()
+	// TODO: setup logger based on the config
+	topologies := api.NewDefaultTopologyRegistry()
+
+	root := api.SetUpRouter("/", api.ContextGlobalVariables{
+		Logger:     logger,
+		Topologies: topologies,
+	})
+	api.SetUpAPIRouter("/", root, nil)
 
 	handler := func(rw http.ResponseWriter, r *http.Request) {
 		if strings.HasPrefix(r.URL.Path, "/api/") {

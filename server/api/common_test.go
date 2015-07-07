@@ -3,7 +3,9 @@ package api
 import (
 	"bytes"
 	"encoding/json"
+	"github.com/Sirupsen/logrus"
 	"github.com/gocraft/web"
+	"github.com/mattn/go-scan"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -97,13 +99,15 @@ func createTestServer() *temporaryServer {
 func createTestServerWithCustomRoute(route func(prefix string, r *web.Router)) *temporaryServer {
 	s := &temporaryServer{}
 
-	root := SetUpRouterWithCustomMiddleware("/", nil,
-		func(c *Context, rw web.ResponseWriter, req *web.Request, next web.NextMiddlewareFunc) {
-			next(rw, req)
-		},
-		func(prefix string, r *web.Router) {
-			SetUpAPIRouterWithCustomRoute(prefix, r, route)
-		})
+	logger := logrus.New()
+	logger.Level = logrus.DebugLevel
+	topologies := NewDefaultTopologyRegistry()
+
+	root := SetUpRouter("/", ContextGlobalVariables{
+		Logger:     logger,
+		Topologies: topologies,
+	})
+	SetUpAPIRouter("/", root, route)
 
 	if testAPIWithRealHTTPServer {
 		s.Server.realServer = httptest.NewServer(root)
@@ -113,4 +117,12 @@ func createTestServerWithCustomRoute(route func(prefix string, r *web.Router)) *
 		s.Server.URL = "http://172.0.0.1:0602/api/v1"
 	}
 	return s
+}
+
+func jscan(js interface{}, path string) interface{} {
+	var v interface{}
+	if err := scan.ScanTree(js, path, &v); err != nil {
+		return nil
+	}
+	return v
 }

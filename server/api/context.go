@@ -3,49 +3,16 @@ package api
 import (
 	"bytes"
 	"encoding/json"
+	"github.com/Sirupsen/logrus"
 	"github.com/gocraft/web"
 	"io"
 	"io/ioutil"
 	"net/http"
-	"strings"
 	"sync/atomic"
 )
 
-type BaseContext struct{}
-
-func (b *BaseContext) NotFoundHandler(rw web.ResponseWriter, req *web.Request) {
-	// TODO: logger
-
-	// If API request URL was not found, return error in JSON
-	if strings.HasPrefix(req.URL.Path, "/api/") {
-		rw.Header().Set("Content-Type", "application/json")
-		rw.WriteHeader(http.StatusNotFound)
-		rw.Write([]byte(`
-{
-  "errors": [
-    {
-      "code": "E0008",
-      "message": "The request URL was not found."
-    }
-  ]
-}`))
-		return
-	}
-
-	// The following code won't be executed as long as the user
-	// uses sensorbee server command to run this http API server because
-	// sensorbee server cmd_run.go routes requests based on requests paths.
-
-	// TODO: Render a better template
-	rw.WriteHeader(http.StatusNotFound)
-	if _, err := io.WriteString(rw, "404 Not Found"); err != nil {
-		// logging "Cannot return the 404 not found page: "
-	}
-}
-
+// Context is a context object for gocraft/web.
 type Context struct {
-	*BaseContext
-
 	body      []byte
 	bodyError error
 
@@ -54,6 +21,15 @@ type Context struct {
 	response   web.ResponseWriter
 	request    *web.Request
 	HTTPStatus int
+
+	logger     *logrus.Logger
+	topologies TopologyRegistry
+}
+
+// SetLogger sets the logger to the context. Must be set before any action
+// is invoked.
+func (c *Context) SetLogger(l *logrus.Logger) {
+	c.logger = l
 }
 
 var requestIDCounter uint64 = 0
@@ -63,22 +39,46 @@ func (c *Context) setUpContext(rw web.ResponseWriter, req *web.Request, next web
 	c.response = rw
 	c.request = req
 
+	// TODO: request logging
 	next(rw, req)
 }
 
-func SetUpRouterWithCustomMiddleware(prefix string, parent *web.Router, middleware func(c *Context, rw web.ResponseWriter, req *web.Request, next web.NextMiddlewareFunc), callback func(string, *web.Router)) *web.Router {
-	if parent == nil {
-		parent = web.New(BaseContext{})
-		parent.NotFound((*BaseContext).NotFoundHandler)
-	}
+// SetTopologyRegistry sets the registry of topologies to this context. This
+// method must be called in the middleware of Context.
+func (c *Context) SetTopologyRegistry(r TopologyRegistry) {
+	c.topologies = r
+}
 
-	root := parent.Subrouter(Context{}, "/")
-	if middleware != nil {
-		root.Middleware(middleware)
-	}
-	root.Middleware((*Context).setUpContext)
-	callback(prefix, root)
-	return parent
+func (c *Context) NotFoundHandler(rw web.ResponseWriter, req *web.Request) {
+	c.logger.WithFields(logrus.Fields{
+		"method": req.Method,
+		"uri":    req.URL.RequestURI(),
+		"status": http.StatusNotFound,
+	}).Error("The request URL not found")
+
+	rw.Header().Set("Content-Type", "application/json")
+	rw.WriteHeader(http.StatusNotFound)
+	rw.Write([]byte(`
+{
+  "errors": [
+    {
+      "code": "E0001",
+      "message": "The request URL was not found."
+    }
+  ]
+}`))
+}
+
+// Log returns the logger having meta information.
+func (c *Context) Log() *logrus.Entry {
+	return c.logger.WithFields(logrus.Fields{
+		"reqid": c.requestID,
+	})
+}
+
+// ErrLog returns the logger with error information.
+func (c *Context) ErrLog(err error) *logrus.Entry {
+	return c.Log().WithField("err", err)
 }
 
 func (c *Context) extractOptionStringFromPath(key string, target *string) error {
@@ -126,11 +126,8 @@ func (c *Context) RenderJSON(v interface{}) {
 
 func (c *Context) RenderErrorJSON(e *Error) {
 	e.SetRequestID(c.requestID)
-
-	c.renderJSON(e.Status, &struct {
-		Errors []interface{} `json:"errors"`
-	}{
-		Errors: []interface{}{e},
+	c.renderJSON(e.Status, map[string]interface{}{
+		"error": e,
 	})
 }
 
@@ -163,4 +160,28 @@ func (c *Context) Body() ([]byte, error) {
 	c.body = body
 	c.bodyError = err
 	return body, err
+}
+
+// ContextGlobalVariables has fields which are shared through all contexts
+// allocated for each request.
+type ContextGlobalVariables struct {
+	// Logger is used to write log messages.
+	Logger *logrus.Logger
+
+	// Topologies is a registry which manages topologies to support multi
+	// tenancy.
+	Topologies TopologyRegistry
+}
+
+// SetUpRouter creates a root router of the API server.
+func SetUpRouter(prefix string, gvars ContextGlobalVariables) *web.Router {
+	root := web.NewWithPrefix(Context{}, prefix)
+	root.NotFound((*Context).NotFoundHandler)
+	root.Middleware(func(c *Context, rw web.ResponseWriter, req *web.Request, next web.NextMiddlewareFunc) {
+		c.logger = gvars.Logger
+		c.topologies = gvars.Topologies
+		next(rw, req)
+	})
+	root.Middleware((*Context).setUpContext)
+	return root
 }

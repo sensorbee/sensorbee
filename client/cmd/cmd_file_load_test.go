@@ -19,7 +19,7 @@ SELECT foo FROM dummy;
 				So(statusType, ShouldEqual, preparedCMD)
 				So(targetCmd.queries, ShouldEqual, expected)
 				Convey("And then request the body include queries", func() {
-					m := &map[string]interface{}{
+					m := map[string]interface{}{
 						"queries": expected,
 					}
 					reqType, uri, body := targetCmd.Eval()
