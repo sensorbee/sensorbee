@@ -67,7 +67,7 @@ func (ps *parseStack) Peek() (value *ParsedComponent) {
 // they are components of a SELECT statement, and replaces them by
 // a single SelectStmt element.
 //
-//  [EmitterAST]
+//  EmitterAST
 //  HavingAST
 //  GroupingAST
 //  FilterAST
@@ -77,17 +77,7 @@ func (ps *parseStack) Peek() (value *ParsedComponent) {
 //  SelectStmt{EmitterAST, ProjectionsAST, WindowedFromAST, FilterAST, GroupingAST, HavingAST}
 func (ps *parseStack) AssembleSelect() {
 	// pop the components from the stack in reverse order
-	_having, _grouping, _filter, _from, _projections := ps.pop5()
-	// declare a default emitter
-	_emitter := &ParsedComponent{_projections.begin, _projections.begin,
-		EmitterAST{UnspecifiedEmitter, nil},
-	}
-	// override the emitter if there is one on top of the stack
-	if _elem := ps.Peek(); _elem != nil {
-		if _, ok := _elem.comp.(EmitterAST); ok {
-			_emitter = ps.Pop()
-		}
-	}
+	_having, _grouping, _filter, _from, _projections, _emitter := ps.pop6()
 
 	// extract and convert the contained structure
 	// (if this fails, this is a fundamental parser bug => panic ok)

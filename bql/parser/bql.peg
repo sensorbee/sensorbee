@@ -33,9 +33,9 @@ Statement <- (SelectStmt / CreateStreamAsSelectStmt / CreateSourceStmt /
              RewindSourceStmt)
 
 SelectStmt <- "SELECT" sp
-              Emitter? sp
+              Emitter sp
               Projections sp
-              DefWindowedFrom sp
+              WindowedFrom sp
               Filter sp
               Grouping sp
               Having sp
@@ -146,10 +146,6 @@ WindowedFrom <- < ("FROM" sp Relations sp)? > {
         p.AssembleWindowedFrom(begin, end)
     }
 
-DefWindowedFrom <- < ("FROM" sp DefRelations sp)? > {
-        p.AssembleWindowedFrom(begin, end)
-    }
-
 Interval <- TimeInterval / TuplesInterval
 
 TimeInterval <- NumericLiteral sp SECONDS {
@@ -161,8 +157,6 @@ TuplesInterval <- NumericLiteral sp TUPLES {
     }
 
 Relations <- RelationLike sp (',' sp RelationLike)*
-
-DefRelations <- DefRelationLike sp (',' sp DefRelationLike)*
 
 Filter <- < ("WHERE" sp Expression)? > {
         // This is *always* executed, even if there is no
@@ -190,23 +184,11 @@ RelationLike <- AliasedStreamWindow / StreamWindow {
         p.EnsureAliasedStreamWindow()
     }
 
-DefRelationLike <- DefAliasedStreamWindow / DefStreamWindow {
-        p.EnsureAliasedStreamWindow()
-    }
-
 AliasedStreamWindow <- StreamWindow sp "AS" sp Identifier {
         p.AssembleAliasedStreamWindow()
     }
 
-DefAliasedStreamWindow <- DefStreamWindow sp "AS" sp Identifier {
-        p.AssembleAliasedStreamWindow()
-    }
-
 StreamWindow <- StreamLike sp '[' sp "RANGE" sp Interval sp ']' {
-        p.AssembleStreamWindow()
-    }
-
-DefStreamWindow <- StreamLike (sp '[' sp "RANGE" sp Interval sp ']')? {
         p.AssembleStreamWindow()
     }
 
