@@ -1,8 +1,9 @@
-package cmd
+package shell
 
 import (
 	"fmt"
 	"io/ioutil"
+	"pfi/sensorbee/sensorbee/client"
 	"strings"
 )
 
@@ -40,9 +41,9 @@ func (f *fileLoadCmd) Input(input string) (cmdInputStatusType, error) {
 	return preparedCMD, nil
 }
 
-func (f *fileLoadCmd) Eval() (RequestType, string, interface{}) {
+func (f *fileLoadCmd) Eval() (client.RequestType, string, interface{}) {
 	uri := topologiesHeader + "/" + currentTopology.name + "/queries"
 	m := map[string]interface{}{}
 	m["queries"] = f.queries
-	return PostRequest, uri, m
+	return client.PostRequest, uri, m
 }

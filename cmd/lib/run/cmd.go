@@ -1,4 +1,4 @@
-package server
+package run
 
 import (
 	"fmt"
@@ -12,15 +12,14 @@ import (
 	"sync"
 )
 
-// SetUpRunCommand sets up SensorBee's HTTP server.
-// The URL or port ID is set with server configuration file,
-// or command line arguments.
-func SetUpRunCommand() cli.Command {
+// SetUp sets up SensorBee's HTTP server. The URL or port ID is set with server
+// configuration file, or command line arguments.
+func SetUp() cli.Command {
 	cmd := cli.Command{
 		Name:        "run",
 		Usage:       "run the server",
 		Description: "run command starts a new server process",
-		Action:      RunRun,
+		Action:      Run,
 	}
 	cmd.Flags = []cli.Flag{
 		cli.StringFlag{
@@ -33,8 +32,8 @@ func SetUpRunCommand() cli.Command {
 	return cmd
 }
 
-// RunRun run the HTTP server.
-func RunRun(c *cli.Context) {
+// Run run the HTTP server.
+func Run(c *cli.Context) {
 
 	defer func() {
 		// This logic is provided to write test codes for this command line tool like below:
