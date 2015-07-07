@@ -174,6 +174,24 @@ func (b BinaryOpAST) Foldable() bool {
 	return b.Left.Foldable() && b.Right.Foldable()
 }
 
+type UnaryOpAST struct {
+	Op   Operator
+	Expr Expression
+}
+
+func (u UnaryOpAST) ReferencedRelations() map[string]bool {
+	return u.Expr.ReferencedRelations()
+}
+
+func (u UnaryOpAST) RenameReferencedRelation(from, to string) Expression {
+	return UnaryOpAST{u.Op,
+		u.Expr.RenameReferencedRelation(from, to)}
+}
+
+func (u UnaryOpAST) Foldable() bool {
+	return u.Expr.Foldable()
+}
+
 type FuncAppAST struct {
 	Function FuncName
 	ExpressionsAST
@@ -541,6 +559,7 @@ const (
 	UnknownOperator Operator = iota
 	Or
 	And
+	Not
 	Equal
 	Less
 	LessOrEqual
@@ -563,6 +582,8 @@ func (o Operator) String() string {
 		s = "OR"
 	case And:
 		s = "AND"
+	case Not:
+		s = "NOT"
 	case Equal:
 		s = "="
 	case Less:

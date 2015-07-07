@@ -666,7 +666,7 @@ func (ps *parseStack) EnsureKeywordPresent(begin int, end int) {
 
 /* Expressions */
 
-// AssembleBinaryOperation takes the two elements from the stack that
+// AssembleBinaryOperation takes the three elements from the stack that
 // correspond to the input[begin:end] string and adds the given
 // binary operator in between. If there is just one element, push
 // it back unmodified.
@@ -691,6 +691,32 @@ func (ps *parseStack) AssembleBinaryOperation(begin int, end int) {
 		ps.PushComponent(begin, end, BinaryOpAST{op, elems[0].(Expression), elems[2].(Expression)})
 	} else {
 		panic(fmt.Sprintf("cannot turn %+v into a binary operation", elems))
+	}
+}
+
+// AssembleUnaryPrefixOperation takes the two elements from the stack that
+// correspond to the input[begin:end] string and adds the given
+// unary operator. If there is just one element, push it back unmodified.
+//
+//  Any
+//   =>
+//  Any
+// or
+//  Operator
+//  Any
+//   =>
+//  UnaryOpAST{Operator, Any}
+func (ps *parseStack) AssembleUnaryPrefixOperation(begin int, end int) {
+	elems := ps.collectElements(begin, end)
+	if len(elems) == 1 {
+		// there is no operation, push back the single element
+		ps.PushComponent(begin, end, elems[0])
+	} else if len(elems) == 2 {
+		op := elems[0].(Operator)
+		// connect the expression with the given operator
+		ps.PushComponent(begin, end, UnaryOpAST{op, elems[1].(Expression)})
+	} else {
+		panic(fmt.Sprintf("cannot turn %+v into a unary operation", elems))
 	}
 }
 
