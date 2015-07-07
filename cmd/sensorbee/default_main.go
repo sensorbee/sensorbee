@@ -3,8 +3,8 @@ package main
 import (
 	"github.com/codegangsta/cli"
 	"os"
-	"pfi/sensorbee/sensorbee/client"
-	"pfi/sensorbee/sensorbee/server"
+	"pfi/sensorbee/sensorbee/cmd/lib/run"
+	"pfi/sensorbee/sensorbee/cmd/lib/shell"
 	"time"
 )
 
@@ -17,8 +17,8 @@ func init() {
 
 func main() {
 	app := setUpApp([]commandGenerator{
-		server.SetUpRunCommand,
-		client.SetUpCMDLineToolCommand,
+		run.SetUp,
+		shell.SetUp,
 	})
 
 	if err := app.Run(os.Args); err != nil {

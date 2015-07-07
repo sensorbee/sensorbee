@@ -1,4 +1,8 @@
-package cmd
+package shell
+
+import (
+	"pfi/sensorbee/sensorbee/client"
+)
 
 type cmdInputStatusType int
 
@@ -25,5 +29,5 @@ type Command interface {
 	// Returns error when the input commands are invalid.
 	Input(input string) (cmdInputStatusType, error)
 	// Eval resolve input command to convert URL and requestType.
-	Eval() (RequestType, string, interface{})
+	Eval() (client.RequestType, string, interface{})
 }
