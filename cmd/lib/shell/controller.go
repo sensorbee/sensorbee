@@ -1,10 +1,11 @@
-package cmd
+package shell
 
 import (
 	"flag"
 	"fmt"
 	"github.com/peterh/liner"
 	"os"
+	"pfi/sensorbee/sensorbee/client"
 	"strings"
 )
 
@@ -61,7 +62,7 @@ func (a *App) prompt(line *liner.State) {
 				a.continues(line, cmd)
 			case preparedCMD:
 				reqType, uri, bodyJSON := cmd.Eval()
-				Request(reqType, a.uri+uri, bodyJSON)
+				client.Request(reqType, a.uri+uri, bodyJSON)
 			}
 		} else {
 			fmt.Fprintf(os.Stdout, "not found the command: %v\n", in)
@@ -86,7 +87,7 @@ func (a *App) continues(line *liner.State, cmd Command) {
 			return
 		case preparedCMD:
 			reqType, uri, bodyJSON := cmd.Eval()
-			Request(reqType, a.uri+uri, bodyJSON)
+			client.Request(reqType, a.uri+uri, bodyJSON)
 			return
 		}
 	}

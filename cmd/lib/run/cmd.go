@@ -1,4 +1,6 @@
-package server
+// run package implements sensorbee's subcommand command which runs an API
+// server.
+package run
 
 import (
 	"fmt"
@@ -6,21 +8,20 @@ import (
 	"github.com/codegangsta/cli"
 	"net/http"
 	"os"
-	"pfi/sensorbee/sensorbee/server/api"
+	"pfi/sensorbee/sensorbee/server"
 	"strconv"
 	"strings"
 	"sync"
 )
 
-// SetUpRunCommand sets up SensorBee's HTTP server.
-// The URL or port ID is set with server configuration file,
-// or command line arguments.
-func SetUpRunCommand() cli.Command {
+// SetUp sets up SensorBee's HTTP server. The URL or port ID is set with server
+// configuration file, or command line arguments.
+func SetUp() cli.Command {
 	cmd := cli.Command{
 		Name:        "run",
 		Usage:       "run the server",
 		Description: "run command starts a new server process",
-		Action:      RunRun,
+		Action:      Run,
 	}
 	cmd.Flags = []cli.Flag{
 		cli.StringFlag{
@@ -33,8 +34,8 @@ func SetUpRunCommand() cli.Command {
 	return cmd
 }
 
-// RunRun run the HTTP server.
-func RunRun(c *cli.Context) {
+// Run run the HTTP server.
+func Run(c *cli.Context) {
 
 	defer func() {
 		// This logic is provided to write test codes for this command line tool like below:
@@ -52,13 +53,13 @@ func RunRun(c *cli.Context) {
 
 	logger := logrus.New()
 	// TODO: setup logger based on the config
-	topologies := api.NewDefaultTopologyRegistry()
+	topologies := server.NewDefaultTopologyRegistry()
 
-	root := api.SetUpRouter("/", api.ContextGlobalVariables{
+	root := server.SetUpRouter("/", server.ContextGlobalVariables{
 		Logger:     logger,
 		Topologies: topologies,
 	})
-	api.SetUpAPIRouter("/", root, nil)
+	server.SetUpAPIRouter("/", root, nil)
 
 	handler := func(rw http.ResponseWriter, r *http.Request) {
 		if strings.HasPrefix(r.URL.Path, "/api/") {

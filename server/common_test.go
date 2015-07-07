@@ -1,4 +1,4 @@
-package api
+package server
 
 import (
 	"bytes"
@@ -9,7 +9,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
-	"pfi/sensorbee/sensorbee/client/cmd"
+	"pfi/sensorbee/sensorbee/client"
 )
 
 var (
@@ -46,8 +46,8 @@ type temporaryClient struct {
 	s   *temporaryServer
 }
 
-func (t *temporaryClient) do(reqType cmd.RequestType, path string, body interface{}) (*http.Response, map[string]interface{}, error) {
-	req, err := cmd.CreateRequest(reqType, t.s.Server.URL+path, body)
+func (t *temporaryClient) do(reqType client.RequestType, path string, body interface{}) (*http.Response, map[string]interface{}, error) {
+	req, err := client.CreateRequest(reqType, t.s.Server.URL+path, body)
 	if err != nil {
 		return nil, nil, err
 	}
