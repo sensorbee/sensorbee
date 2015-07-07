@@ -22,6 +22,7 @@ func TestExpressionParser(t *testing.T) {
 			ExpressionsAST{[]Expression{FloatLiteral{2.1}, StringLiteral{"a"}}}}},
 		// RowValue
 		"a":         {RowValue{"", "a"}},
+		"-a":        {UnaryOpAST{UnaryMinus, RowValue{"", "a"}}},
 		"tab:a":     {RowValue{"tab", "a"}},
 		"ts()":      {RowMeta{"", TimestampMeta}},
 		"tab:ts()":  {RowMeta{"tab", TimestampMeta}},
@@ -31,12 +32,13 @@ func TestExpressionParser(t *testing.T) {
 		// Wildcard
 		"*": {Wildcard{}},
 		// NumericLiteral
-		"2":  {NumericLiteral{2}},
-		"-2": {NumericLiteral{-2}},
+		"2":    {NumericLiteral{2}},
+		"-2":   {UnaryOpAST{UnaryMinus, NumericLiteral{2}}},
+		"- -2": {UnaryOpAST{UnaryMinus, NumericLiteral{-2}}}, // like PostgreSQL
 		"999999999999999999999999999": nil, // int64 overflow
 		// FloatLiteral
 		"1.2":   {FloatLiteral{1.2}},
-		"-3.14": {FloatLiteral{-3.14}},
+		"-3.14": {UnaryOpAST{UnaryMinus, FloatLiteral{3.14}}},
 		// StringLiteral
 		`'bql'`:      {StringLiteral{"bql"}},
 		`''`:         {StringLiteral{""}},
@@ -64,8 +66,12 @@ func TestExpressionParser(t *testing.T) {
 		// Plus/Minus Terms
 		"a + 2": {BinaryOpAST{Plus, RowValue{"", "a"}, NumericLiteral{2}}},
 		"a - 2": {BinaryOpAST{Minus, RowValue{"", "a"}, NumericLiteral{2}}},
+		"a + -2": {BinaryOpAST{Plus, RowValue{"", "a"},
+			UnaryOpAST{UnaryMinus, NumericLiteral{2}}}},
 		// Product/Division Terms
 		"a * 2": {BinaryOpAST{Multiply, RowValue{"", "a"}, NumericLiteral{2}}},
+		"-a * -2": {BinaryOpAST{Multiply, UnaryOpAST{UnaryMinus, RowValue{"", "a"}},
+			UnaryOpAST{UnaryMinus, NumericLiteral{2}}}},
 		"a / 2": {BinaryOpAST{Divide, RowValue{"", "a"}, NumericLiteral{2}}},
 		"a % 2": {BinaryOpAST{Modulo, RowValue{"", "a"}, NumericLiteral{2}}},
 		/// Operator Precedence
@@ -135,7 +141,7 @@ func TestExpressionParser(t *testing.T) {
 				BinaryOpAST{Less, RowValue{"", "b"}, FloatLiteral{7.1}}},
 			RowValue{"", "c"}},
 		/// Multiple Columns
-		"a, 3.1, false, -2": {RowValue{"", "a"}, FloatLiteral{3.1}, BoolLiteral{false}, NumericLiteral{-2}},
+		"a, 3.1, false, -2": {RowValue{"", "a"}, FloatLiteral{3.1}, BoolLiteral{false}, UnaryOpAST{UnaryMinus, NumericLiteral{2}}},
 		`'日本語', 13`:         {StringLiteral{"日本語"}, NumericLiteral{13}},
 		"concat(a, 'Pi', 3.1), b": {FuncAppAST{FuncName("concat"), ExpressionsAST{
 			[]Expression{RowValue{"", "a"}, StringLiteral{"Pi"}, FloatLiteral{3.1}}}},
