@@ -44,5 +44,5 @@ func (f *fileLoadCmd) Eval() (RequestType, string, interface{}) {
 	uri := topologiesHeader + "/" + currentTopology.name + "/queries"
 	m := map[string]interface{}{}
 	m["queries"] = f.queries
-	return PostRequest, uri, &m
+	return PostRequest, uri, m
 }

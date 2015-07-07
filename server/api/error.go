@@ -1,29 +1,35 @@
 package api
 
 import (
-	"errors"
 	"fmt"
+	"net/http"
 )
 
 const (
-	MaxErrorCode = 9999
+	requestURLNotFoundErrorCode = "E0001"
+	internalServerErrorCode     = "E0002"
+	requestBodyReadErrorCode    = "E0003"
+	requestBodyParseErrorCode   = "E0004"
+
+	// formValidationErrorCode means that validation of request body failed.
+	// When this error happens, Error.Meta should have detailed error messages
+	// for each field. Each field must have a slice of strings so that clients
+	// can always write error handling codes assuming that they're arrays.
+	formValidationErrorCode = "E0005"
 )
 
-var (
-	RequestBodyReadErrorCode    = GenerateErrorCode("api", 1)
-	RequestBodyParseErrorCode   = GenerateErrorCode("api", 2)
-	InternalErrorCode           = GenerateErrorCode("context", 6)
-	RequestURLNotFoundErrorCode = GenerateErrorCode("context", 8)
+const (
+	somethingWentWrong = "Something went wrong. Please try again later."
 )
 
-var packageErrorPrefixes = map[string]rune{}
+func NewInternalServerError(err error) *Error {
+	return NewError(internalServerErrorCode, somethingWentWrong,
+		http.StatusInternalServerError, err)
+}
 
-// Error has error information occurred in Hawk.
-// It has error messages for clients(users).
+// Error has the error information reported to clients of API.
 type Error struct {
-	originalCode *ErrorCode `json:"-"`
-
-	// Code has a error code of this error. It always have
+	// Code has an error code of this error. It always have
 	// a single alphabet prefix and 4-digit error number.
 	Code string `json:"code"`
 
@@ -34,10 +40,9 @@ type Error struct {
 	Message string `json:"message"`
 
 	// RequestID has an ID of the request which caused this error.
-	// This value is convenient for users or clients of Hawk
-	// to report their problems to the development team.
-	// The team can look up incidents easily by greping logs
-	// with the ID.
+	// This value is convenient for users or clients to report their
+	// problems to the development team. The team can look up incidents
+	// easily by greping logs with the ID.
 	//
 	// The type of RequestID is string because it can be
 	// very large and JavaScript might not be able to handle
@@ -47,8 +52,8 @@ type Error struct {
 	// Status has an appropriate HTTP status code for this error.
 	Status int `json:"-"`
 
-	// Err contains internal error information returned from
-	// a method or a function which caused the error.
+	// Err is an internal error information which must not be shown to users
+	// directly.
 	Err error `json:"-"`
 
 	// Meta contains arbitrary information of the error.
@@ -58,54 +63,16 @@ type Error struct {
 	Meta map[string]interface{} `json:"meta"`
 }
 
-// ErrorCode has an error code of an error defined in each package.
-type ErrorCode struct {
-	// Package is the name of the module which caused this error.
-	Package string `json:"package"`
-
-	// Code has an error code of this error.
-	Code int `json:"code"`
-}
-
-// String returns a string representation of the error code.
-// The string contains one letter package code and 4-digit
-// error code (e.g. "E0105").
-func (e *ErrorCode) String() string {
-	p, ok := packageErrorPrefixes[e.Package]
-	if !ok {
-		p = 'X'
+func NewError(code string, msg string, status int, err error) *Error {
+	return &Error{
+		Code:    code,
+		Message: msg,
+		Status:  status,
+		Err:     err,
+		Meta:    map[string]interface{}{},
 	}
-	return fmt.Sprintf("%c%04d", p, e.Code)
 }
 
 func (e *Error) SetRequestID(id uint64) {
 	e.RequestID = fmt.Sprint(id)
-}
-
-func NewError(code *ErrorCode, msg string, status int, err error) *Error {
-	if err == nil {
-		err = errors.New(msg)
-	}
-
-	return &Error{
-		originalCode: code,
-		Code:         code.String(),
-		Message:      msg,
-		Status:       status,
-		Err:          err,
-		Meta:         make(map[string]interface{}),
-	}
-}
-
-// GenerateErrorCode creates a new error code.
-func GenerateErrorCode(pkg string, code int) *ErrorCode {
-	if code <= 0 || MaxErrorCode < code {
-		// Since this function is only executed on initialization,
-		// it can safely panic.
-		panic(fmt.Errorf("An error code must be in [1, %v]: %v", MaxErrorCode, code))
-	}
-	return &ErrorCode{
-		Package: pkg,
-		Code:    code,
-	}
 }
