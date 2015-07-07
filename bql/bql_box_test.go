@@ -26,7 +26,7 @@ func setupTopology(stmt string) (core.Topology, error) {
 	// sink
 	err = addBQLToTopology(tb, `
 		CREATE SINK snk TYPE collector;
-		INSERT INTO snk SELECT * FROM box;
+		INSERT INTO snk FROM box;
 		RESUME SOURCE source;`)
 	if err != nil {
 		return nil, err
