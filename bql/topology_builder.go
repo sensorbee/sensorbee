@@ -194,6 +194,18 @@ func (tb *TopologyBuilder) AddStmt(stmt interface{}) (core.Node, error) {
 		}
 		return box, nil
 
+	case parser.InsertIntoFromStmt:
+		// get the sink to add an input to
+		sink, err := tb.topology.Sink(string(stmt.Sink))
+		if err != nil {
+			return nil, err
+		}
+		// now connect the sink to the specified box
+		if err := sink.Input(string(stmt.Input), nil); err != nil {
+			return nil, err
+		}
+		return sink, nil
+
 	case parser.PauseSourceStmt:
 		src, err := tb.topology.Source(string(stmt.Source))
 		if err != nil {
