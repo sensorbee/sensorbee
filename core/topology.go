@@ -4,6 +4,9 @@ package core
 // dynamically. Boxes and Sinks can also add inputs dynamically from running
 // Sources or Boxes.
 type Topology interface {
+	// Name returns the name of this topology.
+	Name() string
+
 	// Context returns the Context tied to the topology. It isn't always safe
 	// to modify fields of the Context. However, some fields of it can handle
 	// concurrent access properly. See the document of Context for details.

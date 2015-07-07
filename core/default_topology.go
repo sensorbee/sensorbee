@@ -41,6 +41,10 @@ func NewDefaultTopology(ctx *Context, name string) Topology {
 	return t
 }
 
+func (t *defaultTopology) Name() string {
+	return t.name
+}
+
 func (t *defaultTopology) Context() *Context {
 	return t.ctx
 }

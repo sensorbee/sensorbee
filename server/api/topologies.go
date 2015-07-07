@@ -4,29 +4,31 @@ import (
 	"encoding/json"
 	"github.com/gocraft/web"
 	"io/ioutil"
+	"net/http"
+	"os"
 	"pfi/sensorbee/sensorbee/bql"
 	"pfi/sensorbee/sensorbee/bql/parser"
 	"pfi/sensorbee/sensorbee/core"
 	"pfi/sensorbee/sensorbee/data"
 )
 
-type TopologiesContext struct {
+type topologies struct {
 	*APIContext
 	topologyName string
 }
 
 func SetUpTopologiesRouter(prefix string, router *web.Router) {
-	root := router.Subrouter(TopologiesContext{}, "/topologies")
-	root.Middleware((*TopologiesContext).extractName)
+	root := router.Subrouter(topologies{}, "/topologies")
+	root.Middleware((*topologies).extractName)
 	// TODO validation (root can validate with regex like "\w+")
-	root.Post("/", (*TopologiesContext).Create)
-	root.Get("/", (*TopologiesContext).Index)
-	root.Get(`/:topologyName`, (*TopologiesContext).Show)
-	root.Delete(`/:topologyName`, (*TopologiesContext).Destroy)
-	root.Post(`/:topologyName/queries`, (*TopologiesContext).Queries)
+	root.Post("/", (*topologies).Create)
+	root.Get("/", (*topologies).Index)
+	root.Get(`/:topologyName`, (*topologies).Show)
+	root.Delete(`/:topologyName`, (*topologies).Destroy)
+	root.Post(`/:topologyName/queries`, (*topologies).Queries)
 }
 
-func (tc *TopologiesContext) extractName(rw web.ResponseWriter, req *web.Request, next web.NextMiddlewareFunc) {
+func (tc *topologies) extractName(rw web.ResponseWriter, req *web.Request, next web.NextMiddlewareFunc) {
 	if err := tc.extractOptionStringFromPath("topologyName", &tc.topologyName); err != nil {
 		return
 	}
@@ -34,28 +36,49 @@ func (tc *TopologiesContext) extractName(rw web.ResponseWriter, req *web.Request
 }
 
 // Create creates a new topology.
-func (tc *TopologiesContext) Create(rw web.ResponseWriter, req *web.Request) {
-	js, ctxErr := ParseJSONFromRequestBody(tc.Context)
-	if ctxErr != nil {
-		// TODO: log and render error json
+func (tc *topologies) Create(rw web.ResponseWriter, req *web.Request) {
+	js, apiErr := ParseJSONFromRequestBody(tc.Context)
+	if apiErr != nil {
+		tc.ErrLog(apiErr.Err).Error("Cannot parse the request json")
+		tc.RenderErrorJSON(apiErr)
 		return
 	}
 
 	// TODO: use mapstructure when parameters get too many
 	form, err := data.NewMap(js)
 	if err != nil {
-		// TODO: log and render error json
+		tc.ErrLog(err).WithField("body", js).Error("The request json may contain invalid value")
+		tc.RenderErrorJSON(NewError(formValidationErrorCode, "The request json may contain invalid values.",
+			http.StatusBadRequest, err))
 		return
 	}
 
+	// TODO: report validation errors at once (don't report each error separately) after adding other parameters
+
 	n, ok := form["name"]
 	if !ok {
-		// TODO: log and render error json
+		tc.Log().Error("The required 'name' field is missing")
+		e := NewError(formValidationErrorCode, "The request body is invalid.",
+			http.StatusBadRequest, nil)
+		e.Meta["name"] = []string{"field is missing"}
+		tc.RenderErrorJSON(e)
 		return
 	}
 	name, err := data.AsString(n)
 	if err != nil {
-		// TODO: log and render error json
+		tc.ErrLog(err).Error("'name' field isn't a string")
+		e := NewError(formValidationErrorCode, "The request body is invalid.",
+			http.StatusBadRequest, nil)
+		e.Meta["name"] = []string{"value must be a string"}
+		tc.RenderErrorJSON(e)
+		return
+	}
+	if err := core.ValidateNodeName(name); err != nil {
+		tc.ErrLog(err).Error("'name' field has invalid format")
+		e := NewError(formValidationErrorCode, "The request body is invalid.",
+			http.StatusBadRequest, nil)
+		e.Meta["name"] = []string{"inavlid format"}
+		tc.RenderErrorJSON(e)
 		return
 	}
 
@@ -69,78 +92,117 @@ func (tc *TopologiesContext) Create(rw web.ResponseWriter, req *web.Request) {
 		Config:       conf,
 		SharedStates: core.NewDefaultSharedStateRegistry(),
 	}
-	tp := core.NewDefaultTopology(&ctx, tc.topologyName)
+	tp := core.NewDefaultTopology(&ctx, name)
 	tb, err := bql.NewTopologyBuilder(tp)
 	if err != nil {
-		// TODO: log and render error json
+		tc.ErrLog(err).Error("Cannot create a new topology builder")
+		tc.RenderErrorJSON(NewInternalServerError(err))
 		return
 	}
 
 	if err := tc.topologies.Register(name, tb); err != nil {
-		// TODO: log and render error json
+		if err := tp.Stop(); err != nil {
+			tc.ErrLog(err).Error("Cannot stop the created topology")
+		}
+
+		l := tc.Log().WithField("topology", name)
+		if os.IsExist(err) {
+			l.Error("the name is already registered")
+			e := NewError(formValidationErrorCode, "The request body is invalid.",
+				http.StatusBadRequest, nil)
+			e.Meta["name"] = []string{"already taken"}
+			tc.RenderErrorJSON(e)
+			return
+		}
+		l.WithField("err", err).Error("Cannot register the topology")
+		tc.RenderJSON(NewInternalServerError(err))
 		return
 	}
+
+	// TODO: return 201
 	tc.RenderJSON(map[string]interface{}{
-		"topology": map[string]interface{}{
-			"name": name,
-		},
+		"topology": newTopologiesShowResult(tb),
 	})
 }
 
 // Index returned a list of registered topologies.
-func (tc *TopologiesContext) Index(rw web.ResponseWriter, req *web.Request) {
-	topologies := []string{}
+func (tc *topologies) Index(rw web.ResponseWriter, req *web.Request) {
 	ts, err := tc.topologies.List()
 	if err != nil {
-		// TODO: log and render error json
+		tc.ErrLog(err).Error("Cannot list registered topologies")
+		tc.RenderErrorJSON(NewInternalServerError(err))
 		return
 	}
 
-	for k, _ := range ts {
-		topologies = append(topologies, k)
+	res := []*topologiesShowResult{}
+	for _, tb := range ts {
+		res = append(res, newTopologiesShowResult(tb))
 	}
-
-	// TODO: return some statistics using Show's result
 	tc.RenderJSON(map[string]interface{}{
-		"topologies": topologies,
+		"topologies": res,
 	})
 }
 
 // Show returns the information of topology
-func (tc *TopologiesContext) Show(rw web.ResponseWriter, req *web.Request) {
-	_, err := tc.topologies.Lookup(tc.topologyName)
+func (tc *topologies) Show(rw web.ResponseWriter, req *web.Request) {
+	tb, err := tc.topologies.Lookup(tc.topologyName)
 	if err != nil {
-		// TODO: log and render error json (404 if the error is "NotFound")
+		l := tc.Log().WithField("topology", tc.topologyName)
+		if os.IsNotExist(err) {
+			l.Error("The topology is not registered")
+			tc.RenderErrorJSON(NewError(requestURLNotFoundErrorCode, "The topology doesn't exist",
+				http.StatusNotFound, err))
+			return
+		}
+		l.WithField("err", err).Error("Cannot lookup the topology")
 		return
 	}
-
-	// TODO: return some statistics
 	tc.RenderJSON(map[string]interface{}{
-		"topology": map[string]interface{}{
-			"name": tc.topologyName,
-		},
+		"topology": newTopologiesShowResult(tb),
 	})
+}
+
+type topologiesShowResult struct {
+	Name string `json:"name"`
+	// TODO: add other information
+}
+
+func newTopologiesShowResult(tb *bql.TopologyBuilder) *topologiesShowResult {
+	return &topologiesShowResult{
+		Name: tb.Topology().Name(),
+	}
 }
 
 // TODO: provide Update action (change state of the topology, etc.)
 
-func (tc *TopologiesContext) Destroy(rw web.ResponseWriter, req *web.Request) {
+func (tc *topologies) Destroy(rw web.ResponseWriter, req *web.Request) {
 	tb, err := tc.topologies.Unregister(tc.topologyName)
 	if err != nil {
-		// TODO: log and render error json
+		tc.ErrLog(err).WithField("topology", tc.topologyName).Error("Cannot unregister the topology")
+		tc.RenderErrorJSON(NewInternalServerError(err))
 		return
 	}
+	stopped := true
 	if tb != nil {
 		if err := tb.Topology().Stop(); err != nil {
-			// TODO: log and add warning to json
+			stopped = false
+			tc.ErrLog(err).WithField("topology", tc.topologyName).Error("Cannot stop the topology")
 		}
 	}
 
-	// TODO: return warning if the topology didn't stop correctly.
-	tc.RenderJSON(map[string]interface{}{})
+	if stopped {
+		// TODO: return 204 when the topology didn't exist.
+		tc.RenderJSON(map[string]interface{}{})
+	} else {
+		tc.RenderJSON(map[string]interface{}{
+			"warning": map[string]interface{}{
+				"message": "the topology wasn't stopped correctly",
+			},
+		})
+	}
 }
 
-func (tc *TopologiesContext) Queries(rw web.ResponseWriter, req *web.Request) {
+func (tc *topologies) Queries(rw web.ResponseWriter, req *web.Request) {
 	tb, err := tc.topologies.Lookup(tc.topologyName)
 	if err != nil {
 		// TODO: log and render error json

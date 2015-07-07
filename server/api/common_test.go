@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"github.com/Sirupsen/logrus"
 	"github.com/gocraft/web"
+	"github.com/mattn/go-scan"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -116,4 +117,12 @@ func createTestServerWithCustomRoute(route func(prefix string, r *web.Router)) *
 		s.Server.URL = "http://172.0.0.1:0602/api/v1"
 	}
 	return s
+}
+
+func jscan(js interface{}, path string) interface{} {
+	var v interface{}
+	if err := scan.ScanTree(js, path, &v); err != nil {
+		return nil
+	}
+	return v
 }
