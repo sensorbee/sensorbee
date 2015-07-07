@@ -288,10 +288,12 @@ func TestInsertIntoSelectStmt(t *testing.T) {
 		So(err, ShouldBeNil)
 		err = addBQLToTopology(tb, `CREATE PAUSED SOURCE s TYPE dummy`)
 		So(err, ShouldBeNil)
+		err = addBQLToTopology(tb, `CREATE STREAM t AS SELECT RSTREAM * FROM s [RANGE 1 TUPLES]`)
+		So(err, ShouldBeNil)
 		err = addBQLToTopology(tb, `CREATE SINK foo TYPE collector`)
 		So(err, ShouldBeNil)
 
-		Convey("When running INSERT INTO SELECT on an existing stream and sink", func() {
+		Convey("When running INSERT INTO SELECT on an existing source and sink", func() {
 			err := addBQLToTopology(tb, `INSERT INTO foo SELECT int FROM s`)
 
 			Convey("Then there should be no error", func() {
@@ -299,20 +301,11 @@ func TestInsertIntoSelectStmt(t *testing.T) {
 			})
 
 			Convey("And when running another INSERT INTO SELECT", func() {
-				err := addBQLToTopology(tb, `INSERT INTO foo SELECT int FROM s`)
+				err := addBQLToTopology(tb, `INSERT INTO foo SELECT int FROM t`)
 
 				Convey("Then there should be no error", func() {
 					So(err, ShouldBeNil)
 				})
-			})
-		})
-
-		Convey("When running INSERT INTO SELECT on a source name", func() {
-			err := addBQLToTopology(tb, `INSERT INTO foo SELECT int FROM hoge`)
-
-			Convey("Then an error should be returned", func() {
-				So(err, ShouldNotBeNil)
-				So(err.Error(), ShouldContainSubstring, "was not found")
 			})
 		})
 
