@@ -70,7 +70,7 @@ func TestAssembleFilter(t *testing.T) {
 		p := &bqlPeg{}
 
 		Convey("When selecting without a WHERE", func() {
-			p.Buffer = "SELECT a, b"
+			p.Buffer = "SELECT ISTREAM a, b"
 			p.Init()
 
 			Convey("Then the statement should be parsed correctly", func() {
@@ -88,7 +88,7 @@ func TestAssembleFilter(t *testing.T) {
 		})
 
 		Convey("When selecting with a WHERE", func() {
-			p.Buffer = "SELECT a, b WHERE c"
+			p.Buffer = "SELECT ISTREAM a, b WHERE c"
 			p.Init()
 
 			Convey("Then the statement should be parsed correctly", func() {

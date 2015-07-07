@@ -84,7 +84,7 @@ func TestAssembleGrouping(t *testing.T) {
 		p := &bqlPeg{}
 
 		Convey("When selecting without a GROUP BY", func() {
-			p.Buffer = "SELECT a, b"
+			p.Buffer = "SELECT ISTREAM a, b"
 			p.Init()
 
 			Convey("Then the statement should be parsed correctly", func() {
@@ -102,7 +102,7 @@ func TestAssembleGrouping(t *testing.T) {
 		})
 
 		Convey("When selecting with a GROUP BY", func() {
-			p.Buffer = "SELECT a, b GROUP BY c, d"
+			p.Buffer = "SELECT ISTREAM a, b GROUP BY c, d"
 			p.Init()
 
 			Convey("Then the statement should be parsed correctly", func() {

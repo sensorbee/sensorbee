@@ -84,7 +84,7 @@ func TestAssembleExpressions(t *testing.T) {
 		p := &bqlPeg{}
 
 		Convey("When selecting a function of multiple columns", func() {
-			p.Buffer = "SELECT f(a, b)"
+			p.Buffer = "SELECT ISTREAM f(a, b)"
 			p.Init()
 
 			Convey("Then the statement should be parsed correctly", func() {

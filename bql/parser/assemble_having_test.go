@@ -70,7 +70,7 @@ func TestAssembleHaving(t *testing.T) {
 		p := &bqlPeg{}
 
 		Convey("When selecting without a HAVING", func() {
-			p.Buffer = "SELECT a, b"
+			p.Buffer = "SELECT ISTREAM a, b"
 			p.Init()
 
 			Convey("Then the statement should be parsed correctly", func() {
@@ -88,7 +88,7 @@ func TestAssembleHaving(t *testing.T) {
 		})
 
 		Convey("When selecting with a HAVING", func() {
-			p.Buffer = "SELECT a, b HAVING c"
+			p.Buffer = "SELECT ISTREAM a, b HAVING c"
 			p.Init()
 
 			Convey("Then the statement should be parsed correctly", func() {
