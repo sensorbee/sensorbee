@@ -39,6 +39,7 @@ func (c *Context) setUpContext(rw web.ResponseWriter, req *web.Request, next web
 	c.response = rw
 	c.request = req
 
+	// TODO: request logging
 	next(rw, req)
 }
 
@@ -68,12 +69,14 @@ func (c *Context) NotFoundHandler(rw web.ResponseWriter, req *web.Request) {
 }`))
 }
 
+// Log returns the logger having meta information.
 func (c *Context) Log() *logrus.Entry {
 	return c.logger.WithFields(logrus.Fields{
 		"reqid": c.requestID,
 	})
 }
 
+// ErrLog returns the logger with error information.
 func (c *Context) ErrLog(err error) *logrus.Entry {
 	return c.Log().WithField("err", err)
 }
@@ -123,11 +126,8 @@ func (c *Context) RenderJSON(v interface{}) {
 
 func (c *Context) RenderErrorJSON(e *Error) {
 	e.SetRequestID(c.requestID)
-
-	c.renderJSON(e.Status, &struct {
-		Errors []interface{} `json:"errors"`
-	}{
-		Errors: []interface{}{e},
+	c.renderJSON(e.Status, map[string]interface{}{
+		"error": e,
 	})
 }
 

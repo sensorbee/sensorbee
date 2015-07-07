@@ -10,6 +10,12 @@ const (
 	internalServerErrorCode     = "E0002"
 	requestBodyReadErrorCode    = "E0003"
 	requestBodyParseErrorCode   = "E0004"
+
+	// formValidationErrorCode means that validation of request body failed.
+	// When this error happens, Error.Meta should have detailed error messages
+	// for each field. Each field must have a slice of strings so that clients
+	// can always write error handling codes assuming that they're arrays.
+	formValidationErrorCode = "E0005"
 )
 
 const (

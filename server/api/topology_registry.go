@@ -1,7 +1,7 @@
 package api
 
 import (
-	"fmt"
+	"os"
 	"pfi/sensorbee/sensorbee/bql"
 	"sync"
 )
@@ -9,11 +9,12 @@ import (
 // TopologyRegistry is a registry of topologies managed in th server.
 type TopologyRegistry interface {
 	// Register registers a new topology. If the registry already has a
-	// topology having the same name, this method fails.
+	// topology having the same name, this method fails and returns
+	// os.ErrExist.
 	Register(name string, tb *bql.TopologyBuilder) error
 
-	// Lookup returns a topology having the name. It returns an error if it
-	// doesn't have the topology.
+	// Lookup returns a topology having the name. It returns os.ErrNotExist if
+	// it doesn't have the topology.
 	Lookup(name string) (*bql.TopologyBuilder, error)
 
 	// List returns all topologies the registry has. The caller can safely
@@ -48,7 +49,7 @@ func (r *defaultTopologyRegistry) Register(name string, tb *bql.TopologyBuilder)
 	defer r.m.Unlock()
 
 	if _, ok := r.topologies[name]; ok {
-		return fmt.Errorf("topology '%v' is already registered", name)
+		return os.ErrExist
 	}
 	r.topologies[name] = tb
 	return nil
@@ -61,7 +62,7 @@ func (r *defaultTopologyRegistry) Lookup(name string) (*bql.TopologyBuilder, err
 	if tb, ok := r.topologies[name]; ok {
 		return tb, nil
 	}
-	return nil, fmt.Errorf("topology '%v' is not registered", name)
+	return nil, os.ErrNotExist
 }
 
 func (r *defaultTopologyRegistry) List() (map[string]*bql.TopologyBuilder, error) {
