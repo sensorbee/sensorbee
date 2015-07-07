@@ -230,8 +230,12 @@ orExpr <- < andExpr sp (Or sp andExpr)? > {
         p.AssembleBinaryOperation(begin, end)
     }
 
-andExpr <- < comparisonExpr sp (And sp comparisonExpr)? > {
+andExpr <- < notExpr sp (And sp notExpr)? > {
         p.AssembleBinaryOperation(begin, end)
+    }
+
+notExpr <- < (Not sp)? comparisonExpr > {
+        p.AssembleUnaryPrefixOperation(begin, end)
     }
 
 comparisonExpr <- < isExpr sp (ComparisonOp sp isExpr)? > {
@@ -246,8 +250,12 @@ termExpr <- < productExpr sp (PlusMinusOp sp productExpr)? > {
         p.AssembleBinaryOperation(begin, end)
     }
 
-productExpr <- < baseExpr sp (MultDivOp sp baseExpr)? > {
+productExpr <- < minusExpr sp (MultDivOp sp minusExpr)? > {
         p.AssembleBinaryOperation(begin, end)
+    }
+
+minusExpr <- < (UnaryMinus sp)? baseExpr > {
+        p.AssembleUnaryPrefixOperation(begin, end)
     }
 
 baseExpr <-
@@ -396,6 +404,10 @@ And <- < "AND" > {
         p.PushComponent(begin, end, And)
     }
 
+Not <- < "NOT" > {
+        p.PushComponent(begin, end, Not)
+    }
+
 Equal <- < "=" > {
         p.PushComponent(begin, end, Equal)
     }
@@ -446,6 +458,10 @@ Divide <- < "/" > {
 
 Modulo <- < "%" > {
         p.PushComponent(begin, end, Modulo)
+    }
+
+UnaryMinus <- < "-" > {
+        p.PushComponent(begin, end, UnaryMinus)
     }
 
 Identifier <- < ident > {

@@ -92,6 +92,10 @@ func TestFoldableExecution(t *testing.T) {
 			false, nil},
 		{parser.BinaryOpAST{parser.And, parser.BoolLiteral{false}, parser.BoolLiteral{true}},
 			true, data.Bool(false)},
+		{parser.UnaryOpAST{parser.Not, parser.RowValue{"", "a"}},
+			false, nil},
+		{parser.UnaryOpAST{parser.Not, parser.BoolLiteral{false}},
+			true, data.Bool(true)},
 		{parser.BinaryOpAST{parser.Equal, parser.RowValue{"", "a"}, parser.RowValue{"", "b"}},
 			false, nil},
 		{parser.BinaryOpAST{parser.Equal, parser.NumericLiteral{7}, parser.NumericLiteral{7}},
@@ -663,6 +667,37 @@ func getTestCases() []struct {
 					"b": data.Bool(false)}, data.Bool(false)},
 			},
 		},
+		// Not
+		{parser.UnaryOpAST{parser.Not, parser.RowValue{"", "a"}},
+			[]evalTest{
+				// not a map:
+				{data.Int(17), nil},
+				// keys not present:
+				{data.Map{"x": data.Int(17)}, nil},
+				// key present and false => true
+				{data.Map{"a": data.Bool(false)}, data.Bool(true)},
+				// key present and false-like value => error
+				{data.Map{"a": data.Int(0)}, nil},
+				{data.Map{"a": data.Float(0.0)}, nil},
+				{data.Map{"a": data.String("")}, nil},
+				{data.Map{"a": data.Blob("")}, nil},
+				{data.Map{"a": data.Timestamp{}}, nil},
+				{data.Map{"a": data.Array{}}, nil},
+				{data.Map{"a": data.Map{}}, nil},
+				// key present and true => false
+				{data.Map{"a": data.Bool(true)}, data.Bool(false)},
+				// key present and true-like value => error
+				{data.Map{"a": data.Int(17)}, nil},
+				{data.Map{"a": data.Float(3.14)}, nil},
+				{data.Map{"a": data.String("日本語")}, nil},
+				{data.Map{"a": data.Blob("hoge")}, nil},
+				{data.Map{"a": data.Timestamp(now)}, nil},
+				{data.Map{"a": data.Array{data.Int(2)}}, nil},
+				{data.Map{"a": data.Map{"b": data.Int(3)}}, nil},
+				// null comparison
+				{data.Map{"a": data.Null{}}, data.Null{}},
+			},
+		},
 		/// Comparison Operations
 		// Equal
 		{parser.BinaryOpAST{parser.Equal, parser.RowValue{"", "a"}, parser.RowValue{"", "b"}},
@@ -1169,6 +1204,31 @@ func getTestCases() []struct {
 					"b": data.Timestamp(time.Now())}, nil},
 				// left and right present and not comparable => error
 			}, incomparables...),
+		},
+		// Unary Minus
+		{parser.UnaryOpAST{parser.UnaryMinus, parser.RowValue{"", "a"}},
+			[]evalTest{
+				// not a map:
+				{data.Int(17), nil},
+				// keys not present:
+				{data.Map{"x": data.Int(17)}, nil},
+				// key present and number-like => negative
+				{data.Map{"a": data.Int(17)}, data.Int(-17)},
+				{data.Map{"a": data.Float(3.14)}, data.Float(-3.14)},
+				{data.Map{"a": data.Int(-17)}, data.Int(17)},
+				{data.Map{"a": data.Float(-3.14)}, data.Float(3.14)},
+				{data.Map{"a": data.Int(0)}, data.Int(0)},
+				{data.Map{"a": data.Float(0.0)}, data.Float(-0.0)},
+				// key present and other data type => error
+				{data.Map{"a": data.Bool(false)}, nil},
+				{data.Map{"a": data.String("日本語")}, nil},
+				{data.Map{"a": data.Blob("hoge")}, nil},
+				{data.Map{"a": data.Timestamp(now)}, nil},
+				{data.Map{"a": data.Array{data.Int(2)}}, nil},
+				{data.Map{"a": data.Map{"b": data.Int(3)}}, nil},
+				// null comparison
+				{data.Map{"a": data.Null{}}, data.Null{}},
+			},
 		},
 		/// Function Application
 		{parser.FuncAppAST{parser.FuncName("plusone"),
