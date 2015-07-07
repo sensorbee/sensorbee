@@ -155,6 +155,7 @@ func (tc *topologies) Show(rw web.ResponseWriter, req *web.Request) {
 			return
 		}
 		l.WithField("err", err).Error("Cannot lookup the topology")
+		tc.RenderErrorJSON(NewInternalServerError(err))
 		return
 	}
 	tc.RenderJSON(map[string]interface{}{
