@@ -1,3 +1,5 @@
+// run package implements sensorbee's subcommand command which runs an API
+// server.
 package run
 
 import (
@@ -6,7 +8,7 @@ import (
 	"github.com/codegangsta/cli"
 	"net/http"
 	"os"
-	"pfi/sensorbee/sensorbee/server/api"
+	"pfi/sensorbee/sensorbee/server"
 	"strconv"
 	"strings"
 	"sync"
@@ -51,13 +53,13 @@ func Run(c *cli.Context) {
 
 	logger := logrus.New()
 	// TODO: setup logger based on the config
-	topologies := api.NewDefaultTopologyRegistry()
+	topologies := server.NewDefaultTopologyRegistry()
 
-	root := api.SetUpRouter("/", api.ContextGlobalVariables{
+	root := server.SetUpRouter("/", server.ContextGlobalVariables{
 		Logger:     logger,
 		Topologies: topologies,
 	})
-	api.SetUpAPIRouter("/", root, nil)
+	server.SetUpAPIRouter("/", root, nil)
 
 	handler := func(rw http.ResponseWriter, r *http.Request) {
 		if strings.HasPrefix(r.URL.Path, "/api/") {
