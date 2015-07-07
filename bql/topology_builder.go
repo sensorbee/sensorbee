@@ -150,33 +150,17 @@ func (tb *TopologyBuilder) AddStmt(stmt interface{}) (core.Node, error) {
 			return nil, err
 		}
 		// construct an intermediate box doing the SELECT computation.
-		//   INSERT INTO sink SELECT a, b FROM c WHERE d
+		//   INSERT INTO sink SELECT ISTREAM a, b FROM c [RANGE ...] WHERE d
 		// becomes
-		//   CREATE STREAM (random_string) AS SELECT ISTREAM(a, b)
-		//   FROM c [RANGE 1 TUPLES] WHERE d
+		//   CREATE STREAM (random_string) AS SELECT ISTREAM a, b
+		//   FROM c [RANGE ...] WHERE d
 		//  + a connection (random_string -> sink)
 		tmpName := fmt.Sprintf("sensorbee_tmp_%v", topologyBuilderNextTemporaryID())
-		newRels := make([]parser.AliasedStreamWindowAST, len(stmt.Relations))
-		for i, from := range stmt.Relations {
-			if from.Unit != parser.UnspecifiedIntervalUnit {
-				return nil, fmt.Errorf("you cannot use a RANGE clause with an INSERT INTO " +
-					"statement at the moment")
-			} else {
-				newRels[i] = from
-				newRels[i].IntervalAST = parser.IntervalAST{
-					parser.NumericLiteral{1}, parser.Tuples}
-			}
-		}
-		if stmt.EmitterType != parser.UnspecifiedEmitter {
-			err := fmt.Errorf("you cannot use a %s clause with an INSERT INTO "+
-				"statement at the moment", stmt.EmitterType)
-			return nil, err
-		}
 		tmpStmt := parser.CreateStreamAsSelectStmt{
 			parser.StreamIdentifier(tmpName),
-			parser.EmitterAST{parser.Rstream, nil},
+			stmt.EmitterAST,
 			stmt.ProjectionsAST,
-			parser.WindowedFromAST{newRels},
+			stmt.WindowedFromAST,
 			stmt.FilterAST,
 			stmt.GroupingAST,
 			stmt.HavingAST,
@@ -193,6 +177,18 @@ func (tb *TopologyBuilder) AddStmt(stmt interface{}) (core.Node, error) {
 			return nil, err
 		}
 		return box, nil
+
+	case parser.InsertIntoFromStmt:
+		// get the sink to add an input to
+		sink, err := tb.topology.Sink(string(stmt.Sink))
+		if err != nil {
+			return nil, err
+		}
+		// now connect the sink to the specified box
+		if err := sink.Input(string(stmt.Input), nil); err != nil {
+			return nil, err
+		}
+		return sink, nil
 
 	case parser.PauseSourceStmt:
 		src, err := tb.topology.Source(string(stmt.Source))
