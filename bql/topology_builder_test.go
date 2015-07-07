@@ -288,18 +288,20 @@ func TestInsertIntoSelectStmt(t *testing.T) {
 		So(err, ShouldBeNil)
 		err = addBQLToTopology(tb, `CREATE PAUSED SOURCE s TYPE dummy`)
 		So(err, ShouldBeNil)
+		err = addBQLToTopology(tb, `CREATE STREAM t AS SELECT RSTREAM * FROM s [RANGE 1 TUPLES]`)
+		So(err, ShouldBeNil)
 		err = addBQLToTopology(tb, `CREATE SINK foo TYPE collector`)
 		So(err, ShouldBeNil)
 
-		Convey("When running INSERT INTO SELECT on an existing stream and sink", func() {
-			err := addBQLToTopology(tb, `INSERT INTO foo SELECT int FROM s`)
+		Convey("When running INSERT INTO SELECT on an existing source and sink", func() {
+			err := addBQLToTopology(tb, `INSERT INTO foo SELECT RSTREAM int FROM s [RANGE 1 TUPLES]`)
 
 			Convey("Then there should be no error", func() {
 				So(err, ShouldBeNil)
 			})
 
 			Convey("And when running another INSERT INTO SELECT", func() {
-				err := addBQLToTopology(tb, `INSERT INTO foo SELECT int FROM s`)
+				err := addBQLToTopology(tb, `INSERT INTO foo SELECT RSTREAM int FROM t [RANGE 1 TUPLES]`)
 
 				Convey("Then there should be no error", func() {
 					So(err, ShouldBeNil)
@@ -307,17 +309,8 @@ func TestInsertIntoSelectStmt(t *testing.T) {
 			})
 		})
 
-		Convey("When running INSERT INTO SELECT on a source name", func() {
-			err := addBQLToTopology(tb, `INSERT INTO foo SELECT int FROM hoge`)
-
-			Convey("Then an error should be returned", func() {
-				So(err, ShouldNotBeNil)
-				So(err.Error(), ShouldContainSubstring, "was not found")
-			})
-		})
-
 		Convey("When running INSERT INTO SELECT on a non-existing stream", func() {
-			err := addBQLToTopology(tb, `INSERT INTO foo SELECT int FROM foo`)
+			err := addBQLToTopology(tb, `INSERT INTO foo SELECT RSTREAM int FROM foo [RANGE 1 TUPLES]`)
 
 			Convey("Then an error should be returned", func() {
 				So(err, ShouldNotBeNil)
@@ -326,11 +319,107 @@ func TestInsertIntoSelectStmt(t *testing.T) {
 		})
 
 		Convey("When running INSERT INTO SELECT on a non-existing sink", func() {
-			err := addBQLToTopology(tb, `INSERT INTO bar SELECT int FROM s`)
+			err := addBQLToTopology(tb, `INSERT INTO bar SELECT RSTREAM int FROM s [RANGE 1 TUPLES]`)
 
 			Convey("Then an error should be returned", func() {
 				So(err, ShouldNotBeNil)
 				So(err.Error(), ShouldContainSubstring, "was not found")
+			})
+		})
+	})
+}
+
+func TestInsertIntoFromStmt(t *testing.T) {
+	Convey("Given a BQL TopologyBuilder with source, stream, and sink", t, func() {
+		dt := newTestTopology()
+		Reset(func() {
+			dt.Stop()
+		})
+		tb, err := NewTopologyBuilder(dt)
+		So(err, ShouldBeNil)
+		err = addBQLToTopology(tb, `CREATE PAUSED SOURCE s TYPE dummy`)
+		So(err, ShouldBeNil)
+		err = addBQLToTopology(tb, `CREATE STREAM t AS SELECT RSTREAM * FROM s [RANGE 1 TUPLES]`)
+		So(err, ShouldBeNil)
+		err = addBQLToTopology(tb, `CREATE SINK foo TYPE collector`)
+		So(err, ShouldBeNil)
+
+		Convey("When running INSERT INTO on an existing source and sink", func() {
+			err := addBQLToTopology(tb, `INSERT INTO foo FROM s`)
+
+			Convey("Then there should be no error", func() {
+				So(err, ShouldBeNil)
+			})
+
+			Convey("And when running another INSERT INTO", func() {
+				err := addBQLToTopology(tb, `INSERT INTO foo FROM t`)
+
+				Convey("Then there should be no error", func() {
+					So(err, ShouldBeNil)
+				})
+			})
+		})
+
+		Convey("When running INSERT INTO on a non-existing stream", func() {
+			err := addBQLToTopology(tb, `INSERT INTO foo FROM foo`)
+
+			Convey("Then an error should be returned", func() {
+				So(err, ShouldNotBeNil)
+				So(err.Error(), ShouldContainSubstring, "was not found")
+			})
+		})
+
+		Convey("When running INSERT INTO on a non-existing sink", func() {
+			err := addBQLToTopology(tb, `INSERT INTO bar FROM s`)
+
+			Convey("Then an error should be returned", func() {
+				So(err, ShouldNotBeNil)
+				So(err.Error(), ShouldContainSubstring, "was not found")
+			})
+		})
+	})
+}
+
+func TestInsertEquivalence(t *testing.T) {
+	Convey("Given a BQL TopologyBuilder with source and two sinks", t, func() {
+		dt := newTestTopology()
+		Reset(func() {
+			dt.Stop()
+		})
+		tb, err := NewTopologyBuilder(dt)
+		So(err, ShouldBeNil)
+		err = addBQLToTopology(tb, `CREATE PAUSED SOURCE s TYPE dummy WITH num=4`)
+		So(err, ShouldBeNil)
+		err = addBQLToTopology(tb, `CREATE SINK foo TYPE collector`)
+		So(err, ShouldBeNil)
+		_foo, err := dt.Sink("foo")
+		So(err, ShouldBeNil)
+		foo := _foo.Sink().(*tupleCollectorSink)
+		err = addBQLToTopology(tb, `CREATE SINK bar TYPE collector`)
+		So(err, ShouldBeNil)
+		_bar, err := dt.Sink("bar")
+		So(err, ShouldBeNil)
+		bar := _bar.Sink().(*tupleCollectorSink)
+
+		Convey("When one source is connected directly and one indirectly", func() {
+			err := addBQLToTopology(tb, `INSERT INTO foo FROM s`)
+			So(err, ShouldBeNil)
+
+			err = addBQLToTopology(tb, `INSERT INTO bar SELECT RSTREAM * FROM s [RANGE 1 TUPLES]`)
+			So(err, ShouldBeNil)
+
+			Convey("Then the results should be the same", func() {
+				err = addBQLToTopology(tb, `RESUME SOURCE s`)
+				So(err, ShouldBeNil)
+
+				foo.Wait(4)
+				bar.Wait(4)
+				for i := 0; i < 4; i++ {
+					// they go different paths, but everything else should be the same
+					foo.Tuples[i].Trace = nil
+					bar.Tuples[i].Trace = nil
+					So(foo.Tuples[i], ShouldResemble, bar.Tuples[i])
+				}
 			})
 		})
 	})
@@ -352,7 +441,7 @@ func TestMultipleStatements(t *testing.T) {
 			  ISTREAM int, str((int+1) % 3) AS x FROM source
 			  [RANGE 2 SECONDS] WHERE int % 2 = 0;
 			CREATE SINK snk TYPE collector;
-			INSERT INTO snk SELECT * FROM box;
+			INSERT INTO snk FROM box;
 			RESUME SOURCE source;
 			`
 			err := addBQLToTopology(tb, stmts)
@@ -368,7 +457,7 @@ func TestMultipleStatements(t *testing.T) {
 			CREATE STREAM box AS SELECT
 			  ISTREAM int, str((int+1) % 3) AS x FROM source
 			  [RANGE 2 SECONDS] WHERE int % 2 = 0;
-			INSERT INTO snk SELECT * FROM box;
+			INSERT INTO snk FROM box;
 			CREATE SINK snk TYPE collector;
 			RESUME SOURCE source;
 			`
