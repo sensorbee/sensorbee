@@ -6,12 +6,10 @@ import (
 	"fmt"
 	"github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
+	"net"
 	"net/http"
 	"os"
 	"pfi/sensorbee/sensorbee/server"
-	"strconv"
-	"strings"
-	"sync"
 )
 
 // SetUp sets up SensorBee's HTTP server. The URL or port ID is set with server
@@ -25,10 +23,9 @@ func SetUp() cli.Command {
 	}
 	cmd.Flags = []cli.Flag{
 		cli.StringFlag{
-			Name:   "port",
-			Value:  "8090",
-			Usage:  "server port number",
-			EnvVar: "PORT",
+			Name:  "listen-on, l",
+			Value: "0.0.0.0:8090",
+			Usage: "server port number",
 		},
 	}
 	return cmd
@@ -36,7 +33,6 @@ func SetUp() cli.Command {
 
 // Run run the HTTP server.
 func Run(c *cli.Context) {
-
 	defer func() {
 		// This logic is provided to write test codes for this command line tool like below:
 		// if v := recover(); v != nil {
@@ -55,53 +51,27 @@ func Run(c *cli.Context) {
 	// TODO: setup logger based on the config
 	topologies := server.NewDefaultTopologyRegistry()
 
-	root := server.SetUpRouter("/", server.ContextGlobalVariables{
+	router := server.SetUpRouter("/", server.ContextGlobalVariables{
 		Logger:     logger,
 		Topologies: topologies,
 	})
-	server.SetUpAPIRouter("/", root, nil)
+	server.SetUpAPIRouter("/", router, nil)
 
-	handler := func(rw http.ResponseWriter, r *http.Request) {
-		if strings.HasPrefix(r.URL.Path, "/api/") {
-			root.ServeHTTP(rw, r)
-		}
+	bind := c.String("listen-on")
+	if _, err := net.ResolveTCPAddr("tcp", bind); err != nil {
+		fmt.Fprintln(os.Stderr, "--listen-on(-l) parameter has an invalid address:", err)
+		panic(1)
 	}
 
-	port, err := strconv.Atoi(c.String("port"))
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "Cannot get port number:", err)
+	// TODO: support listening on multiple addresses
+	// TODO: support stopping the server
+	// TODO: support graceful shutdown
+	s := &http.Server{
+		Addr:    bind,
+		Handler: router,
 	}
-
-	mutex := &sync.Mutex{}
-	cond := sync.NewCond(mutex)
-	var serverErr error
-
-	mutex.Lock()
-	defer mutex.Unlock()
-
-	ports := []int{port} // TODO do need to have several port??
-	for _, p := range ports {
-		p := p // create a copy of the loop variable for the closure below
-
-		go func() {
-			// TODO: We need to listen first, and then serve on it.
-			s := &http.Server{
-				Addr:    fmt.Sprint(":", p), // TODO Support bind
-				Handler: http.HandlerFunc(handler),
-			}
-
-			err := s.ListenAndServe()
-			if err != nil {
-				mutex.Lock()
-				defer mutex.Unlock()
-				serverErr = err
-				cond.Signal()
-			}
-		}()
-	}
-
-	cond.Wait()
-	if serverErr != nil {
-		fmt.Fprintln(os.Stderr, "Cannot start the server:", serverErr)
+	if err := s.ListenAndServe(); err != nil {
+		fmt.Fprintln(os.Stderr, "Cannot start the server:", err)
+		panic(1)
 	}
 }
