@@ -226,6 +226,25 @@ func (ps *parseStack) AssembleInsertIntoSelect() {
 	ps.Push(&se)
 }
 
+// AssembleInsertIntoFrom takes the topmost elements from the stack,
+// assuming they are components of a INSERT ... FROM ... statement, and
+// replaces them by a single InsertIntoFromStmt element.
+//
+//  StreamIdentifier
+//  StreamIdentifier
+//   =>
+//  InsertIntoFromStmt{StreamIdentifier, StreamIdentifier}
+func (ps *parseStack) AssembleInsertIntoFrom() {
+	_input, _sink := ps.pop2()
+
+	input := _input.comp.(StreamIdentifier)
+	sink := _sink.comp.(StreamIdentifier)
+
+	s := InsertIntoFromStmt{sink, input}
+	se := ParsedComponent{_sink.begin, _input.end, s}
+	ps.Push(&se)
+}
+
 // AssemblePauseSource takes the topmost elements from the stack,
 // assuming they are components of a PAUSE SOURCE statement, and
 // replaces them by a single PauseSourceStmt element.
