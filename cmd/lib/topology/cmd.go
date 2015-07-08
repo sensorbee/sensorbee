@@ -86,9 +86,9 @@ func newRequester(c *cli.Context) *client.Requester {
 	return r
 }
 
-func do(c *cli.Context, reqType client.RequestType, path string, body interface{}, baseErrMsg string) *client.Response {
+func do(c *cli.Context, method client.Method, path string, body interface{}, baseErrMsg string) *client.Response {
 	req := newRequester(c)
-	res, err := req.Do(reqType, path, body)
+	res, err := req.Do(method, path, body)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%v: %v\n", baseErrMsg, err)
 		panic(1)
