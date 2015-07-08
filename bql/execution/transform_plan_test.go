@@ -395,7 +395,13 @@ func TestRelationChecker(t *testing.T) {
 			}
 
 			Convey("When we analyze it", func() {
-				_, err := Analyze(ast)
+				// the two functions below were just a call to
+				// `Analyze` before, but now `Analyze` does more
+				// than what we want to check for here
+				err := makeRelationAliases(&ast)
+				if err == nil {
+					err = validateReferences(&ast)
+				}
 				expectedError := testCase.expectedError
 				if expectedError == "" {
 					Convey("There is no error", func() {
@@ -434,7 +440,13 @@ func TestRelationChecker(t *testing.T) {
 			}
 
 			Convey("When we analyze it", func() {
-				_, err := Analyze(ast)
+				// the two functions below were just a call to
+				// `Analyze` before, but now `Analyze` does more
+				// than what we want to check for here
+				err := makeRelationAliases(&ast)
+				if err == nil {
+					err = validateReferences(&ast)
+				}
 				expectedError := testCase.expectedError
 				if expectedError == "" {
 					Convey("There is no error", func() {
@@ -570,7 +582,7 @@ func TestAggregateChecker(t *testing.T) {
 
 		// there is an aggregate call `count(a)`, so it is referenced from
 		// the expression list and appears in the `aggrs` list
-		{"a + count(a) FROM x [RANGE 1 TUPLES]", "",
+		{"a + count(a) FROM x [RANGE 1 TUPLES] GROUP BY a", "",
 			BinaryOpAST{parser.Plus,
 				RowValue{"x", "a"}, AggFuncAppRef{"#count(x:a)#"}},
 			map[string]AggFuncAppAST{
@@ -579,7 +591,7 @@ func TestAggregateChecker(t *testing.T) {
 
 		// there is an aggregate call `udaf(a+1)`, so it is referenced from
 		// the expression list and appears in the `aggrs` list
-		{"a + udaf(a + 1) FROM x [RANGE 1 TUPLES]", "",
+		{"a + udaf(a + 1) FROM x [RANGE 1 TUPLES] GROUP BY a", "",
 			BinaryOpAST{parser.Plus,
 				RowValue{"x", "a"},
 				AggFuncAppRef{"#udaf(x:a+1)#"}},
@@ -630,6 +642,50 @@ func TestAggregateChecker(t *testing.T) {
 
 		{"a FROM x [RANGE 1 TUPLES] GROUP BY count(a)",
 			"aggregates not allowed in GROUP BY clause", nil, nil},
+
+		{"a FROM x [RANGE 1 TUPLES] GROUP BY f(a)",
+			"grouping by expressions is not supported yet", nil, nil},
+
+		// various grouping checks
+		{"a FROM x [RANGE 1 TUPLES] GROUP BY a", "",
+			RowValue{"x", "a"},
+			nil},
+
+		{"count(a) FROM x [RANGE 1 TUPLES] GROUP BY a", "",
+			AggFuncAppRef{"#count(x:a)#"},
+			map[string]AggFuncAppAST{
+				"#count(x:a)#": AggFuncAppAST{"count", RowValue{"x", "a"}},
+			}},
+
+		{"count(b) FROM x [RANGE 1 TUPLES] GROUP BY a", "",
+			AggFuncAppRef{"#count(x:b)#"},
+			map[string]AggFuncAppAST{
+				"#count(x:b)#": AggFuncAppAST{"count", RowValue{"x", "b"}},
+			}},
+
+		{"count(b), a FROM x [RANGE 1 TUPLES] GROUP BY a", "",
+			AggFuncAppRef{"#count(x:b)#"}, // just the first one
+			map[string]AggFuncAppAST{
+				"#count(x:b)#": AggFuncAppAST{"count", RowValue{"x", "b"}},
+			}},
+
+		{"count(b), a, c FROM x [RANGE 1 TUPLES] GROUP BY a, c", "",
+			AggFuncAppRef{"#count(x:b)#"}, // just the first one
+			map[string]AggFuncAppAST{
+				"#count(x:b)#": AggFuncAppAST{"count", RowValue{"x", "b"}},
+			}},
+
+		{"a FROM x [RANGE 1 TUPLES] GROUP BY b",
+			"column \"x:a\" must appear in the GROUP BY clause or be used in an aggregate function", nil, nil},
+
+		{"a FROM x [RANGE 1 TUPLES] AS y GROUP BY b",
+			"column \"y:a\" must appear in the GROUP BY clause or be used in an aggregate function", nil, nil},
+
+		{"a, count(b) FROM x [RANGE 1 TUPLES]",
+			"column \"x:a\" must appear in the GROUP BY clause or be used in an aggregate function", nil, nil},
+
+		{"a + count(b) FROM x [RANGE 1 TUPLES]",
+			"column \"x:a\" must appear in the GROUP BY clause or be used in an aggregate function", nil, nil},
 	}
 
 	for _, testCase := range testCases {
