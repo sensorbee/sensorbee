@@ -53,9 +53,10 @@ func SetUp() cli.Command {
 var (
 	commonFlags = []cli.Flag{
 		cli.StringFlag{ // TODO: share this flag with others
-			Name:  "uri",
-			Value: "http://localhost:8090/",
-			Usage: "the address of the target SensorBee server",
+			Name:   "uri",
+			Value:  "http://localhost:8090/",
+			Usage:  "the address of the target SensorBee server",
+			EnvVar: "SENSORBEE_URI",
 		},
 		cli.StringFlag{ // TODO: share this flag with others
 			Name:  "api-version",
