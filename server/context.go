@@ -176,7 +176,7 @@ func SetUpRouter(prefix string, gvars ContextGlobalVariables) *web.Router {
 	root := web.NewWithPrefix(Context{}, prefix)
 	root.NotFound((*Context).NotFoundHandler)
 	root.Middleware(func(c *Context, rw web.ResponseWriter, req *web.Request, next web.NextMiddlewareFunc) {
-		c.logger = gvars.Logger
+		c.SetLogger(gvars.Logger)
 		c.topologies = gvars.Topologies
 		next(rw, req)
 	})
