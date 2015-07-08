@@ -548,8 +548,14 @@ func TestAggregateChecker(t *testing.T) {
 	}{
 		{"a FROM x [RANGE 1 TUPLES]", ""},
 		{"f(a) FROM x [RANGE 1 TUPLES]", ""},
-		{"count(a) FROM x [RANGE 1 TUPLES]", "you cannot use aggregate function 'count' in a flat expression"},
-		{"a + count(a) FROM x [RANGE 1 TUPLES]", "you cannot use aggregate function 'count' in a flat expression"},
+		{"count(a) FROM x [RANGE 1 TUPLES]", ""},
+		{"a + count(a) FROM x [RANGE 1 TUPLES]", ""},
+		{"a + udaf(a + 1) FROM x [RANGE 1 TUPLES]", ""},
+		{"udaf(a + f(1)) + g(count(a)) FROM x [RANGE 1 TUPLES]", ""},
+		{"a + udaf(a, 1) FROM x [RANGE 1 TUPLES]",
+			"aggregate functions must have exactly one parameter"},
+		{"count(udaf(a)) FROM x [RANGE 1 TUPLES]",
+			"aggregate functions cannot be nested"},
 	}
 
 	for _, testCase := range testCases {
@@ -564,11 +570,12 @@ func TestAggregateChecker(t *testing.T) {
 			ast := ast_.(parser.CreateStreamAsSelectStmt)
 
 			Convey("When we analyze it", func() {
-				_, err := Analyze(ast)
+				logPlan, err := Analyze(ast)
 				expectedError := testCase.expectedError
 				if expectedError == "" {
 					Convey("There is no error", func() {
 						So(err, ShouldBeNil)
+						fmt.Printf("%+v\n", logPlan.Projections)
 					})
 				} else {
 					Convey("There is an error", func() {

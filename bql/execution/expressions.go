@@ -2,15 +2,21 @@ package execution
 
 import (
 	"fmt"
+	"math/rand"
 	"pfi/sensorbee/sensorbee/bql/parser"
+	"strings"
 )
 
+// aliasedExpression represents an expression in a SELECT clause
+// that has an output name associated and can be either an ordinary
+// ("flat") expression or one that involves an aggregate computation.
 type aliasedExpression struct {
-	alias string
-	expr  FlatExpression
+	alias      string
+	expr       FlatExpression
+	aggrInputs map[string]FuncAppAST
 }
 
-// ParserExprToFlatExpr converts and expression obtained by the BQL parser
+// ParserExprToFlatExpr converts an expression obtained by the BQL parser
 // to a FlatExpression, i.e., there are only expressions contained that
 // can be evaluated on one single row and return an (unnamed) value.
 // In particular, this fails for Expressions containing aggregate functions.
@@ -57,7 +63,7 @@ func ParserExprToFlatExpr(e parser.Expression, isAggregate func(string) bool) (F
 				"in a flat expression", obj.Function)
 			return nil, err
 		}
-		// compute child Evaluators
+		// compute child expressions
 		exprs := make([]FlatExpression, len(obj.Expressions))
 		for i, ast := range obj.Expressions {
 			expr, err := ParserExprToFlatExpr(ast, isAggregate)
@@ -72,6 +78,82 @@ func ParserExprToFlatExpr(e parser.Expression, isAggregate func(string) bool) (F
 	}
 	err := fmt.Errorf("don't know how to convert type %#v", e)
 	return nil, err
+}
+
+// ParserExprToMaybeAggregate converts an expression obtained by the BQL
+// parser into a data structure where the aggregate and the non-aggregate
+// parts are separated.
+func ParserExprToMaybeAggregate(e parser.Expression, isAggregate func(string) bool) (FlatExpression, map[string]FuncAppAST, error) {
+	switch obj := e.(type) {
+	default:
+		// elementary types
+		expr, err := ParserExprToFlatExpr(e, isAggregate)
+		return expr, nil, err
+	case parser.BinaryOpAST:
+		// recurse
+		left, leftAgg, err := ParserExprToMaybeAggregate(obj.Left, isAggregate)
+		if err != nil {
+			return nil, nil, err
+		}
+		right, rightAgg, err := ParserExprToMaybeAggregate(obj.Right, isAggregate)
+		if err != nil {
+			return nil, nil, err
+		}
+		var returnAgg map[string]FuncAppAST
+		if leftAgg != nil {
+			returnAgg = leftAgg
+			for key, val := range rightAgg {
+				returnAgg[key] = val
+			}
+		} else if leftAgg == nil {
+			returnAgg = rightAgg
+		}
+		return BinaryOpAST{obj.Op, left, right}, returnAgg, nil
+	case parser.UnaryOpAST:
+		// recurse
+		expr, agg, err := ParserExprToMaybeAggregate(obj.Expr, isAggregate)
+		if err != nil {
+			return nil, nil, err
+		}
+		return UnaryOpAST{obj.Op, expr}, agg, nil
+	case parser.FuncAppAST:
+		if isAggregate(string(obj.Function)) {
+			// we can only have one parameter
+			if len(obj.Expressions) != 1 {
+				err := fmt.Errorf("aggregate functions must have exactly one parameter")
+				return nil, nil, err
+			}
+			// this expression must be flat, there must not be other aggregates
+			expr, err := ParserExprToFlatExpr(obj.Expressions[0], isAggregate)
+			if err != nil {
+				// return a prettier error message
+				if strings.HasPrefix(err.Error(), "you cannot use aggregate") {
+					err = fmt.Errorf("aggregate functions cannot be nested")
+				}
+				return nil, nil, err
+			}
+			// get a random string that identifies this sub-expression
+			funcId := fmt.Sprintf("aggr_res_%d", rand.Int63())
+			return AggFunResult{string(obj.Function), funcId}, map[string]FuncAppAST{funcId: {obj.Function, []FlatExpression{expr}}}, nil
+		} else {
+			// compute child expressions
+			exprs := make([]FlatExpression, len(obj.Expressions))
+			returnAgg := map[string]FuncAppAST{}
+			for i, ast := range obj.Expressions {
+				expr, agg, err := ParserExprToMaybeAggregate(ast, isAggregate)
+				if err != nil {
+					return nil, nil, err
+				}
+				for key, val := range agg {
+					returnAgg[key] = val
+				}
+				exprs[i] = expr
+			}
+			return FuncAppAST{obj.Function, exprs}, returnAgg, nil
+		}
+	}
+	err := fmt.Errorf("don't know how to convert type %#v", e)
+	return nil, nil, err
 }
 
 // FlatExpression represents an expression that can be completely
@@ -121,6 +203,15 @@ type WildcardAST struct {
 }
 
 func (w WildcardAST) Hoge() bool {
+	return false
+}
+
+type AggFunResult struct {
+	Function string
+	ParamStr string
+}
+
+func (afr AggFunResult) Hoge() bool {
 	return false
 }
 
