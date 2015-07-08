@@ -49,6 +49,9 @@ func (r *Response) Error() (*ErrorResponse, error) {
 	if err := r.ReadJSON(&res); err != nil {
 		return nil, err
 	}
+	if res.Error == nil {
+		return nil, errors.New("invalid error response")
+	}
 	r.errCache = res.Error
 	return r.errCache, nil
 }

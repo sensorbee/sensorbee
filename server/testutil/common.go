@@ -42,6 +42,13 @@ func (s *Server) Client() *Client {
 	}
 }
 
+func (s *Server) URL() string {
+	if s.server.realServer == nil {
+		return ""
+	}
+	return s.server.realServer.URL
+}
+
 // Client is a client of the temporary server.
 type Client struct {
 	uri string
