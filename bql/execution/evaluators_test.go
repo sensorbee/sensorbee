@@ -226,7 +226,7 @@ func (tfr *testFuncRegistry) Lookup(name string, arity int) (udf.UDF, error) {
 }
 
 func getTestCases() []struct {
-	ast    interface{}
+	ast    parser.Expression
 	inputs []evalTest
 } {
 	now := time.Now()
@@ -426,7 +426,7 @@ func getTestCases() []struct {
 	// we should check that every AST expression maps to
 	// an evaluator with the correct behavior
 	testCases := []struct {
-		ast    interface{}
+		ast    parser.Expression
 		inputs []evalTest
 	}{
 		// Literals should always be independent of the input data
