@@ -85,12 +85,20 @@ func isAggregateDummy(fName string) bool {
 // part in a statement and returns with an error if there are
 // aggregates in structures that may not have some
 func flattenExpressions(s *parser.CreateStreamAsSelectStmt) (*LogicalPlan, error) {
+	// groupingMode is active when aggregate functions or the
+	// GROUP BY clause are used
+	groupingMode := false
+
 	flatProjExprs := make([]aliasedExpression, len(s.Projections))
 	for i, expr := range s.Projections {
 		// convert the parser Expression to a FlatExpression
 		flatExpr, aggrs, err := ParserExprToMaybeAggregate(expr, isAggregateDummy)
 		if err != nil {
 			return nil, err
+		}
+		// remember if we have aggregates at all
+		if len(aggrs) > 0 {
+			groupingMode = true
 		}
 		// compute column name
 		colHeader := fmt.Sprintf("col_%v", i+1)
@@ -138,6 +146,7 @@ func flattenExpressions(s *parser.CreateStreamAsSelectStmt) (*LogicalPlan, error
 		filterExpr = filterFlatExpr
 	}
 
+	groupCols := make([]RowValue, len(s.GroupList))
 	flatGroupExprs := make([]FlatExpression, len(s.GroupList))
 	for i, expr := range s.GroupList {
 		// convert the parser Expression to a FlatExpression
@@ -149,7 +158,40 @@ func flattenExpressions(s *parser.CreateStreamAsSelectStmt) (*LogicalPlan, error
 			}
 			return nil, err
 		}
+		// at the moment we only support grouping by single columns,
+		// not expressions
+		col, ok := flatExpr.(RowValue)
+		if !ok {
+			err := fmt.Errorf("grouping by expressions is not supported yet")
+			return nil, err
+		}
+		groupCols[i] = col
 		flatGroupExprs[i] = flatExpr
+	}
+	groupingMode = groupingMode || len(flatGroupExprs) > 0
+
+	// check if grouping is done correctly
+	if groupingMode {
+		for _, expr := range flatProjExprs {
+			// all columns mentioned outside of an aggregate
+			// function must be in the GROUP BY clause
+			usedCols := expr.expr.Columns()
+			for _, usedCol := range usedCols {
+				// look for this col in the GROUP BY clause
+				mentioned := false
+				for _, groupCol := range groupCols {
+					if usedCol == groupCol {
+						mentioned = true
+						break
+					}
+				}
+				if !mentioned {
+					err := fmt.Errorf("column \"%s\" must appear in the GROUP BY "+
+						"clause or be used in an aggregate function", usedCol.Repr())
+					return nil, err
+				}
+			}
+		}
 	}
 
 	return &LogicalPlan{

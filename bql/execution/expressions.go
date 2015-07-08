@@ -164,7 +164,13 @@ func ParserExprToMaybeAggregate(e parser.Expression, isAggregate func(string) bo
 // particular, it cannot contain/represent a call to an aggregate
 // function.
 type FlatExpression interface {
+	// Repr returns a string representation that can be used to
+	// identify this expression (e.g., "stream:col+3") and used as
+	// a dictionary key for finding duplicate expressions.
 	Repr() string
+
+	// Columns returns a list of RowValues used in this expression.
+	Columns() []RowValue
 }
 
 type BinaryOpAST struct {
@@ -177,6 +183,10 @@ func (b BinaryOpAST) Repr() string {
 	return fmt.Sprintf("%s%s%s", b.Left.Repr(), b.Op, b.Right.Repr())
 }
 
+func (b BinaryOpAST) Columns() []RowValue {
+	return append(b.Left.Columns(), b.Right.Columns()...)
+}
+
 type UnaryOpAST struct {
 	Op   parser.Operator
 	Expr FlatExpression
@@ -184,6 +194,10 @@ type UnaryOpAST struct {
 
 func (u UnaryOpAST) Repr() string {
 	return fmt.Sprintf("%s%s", u.Op, u.Expr.Repr())
+}
+
+func (u UnaryOpAST) Columns() []RowValue {
+	return u.Expr.Columns()
 }
 
 type FuncAppAST struct {
@@ -199,11 +213,19 @@ func (f FuncAppAST) Repr() string {
 	return fmt.Sprintf("%s(%s)", f.Function, strings.Join(reprs, ","))
 }
 
+func (f FuncAppAST) Columns() []RowValue {
+	return nil
+}
+
 type WildcardAST struct {
 }
 
 func (w WildcardAST) Repr() string {
 	return "*"
+}
+
+func (w WildcardAST) Columns() []RowValue {
+	return nil
 }
 
 type AggFuncAppRef struct {
@@ -212,6 +234,10 @@ type AggFuncAppRef struct {
 
 func (af AggFuncAppRef) Repr() string {
 	return af.Ref
+}
+
+func (af AggFuncAppRef) Columns() []RowValue {
+	return nil
 }
 
 type RowValue struct {
@@ -223,6 +249,10 @@ func (rv RowValue) Repr() string {
 	return fmt.Sprintf("%s:%s", rv.Relation, rv.Column)
 }
 
+func (rv RowValue) Columns() []RowValue {
+	return []RowValue{rv}
+}
+
 type RowMeta struct {
 	Relation string
 	MetaType parser.MetaInformation
@@ -230,6 +260,10 @@ type RowMeta struct {
 
 func (rm RowMeta) Repr() string {
 	return fmt.Sprintf("%#v", rm)
+}
+
+func (rm RowMeta) Columns() []RowValue {
+	return nil
 }
 
 type NumericLiteral struct {
@@ -240,6 +274,10 @@ func (l NumericLiteral) Repr() string {
 	return fmt.Sprintf("%v", l.Value)
 }
 
+func (l NumericLiteral) Columns() []RowValue {
+	return nil
+}
+
 type FloatLiteral struct {
 	Value float64
 }
@@ -248,11 +286,19 @@ func (l FloatLiteral) Repr() string {
 	return fmt.Sprintf("%vf", l.Value)
 }
 
+func (l FloatLiteral) Columns() []RowValue {
+	return nil
+}
+
 type NullLiteral struct {
 }
 
 func (l NullLiteral) Repr() string {
 	return "NULL"
+}
+
+func (l NullLiteral) Columns() []RowValue {
+	return nil
 }
 
 type BoolLiteral struct {
@@ -263,12 +309,20 @@ func (l BoolLiteral) Repr() string {
 	return fmt.Sprintf("%v", l.Value)
 }
 
+func (l BoolLiteral) Columns() []RowValue {
+	return nil
+}
+
 type StringLiteral struct {
 	Value string
 }
 
 func (l StringLiteral) Repr() string {
 	return fmt.Sprintf("%s", l.Value)
+}
+
+func (l StringLiteral) Columns() []RowValue {
+	return nil
 }
 
 type AggFuncAppAST struct {
