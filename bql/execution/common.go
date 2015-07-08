@@ -8,62 +8,32 @@ import (
 	"pfi/sensorbee/sensorbee/data"
 )
 
-type colDesc struct {
+type aliasedEvaluator struct {
 	alias     string
 	evaluator Evaluator
 }
 
 type commonExecutionPlan struct {
-	projections []colDesc
+	projections []aliasedEvaluator
 	// filter stores the evaluator of the filter condition,
 	// or nil if there is no WHERE clause.
 	filter Evaluator
 }
 
-func prepareProjections(projections []parser.Expression, reg udf.FunctionRegistry) ([]colDesc, error) {
-	output := make([]colDesc, len(projections))
+func prepareProjections(projections []aliasedExpression, reg udf.FunctionRegistry) ([]aliasedEvaluator, error) {
+	output := make([]aliasedEvaluator, len(projections))
 	for i, proj := range projections {
 		// compute evaluators for each column
-		plan, err := ExpressionToEvaluator(proj, reg)
+		plan, err := ExpressionToEvaluator(proj.expr, reg)
 		if err != nil {
 			return nil, err
 		}
-		// compute column name
-		colHeader := fmt.Sprintf("col_%v", i+1)
-		switch projType := proj.(type) {
-		case parser.RowMeta:
-			if projType.MetaType == parser.TimestampMeta {
-				colHeader = "ts"
-			}
-		case parser.RowValue:
-			colHeader = projType.Column
-		case parser.AliasAST:
-			colHeader = projType.Alias
-		case parser.FuncAppAST:
-			colHeader = string(projType.Function)
-		case parser.Wildcard:
-			// The wildcard projection (without AS) is very special in that
-			// it is the only case where the BQL user does not determine
-			// the output key names (implicitly or explicitly). The
-			// Evaluator interface is designed such that Evaluator
-			// has 100% control over the returned value, but 0% control
-			// over how it is named, therefore the wildcard evaluation
-			// requires handling in multiple locations.
-			// As a workaround, we will return the complete Map from
-			// the wildcard Evaluator, nest it under a hard-coded key
-			// called "*" and flatten them later (this is done correctly
-			// by the assignOutputValue function).
-			// Note that if it is desired at some point that there are
-			// more evaluators with that behavior, we should change the
-			// Evaluator.Eval interface.
-			colHeader = "*"
-		}
-		output[i] = colDesc{colHeader, plan}
+		output[i] = aliasedEvaluator{proj.alias, plan}
 	}
 	return output, nil
 }
 
-func prepareFilter(filter parser.Expression, reg udf.FunctionRegistry) (Evaluator, error) {
+func prepareFilter(filter FlatExpression, reg udf.FunctionRegistry) (Evaluator, error) {
 	if filter != nil {
 		return ExpressionToEvaluator(filter, reg)
 	}

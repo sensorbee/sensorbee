@@ -27,7 +27,9 @@ func TestEvaluators(t *testing.T) {
 		Convey(fmt.Sprintf("Given the AST Expression %v", ast), t, func() {
 
 			Convey("Then an Evaluator can be computed", func() {
-				eval, err := ExpressionToEvaluator(ast, reg)
+				flatExpr, err := ParserExprToFlatExpr(ast)
+				So(err, ShouldBeNil)
+				eval, err := ExpressionToEvaluator(flatExpr, reg)
 				So(err, ShouldBeNil)
 
 				for i, tc := range testCase.inputs {
@@ -166,7 +168,9 @@ func TestFuncAppConversion(t *testing.T) {
 				}}}
 
 			Convey("Then we obtain an evaluatable funcApp", func() {
-				eval, err := ExpressionToEvaluator(ast, reg)
+				flatExpr, err := ParserExprToFlatExpr(ast)
+				So(err, ShouldBeNil)
+				eval, err := ExpressionToEvaluator(flatExpr, reg)
 				So(err, ShouldBeNil)
 				So(eval, ShouldHaveSameTypeAs, &funcApp{})
 			})
@@ -179,7 +183,9 @@ func TestFuncAppConversion(t *testing.T) {
 				}}}
 
 			Convey("Then converting to an Evaluator fails", func() {
-				_, err := ExpressionToEvaluator(ast, reg)
+				flatExpr, err := ParserExprToFlatExpr(ast)
+				So(err, ShouldBeNil)
+				_, err = ExpressionToEvaluator(flatExpr, reg)
 				So(err, ShouldNotBeNil)
 			})
 		})
