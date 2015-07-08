@@ -46,8 +46,8 @@ func (t *topologiesCmd) Input(input string) (cmdInputStatusType, error) {
 	return preparedCMD, nil
 }
 
-func (t *topologiesCmd) Eval() (client.RequestType, string, interface{}) {
-	return client.GetRequest, t.uri, nil
+func (t *topologiesCmd) Eval() (client.Method, string, interface{}) {
+	return client.Get, t.uri, nil
 }
 
 type changeTopologyCmd struct {
@@ -72,9 +72,9 @@ func (ct *changeTopologyCmd) Input(input string) (cmdInputStatusType, error) {
 	return preparedCMD, nil
 }
 
-func (ct *changeTopologyCmd) Eval() (client.RequestType, string, interface{}) {
+func (ct *changeTopologyCmd) Eval() (client.Method, string, interface{}) {
 	currentTopology.name = ct.name
-	return client.OtherRequest, "", nil
+	return client.OtherMethod, "", nil
 }
 
 type topologyCmd struct {
@@ -105,8 +105,8 @@ func (t *topologyCmd) Input(input string) (cmdInputStatusType, error) {
 	return preparedCMD, nil
 }
 
-func (t *topologyCmd) Eval() (client.RequestType, string, interface{}) {
-	return client.GetRequest, t.uri, nil
+func (t *topologyCmd) Eval() (client.Method, string, interface{}) {
+	return client.Get, t.uri, nil
 }
 
 type topologyStopCmd struct {
@@ -128,11 +128,11 @@ func (be *topologyStopCmd) Input(input string) (cmdInputStatusType, error) {
 }
 
 // Eval operates topology stop.
-func (be *topologyStopCmd) Eval() (client.RequestType, string, interface{}) {
+func (be *topologyStopCmd) Eval() (client.Method, string, interface{}) {
 	uri := topologiesHeader + "/" + currentTopology.name
 	m := map[string]interface{}{}
 	m["state"] = "stop"
-	return client.PutRequest, uri, &m
+	return client.Put, uri, &m
 }
 
 type bqlCmd struct {
@@ -163,7 +163,7 @@ func (b *bqlCmd) Input(input string) (cmdInputStatusType, error) {
 }
 
 // Eval resolves input command to BQL statement
-func (b *bqlCmd) Eval() (client.RequestType, string, interface{}) {
+func (b *bqlCmd) Eval() (client.Method, string, interface{}) {
 	// flush buffer and get complete statement
 	queries := strings.Replace(b.buffer, "\n", " ", -1)
 	queries = queries[:len(queries)-1]
@@ -174,5 +174,5 @@ func (b *bqlCmd) Eval() (client.RequestType, string, interface{}) {
 	uri := topologiesHeader + "/" + currentTopology.name + "/queries"
 	m := map[string]interface{}{}
 	m["queries"] = queries
-	return client.PostRequest, uri, &m
+	return client.Post, uri, &m
 }
