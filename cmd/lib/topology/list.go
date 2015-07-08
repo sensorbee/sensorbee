@@ -30,26 +30,11 @@ func runList(c *cli.Context) {
 		panic(1)
 	}
 
-	req := newRequester(c)
-	res, err := req.Do(client.GetRequest, "topologies", nil)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Cannot get a list of topologies: %v\n", err)
-		panic(1)
-	}
-	if res.IsError() {
-		errRes, err := res.Error()
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Cannot get a list of topologies and failed to parse error information: %v\n", err)
-			panic(1)
-		}
-		fmt.Fprintf(os.Stderr, "Cannot get a list of topologies: %v, %v: %v\n", errRes.Code, errRes.RequestID, errRes.Message)
-		panic(1)
-	}
-
+	res := do(c, client.GetRequest, "topologies", nil, "Cannot get a list of topologies")
 	ts := struct {
 		Topologies []*response.Topology `json:"topologies"`
 	}{}
-	if err := res.ReadJSON(&ts); err != nil {
+	if err := res.ReadJSON(&ts); err != nil { // ReadJSON closes the body
 		fmt.Fprintf(os.Stderr, "Cannot read a response: %v\n", err)
 		panic(1)
 	}

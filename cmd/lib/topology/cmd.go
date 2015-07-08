@@ -85,3 +85,22 @@ func newRequester(c *cli.Context) *client.Requester {
 	}
 	return r
 }
+
+func do(c *cli.Context, reqType client.RequestType, path string, body interface{}, baseErrMsg string) *client.Response {
+	req := newRequester(c)
+	res, err := req.Do(reqType, path, body)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%v: %v\n", baseErrMsg, err)
+		panic(1)
+	}
+	if res.IsError() {
+		errRes, err := res.Error()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%v and failed to parse error information: %v\n", baseErrMsg, err)
+			panic(1)
+		}
+		fmt.Fprintf(os.Stderr, "%v: %v, %v: %v\n", baseErrMsg, errRes.Code, errRes.RequestID, errRes.Message)
+		panic(1)
+	}
+	return res
+}
