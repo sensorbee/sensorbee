@@ -624,6 +624,12 @@ func TestAggregateChecker(t *testing.T) {
 
 		{"count(udaf(a)) FROM x [RANGE 1 TUPLES]",
 			"aggregate functions cannot be nested", nil, nil},
+
+		{"a FROM x [RANGE 1 TUPLES] WHERE count(a) = 1",
+			"aggregates not allowed in WHERE clause", nil, nil},
+
+		{"a FROM x [RANGE 1 TUPLES] GROUP BY count(a)",
+			"aggregates not allowed in GROUP BY clause", nil, nil},
 	}
 
 	for _, testCase := range testCases {
