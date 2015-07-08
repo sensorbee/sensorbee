@@ -38,7 +38,11 @@ func EvaluateFoldable(expr parser.Expression, reg udf.FunctionRegistry) (data.Va
 	if !expr.Foldable() {
 		return nil, fmt.Errorf("expression is not foldable: %s", expr)
 	}
-	evaluator, err := ExpressionToEvaluator(expr, reg)
+	flatExpr, err := ParserExprToFlatExpr(expr)
+	if err != nil {
+		return nil, err
+	}
+	evaluator, err := ExpressionToEvaluator(flatExpr, reg)
 	if err != nil {
 		return nil, err
 	}
@@ -49,29 +53,27 @@ func EvaluateFoldable(expr parser.Expression, reg udf.FunctionRegistry) (data.Va
 // from parsing a BQL Expression (see parser/ast.go) and turns it into
 // an Evaluator that can be used to evaluate an expression given a particular
 // input Value.
-func ExpressionToEvaluator(ast interface{}, reg udf.FunctionRegistry) (Evaluator, error) {
+func ExpressionToEvaluator(ast FlatExpression, reg udf.FunctionRegistry) (Evaluator, error) {
 	switch obj := ast.(type) {
-	case parser.RowMeta:
+	case RowMeta:
 		// construct a key for reading as used in setMetadata() for writing
 		metaKey := fmt.Sprintf("%s:meta:%s", obj.Relation, obj.MetaType)
 		if obj.MetaType == parser.TimestampMeta {
 			return &timestampCast{&PathAccess{metaKey}}, nil
 		}
-	case parser.RowValue:
+	case RowValue:
 		return &PathAccess{obj.Relation + "." + obj.Column}, nil
-	case parser.AliasAST:
-		return ExpressionToEvaluator(obj.Expr, reg)
-	case parser.NullLiteral:
+	case NullLiteral:
 		return &NullConstant{}, nil
-	case parser.NumericLiteral:
+	case NumericLiteral:
 		return &IntConstant{obj.Value}, nil
-	case parser.FloatLiteral:
+	case FloatLiteral:
 		return &FloatConstant{obj.Value}, nil
-	case parser.BoolLiteral:
+	case BoolLiteral:
 		return &BoolConstant{obj.Value}, nil
-	case parser.StringLiteral:
+	case StringLiteral:
 		return &StringConstant{obj.Value}, nil
-	case parser.BinaryOpAST:
+	case BinaryOpAST:
 		// recurse
 		left, err := ExpressionToEvaluator(obj.Left, reg)
 		if err != nil {
@@ -106,13 +108,13 @@ func ExpressionToEvaluator(ast interface{}, reg udf.FunctionRegistry) (Evaluator
 		case parser.Is:
 			// at the moment there is only NULL allowed after IS,
 			// but maybe we want to allow other types later on
-			if obj.Right == (parser.NullLiteral{}) {
+			if obj.Right == (NullLiteral{}) {
 				return IsNull(left), nil
 			}
 		case parser.IsNot:
 			// at the moment there is only NULL allowed after IS NOT,
 			// but maybe we want to allow other types later on
-			if obj.Right == (parser.NullLiteral{}) {
+			if obj.Right == (NullLiteral{}) {
 				return Not(IsNull(left)), nil
 			}
 		case parser.Plus:
@@ -126,7 +128,7 @@ func ExpressionToEvaluator(ast interface{}, reg udf.FunctionRegistry) (Evaluator
 		case parser.Modulo:
 			return Modulo(bo), nil
 		}
-	case parser.UnaryOpAST:
+	case UnaryOpAST:
 		// recurse
 		expr, err := ExpressionToEvaluator(obj.Expr, reg)
 		if err != nil {
@@ -144,7 +146,7 @@ func ExpressionToEvaluator(ast interface{}, reg udf.FunctionRegistry) (Evaluator
 			bo := binOp{expr, &IntConstant{-1}}
 			return Multiply(bo), nil
 		}
-	case parser.FuncAppAST:
+	case FuncAppAST:
 		// lookup function in function registry
 		// (the registry will decide if the requested function
 		// is callable with the given number of arguments).
@@ -163,7 +165,7 @@ func ExpressionToEvaluator(ast interface{}, reg udf.FunctionRegistry) (Evaluator
 			evals[i] = eval
 		}
 		return FuncApp(fName, f, reg.Context(), evals), nil
-	case parser.Wildcard:
+	case WildcardAST:
 		return &Wildcard{}, nil
 	}
 	err := fmt.Errorf("don't know how to evaluate type %#v", ast)

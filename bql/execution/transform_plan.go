@@ -23,9 +23,9 @@ in three phases:
 
 type LogicalPlan struct {
 	parser.EmitterAST
-	parser.ProjectionsAST
+	Projections []aliasedExpression
 	parser.WindowedFromAST
-	parser.FilterAST
+	Filter FlatExpression
 	parser.GroupingAST
 	parser.HavingAST
 }
@@ -69,11 +69,64 @@ func Analyze(s parser.CreateStreamAsSelectStmt) (*LogicalPlan, error) {
 		return nil, err
 	}
 
+	return flattenExpressions(&s)
+}
+
+func flattenExpressions(s *parser.CreateStreamAsSelectStmt) (*LogicalPlan, error) {
+	flatExprs := make([]aliasedExpression, len(s.Projections))
+	for i, expr := range s.Projections {
+		// convert the parser Expression to a FlatExpression
+		flatExpr, err := ParserExprToFlatExpr(expr)
+		if err != nil {
+			return nil, err
+		}
+		// compute column name
+		colHeader := fmt.Sprintf("col_%v", i+1)
+		switch projType := expr.(type) {
+		case parser.RowMeta:
+			if projType.MetaType == parser.TimestampMeta {
+				colHeader = "ts"
+			}
+		case parser.RowValue:
+			colHeader = projType.Column
+		case parser.AliasAST:
+			colHeader = projType.Alias
+		case parser.FuncAppAST:
+			colHeader = string(projType.Function)
+		case parser.Wildcard:
+			// The wildcard projection (without AS) is very special in that
+			// it is the only case where the BQL user does not determine
+			// the output key names (implicitly or explicitly). The
+			// Evaluator interface is designed such that Evaluator
+			// has 100% control over the returned value, but 0% control
+			// over how it is named, therefore the wildcard evaluation
+			// requires handling in multiple locations.
+			// As a workaround, we will return the complete Map from
+			// the wildcard Evaluator, nest it under a hard-coded key
+			// called "*" and flatten them later (this is done correctly
+			// by the assignOutputValue function).
+			// Note that if it is desired at some point that there are
+			// more evaluators with that behavior, we should change the
+			// Evaluator.Eval interface.
+			colHeader = "*"
+		}
+		flatExprs[i] = aliasedExpression{colHeader, flatExpr}
+	}
+
+	var filterExpr FlatExpression
+	if s.Filter != nil {
+		filterFlatExpr, err := ParserExprToFlatExpr(s.Filter)
+		if err != nil {
+			return nil, err
+		}
+		filterExpr = filterFlatExpr
+	}
+
 	return &LogicalPlan{
 		s.EmitterAST,
-		s.ProjectionsAST,
+		flatExprs,
 		s.WindowedFromAST,
-		s.FilterAST,
+		filterExpr,
 		s.GroupingAST,
 		s.HavingAST,
 	}, nil
