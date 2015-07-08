@@ -85,7 +85,7 @@ func flattenExpressions(s *parser.CreateStreamAsSelectStmt) (*LogicalPlan, error
 	flatExprs := make([]aliasedExpression, len(s.Projections))
 	for i, expr := range s.Projections {
 		// convert the parser Expression to a FlatExpression
-		flatExpr, err := ParserExprToFlatExpr(expr, isAggregateDummy)
+		flatExpr, aggrs, err := ParserExprToMaybeAggregate(expr, isAggregateDummy)
 		if err != nil {
 			return nil, err
 		}
@@ -119,7 +119,7 @@ func flattenExpressions(s *parser.CreateStreamAsSelectStmt) (*LogicalPlan, error
 			// Evaluator.Eval interface.
 			colHeader = "*"
 		}
-		flatExprs[i] = aliasedExpression{colHeader, flatExpr}
+		flatExprs[i] = aliasedExpression{colHeader, flatExpr, aggrs}
 	}
 
 	var filterExpr FlatExpression
