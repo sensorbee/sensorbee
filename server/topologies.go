@@ -10,6 +10,7 @@ import (
 	"pfi/sensorbee/sensorbee/bql/parser"
 	"pfi/sensorbee/sensorbee/core"
 	"pfi/sensorbee/sensorbee/data"
+	"pfi/sensorbee/sensorbee/server/response"
 )
 
 type topologies struct {
@@ -121,7 +122,7 @@ func (tc *topologies) Create(rw web.ResponseWriter, req *web.Request) {
 
 	// TODO: return 201
 	tc.RenderJSON(map[string]interface{}{
-		"topology": newTopologiesShowResult(tb),
+		"topology": response.NewTopology(tb.Topology()),
 	})
 }
 
@@ -134,9 +135,9 @@ func (tc *topologies) Index(rw web.ResponseWriter, req *web.Request) {
 		return
 	}
 
-	res := []*topologiesShowResult{}
+	res := []*response.Topology{}
 	for _, tb := range ts {
-		res = append(res, newTopologiesShowResult(tb))
+		res = append(res, response.NewTopology(tb.Topology()))
 	}
 	tc.RenderJSON(map[string]interface{}{
 		"topologies": res,
@@ -159,19 +160,8 @@ func (tc *topologies) Show(rw web.ResponseWriter, req *web.Request) {
 		return
 	}
 	tc.RenderJSON(map[string]interface{}{
-		"topology": newTopologiesShowResult(tb),
+		"topology": response.NewTopology(tb.Topology()),
 	})
-}
-
-type topologiesShowResult struct {
-	Name string `json:"name"`
-	// TODO: add other information
-}
-
-func newTopologiesShowResult(tb *bql.TopologyBuilder) *topologiesShowResult {
-	return &topologiesShowResult{
-		Name: tb.Topology().Name(),
-	}
 }
 
 // TODO: provide Update action (change state of the topology, etc.)
