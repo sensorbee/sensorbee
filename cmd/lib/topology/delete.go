@@ -42,20 +42,5 @@ func runDelete(c *cli.Context) {
 		fmt.Fprintf(os.Stderr, "The name of the topology is invalid: %v\n", err)
 		panic(1)
 	}
-
-	req := newRequester(c)
-	res, err := req.Do(client.DeleteRequest, path.Join("topologies", name), nil)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Cannot delete a topology: %v\n", err)
-		panic(1)
-	}
-	if res.IsError() {
-		errRes, err := res.Error()
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Cannot delete a topology and failed to parse error information: %v\n", err)
-			panic(1)
-		}
-		fmt.Fprintf(os.Stderr, "Cannot delete a topology: %v, %v: %v\n", errRes.Code, errRes.RequestID, errRes.Message)
-		panic(1)
-	}
+	do(c, client.DeleteRequest, path.Join("topologies", name), nil, "Cannot delete a topology").Close()
 }

@@ -34,23 +34,8 @@ func runCreate(c *cli.Context) {
 		panic(1)
 	}
 
-	req := newRequester(c)
-	res, err := req.Do(client.PostRequest, "topologies", map[string]interface{}{
+	do(c, client.PostRequest, "topologies", map[string]interface{}{
 		"name": args[0],
-	})
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Cannot create a topology: %v\n", err)
-		panic(1)
-	}
-	if res.IsError() {
-		errRes, err := res.Error()
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Cannot create a topology and failed to parse error information: %v\n", err)
-			panic(1)
-		}
-		fmt.Fprintf(os.Stderr, "Cannot create a topology: %v, %v: %v\n", errRes.Code, errRes.RequestID, errRes.Message)
-		panic(1)
-	}
-
+	}, "Cannot create a topology").Close()
 	// TODO: show something about the created topology
 }
