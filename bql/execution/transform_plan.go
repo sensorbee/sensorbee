@@ -25,8 +25,8 @@ type LogicalPlan struct {
 	parser.EmitterAST
 	Projections []aliasedExpression
 	parser.WindowedFromAST
-	Filter FlatExpression
-	parser.GroupingAST
+	Filter    FlatExpression
+	GroupList []FlatExpression
 	parser.HavingAST
 }
 
@@ -81,8 +81,11 @@ func isAggregateDummy(fName string) bool {
 	return false
 }
 
+// flattenExpressions separates the aggregate and non-aggregate
+// part in a statement and returns with an error if there are
+// aggregates in structures that may not have some
 func flattenExpressions(s *parser.CreateStreamAsSelectStmt) (*LogicalPlan, error) {
-	flatExprs := make([]aliasedExpression, len(s.Projections))
+	flatProjExprs := make([]aliasedExpression, len(s.Projections))
 	for i, expr := range s.Projections {
 		// convert the parser Expression to a FlatExpression
 		flatExpr, aggrs, err := ParserExprToMaybeAggregate(expr, isAggregateDummy)
@@ -119,24 +122,42 @@ func flattenExpressions(s *parser.CreateStreamAsSelectStmt) (*LogicalPlan, error
 			// Evaluator.Eval interface.
 			colHeader = "*"
 		}
-		flatExprs[i] = aliasedExpression{colHeader, flatExpr, aggrs}
+		flatProjExprs[i] = aliasedExpression{colHeader, flatExpr, aggrs}
 	}
 
 	var filterExpr FlatExpression
 	if s.Filter != nil {
 		filterFlatExpr, err := ParserExprToFlatExpr(s.Filter, isAggregateDummy)
 		if err != nil {
+			// return a prettier error message
+			if strings.HasPrefix(err.Error(), "you cannot use aggregate") {
+				err = fmt.Errorf("aggregates not allowed in WHERE clause")
+			}
 			return nil, err
 		}
 		filterExpr = filterFlatExpr
 	}
 
+	flatGroupExprs := make([]FlatExpression, len(s.GroupList))
+	for i, expr := range s.GroupList {
+		// convert the parser Expression to a FlatExpression
+		flatExpr, err := ParserExprToFlatExpr(expr, isAggregateDummy)
+		if err != nil {
+			// return a prettier error message
+			if strings.HasPrefix(err.Error(), "you cannot use aggregate") {
+				err = fmt.Errorf("aggregates not allowed in GROUP BY clause")
+			}
+			return nil, err
+		}
+		flatGroupExprs[i] = flatExpr
+	}
+
 	return &LogicalPlan{
 		s.EmitterAST,
-		flatExprs,
+		flatProjExprs,
 		s.WindowedFromAST,
 		filterExpr,
-		s.GroupingAST,
+		flatGroupExprs,
 		s.HavingAST,
 	}, nil
 }
