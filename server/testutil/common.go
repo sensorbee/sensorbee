@@ -2,12 +2,12 @@ package testutil
 
 import (
 	"bytes"
-	"encoding/json"
+	"github.com/Sirupsen/logrus"
 	"github.com/mattn/go-scan"
-	"io"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"pfi/sensorbee/sensorbee/server"
 )
 
 var (
@@ -35,83 +35,32 @@ func (s *Server) Close() {
 	}
 }
 
-// Create creates a new client of the server
-func (s *Server) Client() *Client {
-	return &Client{
-		s: s,
-	}
-}
-
+// URL returns the URL of the server.
 func (s *Server) URL() string {
-	if s.server.realServer == nil {
-		return ""
-	}
-	return s.server.realServer.URL
+	return s.server.url
 }
 
-// Client is a client of the temporary server.
-type Client struct {
-	uri string
-	s   *Server
+// HTTPClient returns the HTTP client to send requests to the server.
+func (s *Server) HTTPClient() *http.Client {
+	if s.server.realServer != nil {
+		return http.DefaultClient
+	}
+	return &http.Client{
+		Transport: &testTransport{s},
+	}
 }
 
-// Do sends a request to the server.
-func (c *Client) Do(method string, path string, body interface{}) (*http.Response, map[string]interface{}, error) {
-	req, err := c.CreateRequest(method, path, body)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	res, err := c.DoRequest(req)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	defer res.Body.Close()
-	data, err := ioutil.ReadAll(res.Body)
-	if err != nil {
-		return nil, nil, err
-	}
-	js := map[string]interface{}{}
-	if err = json.Unmarshal(data, &js); err != nil {
-		return nil, nil, err
-	}
-	return res, js, err
+type testTransport struct {
+	s *Server
 }
 
-// CreateRequest creates a new request for the server.
-func (c *Client) CreateRequest(method string, path string, bodyJSON interface{}) (*http.Request, error) {
-	var body io.Reader
-	if bodyJSON == nil {
-		body = nil
-	} else {
-		bd, err := json.Marshal(bodyJSON)
-		if err != nil {
-			return nil, err
-		}
-		body = bytes.NewReader(bd)
-	}
-
-	req, err := http.NewRequest(method, c.s.server.url+path, body)
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Add("Content-Type", "application/json")
-	return req, nil
-}
-
-// DoRequest sends a custom http.Request to the server.
-func (c *Client) DoRequest(req *http.Request) (*http.Response, error) {
-	if TestAPIWithRealHTTPServer {
-		return http.DefaultClient.Do(req)
-	}
-
+func (t *testTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	if req.Body == nil {
 		req.Body = ioutil.NopCloser(bytes.NewReader([]byte{}))
 	}
 
 	rc := httptest.NewRecorder()
-	c.s.server.router.ServeHTTP(rc, req)
+	t.s.server.router.ServeHTTP(rc, req)
 	return &http.Response{
 		Status:        http.StatusText(rc.Code),
 		StatusCode:    rc.Code,
@@ -125,14 +74,25 @@ func (c *Client) DoRequest(req *http.Request) (*http.Response, error) {
 }
 
 // NewServer returns a temporary running server.
-func NewServer(root http.Handler) *Server {
+func NewServer() *Server {
 	s := &Server{}
+
+	logger := logrus.New()
+	logger.Level = logrus.DebugLevel
+	topologies := server.NewDefaultTopologyRegistry()
+
+	root := server.SetUpRouter("/", server.ContextGlobalVariables{
+		Logger:     logger,
+		Topologies: topologies,
+	})
+	server.SetUpAPIRouter("/", root, nil)
+
 	if TestAPIWithRealHTTPServer {
 		s.server.realServer = httptest.NewServer(root)
 		s.server.url = s.server.realServer.URL
 	} else {
 		s.server.router = root
-		s.server.url = "http://172.0.0.1:0602/api/v1"
+		s.server.url = "http://172.0.0.1:0602"
 	}
 	return s
 }

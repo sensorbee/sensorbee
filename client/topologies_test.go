@@ -1,26 +1,32 @@
-package server
+package client
+
+// TODO: replace tests with a richer client
 
 import (
 	"encoding/json"
 	. "github.com/smartystreets/goconvey/convey"
 	"net/http"
+	"pfi/sensorbee/sensorbee/data"
+	"pfi/sensorbee/sensorbee/server/testutil"
 	"testing"
 )
 
+var jscan = testutil.JScan
+
 func TestEmptyTopologies(t *testing.T) {
-	s := createTestServer()
+	s := testutil.NewServer()
 	defer s.Close()
-	cli := s.Client()
+	r := newTestRequester(s)
 
 	Convey("Given an API server", t, func() {
 		Convey("When creating a topology", func() {
-			res, js, err := cli.Do("POST", "/topologies", map[string]interface{}{
+			res, js, err := do(r, Post, "/topologies", map[string]interface{}{
 				"name": "test_topology",
 			})
 			So(err, ShouldBeNil)
-			So(res.StatusCode, ShouldEqual, http.StatusOK)
+			So(res.Raw.StatusCode, ShouldEqual, http.StatusOK)
 			Reset(func() {
-				cli.Do("DELETE", "/topologies/test_topology", nil)
+				do(r, Delete, "/topologies/test_topology", nil)
 			})
 
 			Convey("Then the response should have the name", func() {
@@ -28,28 +34,28 @@ func TestEmptyTopologies(t *testing.T) {
 			})
 
 			Convey("Then getting the topology should succeed", func() {
-				res, js, err := cli.Do("GET", "/topologies/test_topology", nil)
+				res, js, err := do(r, Get, "/topologies/test_topology", nil)
 				So(err, ShouldBeNil)
-				So(res.StatusCode, ShouldEqual, http.StatusOK)
+				So(res.Raw.StatusCode, ShouldEqual, http.StatusOK)
 				So(jscan(js, "/topology/name"), ShouldEqual, "test_topology")
 			})
 
 			Convey("And creating another topology having the same name", func() {
-				res, js, err := cli.Do("POST", "/topologies", map[string]interface{}{
+				res, js, err := do(r, Post, "/topologies", map[string]interface{}{
 					"name": "test_topology",
 				})
 				So(err, ShouldBeNil)
 
 				Convey("Then it should fail", func() {
-					So(res.StatusCode, ShouldEqual, http.StatusBadRequest)
+					So(res.Raw.StatusCode, ShouldEqual, http.StatusBadRequest)
 					So(jscan(js, "/error/meta/name[0]"), ShouldNotBeBlank)
 				})
 			})
 
 			Convey("And getting a list of topologies", func() {
-				res, js, err := cli.Do("GET", "/topologies", nil)
+				res, js, err := do(r, Get, "/topologies", nil)
 				So(err, ShouldBeNil)
-				So(res.StatusCode, ShouldEqual, http.StatusOK)
+				So(res.Raw.StatusCode, ShouldEqual, http.StatusOK)
 
 				Convey("Then it should have the new topology", func() {
 					So(jscan(js, "/topologies[0]/name"), ShouldEqual, "test_topology")
@@ -58,9 +64,9 @@ func TestEmptyTopologies(t *testing.T) {
 		})
 
 		Convey("When getting a list of topologies", func() {
-			res, js, err := cli.Do("GET", "/topologies", nil)
+			res, js, err := do(r, Get, "/topologies", nil)
 			So(err, ShouldBeNil)
-			So(res.StatusCode, ShouldEqual, http.StatusOK)
+			So(res.Raw.StatusCode, ShouldEqual, http.StatusOK)
 
 			Convey("Then it should have an empty response", func() {
 				So(jscan(js, "/topologies"), ShouldBeEmpty)
@@ -68,11 +74,11 @@ func TestEmptyTopologies(t *testing.T) {
 		})
 
 		Convey("When getting a nonexistent topology", func() {
-			res, js, err := cli.Do("GET", "/topologies/test_topology", nil)
+			res, js, err := do(r, Get, "/topologies/test_topology", nil)
 			So(err, ShouldBeNil)
 
 			Convey("Then it should fail", func() {
-				So(res.StatusCode, ShouldEqual, http.StatusNotFound)
+				So(res.Raw.StatusCode, ShouldEqual, http.StatusNotFound)
 
 				Convey("And the respons should have error information", func() {
 					So(jscan(js, "/error"), ShouldNotBeNil)
@@ -81,65 +87,67 @@ func TestEmptyTopologies(t *testing.T) {
 		})
 
 		Convey("When deleting a nonexistent topology", func() {
-			res, _, err := cli.Do("DELETE", "/topologies/test_topology", nil)
+			res, _, err := do(r, Delete, "/topologies/test_topology", nil)
 			So(err, ShouldBeNil)
 
 			Convey("Then it shouldn't fail", func() {
-				So(res.StatusCode, ShouldEqual, http.StatusOK) // TODO: This should be replaced with 204 later
+				So(res.Raw.StatusCode, ShouldEqual, http.StatusOK) // TODO: This should be replaced with 204 later
 			})
 		})
 	})
 }
 
 func TestTopologiesCreateInvalidValues(t *testing.T) {
-	s := createTestServer()
+	s := testutil.NewServer()
 	defer s.Close()
-	cli := s.Client()
+	r := newTestRequester(s)
 
 	Convey("Given an API server", t, func() {
 		Convey("When posting a request missing required fields", func() {
-			res, js, err := cli.Do("POST", "/topologies", map[string]interface{}{})
+			res, _, err := do(r, Post, "/topologies", map[string]interface{}{})
 			So(err, ShouldBeNil)
 
 			Convey("Then it should fail", func() {
-				So(res.StatusCode, ShouldEqual, http.StatusBadRequest)
+				So(res.Raw.StatusCode, ShouldEqual, http.StatusBadRequest)
 			})
 
 			Convey("Then it should have meta information", func() {
-				So(jscan(js, "/error/meta/name[0]"), ShouldNotBeBlank)
+				e, err := res.Error()
+				So(err, ShouldBeNil)
+				So(e.Meta["name"].(data.Array)[0], ShouldNotEqual, "")
 			})
 		})
 
 		Convey("When posting a broken JSON request", func() {
-			res, js, err := cli.Do("POST", "/topologies", json.RawMessage("{broken}"))
+			res, js, err := do(r, Post, "/topologies", json.RawMessage("{broken}"))
 			So(err, ShouldBeNil)
 
 			Convey("Then it should fail", func() {
-				So(res.StatusCode, ShouldEqual, http.StatusBadRequest)
+				So(res.Raw.StatusCode, ShouldEqual, http.StatusBadRequest)
 				So(jscan(js, "/error"), ShouldNotBeNil)
 			})
 		})
 
 		Convey("When posting an integer name", func() {
-			res, js, err := cli.Do("POST", "/topologies", map[string]interface{}{
+			res, js, err := do(r, Post, "/topologies", map[string]interface{}{
 				"name": 1,
 			})
 			So(err, ShouldBeNil)
 
 			Convey("Then it should fail", func() {
-				So(res.StatusCode, ShouldEqual, http.StatusBadRequest)
+				So(res.Raw.StatusCode, ShouldEqual, http.StatusBadRequest)
 				So(jscan(js, "/error/meta/name[0]"), ShouldNotBeBlank)
 			})
 		})
 
 		Convey("When posting an empty name", func() {
-			res, js, err := cli.Do("POST", "/topologies", map[string]interface{}{
+			res, js, err := do(r, Post, "/topologies", map[string]interface{}{
 				"name": "",
 			})
 			So(err, ShouldBeNil)
 
 			Convey("Then it should fail", func() {
-				So(res.StatusCode, ShouldEqual, http.StatusBadRequest)
+				So(res.Raw.StatusCode, ShouldEqual, http.StatusBadRequest)
 				So(jscan(js, "/error/meta/name[0]"), ShouldNotBeBlank)
 			})
 		})
