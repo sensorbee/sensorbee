@@ -27,7 +27,7 @@ func TestEvaluators(t *testing.T) {
 		Convey(fmt.Sprintf("Given the AST Expression %v", ast), t, func() {
 
 			Convey("Then an Evaluator can be computed", func() {
-				flatExpr, err := ParserExprToFlatExpr(ast)
+				flatExpr, err := ParserExprToFlatExpr(ast, isAggregateDummy)
 				So(err, ShouldBeNil)
 				eval, err := ExpressionToEvaluator(flatExpr, reg)
 				So(err, ShouldBeNil)
@@ -168,7 +168,7 @@ func TestFuncAppConversion(t *testing.T) {
 				}}}
 
 			Convey("Then we obtain an evaluatable funcApp", func() {
-				flatExpr, err := ParserExprToFlatExpr(ast)
+				flatExpr, err := ParserExprToFlatExpr(ast, isAggregateDummy)
 				So(err, ShouldBeNil)
 				eval, err := ExpressionToEvaluator(flatExpr, reg)
 				So(err, ShouldBeNil)
@@ -183,7 +183,7 @@ func TestFuncAppConversion(t *testing.T) {
 				}}}
 
 			Convey("Then converting to an Evaluator fails", func() {
-				flatExpr, err := ParserExprToFlatExpr(ast)
+				flatExpr, err := ParserExprToFlatExpr(ast, isAggregateDummy)
 				So(err, ShouldBeNil)
 				_, err = ExpressionToEvaluator(flatExpr, reg)
 				So(err, ShouldNotBeNil)

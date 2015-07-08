@@ -540,3 +540,43 @@ func TestRelationAliasing(t *testing.T) {
 		})
 	}
 }
+
+func TestAggregateChecker(t *testing.T) {
+	testCases := []struct {
+		bql           string
+		expectedError string
+	}{
+		{"a FROM x [RANGE 1 TUPLES]", ""},
+		{"f(a) FROM x [RANGE 1 TUPLES]", ""},
+		{"count(a) FROM x [RANGE 1 TUPLES]", "you cannot use aggregate function 'count' in a flat expression"},
+		{"a + count(a) FROM x [RANGE 1 TUPLES]", "you cannot use aggregate function 'count' in a flat expression"},
+	}
+
+	for _, testCase := range testCases {
+		testCase := testCase
+
+		Convey(fmt.Sprintf("Given the statement", testCase.bql), t, func() {
+			p := parser.NewBQLParser()
+			stmt := "CREATE STREAM x AS SELECT ISTREAM " + testCase.bql
+			ast_, _, err := p.ParseStmt(stmt)
+			So(err, ShouldBeNil)
+			So(ast_, ShouldHaveSameTypeAs, parser.CreateStreamAsSelectStmt{})
+			ast := ast_.(parser.CreateStreamAsSelectStmt)
+
+			Convey("When we analyze it", func() {
+				_, err := Analyze(ast)
+				expectedError := testCase.expectedError
+				if expectedError == "" {
+					Convey("There is no error", func() {
+						So(err, ShouldBeNil)
+					})
+				} else {
+					Convey("There is an error", func() {
+						So(err, ShouldNotBeNil)
+						So(err.Error(), ShouldStartWith, expectedError)
+					})
+				}
+			})
+		})
+	}
+}
