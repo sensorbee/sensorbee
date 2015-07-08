@@ -38,7 +38,7 @@ func EvaluateFoldable(expr parser.Expression, reg udf.FunctionRegistry) (data.Va
 	if !expr.Foldable() {
 		return nil, fmt.Errorf("expression is not foldable: %s", expr)
 	}
-	flatExpr, err := ParserExprToFlatExpr(expr)
+	flatExpr, err := ParserExprToFlatExpr(expr, isAggregateDummy)
 	if err != nil {
 		return nil, err
 	}

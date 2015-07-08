@@ -14,16 +14,14 @@ type aliasedExpression struct {
 // to a FlatExpression, i.e., there are only expressions contained that
 // can be evaluated on one single row and return an (unnamed) value.
 // In particular, this fails for Expressions containing aggregate functions.
-//
-// TODO No, it does not.
-func ParserExprToFlatExpr(e parser.Expression) (FlatExpression, error) {
+func ParserExprToFlatExpr(e parser.Expression, isAggregate func(string) bool) (FlatExpression, error) {
 	switch obj := e.(type) {
 	case parser.RowMeta:
 		return RowMeta{obj.Relation, obj.MetaType}, nil
 	case parser.RowValue:
 		return RowValue{obj.Relation, obj.Column}, nil
 	case parser.AliasAST:
-		return ParserExprToFlatExpr(obj.Expr)
+		return ParserExprToFlatExpr(obj.Expr, isAggregate)
 	case parser.NullLiteral:
 		return NullLiteral{}, nil
 	case parser.NumericLiteral:
@@ -36,33 +34,38 @@ func ParserExprToFlatExpr(e parser.Expression) (FlatExpression, error) {
 		return StringLiteral{obj.Value}, nil
 	case parser.BinaryOpAST:
 		// recurse
-		left, err := ParserExprToFlatExpr(obj.Left)
+		left, err := ParserExprToFlatExpr(obj.Left, isAggregate)
 		if err != nil {
 			return nil, err
 		}
-		right, err := ParserExprToFlatExpr(obj.Right)
+		right, err := ParserExprToFlatExpr(obj.Right, isAggregate)
 		if err != nil {
 			return nil, err
 		}
 		return BinaryOpAST{obj.Op, left, right}, nil
 	case parser.UnaryOpAST:
 		// recurse
-		expr, err := ParserExprToFlatExpr(obj.Expr)
+		expr, err := ParserExprToFlatExpr(obj.Expr, isAggregate)
 		if err != nil {
 			return nil, err
 		}
 		return UnaryOpAST{obj.Op, expr}, nil
 	case parser.FuncAppAST:
+		// fail if this is an aggregate function
+		if isAggregate(string(obj.Function)) {
+			err := fmt.Errorf("you cannot use aggregate function '%s' "+
+				"in a flat expression", obj.Function)
+			return nil, err
+		}
 		// compute child Evaluators
 		exprs := make([]FlatExpression, len(obj.Expressions))
 		for i, ast := range obj.Expressions {
-			expr, err := ParserExprToFlatExpr(ast)
+			expr, err := ParserExprToFlatExpr(ast, isAggregate)
 			if err != nil {
 				return nil, err
 			}
 			exprs[i] = expr
 		}
-		// TODO fail if this is an aggregate function
 		return FuncAppAST{obj.Function, exprs}, nil
 	case parser.Wildcard:
 		return WildcardAST{}, nil

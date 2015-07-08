@@ -72,11 +72,20 @@ func Analyze(s parser.CreateStreamAsSelectStmt) (*LogicalPlan, error) {
 	return flattenExpressions(&s)
 }
 
+// dummy implementation of aggregate function lookup
+// TODO think of the real lookup mechanism
+func isAggregateDummy(fName string) bool {
+	if fName == "count" || fName == "udaf" {
+		return true
+	}
+	return false
+}
+
 func flattenExpressions(s *parser.CreateStreamAsSelectStmt) (*LogicalPlan, error) {
 	flatExprs := make([]aliasedExpression, len(s.Projections))
 	for i, expr := range s.Projections {
 		// convert the parser Expression to a FlatExpression
-		flatExpr, err := ParserExprToFlatExpr(expr)
+		flatExpr, err := ParserExprToFlatExpr(expr, isAggregateDummy)
 		if err != nil {
 			return nil, err
 		}
@@ -115,7 +124,7 @@ func flattenExpressions(s *parser.CreateStreamAsSelectStmt) (*LogicalPlan, error
 
 	var filterExpr FlatExpression
 	if s.Filter != nil {
-		filterFlatExpr, err := ParserExprToFlatExpr(s.Filter)
+		filterFlatExpr, err := ParserExprToFlatExpr(s.Filter, isAggregateDummy)
 		if err != nil {
 			return nil, err
 		}
