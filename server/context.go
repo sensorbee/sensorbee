@@ -60,12 +60,10 @@ func (c *Context) NotFoundHandler(rw web.ResponseWriter, req *web.Request) {
 	rw.WriteHeader(http.StatusNotFound)
 	rw.Write([]byte(`
 {
-  "errors": [
-    {
-      "code": "E0001",
-      "message": "The request URL was not found."
-    }
-  ]
+  "error": {
+    "code": "E0001",
+    "message": "The request URL was not found."
+  }
 }`))
 }
 
