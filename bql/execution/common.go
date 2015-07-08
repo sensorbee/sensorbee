@@ -14,7 +14,6 @@ type colDesc struct {
 }
 
 type commonExecutionPlan struct {
-	// TODO turn this into a list of structs to ensure same length
 	projections []colDesc
 	// filter stores the evaluator of the filter condition,
 	// or nil if there is no WHERE clause.
