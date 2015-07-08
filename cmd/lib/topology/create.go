@@ -34,7 +34,7 @@ func runCreate(c *cli.Context) {
 		panic(1)
 	}
 
-	do(c, client.PostRequest, "topologies", map[string]interface{}{
+	do(c, client.Post, "topologies", map[string]interface{}{
 		"name": args[0],
 	}, "Cannot create a topology").Close()
 	// TODO: show something about the created topology

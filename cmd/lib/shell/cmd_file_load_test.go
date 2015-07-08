@@ -23,8 +23,8 @@ SELECT foo FROM dummy;
 					m := map[string]interface{}{
 						"queries": expected,
 					}
-					reqType, uri, body := targetCmd.Eval()
-					So(reqType, ShouldEqual, client.PostRequest)
+					method, uri, body := targetCmd.Eval()
+					So(method, ShouldEqual, client.Post)
 					So(uri, ShouldEqual, "/topologies//queries")
 					So(body, ShouldResemble, m)
 				})

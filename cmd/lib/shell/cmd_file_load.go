@@ -41,9 +41,9 @@ func (f *fileLoadCmd) Input(input string) (cmdInputStatusType, error) {
 	return preparedCMD, nil
 }
 
-func (f *fileLoadCmd) Eval() (client.RequestType, string, interface{}) {
+func (f *fileLoadCmd) Eval() (client.Method, string, interface{}) {
 	uri := topologiesHeader + "/" + currentTopology.name + "/queries"
 	m := map[string]interface{}{}
 	m["queries"] = f.queries
-	return client.PostRequest, uri, m
+	return client.Post, uri, m
 }

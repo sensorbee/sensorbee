@@ -10,39 +10,39 @@ import (
 	"time"
 )
 
-type RequestType int
+type Method int
 
 const (
-	GetRequest RequestType = iota
-	PostRequest
-	PutRequest
-	DeleteRequest
-	OtherRequest
+	Get Method = iota
+	Post
+	Put
+	Delete
+	OtherMethod
 )
 
-func (r RequestType) String() string {
+func (r Method) String() string {
 	switch r {
-	case GetRequest:
+	case Get:
 		return "GET"
-	case PostRequest:
+	case Post:
 		return "POST"
-	case PutRequest:
+	case Put:
 		return "PUT"
-	case DeleteRequest:
+	case Delete:
 		return "DELETE"
-	case OtherRequest:
+	case OtherMethod:
 		return "OTHER"
 	default:
 		return "unknown"
 	}
 }
 
-func Request(reqType RequestType, uri string, bodyJSON interface{}) []byte {
-	if reqType == OtherRequest {
+func Request(method Method, uri string, bodyJSON interface{}) []byte {
+	if method == OtherMethod {
 		return []byte{}
 	}
 
-	req, err := CreateRequest(reqType, uri, bodyJSON)
+	req, err := CreateRequest(method, uri, bodyJSON)
 	if err != nil {
 		fmt.Println(err)
 		return []byte{}
@@ -52,7 +52,7 @@ func Request(reqType RequestType, uri string, bodyJSON interface{}) []byte {
 	return rawRequest(req)
 }
 
-func CreateRequest(reqType RequestType, uri string, bodyJSON interface{}) (*http.Request, error) {
+func CreateRequest(method Method, uri string, bodyJSON interface{}) (*http.Request, error) {
 	var body io.Reader
 	if bodyJSON == nil {
 		body = nil
@@ -64,7 +64,7 @@ func CreateRequest(reqType RequestType, uri string, bodyJSON interface{}) (*http
 		body = bytes.NewReader(bd)
 	}
 
-	req, err := http.NewRequest(reqType.String(), uri, body)
+	req, err := http.NewRequest(method.String(), uri, body)
 	if err != nil {
 		return nil, err
 	}
