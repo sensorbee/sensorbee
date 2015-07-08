@@ -141,6 +141,7 @@ import (
 	"os"
 	"pfi/sensorbee/sensorbee/cmd/lib/run"
 	"pfi/sensorbee/sensorbee/cmd/lib/shell"
+	"pfi/sensorbee/sensorbee/cmd/lib/topology"
 	"time"
 {{range $_, $path := .PluginPaths}}	_ "{{$path}}"
 {{end}})
@@ -156,6 +157,7 @@ func main() {
 	app := setUpApp([]commandGenerator{
 		run.SetUp,
 		shell.SetUp,
+		topology.SetUp,
 	})
 
 	if err := app.Run(os.Args); err != nil {

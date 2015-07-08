@@ -4,24 +4,23 @@ import (
 	"encoding/json"
 	. "github.com/smartystreets/goconvey/convey"
 	"net/http"
-	"pfi/sensorbee/sensorbee/client"
 	"testing"
 )
 
 func TestEmptyTopologies(t *testing.T) {
 	s := createTestServer()
-	defer s.close()
-	cli := s.dummyClient()
+	defer s.Close()
+	cli := s.Client()
 
 	Convey("Given an API server", t, func() {
 		Convey("When creating a topology", func() {
-			res, js, err := cli.do(client.PostRequest, "/topologies", map[string]interface{}{
+			res, js, err := cli.Do("POST", "/topologies", map[string]interface{}{
 				"name": "test_topology",
 			})
 			So(err, ShouldBeNil)
 			So(res.StatusCode, ShouldEqual, http.StatusOK)
 			Reset(func() {
-				cli.do(client.DeleteRequest, "/topologies/test_topology", nil)
+				cli.Do("DELETE", "/topologies/test_topology", nil)
 			})
 
 			Convey("Then the response should have the name", func() {
@@ -29,14 +28,14 @@ func TestEmptyTopologies(t *testing.T) {
 			})
 
 			Convey("Then getting the topology should succeed", func() {
-				res, js, err := cli.do(client.GetRequest, "/topologies/test_topology", nil)
+				res, js, err := cli.Do("GET", "/topologies/test_topology", nil)
 				So(err, ShouldBeNil)
 				So(res.StatusCode, ShouldEqual, http.StatusOK)
 				So(jscan(js, "/topology/name"), ShouldEqual, "test_topology")
 			})
 
 			Convey("And creating another topology having the same name", func() {
-				res, js, err := cli.do(client.PostRequest, "/topologies", map[string]interface{}{
+				res, js, err := cli.Do("POST", "/topologies", map[string]interface{}{
 					"name": "test_topology",
 				})
 				So(err, ShouldBeNil)
@@ -48,7 +47,7 @@ func TestEmptyTopologies(t *testing.T) {
 			})
 
 			Convey("And getting a list of topologies", func() {
-				res, js, err := cli.do(client.GetRequest, "/topologies", nil)
+				res, js, err := cli.Do("GET", "/topologies", nil)
 				So(err, ShouldBeNil)
 				So(res.StatusCode, ShouldEqual, http.StatusOK)
 
@@ -59,7 +58,7 @@ func TestEmptyTopologies(t *testing.T) {
 		})
 
 		Convey("When getting a list of topologies", func() {
-			res, js, err := cli.do(client.GetRequest, "/topologies", nil)
+			res, js, err := cli.Do("GET", "/topologies", nil)
 			So(err, ShouldBeNil)
 			So(res.StatusCode, ShouldEqual, http.StatusOK)
 
@@ -69,7 +68,7 @@ func TestEmptyTopologies(t *testing.T) {
 		})
 
 		Convey("When getting a nonexistent topology", func() {
-			res, js, err := cli.do(client.GetRequest, "/topologies/test_topology", nil)
+			res, js, err := cli.Do("GET", "/topologies/test_topology", nil)
 			So(err, ShouldBeNil)
 
 			Convey("Then it should fail", func() {
@@ -82,7 +81,7 @@ func TestEmptyTopologies(t *testing.T) {
 		})
 
 		Convey("When deleting a nonexistent topology", func() {
-			res, _, err := cli.do(client.DeleteRequest, "/topologies/test_topology", nil)
+			res, _, err := cli.Do("DELETE", "/topologies/test_topology", nil)
 			So(err, ShouldBeNil)
 
 			Convey("Then it shouldn't fail", func() {
@@ -94,12 +93,12 @@ func TestEmptyTopologies(t *testing.T) {
 
 func TestTopologiesCreateInvalidValues(t *testing.T) {
 	s := createTestServer()
-	defer s.close()
-	cli := s.dummyClient()
+	defer s.Close()
+	cli := s.Client()
 
 	Convey("Given an API server", t, func() {
 		Convey("When posting a request missing required fields", func() {
-			res, js, err := cli.do(client.PostRequest, "/topologies", map[string]interface{}{})
+			res, js, err := cli.Do("POST", "/topologies", map[string]interface{}{})
 			So(err, ShouldBeNil)
 
 			Convey("Then it should fail", func() {
@@ -112,7 +111,7 @@ func TestTopologiesCreateInvalidValues(t *testing.T) {
 		})
 
 		Convey("When posting a broken JSON request", func() {
-			res, js, err := cli.do(client.PostRequest, "/topologies", json.RawMessage("{broken}"))
+			res, js, err := cli.Do("POST", "/topologies", json.RawMessage("{broken}"))
 			So(err, ShouldBeNil)
 
 			Convey("Then it should fail", func() {
@@ -122,7 +121,7 @@ func TestTopologiesCreateInvalidValues(t *testing.T) {
 		})
 
 		Convey("When posting an integer name", func() {
-			res, js, err := cli.do(client.PostRequest, "/topologies", map[string]interface{}{
+			res, js, err := cli.Do("POST", "/topologies", map[string]interface{}{
 				"name": 1,
 			})
 			So(err, ShouldBeNil)
@@ -134,7 +133,7 @@ func TestTopologiesCreateInvalidValues(t *testing.T) {
 		})
 
 		Convey("When posting an empty name", func() {
-			res, js, err := cli.do(client.PostRequest, "/topologies", map[string]interface{}{
+			res, js, err := cli.Do("POST", "/topologies", map[string]interface{}{
 				"name": "",
 			})
 			So(err, ShouldBeNil)
