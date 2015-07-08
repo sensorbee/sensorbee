@@ -2,7 +2,6 @@ package execution
 
 import (
 	"fmt"
-	"math/rand"
 	"pfi/sensorbee/sensorbee/bql/parser"
 	"strings"
 )
@@ -13,7 +12,7 @@ import (
 type aliasedExpression struct {
 	alias      string
 	expr       FlatExpression
-	aggrInputs map[string]FuncAppAST
+	aggrInputs map[string]AggFuncAppAST
 }
 
 // ParserExprToFlatExpr converts an expression obtained by the BQL parser
@@ -83,7 +82,7 @@ func ParserExprToFlatExpr(e parser.Expression, isAggregate func(string) bool) (F
 // ParserExprToMaybeAggregate converts an expression obtained by the BQL
 // parser into a data structure where the aggregate and the non-aggregate
 // parts are separated.
-func ParserExprToMaybeAggregate(e parser.Expression, isAggregate func(string) bool) (FlatExpression, map[string]FuncAppAST, error) {
+func ParserExprToMaybeAggregate(e parser.Expression, isAggregate func(string) bool) (FlatExpression, map[string]AggFuncAppAST, error) {
 	switch obj := e.(type) {
 	default:
 		// elementary types
@@ -99,7 +98,7 @@ func ParserExprToMaybeAggregate(e parser.Expression, isAggregate func(string) bo
 		if err != nil {
 			return nil, nil, err
 		}
-		var returnAgg map[string]FuncAppAST
+		var returnAgg map[string]AggFuncAppAST
 		if leftAgg != nil {
 			returnAgg = leftAgg
 			for key, val := range rightAgg {
@@ -132,13 +131,14 @@ func ParserExprToMaybeAggregate(e parser.Expression, isAggregate func(string) bo
 				}
 				return nil, nil, err
 			}
-			// get a random string that identifies this sub-expression
-			funcId := fmt.Sprintf("aggr_res_%d", rand.Int63())
-			return AggFunResult{string(obj.Function), funcId}, map[string]FuncAppAST{funcId: {obj.Function, []FlatExpression{expr}}}, nil
+			// get a string that identifies this sub-expression
+			funcId := fmt.Sprintf("#%s(%s)#", obj.Function, expr.Repr())
+			a := AggFuncAppAST{obj.Function, expr}
+			return AggFuncAppRef{funcId}, map[string]AggFuncAppAST{funcId: a}, nil
 		} else {
 			// compute child expressions
 			exprs := make([]FlatExpression, len(obj.Expressions))
-			returnAgg := map[string]FuncAppAST{}
+			returnAgg := map[string]AggFuncAppAST{}
 			for i, ast := range obj.Expressions {
 				expr, agg, err := ParserExprToMaybeAggregate(ast, isAggregate)
 				if err != nil {
@@ -148,6 +148,9 @@ func ParserExprToMaybeAggregate(e parser.Expression, isAggregate func(string) bo
 					returnAgg[key] = val
 				}
 				exprs[i] = expr
+			}
+			if len(returnAgg) == 0 {
+				returnAgg = nil
 			}
 			return FuncAppAST{obj.Function, exprs}, returnAgg, nil
 		}
@@ -161,7 +164,7 @@ func ParserExprToMaybeAggregate(e parser.Expression, isAggregate func(string) bo
 // particular, it cannot contain/represent a call to an aggregate
 // function.
 type FlatExpression interface {
-	Hoge() bool
+	Repr() string
 }
 
 type BinaryOpAST struct {
@@ -170,8 +173,8 @@ type BinaryOpAST struct {
 	Right FlatExpression
 }
 
-func (b BinaryOpAST) Hoge() bool {
-	return b.Left.Hoge() && b.Right.Hoge()
+func (b BinaryOpAST) Repr() string {
+	return fmt.Sprintf("%s%s%s", b.Left.Repr(), b.Op, b.Right.Repr())
 }
 
 type UnaryOpAST struct {
@@ -179,8 +182,8 @@ type UnaryOpAST struct {
 	Expr FlatExpression
 }
 
-func (u UnaryOpAST) Hoge() bool {
-	return u.Expr.Hoge()
+func (u UnaryOpAST) Repr() string {
+	return fmt.Sprintf("%s%s", u.Op, u.Expr.Repr())
 }
 
 type FuncAppAST struct {
@@ -188,31 +191,27 @@ type FuncAppAST struct {
 	Expressions []FlatExpression
 }
 
-func (f FuncAppAST) Hoge() bool {
-	foldable := true
-	for _, expr := range f.Expressions {
-		if !expr.Hoge() {
-			foldable = false
-			break
-		}
+func (f FuncAppAST) Repr() string {
+	reprs := make([]string, len(f.Expressions))
+	for i, e := range f.Expressions {
+		reprs[i] = e.Repr()
 	}
-	return foldable
+	return fmt.Sprintf("%s(%s)", f.Function, strings.Join(reprs, ","))
 }
 
 type WildcardAST struct {
 }
 
-func (w WildcardAST) Hoge() bool {
-	return false
+func (w WildcardAST) Repr() string {
+	return "*"
 }
 
-type AggFunResult struct {
-	Function string
-	ParamStr string
+type AggFuncAppRef struct {
+	Ref string
 }
 
-func (afr AggFunResult) Hoge() bool {
-	return false
+func (af AggFuncAppRef) Repr() string {
+	return af.Ref
 }
 
 type RowValue struct {
@@ -220,8 +219,8 @@ type RowValue struct {
 	Column   string
 }
 
-func (rv RowValue) Hoge() bool {
-	return false
+func (rv RowValue) Repr() string {
+	return fmt.Sprintf("%s:%s", rv.Relation, rv.Column)
 }
 
 type RowMeta struct {
@@ -229,45 +228,50 @@ type RowMeta struct {
 	MetaType parser.MetaInformation
 }
 
-func (rm RowMeta) Hoge() bool {
-	return false
+func (rm RowMeta) Repr() string {
+	return fmt.Sprintf("%#v", rm)
 }
 
 type NumericLiteral struct {
 	Value int64
 }
 
-func (l NumericLiteral) Hoge() bool {
-	return true
+func (l NumericLiteral) Repr() string {
+	return fmt.Sprintf("%v", l.Value)
 }
 
 type FloatLiteral struct {
 	Value float64
 }
 
-func (l FloatLiteral) Hoge() bool {
-	return true
+func (l FloatLiteral) Repr() string {
+	return fmt.Sprintf("%vf", l.Value)
 }
 
 type NullLiteral struct {
 }
 
-func (l NullLiteral) Hoge() bool {
-	return true
+func (l NullLiteral) Repr() string {
+	return "NULL"
 }
 
 type BoolLiteral struct {
 	Value bool
 }
 
-func (l BoolLiteral) Hoge() bool {
-	return true
+func (l BoolLiteral) Repr() string {
+	return fmt.Sprintf("%v", l.Value)
 }
 
 type StringLiteral struct {
 	Value string
 }
 
-func (l StringLiteral) Hoge() bool {
-	return true
+func (l StringLiteral) Repr() string {
+	return fmt.Sprintf("%s", l.Value)
+}
+
+type AggFuncAppAST struct {
+	Function   parser.FuncName
+	Expression FlatExpression
 }

@@ -545,17 +545,85 @@ func TestAggregateChecker(t *testing.T) {
 	testCases := []struct {
 		bql           string
 		expectedError string
+		expr          FlatExpression
+		aggrs         map[string]AggFuncAppAST
 	}{
-		{"a FROM x [RANGE 1 TUPLES]", ""},
-		{"f(a) FROM x [RANGE 1 TUPLES]", ""},
-		{"count(a) FROM x [RANGE 1 TUPLES]", ""},
-		{"a + count(a) FROM x [RANGE 1 TUPLES]", ""},
-		{"a + udaf(a + 1) FROM x [RANGE 1 TUPLES]", ""},
-		{"udaf(a + f(1)) + g(count(a)) FROM x [RANGE 1 TUPLES]", ""},
+		// a is no aggregate call, so the `aggrs` list is empty
+		// and the selected expression is transformed normally
+		{"a FROM x [RANGE 1 TUPLES]", "",
+			RowValue{"x", "a"},
+			nil},
+
+		// f(a) is no aggregate call, so the `aggrs` list is empty
+		// and the selected expression is transformed normally
+		{"f(a) FROM x [RANGE 1 TUPLES]", "",
+			FuncAppAST{"f", []FlatExpression{RowValue{"x", "a"}}},
+			nil},
+
+		// there is an aggregate call `count(a)`, so it is referenced from
+		// the expression list and appears in the `aggrs` list
+		{"count(a) FROM x [RANGE 1 TUPLES]", "",
+			AggFuncAppRef{"#count(x:a)#"},
+			map[string]AggFuncAppAST{
+				"#count(x:a)#": AggFuncAppAST{"count", RowValue{"x", "a"}},
+			}},
+
+		// there is an aggregate call `count(a)`, so it is referenced from
+		// the expression list and appears in the `aggrs` list
+		{"a + count(a) FROM x [RANGE 1 TUPLES]", "",
+			BinaryOpAST{parser.Plus,
+				RowValue{"x", "a"}, AggFuncAppRef{"#count(x:a)#"}},
+			map[string]AggFuncAppAST{
+				"#count(x:a)#": AggFuncAppAST{"count", RowValue{"x", "a"}},
+			}},
+
+		// there is an aggregate call `udaf(a+1)`, so it is referenced from
+		// the expression list and appears in the `aggrs` list
+		{"a + udaf(a + 1) FROM x [RANGE 1 TUPLES]", "",
+			BinaryOpAST{parser.Plus,
+				RowValue{"x", "a"},
+				AggFuncAppRef{"#udaf(x:a+1)#"}},
+			map[string]AggFuncAppAST{
+				"#udaf(x:a+1)#": AggFuncAppAST{"udaf",
+					BinaryOpAST{parser.Plus, RowValue{"x", "a"}, NumericLiteral{1}}},
+			}},
+
+		// there are two aggregate calls, so both are referenced from the
+		// expression list and there are two entries in the `aggrs` list
+		{"udaf(a + f(1)) + g(count(a)) FROM x [RANGE 1 TUPLES]", "",
+			BinaryOpAST{parser.Plus,
+				AggFuncAppRef{"#udaf(x:a+f(1))#"},
+				FuncAppAST{"g", []FlatExpression{
+					AggFuncAppRef{"#count(x:a)#"},
+				}},
+			},
+			map[string]AggFuncAppAST{
+				"#udaf(x:a+f(1))#": AggFuncAppAST{"udaf",
+					BinaryOpAST{parser.Plus,
+						RowValue{"x", "a"},
+						FuncAppAST{"f", []FlatExpression{NumericLiteral{1}}},
+					}},
+				"#count(x:a)#": AggFuncAppAST{"count", RowValue{"x", "a"}},
+			}},
+
+		// there are two aggregate calls, but they use the same value,
+		// so the `aggrs` list contains only one entry
+		{"count(a) + g(count(a)) FROM x [RANGE 1 TUPLES]", "",
+			BinaryOpAST{parser.Plus,
+				AggFuncAppRef{"#count(x:a)#"},
+				FuncAppAST{"g", []FlatExpression{
+					AggFuncAppRef{"#count(x:a)#"},
+				}},
+			},
+			map[string]AggFuncAppAST{
+				"#count(x:a)#": AggFuncAppAST{"count", RowValue{"x", "a"}},
+			}},
+
 		{"a + udaf(a, 1) FROM x [RANGE 1 TUPLES]",
-			"aggregate functions must have exactly one parameter"},
+			"aggregate functions must have exactly one parameter", nil, nil},
+
 		{"count(udaf(a)) FROM x [RANGE 1 TUPLES]",
-			"aggregate functions cannot be nested"},
+			"aggregate functions cannot be nested", nil, nil},
 	}
 
 	for _, testCase := range testCases {
@@ -575,7 +643,10 @@ func TestAggregateChecker(t *testing.T) {
 				if expectedError == "" {
 					Convey("There is no error", func() {
 						So(err, ShouldBeNil)
-						fmt.Printf("%+v\n", logPlan.Projections)
+						So(len(logPlan.Projections), ShouldBeGreaterThanOrEqualTo, 1)
+						proj := logPlan.Projections[0]
+						So(proj.expr, ShouldResemble, testCase.expr)
+						So(proj.aggrInputs, ShouldResemble, testCase.aggrs)
 					})
 				} else {
 					Convey("There is an error", func() {
