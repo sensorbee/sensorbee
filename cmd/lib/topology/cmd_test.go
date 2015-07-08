@@ -5,6 +5,7 @@ import (
 	"github.com/codegangsta/cli"
 	. "github.com/smartystreets/goconvey/convey"
 	"io/ioutil"
+	"pfi/sensorbee/sensorbee/server/testutil"
 	"testing"
 )
 
@@ -51,7 +52,8 @@ func (a *app) rawRun(sub string, args ...string) (string, error) {
 
 func TestTopologyCommand(t *testing.T) {
 	testMode = true
-	s := createTestServer()
+	testutil.TestAPIWithRealHTTPServer = true
+	s := testutil.NewServer()
 	defer s.Close()
 
 	Convey("Given a sensorbee topology command", t, func() {
@@ -125,9 +127,10 @@ func TestTopologyCommand(t *testing.T) {
 
 func TestTopologyCreateCommandValidation(t *testing.T) {
 	testMode = true
-	tmp := createTestServer()
+	testutil.TestAPIWithRealHTTPServer = true
+	tmp := testutil.NewServer()
 	dummyURL := tmp.URL()
-	s := createTestServer()
+	s := testutil.NewServer()
 	defer s.Close()
 	url := s.URL()
 	tmp.Close() // hope tmp's URL won't be reused too soon.
@@ -165,9 +168,10 @@ func TestTopologyCreateCommandValidation(t *testing.T) {
 
 func TestTopologyListCommandValidation(t *testing.T) {
 	testMode = true
-	tmp := createTestServer()
+	testutil.TestAPIWithRealHTTPServer = true
+	tmp := testutil.NewServer()
 	dummyURL := tmp.URL()
-	s := createTestServer()
+	s := testutil.NewServer()
 	defer s.Close()
 	url := s.URL()
 	tmp.Close() // hope tmp's URL won't be reused too soon.
@@ -198,9 +202,10 @@ func TestTopologyListCommandValidation(t *testing.T) {
 
 func TestTopologyDeleteCommandValidation(t *testing.T) {
 	testMode = true
-	tmp := createTestServer()
+	testutil.TestAPIWithRealHTTPServer = true
+	tmp := testutil.NewServer()
 	dummyURL := tmp.URL()
-	s := createTestServer()
+	s := testutil.NewServer()
 	defer s.Close()
 	url := s.URL()
 	tmp.Close() // hope tmp's URL won't be reused too soon.

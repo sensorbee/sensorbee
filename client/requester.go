@@ -38,7 +38,7 @@ func NewRequesterWithClient(url, version string, cli *http.Client) (*Requester, 
 	}
 
 	return &Requester{
-		cli:    http.DefaultClient,
+		cli:    cli,
 		url:    url,
 		prefix: "api/" + version,
 	}, nil

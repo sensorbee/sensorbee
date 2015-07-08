@@ -5,7 +5,7 @@ import (
 	"errors"
 	"io/ioutil"
 	"net/http"
-	"pfi/sensorbee/sensorbee/data"
+	"pfi/sensorbee/sensorbee/server/response"
 )
 
 // Response wraps a raw HTTP response.
@@ -15,8 +15,9 @@ type Response struct {
 	closed   bool
 	closeErr error
 
-	errCache *ErrorResponse
-	readErr  error
+	bodyCache []byte
+	errCache  *response.Error
+	readErr   error
 }
 
 // Close closes the body of the response.
@@ -28,6 +29,19 @@ func (r *Response) Close() error {
 	return r.closeErr
 }
 
+// Body returns the response body. Invoking this method will close Raw.Body.
+// Don't call this method on a stream response (i.e. a response having
+// unlimited length).
+func (r *Response) Body() ([]byte, error) {
+	if r.bodyCache != nil || r.readErr != nil {
+		return r.bodyCache, r.readErr
+	}
+
+	defer r.Close()
+	r.bodyCache, r.readErr = ioutil.ReadAll(r.Raw.Body)
+	return r.bodyCache, r.readErr
+}
+
 // IsError returns true when the response is an error.
 func (r *Response) IsError() bool {
 	return r.Raw.StatusCode < 200 || 300 <= r.Raw.StatusCode
@@ -35,7 +49,7 @@ func (r *Response) IsError() bool {
 
 // Error reads an error response from the server. It fails if the response
 // isn't an error.
-func (r *Response) Error() (*ErrorResponse, error) {
+func (r *Response) Error() (*response.Error, error) {
 	if !r.IsError() {
 		return nil, errors.New("the response isn't an error")
 	}
@@ -44,7 +58,7 @@ func (r *Response) Error() (*ErrorResponse, error) {
 	}
 
 	res := struct {
-		Error *ErrorResponse `json:"error"`
+		Error *response.Error `json:"error"`
 	}{}
 	if err := r.ReadJSON(&res); err != nil {
 		return nil, err
@@ -57,33 +71,19 @@ func (r *Response) Error() (*ErrorResponse, error) {
 }
 
 // ReadJSON reads the response body as a json and unmarshals it to the given
-// data structure. This method closed the response body.
+// data structure. This method closed the response body. This method can be
+// called multiple times with different types of arguments. Don't call this
+// method on a stream response (i.e. a response having unlimited length).
 func (r *Response) ReadJSON(js interface{}) error {
-	if r.readErr != nil {
-		return r.readErr
-	}
-
-	defer r.Close()
-	body, err := ioutil.ReadAll(r.Raw.Body)
+	body, err := r.Body()
 	if err != nil {
 		return err
 	}
-
 	if err := json.Unmarshal(body, js); err != nil {
 		r.readErr = err
 		return err
 	}
-
-	r.readErr = errors.New("the response body is already read")
 	return nil
 }
 
 // TODO: Add method to parse result of SELECT stmt (multipart json)
-
-// ErrorResponse has error information of a request.
-type ErrorResponse struct {
-	Code      string   `json:"code"`
-	Message   string   `json:"message"`
-	RequestID string   `json:"request_id"`
-	Meta      data.Map `json:"meta"`
-}
