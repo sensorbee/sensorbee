@@ -1,9 +1,12 @@
 package client
 
+// TODO: replace tests with a richer client
+
 import (
 	"encoding/json"
 	. "github.com/smartystreets/goconvey/convey"
 	"net/http"
+	"pfi/sensorbee/sensorbee/data"
 	"pfi/sensorbee/sensorbee/server/testutil"
 	"testing"
 )
@@ -101,7 +104,7 @@ func TestTopologiesCreateInvalidValues(t *testing.T) {
 
 	Convey("Given an API server", t, func() {
 		Convey("When posting a request missing required fields", func() {
-			res, js, err := do(r, Post, "/topologies", map[string]interface{}{})
+			res, _, err := do(r, Post, "/topologies", map[string]interface{}{})
 			So(err, ShouldBeNil)
 
 			Convey("Then it should fail", func() {
@@ -109,7 +112,9 @@ func TestTopologiesCreateInvalidValues(t *testing.T) {
 			})
 
 			Convey("Then it should have meta information", func() {
-				So(jscan(js, "/error/meta/name[0]"), ShouldNotBeBlank)
+				e, err := res.Error()
+				So(err, ShouldBeNil)
+				So(e.Meta["name"].(data.Array)[0], ShouldNotEqual, "")
 			})
 		})
 
