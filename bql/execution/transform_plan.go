@@ -421,6 +421,8 @@ func (lp *LogicalPlan) MakePhysicalPlan(reg udf.FunctionRegistry) (ExecutionPlan
 		return NewFilterIstreamPlan(lp, reg)
 	} else if CanBuildDefaultSelectExecutionPlan(lp, reg) {
 		return NewDefaultSelectExecutionPlan(lp, reg)
+	} else if CanBuildGroupbyExecutionPlan(lp, reg) {
+		return NewGroupbyExecutionPlan(lp, reg)
 	}
 	return nil, fmt.Errorf("no plan can deal with such a statement")
 }
