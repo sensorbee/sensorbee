@@ -30,7 +30,7 @@ func runList(c *cli.Context) {
 		panic(1)
 	}
 
-	res := do(c, client.GetRequest, "topologies", nil, "Cannot get a list of topologies")
+	res := do(c, client.Get, "topologies", nil, "Cannot get a list of topologies")
 	ts := struct {
 		Topologies []*response.Topology `json:"topologies"`
 	}{}

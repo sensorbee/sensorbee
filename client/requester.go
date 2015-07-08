@@ -46,8 +46,8 @@ func NewRequesterWithClient(url, version string, cli *http.Client) (*Requester, 
 
 // Do sends a JSON request to server. The caller has to close the body of
 // the response.
-func (r *Requester) Do(reqType RequestType, path string, body interface{}) (*Response, error) {
-	req, err := r.NewRequest(reqType, path, body)
+func (r *Requester) Do(method Method, path string, body interface{}) (*Response, error) {
+	req, err := r.NewRequest(method, path, body)
 	if err != nil {
 		return nil, err
 	}
@@ -56,7 +56,7 @@ func (r *Requester) Do(reqType RequestType, path string, body interface{}) (*Res
 
 // NewRequest creates a new HTTP request having a JSON content. The caller has
 // to close the body of the response.
-func (r *Requester) NewRequest(reqType RequestType, apiPath string, bodyJSON interface{}) (*http.Request, error) {
+func (r *Requester) NewRequest(method Method, apiPath string, bodyJSON interface{}) (*http.Request, error) {
 	var body io.Reader // this is necessary because body has to have io.Reader "type".
 	if bodyJSON == nil {
 		body = nil
@@ -68,7 +68,7 @@ func (r *Requester) NewRequest(reqType RequestType, apiPath string, bodyJSON int
 		body = bytes.NewReader(bd)
 	}
 
-	req, err := http.NewRequest(reqType.String(), r.url+path.Join(r.prefix, apiPath), body)
+	req, err := http.NewRequest(method.String(), r.url+path.Join(r.prefix, apiPath), body)
 	if err != nil {
 		return nil, err
 	}

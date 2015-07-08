@@ -61,8 +61,8 @@ func (a *App) prompt(line *liner.State) {
 			case continuousCMD:
 				a.continues(line, cmd)
 			case preparedCMD:
-				reqType, uri, bodyJSON := cmd.Eval()
-				client.Request(reqType, a.uri+uri, bodyJSON)
+				method, uri, bodyJSON := cmd.Eval()
+				client.Request(method, a.uri+uri, bodyJSON)
 			}
 		} else {
 			fmt.Fprintf(os.Stdout, "not found the command: %v\n", in)
@@ -86,8 +86,8 @@ func (a *App) continues(line *liner.State, cmd Command) {
 			fmt.Fprintf(os.Stderr, "input command is invalid: %v\n", err)
 			return
 		case preparedCMD:
-			reqType, uri, bodyJSON := cmd.Eval()
-			client.Request(reqType, a.uri+uri, bodyJSON)
+			method, uri, bodyJSON := cmd.Eval()
+			client.Request(method, a.uri+uri, bodyJSON)
 			return
 		}
 	}
