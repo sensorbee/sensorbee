@@ -64,6 +64,7 @@ func action(c *cli.Context) {
 
 type Config struct {
 	PluginPaths []string `yaml:"plugins"`
+	SubCommands []string `yaml:"-"`
 }
 
 func loadConfig(path string) *Config {
@@ -76,8 +77,11 @@ func loadConfig(path string) *Config {
 	if err := yaml.Unmarshal(b, config); err != nil {
 		panic(fmt.Errorf("cannot parse the config file '%v': %v\n", path, err))
 	}
-
 	// TODO: validation
+
+	config.SubCommands = []string{"run", "shell", "topology"}
+	// TODO: sub commands should be configurable
+
 	return config
 }
 
@@ -138,15 +142,11 @@ const (
 
 import (
 	"github.com/codegangsta/cli"
-	"os"
-	"pfi/sensorbee/sensorbee/cmd/lib/run"
-	"pfi/sensorbee/sensorbee/cmd/lib/shell"
-	"pfi/sensorbee/sensorbee/cmd/lib/topology"
+	"os"{{range $_, $sub := .SubCommands}}
+	"pfi/sensorbee/sensorbee/cmd/lib/{{$sub}}"{{end}}
 	"time"
 {{range $_, $path := .PluginPaths}}	_ "{{$path}}"
 {{end}})
-
-type commandGenerator func() cli.Command
 
 func init() {
 	// TODO
@@ -154,48 +154,16 @@ func init() {
 }
 
 func main() {
-	app := setUpApp([]commandGenerator{
-		run.SetUp,
-		shell.SetUp,
-		topology.SetUp,
-	})
-
-	if err := app.Run(os.Args); err != nil {
-		os.Exit(1)
-	}
-}
-
-func setUpApp(cmds []commandGenerator) *cli.App {
 	app := cli.NewApp()
 	app.Name = "sensorbee"
 	app.Usage = "SenserBee"
 	app.Version = "0.0.1" // TODO get dynamic, will be get from external file
-	app.Flags = []cli.Flag{
-		cli.StringFlag{ // TODO get configuration from external file
-			Name:   "config, c",
-			Value:  "/etc/sersorbee/sensorbee.config",
-			Usage:  "path to the config file",
-			EnvVar: "SENSORBEE_CONFIG",
-		},
+	app.Commands = []cli.Command{
+{{range $_, $sub := .SubCommands}}		{{$sub}}.SetUp(),
+{{end}}}
+	if err := app.Run(os.Args); err != nil {
+		os.Exit(1)
 	}
-	app.Before = appBeforeHook
-
-	for _, c := range cmds {
-		app.Commands = append(app.Commands, c())
-	}
-	return app
-}
-
-func appBeforeHook(c *cli.Context) error {
-	if err := loadConfig(c); err != nil {
-		return err
-	}
-	return nil
-}
-
-func loadConfig(c *cli.Context) error {
-	// TODO load configuration file (YAML)
-	return nil
 }
 `
 )
