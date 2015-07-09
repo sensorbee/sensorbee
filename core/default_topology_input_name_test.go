@@ -8,11 +8,8 @@ import (
 // TestDefaultTopologyInputNamesChecks tests that checks for matching
 // named inputs are done correctly when building a topology.
 func TestDefaultTopologyInputNamesChecks(t *testing.T) {
-	config := Configuration{TupleTraceEnabled: 1}
-	ctx := newTestContext(config)
-
 	Convey("Given a default topology builder", t, func() {
-		t := NewDefaultTopology(ctx, "dt1")
+		t := NewDefaultTopology(NewContext(nil), "dt1")
 		Reset(func() {
 			t.Stop()
 		})

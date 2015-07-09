@@ -5,13 +5,14 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 	"pfi/sensorbee/sensorbee/bql/parser"
 	"pfi/sensorbee/sensorbee/bql/udf"
+	"pfi/sensorbee/sensorbee/core"
 	"pfi/sensorbee/sensorbee/data"
 	"testing"
 )
 
 func createFilterIstreamPlan(s string, t *testing.T) (ExecutionPlan, ExecutionPlan, error) {
 	p := parser.NewBQLParser()
-	reg := udf.CopyGlobalUDFRegistry(newTestContext())
+	reg := udf.CopyGlobalUDFRegistry(core.NewContext(nil))
 	_stmt, _, err := p.ParseStmt(s)
 	So(err, ShouldBeNil)
 	So(_stmt, ShouldHaveSameTypeAs, parser.CreateStreamAsSelectStmt{})

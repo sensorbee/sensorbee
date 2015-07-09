@@ -49,10 +49,7 @@ func TestEmptyDefaultSinkCreatorRegistry(t *testing.T) {
 }
 
 func TestDefaultSinkCreatorRegistry(t *testing.T) {
-	ctx := &core.Context{
-		Logger:       core.NewConsolePrintLogger(),
-		SharedStates: core.NewDefaultSharedStateRegistry(),
-	}
+	ctx := core.NewContext(nil)
 
 	Convey("Given an default Sink registry having two types", t, func() {
 		r := NewDefaultSinkCreatorRegistry()

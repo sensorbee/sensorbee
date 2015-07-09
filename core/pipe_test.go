@@ -8,8 +8,7 @@ import (
 )
 
 func BenchmarkPipe(b *testing.B) {
-	config := Configuration{TupleTraceEnabled: 1}
-	ctx := newTestContext(config)
+	ctx := NewContext(nil)
 	r, s := newPipe("test", 1024)
 	go func() {
 		for _ = range r.in {
@@ -33,8 +32,7 @@ func drainReceiver(r *pipeReceiver) {
 }
 
 func TestPipe(t *testing.T) {
-	config := Configuration{TupleTraceEnabled: 1}
-	ctx := newTestContext(config)
+	ctx := NewContext(nil)
 
 	Convey("Given a pipe", t, func() {
 		// Use small capacity to check the sender never blocks.
@@ -98,11 +96,10 @@ func TestPipe(t *testing.T) {
 }
 
 func TestDataSources(t *testing.T) {
-	config := Configuration{TupleTraceEnabled: 1}
-	ctx := newTestContext(config)
+	ctx := NewContext(nil)
 
 	Convey("Given an empty data source", t, func() {
-		srcs := newDataSources("test_component")
+		srcs := newDataSources(NTBox, "test_component")
 
 		Convey("When stopping it before starting to pour tuples", func() {
 			srcs.stop(ctx)
@@ -115,7 +112,7 @@ func TestDataSources(t *testing.T) {
 	})
 
 	Convey("Given an empty data source", t, func() {
-		srcs := newDataSources("test_component")
+		srcs := newDataSources(NTBox, "test_component")
 		si := NewTupleCollectorSink()
 
 		t := &Tuple{
@@ -162,7 +159,7 @@ func TestDataSources(t *testing.T) {
 	})
 
 	Convey("Given a data source having destinations", t, func() {
-		srcs := newDataSources("test_component")
+		srcs := newDataSources(NTBox, "test_component")
 		dsts := make([]*pipeSender, 2)
 		for i := range dsts {
 			r, s := newPipe(fmt.Sprint("test", i+1), 1)
@@ -331,11 +328,10 @@ func TestDataSources(t *testing.T) {
 // TODO: add fail tests of dataSources
 
 func TestDataDestinations(t *testing.T) {
-	config := Configuration{TupleTraceEnabled: 1}
-	ctx := newTestContext(config)
+	ctx := NewContext(nil)
 
 	Convey("Given an empty data destination", t, func() {
-		dsts := newDataDestinations("test_component")
+		dsts := newDataDestinations(NTBox, "test_component")
 		t := &Tuple{
 			InputName: "test_component",
 			Data: data.Map{
@@ -356,7 +352,7 @@ func TestDataDestinations(t *testing.T) {
 	})
 
 	Convey("Given data destinations", t, func() {
-		dsts := newDataDestinations("test_component")
+		dsts := newDataDestinations(NTBox, "test_component")
 		recvs := make([]*pipeReceiver, 2)
 		for i := range recvs {
 			r, s := newPipe(fmt.Sprint("test", i+1), 1)

@@ -41,10 +41,7 @@ func init() {
 }
 
 func TestDuplicateUDSF(t *testing.T) {
-	ctx := &core.Context{
-		Logger:       core.NewConsolePrintLogger(),
-		SharedStates: core.NewDefaultSharedStateRegistry(),
-	}
+	ctx := core.NewContext(nil)
 
 	Convey("Given a udsf in a UDSF registry", t, func() {
 		r, err := CopyGlobalUDSFCreatorRegistry()

@@ -59,8 +59,8 @@ func (ds *defaultSinkNode) run() error {
 	defer ds.state.Set(TSStopped)
 	defer func() {
 		if err := ds.sink.Close(ds.topology.ctx); err != nil {
-			ds.topology.ctx.Logger.Log(Error, "Sink '%v' in topology '%v' failed to stop: %v",
-				ds.name, ds.topology.name, err)
+			ds.topology.ctx.ErrLog(err).WithFields(nodeLogFields(NTSink, ds.name)).
+				Error("Cannot stop the sink")
 		}
 	}()
 	ds.state.Set(TSRunning)

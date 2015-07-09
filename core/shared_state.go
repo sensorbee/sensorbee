@@ -62,15 +62,15 @@ type SharedStateRegistry interface {
 	// Don't add the same instance of SharedState more than once to registries.
 	// Otherwise, Init and Terminate methods of the state will be called
 	// multiple times.
-	Add(ctx *Context, name string, s SharedState) error
+	Add(name string, s SharedState) error
 
 	// Get returns a SharedState having the name in the registry. It returns
 	// an error if the registry doesn't have the state.
-	Get(ctx *Context, name string) (SharedState, error)
+	Get(name string) (SharedState, error)
 
 	// List returns a map containing all SharedState the registry has.
 	// The map returned from this method can safely be modified.
-	List(ctx *Context) (map[string]SharedState, error)
+	List() (map[string]SharedState, error)
 
 	// Remove removes a SharedState the registry has. It automatically
 	// terminates the state. If SharedState.Terminate failed, Remove returns an
@@ -81,23 +81,25 @@ type SharedStateRegistry interface {
 	// SharedState.Terminate fails, Remove returns both the removed SharedState
 	// and an error. If the registry doesn't have a SharedState having the name,
 	// it returns a nil SharedState and a nil error.
-	Remove(ctx *Context, name string) (SharedState, error)
+	Remove(name string) (SharedState, error)
 }
 
 type defaultSharedStateRegistry struct {
+	ctx    *Context
 	m      sync.RWMutex
 	states map[string]SharedState
 }
 
 // NewDefaultSharedStateRegistry create a default registry of SharedStates.
-func NewDefaultSharedStateRegistry() SharedStateRegistry {
+func NewDefaultSharedStateRegistry(ctx *Context) SharedStateRegistry {
 	return &defaultSharedStateRegistry{
+		ctx:    ctx,
 		states: map[string]SharedState{},
 	}
 }
 
-func (r *defaultSharedStateRegistry) Add(ctx *Context, name string, s SharedState) error {
-	if err := s.Init(ctx); err != nil {
+func (r *defaultSharedStateRegistry) Add(name string, s SharedState) error {
+	if err := s.Init(r.ctx); err != nil {
 		return err
 	}
 
@@ -111,15 +113,15 @@ func (r *defaultSharedStateRegistry) Add(ctx *Context, name string, s SharedStat
 		return nil
 	}()
 	if err != nil {
-		if err := s.Terminate(ctx); err != nil {
-			ctx.Logger.Log(Error, "Cannot terminate state which couldn't be added to the registry due to name duplication '%v': %v", name, err)
+		if err := s.Terminate(r.ctx); err != nil {
+			r.ctx.ErrLog(err).Errorf("Cannot terminate state which couldn't be added to the registry due to name duplication: '%v'", name)
 		}
 		return err
 	}
 	return nil
 }
 
-func (r *defaultSharedStateRegistry) Get(ctx *Context, name string) (SharedState, error) {
+func (r *defaultSharedStateRegistry) Get(name string) (SharedState, error) {
 	r.m.RLock()
 	defer r.m.RUnlock()
 	if s, ok := r.states[name]; ok {
@@ -128,7 +130,7 @@ func (r *defaultSharedStateRegistry) Get(ctx *Context, name string) (SharedState
 	return nil, fmt.Errorf("state '%v' was not found", name)
 }
 
-func (r *defaultSharedStateRegistry) List(ctx *Context) (map[string]SharedState, error) {
+func (r *defaultSharedStateRegistry) List() (map[string]SharedState, error) {
 	r.m.RLock()
 	defer r.m.RUnlock()
 	m := make(map[string]SharedState, len(r.states))
@@ -138,7 +140,7 @@ func (r *defaultSharedStateRegistry) List(ctx *Context) (map[string]SharedState,
 	return m, nil
 }
 
-func (r *defaultSharedStateRegistry) Remove(ctx *Context, name string) (SharedState, error) {
+func (r *defaultSharedStateRegistry) Remove(name string) (SharedState, error) {
 	s := func() SharedState {
 		r.m.Lock()
 		defer r.m.Unlock()
@@ -152,7 +154,7 @@ func (r *defaultSharedStateRegistry) Remove(ctx *Context, name string) (SharedSt
 		return nil, nil
 	}
 
-	if err := s.Terminate(ctx); err != nil {
+	if err := s.Terminate(r.ctx); err != nil {
 		return s, err
 	}
 	return s, nil

@@ -28,6 +28,7 @@ type defaultTopology struct {
 // NewDefaultTopology creates a topology having a simple graph
 // structure.
 func NewDefaultTopology(ctx *Context, name string) Topology {
+	ctx.topologyName = name
 	t := &defaultTopology{
 		ctx:  ctx,
 		name: name,
@@ -79,12 +80,13 @@ func (t *defaultTopology) AddSource(name string, s Source, config *SourceConfig)
 	ds := &defaultSourceNode{
 		defaultNode:     newDefaultNode(t, name, config.Meta),
 		source:          s,
-		dsts:            newDataDestinations(name),
+		dsts:            newDataDestinations(NTSource, name),
 		pausedOnStartup: config.PausedOnStartup,
 	}
 	if err := t.checkNodeNameDuplication(name); err != nil {
 		if err := ds.Stop(); err != nil { // The same variable name is intentionally used.
-			t.ctx.Logger.Log(Error, "Cannot stop the source '%v': %v", name, err)
+			t.ctx.ErrLog(err).WithFields(nodeLogFields(NTSource, name)).
+				Error("Cannot stop the source")
 		}
 		return nil, err
 	}
@@ -93,7 +95,8 @@ func (t *defaultTopology) AddSource(name string, s Source, config *SourceConfig)
 	go func() {
 		// TODO: Support lazy invocation
 		if err := ds.run(); err != nil {
-			t.ctx.Logger.Log(Error, "Cannot generate a stream from the source '%v': %v", name, err)
+			t.ctx.ErrLog(err).WithFields(nodeLogFields(NTSource, name)).
+				Error("Cannot generate a stream from the source")
 		}
 	}()
 
@@ -148,16 +151,17 @@ func (t *defaultTopology) AddBox(name string, b Box, config *BoxConfig) (BoxNode
 
 	db := &defaultBoxNode{
 		defaultNode: newDefaultNode(t, name, config.Meta),
-		srcs:        newDataSources(name),
+		srcs:        newDataSources(NTBox, name),
 		box:         b,
-		dsts:        newDataDestinations(name),
+		dsts:        newDataDestinations(NTBox, name),
 	}
 	db.dsts.callback = db.dstCallback
 	t.boxes[name] = db
 
 	go func() {
 		if err := db.run(); err != nil {
-			t.ctx.Logger.Log(Error, "Box '%v' in topology '%v' failed: %v", db.name, t.name, err)
+			t.ctx.ErrLog(err).WithFields(nodeLogFields(NTBox, db.name)).
+				Error("The box failed")
 		}
 	}()
 	db.state.Wait(TSRunning)
@@ -185,14 +189,15 @@ func (t *defaultTopology) AddSink(name string, s Sink, config *SinkConfig) (Sink
 
 	ds := &defaultSinkNode{
 		defaultNode: newDefaultNode(t, name, config.Meta),
-		srcs:        newDataSources(name),
+		srcs:        newDataSources(NTSink, name),
 		sink:        s,
 	}
 	t.sinks[name] = ds
 
 	go func() {
 		if err := ds.run(); err != nil {
-			t.ctx.Logger.Log(Error, "Sink '%v' in topology '%v' failed: %v", ds.name, t.name, err)
+			t.ctx.ErrLog(err).WithFields(nodeLogFields(NTSink, ds.name)).
+				Error("The sink failed")
 		}
 	}()
 	ds.state.Wait(TSRunning)
@@ -214,21 +219,22 @@ func (t *defaultTopology) Stop() error {
 		func() {
 			defer func() {
 				if e := recover(); e != nil {
-					t.ctx.Logger.Log(Error, "Cannot stop source '%v' due to panic: %v", name, e)
-					src.dsts.Close(t.ctx)
-
 					if err, ok := e.(error); ok {
 						lastErr = err
 					} else {
 						lastErr = fmt.Errorf("source '%v' panicked while being stopped: %v", name, e)
 					}
+					src.dsts.Close(t.ctx)
+					t.ctx.ErrLog(lastErr).WithFields(nodeLogFields(NTSource, name)).
+						Error("Cannot stop the source due to panic")
 				}
 			}()
 
 			if err := src.Stop(); err != nil {
-				src.dsts.Close(t.ctx)
 				lastErr = err
-				t.ctx.Logger.Log(Error, "Cannot stop source '%v': %v", name, err)
+				src.dsts.Close(t.ctx)
+				t.ctx.ErrLog(err).WithFields(nodeLogFields(NTSource, name)).
+					Error("Cannot stop the source due to panic")
 			}
 		}()
 	}

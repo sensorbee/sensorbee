@@ -138,7 +138,7 @@ func (tb *TopologyBuilder) AddStmt(stmt interface{}) (core.Node, error) {
 		if err != nil {
 			return nil, err
 		}
-		if err := ctx.SharedStates.Add(ctx, string(stmt.Name), s); err != nil {
+		if err := ctx.SharedStates.Add(string(stmt.Name), s); err != nil {
 			return nil, err
 		}
 		return nil, nil
@@ -338,11 +338,13 @@ func (tb *TopologyBuilder) createStreamAsSelectStmt(stmt *parser.CreateStreamAsS
 				func() {
 					defer func() {
 						if e := recover(); e != nil {
-							tb.topology.Context().Logger.Log(core.Error, "Cannot terminate the UDSF '%v' due to panic: %v", rel.Name, err)
+							tb.topology.Context().Log().WithField("udsf_name", rel.Name).
+								Errorf("Cannot terminate the UDFS due to panic: %v", e)
 						}
 					}()
 					if err := udsf.Terminate(tb.topology.Context()); err != nil {
-						tb.topology.Context().Logger.Log(core.Error, "Cannot terminate the UDSF '%v': %v", rel.Name, err)
+						tb.topology.Context().ErrLog(err).WithField("udsf_name", rel.Name).
+							Error("Cannot terminate the UDSF")
 					}
 				}()
 				return nil, fmt.Errorf("a UDSF '%v' must have at least one input", rel.Name)

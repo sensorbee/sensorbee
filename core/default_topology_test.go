@@ -80,11 +80,8 @@ func (s *sinkCloseChecker) Close(ctx *Context) error {
 }
 
 func TestDefaultTopologySetup(t *testing.T) {
-	config := Configuration{TupleTraceEnabled: 1}
-	ctx := newTestContext(config)
-
 	Convey("Given a default topology", t, func() {
-		dt := NewDefaultTopology(ctx, "dt1")
+		dt := NewDefaultTopology(NewContext(nil), "dt1")
 		t := dt.(*defaultTopology)
 		Reset(func() {
 			t.Stop()
@@ -303,14 +300,11 @@ func TestDefaultTopologySetup(t *testing.T) {
 // 3. Multiple sources (including JOIN)
 
 func TestLinearDefaultTopology(t *testing.T) {
-	config := Configuration{TupleTraceEnabled: 1}
-	ctx := newTestContext(config)
-
 	Convey("Given a simple linear topology", t, func() {
 		/*
 		 *   so -*--> b1 -*--> b2 -*--> si
 		 */
-		dt := NewDefaultTopology(ctx, "dt1")
+		dt := NewDefaultTopology(NewContext(nil), "dt1")
 		t := dt.(*defaultTopology)
 
 		so := NewTupleIncrementalEmitterSource(freshTuples())
@@ -673,16 +667,13 @@ func TestLinearDefaultTopology(t *testing.T) {
 }
 
 func TestForkDefaultTopology(t *testing.T) {
-	config := Configuration{TupleTraceEnabled: 1}
-	ctx := newTestContext(config)
-
 	Convey("Given a simple fork topology", t, func() {
 		/*
 		 *        /--> b1 -*--> si1
 		 *   so -*
 		 *        \--> b2 -*--> si2
 		 */
-		dt := NewDefaultTopology(ctx, "dt1")
+		dt := NewDefaultTopology(NewContext(nil), "dt1")
 		t := dt.(*defaultTopology)
 
 		so := NewTupleIncrementalEmitterSource(freshTuples())
@@ -883,16 +874,13 @@ func TestForkDefaultTopology(t *testing.T) {
 }
 
 func TestJoinDefaultTopology(t *testing.T) {
-	config := Configuration{TupleTraceEnabled: 1}
-	ctx := newTestContext(config)
-
 	Convey("Given a simple join topology", t, func() {
 		/*
 		 *   so1 -*-\
 		 *           --> b -*--> si
 		 *   so2 -*-/
 		 */
-		tb := NewDefaultTopology(ctx, "dt1")
+		tb := NewDefaultTopology(NewContext(nil), "dt1")
 		t := tb.(*defaultTopology)
 
 		so1 := NewTupleIncrementalEmitterSource(freshTuples()[0:4])

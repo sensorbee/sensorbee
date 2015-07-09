@@ -85,15 +85,13 @@ func (tc *topologies) Create(rw web.ResponseWriter, req *web.Request) {
 
 	// TODO: support other parameters
 
-	conf := core.Configuration{
-		TupleTraceEnabled: 0,
-	}
-	ctx := core.Context{
-		Logger:       core.NewConsolePrintLogger(), // TODO: set appropriate logger
-		Config:       conf,
-		SharedStates: core.NewDefaultSharedStateRegistry(),
-	}
-	tp := core.NewDefaultTopology(&ctx, name)
+	ctx := core.NewContext(&core.ContextConfig{
+		Logger: tc.logger,
+		Flags: core.ContextFlags{
+			DroppedTupleLog: 1,
+		},
+	})
+	tp := core.NewDefaultTopology(ctx, name)
 	tb, err := bql.NewTopologyBuilder(tp)
 	if err != nil {
 		tc.ErrLog(err).Error("Cannot create a new topology builder")

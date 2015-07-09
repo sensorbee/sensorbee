@@ -12,8 +12,7 @@ import (
 // information is added according to Configuration.
 func TestDefaultTopologyTupleTracingConfiguration(t *testing.T) {
 	Convey("Given a simple topology with tracing disabled", t, func() {
-		config := Configuration{TupleTraceEnabled: 0}
-		ctx := newTestContext(config)
+		ctx := NewContext(nil)
 		tup := Tuple{
 			Data: data.Map{
 				"int": data.Int(1),
@@ -45,10 +44,10 @@ func TestDefaultTopologyTupleTracingConfiguration(t *testing.T) {
 		Convey("When switch tracing configuration in running topology", func() {
 			so1.EmitTuples(1)
 			si.Wait(1)
-			ctx.SetTupleTraceEnabled(true)
+			ctx.Flags.TupleTrace.Set(true)
 			so1.EmitTuples(1)
 			si.Wait(2)
-			ctx.SetTupleTraceEnabled(false)
+			ctx.Flags.TupleTrace.Set(false)
 			so1.EmitTuples(1)
 			si.Wait(3)
 			Convey("Then trace should be according to configuration", func() {
@@ -64,9 +63,12 @@ func TestDefaultTopologyTupleTracingConfiguration(t *testing.T) {
 // TestDefaultTopologyTupleTracing tests that tracing information is
 // correctly added to tuples in a complex topology.
 func TestDefaultTopologyTupleTracing(t *testing.T) {
-	config := Configuration{TupleTraceEnabled: 1}
-	ctx := newTestContext(config)
 	Convey("Given a complex topology with distribution and aggregation", t, func() {
+		ctx := NewContext(&ContextConfig{
+			Flags: ContextFlags{
+				TupleTrace: 1,
+			},
+		})
 
 		tup1 := Tuple{
 			Data: data.Map{
