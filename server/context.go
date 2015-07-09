@@ -3,6 +3,7 @@ package server
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"github.com/Sirupsen/logrus"
 	"github.com/gocraft/web"
 	"io"
@@ -11,6 +12,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"sync/atomic"
+	"time"
 )
 
 // Context is a context object for gocraft/web.
@@ -41,7 +43,18 @@ func (c *Context) setUpContext(rw web.ResponseWriter, req *web.Request, next web
 	c.response = rw
 	c.request = req
 
-	// TODO: request logging
+	start := time.Now()
+	defer func() {
+		elapsed := time.Now().Sub(start)
+		// Use custom logging because file and line aren't necessary here.
+		c.logger.WithFields(logrus.Fields{
+			"reqid":   c.requestID,
+			"reqtime": fmt.Sprintf("%d.%03d", int(elapsed/time.Second), int(elapsed%time.Second/time.Millisecond)),
+			"method":  req.Method,
+			"uri":     req.URL.RequestURI(),
+			"status":  c.HTTPStatus,
+		}).Info("Access")
+	}()
 	next(rw, req)
 }
 
