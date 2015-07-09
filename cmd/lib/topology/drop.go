@@ -9,18 +9,18 @@ import (
 	"pfi/sensorbee/sensorbee/core"
 )
 
-func setUpDelete() cli.Command {
+func setUpDrop() cli.Command {
 	return cli.Command{
-		Name:        "delete",
+		Name:        "drop",
 		Aliases:     []string{"d"},
-		Usage:       "delete an existing topology",
-		Description: "sensorbee topology delete <topology_name> delete an existing topology having <topology_name>",
-		Action:      runDelete,
+		Usage:       "drop an existing topology",
+		Description: "sensorbee topology drop <topology_name> drops an existing topology having <topology_name>",
+		Action:      runDrop,
 		Flags:       commonFlags,
 	}
 }
 
-func runDelete(c *cli.Context) {
+func runDrop(c *cli.Context) {
 	defer panicHandler()
 	validateFlags(c)
 
@@ -42,5 +42,5 @@ func runDelete(c *cli.Context) {
 		fmt.Fprintf(os.Stderr, "The name of the topology is invalid: %v\n", err)
 		panic(1)
 	}
-	do(c, client.Delete, path.Join("topologies", name), nil, "Cannot delete a topology").Close()
+	do(c, client.Delete, path.Join("topologies", name), nil, "Cannot drop a topology").Close()
 }
