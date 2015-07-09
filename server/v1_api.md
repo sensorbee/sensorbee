@@ -108,11 +108,84 @@ the topology. This action does not return 404 when the topology does not exist.
 
     + Attributes (Error Response)
 
+## Queries [/api/v1/topologies/{topology_name}/queries]
+
+### Send Queries [POST]
+
+This action accepts BQL queries. As a result, new nodes may be created or some
+existing nodes are changed or dropped. A client can send multiple queries at
+once. However, SELECT statements cannot be mixed with other statements including
+SELECT statements themselves. In other words, only one SELECT statement can be
+issued in a request and the request must only have one statement.
+
+A response of a SELECT statement differs from other statements' responses. It's
+returned as a `multipart/mixed` response having multiple `application/json`
+contents. Other statements return `application/json` content as described below.
+
++ Request (application/json)
+    + Attributes (object)
+        + queries: `CREATE SOURCE s TYPE my_source WITH param='value';` (string) - Multiple BQL statements to be executed
+
++ Response 200 (application/json)
+
+    This is the regular response of statements other than SELECT statements.
+
+    + Attributes (object)
+        + responses (array[Topology Query Response]) - An array having a response of each statement
+
++ Response 200 (multipart/mixed)
+
+    This is the response of a SELECT statement containing multiple
+    `application/json` split by boundaries. Each part contains a tuple emitted
+    from the SELECT statement.
+
+    + Body
+
+            --boundary
+            Content-Type: application/json
+
+            {"id":1,"price":100,"name":"book1"}
+            --boundary
+            Content-Type: application/json
+
+            {"id":2,"price":150,"name":"book3"}
+            --boundary--
+
++ Response 400 (application/json)
+
+    400 is returned when one of the given statements has a syntax error or
+    fails to be executed. It's also returned when a SELECT statement is issued
+    with other statements.
+
+    + Attributes (Error Response)
+
++ Response 500 (application/json)
+
+    500 is returned when the server failed to process the request properly and
+    the request did not have any problem.
+
+    + Attributes (Error Response)
+
 # Data Structures
 
 ## Topology (object)
 
-+ name: `some_topology` (string) - A name of the topology
++ name: `some_topology` (string) - The name of the topology
+
+## Node (object)
+
++ name: `node_name` (string) - The name of the node
++ type: `source` (string) - The type name of the node
++ status (object) - Status information of the node
++ path: `/api/v1/topologies/topology_name/source/node_name` (string) - The path at which the node is located
+
+## Topology Query Response (object)
+
++ statement: `CREATE SOURCE s TYPE my_source WITH param='value';` (string) - A BQL statement which has been executed
++ nodes (object) - Nodes in the topology which the statement affected
+    + created (array[Node]) - Nodes created by the statement
+    + dropped (array[Node]) - Nodes dropped by the statement
+    + updated (array[Node]) - Nodes updated by the statement
 
 ## Error (object)
 
