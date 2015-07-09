@@ -49,10 +49,7 @@ func TestEmptyDefaultSourceCreatorRegistry(t *testing.T) {
 }
 
 func TestDefaultSourceCreatorRegistry(t *testing.T) {
-	ctx := &core.Context{
-		Logger:       core.NewConsolePrintLogger(),
-		SharedStates: core.NewDefaultSharedStateRegistry(),
-	}
+	ctx := core.NewContext(nil)
 
 	Convey("Given an default Source registry having two types", t, func() {
 		r := NewDefaultSourceCreatorRegistry()

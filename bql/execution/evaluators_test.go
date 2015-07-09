@@ -17,17 +17,9 @@ type evalTest struct {
 	expected data.Value
 }
 
-func newTestContext() *core.Context {
-	return &core.Context{
-		Logger:       core.NewConsolePrintLogger(),
-		Config:       core.Configuration{},
-		SharedStates: core.NewDefaultSharedStateRegistry(),
-	}
-}
-
 func TestEvaluators(t *testing.T) {
 	testCases := getTestCases()
-	reg := &testFuncRegistry{ctx: newTestContext()}
+	reg := &testFuncRegistry{ctx: core.NewContext(nil)}
 
 	for _, testCase := range testCases {
 		testCase := testCase
@@ -138,7 +130,7 @@ func TestFoldableExecution(t *testing.T) {
 			true, data.Int(8)},
 	}
 
-	reg := &testFuncRegistry{ctx: newTestContext()}
+	reg := &testFuncRegistry{ctx: core.NewContext(nil)}
 
 	for _, testCase := range testCases {
 		testCase := testCase
@@ -165,7 +157,7 @@ func TestFoldableExecution(t *testing.T) {
 
 func TestFuncAppConversion(t *testing.T) {
 	Convey("Given a function registry", t, func() {
-		reg := &testFuncRegistry{ctx: newTestContext()}
+		reg := &testFuncRegistry{ctx: core.NewContext(nil)}
 
 		Convey("When a function is known in the registry", func() {
 			ast := parser.FuncAppAST{parser.FuncName("plusone"),

@@ -6,14 +6,6 @@ import (
 	"sync"
 )
 
-func newTestContext(config Configuration) *Context {
-	return &Context{
-		Logger:       NewConsolePrintLogger(),
-		Config:       config,
-		SharedStates: NewDefaultSharedStateRegistry(),
-	}
-}
-
 // DoesNothingSource is a dummy source that literally does nothing.
 // It just fulfills the Source interface so that we can build a
 // simple topology.

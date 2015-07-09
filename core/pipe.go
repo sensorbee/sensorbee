@@ -1,6 +1,7 @@
 package core
 
 import (
+	"errors"
 	"fmt"
 	"pfi/sensorbee/sensorbee/data"
 	"reflect"
@@ -140,6 +141,7 @@ func (s *pipeSender) isClosed() bool {
 }
 
 type dataSources struct {
+	nodeType NodeType
 	nodeName string
 
 	// m protects state, recvs, and msgChs.
@@ -156,8 +158,9 @@ type dataSources struct {
 	numErrors   int64
 }
 
-func newDataSources(nodeName string) *dataSources {
+func newDataSources(nodeType NodeType, nodeName string) *dataSources {
 	s := &dataSources{
+		nodeType: nodeType,
 		nodeName: nodeName,
 		recvs:    map[string]*pipeReceiver{},
 	}
@@ -318,7 +321,8 @@ func (s *dataSources) pour(ctx *Context, w Writer, paralellism int) error {
 				if err != nil {
 					logOnce.Do(func() {
 						threadErr = err // return only one error
-						ctx.Logger.Log(Error, "'%v' stopped with a fatal error: %v", s.nodeName, err)
+						ctx.ErrLog(err).WithFields(nodeLogFields(s.nodeType, s.nodeName)).
+							Error("the node stopped with a fatal error")
 					})
 				}
 			}()
@@ -440,7 +444,8 @@ receiveLoop:
 		case message:
 			msg, ok := v.Interface().(*dataSourcesMessage)
 			if !ok {
-				ctx.Logger.Log(Warning, "Received an invalid control message in dataSources: %v", v.Interface())
+				ctx.Log().WithFields(nodeLogFields(s.nodeType, s.nodeName)).
+					Warnf("Received an invalid control message in dataSources: %v", v.Interface())
 				continue
 			}
 
@@ -448,7 +453,8 @@ receiveLoop:
 			case ddscAddReceiver:
 				c, ok := msg.v.(*pipeReceiver)
 				if !ok {
-					ctx.Logger.Log(Warning, "Cannot add a new receiver due to a type error")
+					ctx.Log().WithFields(nodeLogFields(s.nodeType, s.nodeName)).
+						Warn("Cannot add a new receiver due to a type error")
 					break
 				}
 				cs = append(cs, reflect.SelectCase{
@@ -478,24 +484,32 @@ receiveLoop:
 			t, ok := v.Interface().(*Tuple)
 			if !ok {
 				atomic.AddInt64(&s.numErrors, 1)
-				ctx.Logger.Log(Error, "Cannot receive a tuple from a receiver due to a type error")
+				ctx.Log().WithFields(nodeLogFields(s.nodeType, s.nodeName)).
+					Error("Cannot receive a tuple from a receiver due to a type error")
 				break
 			}
 
 			err := w.Write(ctx, t)
+			if err == nil {
+				break
+			}
+
 			switch {
 			case IsFatalError(err):
 				atomic.AddInt64(&s.numErrors, 1)
 				// logging is done by pour method
 				retErr = err
+				ctx.droppedTuple(t, s.nodeType, s.nodeName, ETOutput, err)
 				return
 
 			case IsTemporaryError(err):
 				atomic.AddInt64(&s.numErrors, 1)
 				// TODO: retry
+				ctx.droppedTuple(t, s.nodeType, s.nodeName, ETOutput, err) // TODO: don't write a tuple until retry fails
 
 			default:
 				// Skip this tuple
+				ctx.droppedTuple(t, s.nodeType, s.nodeName, ETOutput, err)
 			}
 		}
 	}
@@ -573,6 +587,8 @@ func (s *dataSources) status() data.Map {
 // dataDestinations have writers connected to multiple destination nodes and
 // distributes tuples to them.
 type dataDestinations struct {
+	nodeType NodeType
+
 	// nodeName is the name of the node which writes tuples to
 	// destinations (i.e. the name of a Source or a Box).
 	nodeName string
@@ -585,6 +601,8 @@ type dataDestinations struct {
 
 	numSent    int64
 	numDropped int64
+
+	reportDroppedTuples bool
 }
 
 type ddEvent int
@@ -599,10 +617,11 @@ const (
 	ddeDisconnect
 )
 
-func newDataDestinations(nodeName string) *dataDestinations {
+func newDataDestinations(nodeType NodeType, nodeName string) *dataDestinations {
 	d := &dataDestinations{
-		nodeName: nodeName,
-		dsts:     map[string]*pipeSender{},
+		nodeName:            nodeName,
+		dsts:                map[string]*pipeSender{},
+		reportDroppedTuples: true,
 	}
 	d.cond = sync.NewCond(&d.rwm)
 	return d
@@ -688,6 +707,9 @@ func (d *dataDestinations) Write(ctx *Context, t *Tuple) error {
 
 	if len(d.dsts) == 0 {
 		atomic.AddInt64(&d.numDropped, 1)
+		if d.reportDroppedTuples {
+			ctx.droppedTuple(t, d.nodeType, d.nodeName, ETOutput, errors.New("no output destination is connected"))
+		}
 		return nil
 	}
 

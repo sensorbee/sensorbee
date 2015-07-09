@@ -4,8 +4,54 @@ import (
 	"time"
 )
 
+// EventType has a type of an event related to Tuple processing.
+type EventType int
+
+const (
+	// ETInput represents an event where a tuple entered some
+	// processing unit (e.g., a Box)
+	ETInput EventType = iota
+	// ETOutput represents an event where a tuple left some
+	// processing unit (e.g., a Box)
+	ETOutput
+	// ETOther represents any other event
+	ETOther
+)
+
+// A TraceEvent represents an event in the processing lifecycle of a
+// Tuple, in particular transitions from one processing unit to the
+// next.
+type TraceEvent struct {
+	// Timestamp is the time of the event.
+	Timestamp time.Time
+
+	// Type represents the type of the event. For transitions, the viewpoint
+	// of the Tuple should be assumed. For example, when a Tuple is emitted
+	// by a Source, this is an OUTPUT transition; when it enters a Box for
+	// processing, this is an INPUT transition. The OTHER Type can be used
+	// to add other tracing information.
+	Type EventType
+
+	// Msg is any message, but for transitions it makes sense to use the
+	// name of the Source/Box/Sink that was left/entered.
+	Msg string
+}
+
+func (t EventType) String() string {
+	switch t {
+	case ETInput:
+		return "INPUT"
+	case ETOutput:
+		return "OUTPUT"
+	case ETOther:
+		return "OTHER"
+	default:
+		return "unknown"
+	}
+}
+
 func tracing(t *Tuple, ctx *Context, inout EventType, msg string) {
-	if !ctx.IsTupleTraceEnabled() {
+	if !ctx.Flags.TupleTrace.Enabled() {
 		return
 	}
 	ev := newDefaultEvent(inout, msg)

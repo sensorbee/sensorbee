@@ -2,6 +2,7 @@ package core
 
 import (
 	"fmt"
+	"github.com/Sirupsen/logrus"
 	"pfi/sensorbee/sensorbee/data"
 	"regexp"
 )
@@ -51,6 +52,13 @@ func ValidateNodeName(name string) error {
 		return fmt.Errorf("node name doesn't follow the format [a-zA-Z][a-zA-Z0-9_]*: %v", name)
 	}
 	return nil
+}
+
+func nodeLogFields(t NodeType, name string) logrus.Fields {
+	return logrus.Fields{
+		"node_type": t.String(),
+		"node_name": name,
+	}
 }
 
 // Node is a node registered to a topology. It defines methods
