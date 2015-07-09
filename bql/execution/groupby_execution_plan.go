@@ -57,6 +57,11 @@ func NewGroupbyExecutionPlan(lp *LogicalPlan, reg udf.FunctionRegistry) (Executi
 	if err != nil {
 		return nil, err
 	}
+	// compute evaluators for the group clause
+	groupList, err := prepareGroupList(lp.GroupList, reg)
+	if err != nil {
+		return nil, err
+	}
 	// for compatibility with the old syntax, take the last RANGE
 	// specification as valid for all buffers
 
@@ -94,6 +99,7 @@ func NewGroupbyExecutionPlan(lp *LogicalPlan, reg udf.FunctionRegistry) (Executi
 	return &groupbyExecutionPlan{
 		commonExecutionPlan: commonExecutionPlan{
 			projections: projs,
+			groupList:   groupList,
 			filter:      filter,
 		},
 		emitterType:  lp.EmitterType,

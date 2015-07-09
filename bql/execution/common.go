@@ -9,12 +9,20 @@ import (
 )
 
 type aliasedEvaluator struct {
-	alias     string
-	evaluator Evaluator
+	alias        string
+	evaluator    Evaluator
+	hasAggregate bool
+	aggrEvals    map[string]aggregationEvaluator
+}
+
+type aggregationEvaluator struct {
+	aggrFun  parser.FuncName
+	aggrEval Evaluator
 }
 
 type commonExecutionPlan struct {
 	projections []aliasedEvaluator
+	groupList   []Evaluator
 	// filter stores the evaluator of the filter condition,
 	// or nil if there is no WHERE clause.
 	filter Evaluator
@@ -28,7 +36,20 @@ func prepareProjections(projections []aliasedExpression, reg udf.FunctionRegistr
 		if err != nil {
 			return nil, err
 		}
-		output[i] = aliasedEvaluator{proj.alias, plan}
+		containsAggregate := len(proj.aggrInputs) > 0
+		// compute evaluators for the aggregate inputs
+		var aggrEvals map[string]aggregationEvaluator
+		if containsAggregate {
+			aggrEvals = make(map[string]aggregationEvaluator, len(proj.aggrInputs))
+			for key, aggrInput := range proj.aggrInputs {
+				aggrEval, err := ExpressionToEvaluator(aggrInput.Expression, reg)
+				if err != nil {
+					return nil, err
+				}
+				aggrEvals[key] = aggregationEvaluator{aggrInput.Function, aggrEval}
+			}
+		}
+		output[i] = aliasedEvaluator{proj.alias, plan, containsAggregate, aggrEvals}
 	}
 	return output, nil
 }
@@ -38,6 +59,19 @@ func prepareFilter(filter FlatExpression, reg udf.FunctionRegistry) (Evaluator, 
 		return ExpressionToEvaluator(filter, reg)
 	}
 	return nil, nil
+}
+
+func prepareGroupList(groupList []FlatExpression, reg udf.FunctionRegistry) ([]Evaluator, error) {
+	output := make([]Evaluator, len(groupList))
+	for i, expr := range groupList {
+		// compute evaluators for each expression
+		plan, err := ExpressionToEvaluator(expr, reg)
+		if err != nil {
+			return nil, err
+		}
+		output[i] = plan
+	}
+	return output, nil
 }
 
 // setMetadata adds the metadata contained in the given Tuple into the
