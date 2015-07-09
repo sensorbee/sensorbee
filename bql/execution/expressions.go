@@ -90,6 +90,8 @@ func ParserExprToMaybeAggregate(e parser.Expression, isAggregate func(string) bo
 		// elementary types
 		expr, err := ParserExprToFlatExpr(e, isAggregate)
 		return expr, nil, err
+	case parser.AliasAST:
+		return ParserExprToMaybeAggregate(obj.Expr, isAggregate)
 	case parser.BinaryOpAST:
 		// recurse
 		left, leftAgg, err := ParserExprToMaybeAggregate(obj.Left, isAggregate)
