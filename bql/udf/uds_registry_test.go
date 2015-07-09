@@ -71,10 +71,7 @@ func TestEmptyDefaultUDSCreatorRegistry(t *testing.T) {
 }
 
 func TestDefaultUDSCreatorRegistry(t *testing.T) {
-	ctx := &core.Context{
-		Logger:       core.NewConsolePrintLogger(),
-		SharedStates: core.NewDefaultSharedStateRegistry(),
-	}
+	ctx := core.NewContext(nil)
 
 	Convey("Given an default UDS registry having two types", t, func() {
 		r := NewDefaultUDSCreatorRegistry()

@@ -31,7 +31,7 @@ func getTuples(num int) []*core.Tuple {
 
 func createDefaultSelectPlan(s string, t *testing.T) (ExecutionPlan, error) {
 	p := parser.NewBQLParser()
-	reg := udf.CopyGlobalUDFRegistry(newTestContext())
+	reg := udf.CopyGlobalUDFRegistry(core.NewContext(nil))
 	_stmt, _, err := p.ParseStmt(s)
 	So(err, ShouldBeNil)
 	So(_stmt, ShouldHaveSameTypeAs, parser.CreateStreamAsSelectStmt{})

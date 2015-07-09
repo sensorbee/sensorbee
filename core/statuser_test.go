@@ -7,10 +7,8 @@ import (
 )
 
 func TestNodeStatus(t *testing.T) {
-	config := Configuration{TupleTraceEnabled: 1}
-	ctx := newTestContext(config)
-
 	Convey("Given a topology having nodes", t, func() {
+		ctx := NewContext(nil)
 		t := NewDefaultTopology(ctx, "test")
 		Reset(func() {
 			t.Stop()

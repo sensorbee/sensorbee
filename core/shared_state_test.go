@@ -49,24 +49,21 @@ func (s *stubSharedState) Terminate(ctx *Context) error {
 }
 
 func TestDefaultSharedStateRegistry(t *testing.T) {
-	config := Configuration{TupleTraceEnabled: 1}
-	ctx := newTestContext(config)
-
 	Convey("Given a default shared state registry", t, func() {
-		r := NewDefaultSharedStateRegistry()
+		r := NewContext(nil).SharedStates
 
 		Convey("When adding a state", func() {
 			s := &stubSharedState{}
-			So(r.Add(ctx, "test_state", s), ShouldBeNil)
+			So(r.Add("test_state", s), ShouldBeNil)
 
 			Convey("Then a state having the same name cannot be added", func() {
-				So(r.Add(ctx, "test_state", &stubSharedState{}), ShouldNotBeNil)
+				So(r.Add("test_state", &stubSharedState{}), ShouldNotBeNil)
 			})
 
 			Convey("Then a state which fails on termination and has the same name cannot be added", func() {
 				s2 := &stubSharedState{}
 				s2.terminateFailAt = 1
-				err := r.Add(ctx, "test_state", s2)
+				err := r.Add("test_state", s2)
 
 				Convey("And the error should be about the name duplication, not termination failure", func() {
 					So(err.Error(), ShouldContainSubstring, "already has")
@@ -74,20 +71,20 @@ func TestDefaultSharedStateRegistry(t *testing.T) {
 			})
 
 			Convey("Then Get should return it", func() {
-				s2, err := r.Get(ctx, "test_state")
+				s2, err := r.Get("test_state")
 				So(err, ShouldBeNil)
 				So(s2, ShouldPointTo, s)
 			})
 
 			Convey("Then it should be listed", func() {
-				m, err := r.List(ctx)
+				m, err := r.List()
 				So(err, ShouldBeNil)
 				So(len(m), ShouldEqual, 1)
 				So(m["test_state"], ShouldPointTo, s)
 			})
 
 			Convey("Then it can be removed", func() {
-				s2, err := r.Remove(ctx, "test_state")
+				s2, err := r.Remove("test_state")
 				So(err, ShouldBeNil)
 
 				Convey("And the returned state should be correct", func() {
@@ -95,7 +92,7 @@ func TestDefaultSharedStateRegistry(t *testing.T) {
 				})
 
 				Convey("And it shouldn't be able to be removed twice", func() {
-					s3, err := r.Remove(ctx, "test_state")
+					s3, err := r.Remove("test_state")
 					So(err, ShouldBeNil)
 					So(s3, ShouldBeNil)
 				})
@@ -112,11 +109,11 @@ func TestDefaultSharedStateRegistry(t *testing.T) {
 
 			Convey("Then Add should panic", func() {
 				So(func() {
-					r.Add(ctx, "test_state", s)
+					r.Add("test_state", s)
 				}, ShouldPanic)
 
 				Convey("And the state shouldn't be added", func() {
-					_, err := r.Get(ctx, "test_state")
+					_, err := r.Get("test_state")
 					So(err, ShouldNotBeNil)
 				})
 
@@ -129,14 +126,14 @@ func TestDefaultSharedStateRegistry(t *testing.T) {
 		Convey("When a state fails to initialize while adding it to registry", func() {
 			s := &stubSharedState{}
 			s.initFailAt = 1
-			err := r.Add(ctx, "test_state", s)
+			err := r.Add("test_state", s)
 
 			Convey("Then it should fail", func() {
 				So(err, ShouldNotBeNil)
 			})
 
 			Convey("Then the state shouldn't be added", func() {
-				_, err := r.Get(ctx, "test_state")
+				_, err := r.Get("test_state")
 				So(err, ShouldNotBeNil)
 			})
 
@@ -146,7 +143,7 @@ func TestDefaultSharedStateRegistry(t *testing.T) {
 		})
 
 		Convey("When getting a nonexistent state", func() {
-			s, err := r.Get(ctx, "test_state")
+			s, err := r.Get("test_state")
 
 			Convey("Then it should fail", func() {
 				So(err, ShouldNotBeNil)
@@ -158,7 +155,7 @@ func TestDefaultSharedStateRegistry(t *testing.T) {
 		})
 
 		Convey("When listing an empty registry", func() {
-			m, err := r.List(ctx)
+			m, err := r.List()
 			So(err, ShouldBeNil)
 
 			Convey("Then the list should be empty", func() {
@@ -169,15 +166,15 @@ func TestDefaultSharedStateRegistry(t *testing.T) {
 		Convey("When removing a state whose termination panics", func() {
 			s := &stubSharedState{}
 			s.terminatePanicAt = 1
-			So(r.Add(ctx, "test_state", s), ShouldBeNil)
+			So(r.Add("test_state", s), ShouldBeNil)
 
 			Convey("Then it should panic", func() {
 				So(func() {
-					r.Remove(ctx, "test_state")
+					r.Remove("test_state")
 				}, ShouldPanic)
 
 				Convey("And it should've been removed", func() {
-					_, err := r.Get(ctx, "test_state")
+					_, err := r.Get("test_state")
 					So(err, ShouldNotBeNil)
 				})
 			})
@@ -186,8 +183,8 @@ func TestDefaultSharedStateRegistry(t *testing.T) {
 		Convey("When removing a state whose termination fails", func() {
 			s := &stubSharedState{}
 			s.terminateFailAt = 1
-			So(r.Add(ctx, "test_state", s), ShouldBeNil)
-			s2, err := r.Remove(ctx, "test_state")
+			So(r.Add("test_state", s), ShouldBeNil)
+			s2, err := r.Remove("test_state")
 
 			Convey("Then it should fail", func() {
 				So(err, ShouldNotBeNil)
@@ -198,13 +195,13 @@ func TestDefaultSharedStateRegistry(t *testing.T) {
 			})
 
 			Convey("Then it should've been removed", func() {
-				_, err := r.Get(ctx, "test_state")
+				_, err := r.Get("test_state")
 				So(err, ShouldNotBeNil)
 			})
 		})
 
 		Convey("When removing a nonexistent state", func() {
-			s, err := r.Remove(ctx, "test_state")
+			s, err := r.Remove("test_state")
 
 			Convey("Then it shouldn't return an error", func() {
 				So(err, ShouldBeNil)
@@ -242,10 +239,9 @@ func (c *countingSharedState) Terminate(ctx *Context) error {
 func TestSharedStateInTopology(t *testing.T) {
 	Convey("Given a topology and a state", t, func() {
 		// Run this test with parallelism 1
-		config := Configuration{TupleTraceEnabled: 1}
-		ctx := newTestContext(config)
+		ctx := NewContext(nil)
 		counter := &countingSharedState{}
-		So(ctx.SharedStates.Add(ctx, "test_counter", counter), ShouldBeNil)
+		So(ctx.SharedStates.Add("test_counter", counter), ShouldBeNil)
 
 		t := NewDefaultTopology(ctx, "test")
 		Reset(func() {
@@ -267,7 +263,7 @@ func TestSharedStateInTopology(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		b1 := BoxFunc(func(ctx *Context, t *Tuple, w Writer) error {
-			s, err := ctx.GetSharedState("test_counter")
+			s, err := ctx.SharedStates.Get("test_counter")
 			if err != nil {
 				return err
 			}
@@ -279,7 +275,7 @@ func TestSharedStateInTopology(t *testing.T) {
 		So(bn1.Input("source", nil), ShouldBeNil)
 
 		b2 := BoxFunc(func(ctx *Context, t *Tuple, w Writer) error {
-			s, err := ctx.GetSharedState("test_counter")
+			s, err := ctx.SharedStates.Get("test_counter")
 			if err != nil {
 				return err
 			}
