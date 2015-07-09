@@ -60,8 +60,8 @@ func (db *defaultBoxNode) run() error {
 		}()
 		if sb, ok := db.box.(StatefulBox); ok {
 			if err := sb.Terminate(db.topology.ctx); err != nil {
-				db.topology.ctx.Logger.Log(Error, "Box '%v' in topology '%v' failed to terminate: %v",
-					db.name, db.topology.name, err)
+				db.topology.ctx.ErrLog(err).WithFields(nodeLogFields(NTBox, db.name)).
+					Error("Cannot terminate the box")
 			}
 		}
 	}()

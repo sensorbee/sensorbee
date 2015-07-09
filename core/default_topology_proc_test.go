@@ -32,11 +32,11 @@ func TestDefaultTopologyTupleProcessing(t *testing.T) {
 
 	ToUpperBox := BoxFunc(toUpper)
 	AddSuffixBox := BoxFunc(addSuffix)
-	ctx := newTestContext(Configuration{TupleTraceEnabled: 1})
 	Convey("Given a simple source/box/sink topology", t, func() {
 		/*
 		 *   so -*--> b -*--> si
 		 */
+		ctx := NewContext(nil)
 		t := NewDefaultTopology(ctx, "test")
 		Reset(func() {
 			t.Stop()
@@ -97,6 +97,7 @@ func TestDefaultTopologyTupleProcessing(t *testing.T) {
 		 *           --> b -*--> si
 		 *   so2 -*-/
 		 */
+		ctx := NewContext(nil)
 		t := NewDefaultTopology(ctx, "test")
 		Reset(func() {
 			t.Stop()
@@ -148,6 +149,7 @@ func TestDefaultTopologyTupleProcessing(t *testing.T) {
 		 *        \--> b2 -*-/
 		 */
 
+		ctx := NewContext(nil)
 		t := NewDefaultTopology(ctx, "test")
 		Reset(func() {
 			t.Stop()
@@ -193,6 +195,11 @@ func TestDefaultTopologyTupleProcessing(t *testing.T) {
 		 *                \--> si2
 		 */
 
+		ctx := NewContext(&ContextConfig{
+			Flags: ContextFlags{
+				TupleTrace: 1,
+			},
+		})
 		t := NewDefaultTopology(ctx, "test")
 		Reset(func() {
 			t.Stop()

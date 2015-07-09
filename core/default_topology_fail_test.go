@@ -93,14 +93,11 @@ func (b *panicBox) Process(ctx *Context, t *Tuple, w Writer) error {
 }
 
 func TestDefaultTopologyFailure(t *testing.T) {
-	config := Configuration{TupleTraceEnabled: 1}
-	ctx := newTestContext(config)
-
 	Convey("Given a simple linear topology", t, func() {
 		/*
 		 *   so -*--> b1 -*--> si
 		 */
-		dt := NewDefaultTopology(ctx, "dt1")
+		dt := NewDefaultTopology(NewContext(nil), "dt1")
 		t := dt.(*defaultTopology)
 		Reset(func() {
 			t.Stop()

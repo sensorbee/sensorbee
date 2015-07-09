@@ -483,7 +483,7 @@ func TestCreateStateStmt(t *testing.T) {
 			So(addBQLToTopology(tb, `CREATE STATE hoge TYPE dummy_uds WITH num=5;`), ShouldBeNil)
 
 			Convey("Then the topology should have the state", func() {
-				s, err := dt.Context().GetSharedState("hoge")
+				s, err := dt.Context().SharedStates.Get("hoge")
 				So(err, ShouldBeNil)
 
 				Convey("And it should be a dummy UDS having right parameters", func() {

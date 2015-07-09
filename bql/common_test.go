@@ -8,18 +8,8 @@ import (
 	"pfi/sensorbee/sensorbee/data"
 )
 
-func newTestContext(config core.Configuration) *core.Context {
-	return &core.Context{
-		Logger:       core.NewConsolePrintLogger(),
-		Config:       config,
-		SharedStates: core.NewDefaultSharedStateRegistry(),
-	}
-}
-
 func newTestTopology() core.Topology {
-	config := core.Configuration{TupleTraceEnabled: 0}
-	ctx := newTestContext(config)
-	return core.NewDefaultTopology(ctx, "testTopology")
+	return core.NewDefaultTopology(core.NewContext(nil), "testTopology")
 }
 
 func addBQLToTopology(tb *TopologyBuilder, bql string) error {
