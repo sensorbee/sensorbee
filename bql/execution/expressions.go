@@ -1,6 +1,8 @@
 package execution
 
 import (
+	"crypto/sha1"
+	"encoding/hex"
 	"fmt"
 	"pfi/sensorbee/sensorbee/bql/parser"
 	"strings"
@@ -131,8 +133,14 @@ func ParserExprToMaybeAggregate(e parser.Expression, isAggregate func(string) bo
 				}
 				return nil, nil, err
 			}
-			// get a string that identifies this sub-expression
-			funcId := fmt.Sprintf("#%s(%s)#", obj.Function, expr.Repr())
+			// get a string that identifies this sub-expression and that
+			// can be used for key access in a Map (i.e., no special chars).
+			// we use the first characters of the SHA1 hash of a string
+			// representation like "count(x:a+1)" and prefix it with an "a"
+			// to prevent all-numeric strings
+			h := sha1.New()
+			h.Write([]byte(fmt.Sprintf("%s(%s)", obj.Function, expr.Repr())))
+			funcId := "a" + hex.EncodeToString(h.Sum(nil))[:8]
 			a := AggFuncAppAST{obj.Function, expr}
 			return AggFuncAppRef{funcId}, map[string]AggFuncAppAST{funcId: a}, nil
 		} else {
