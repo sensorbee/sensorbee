@@ -63,8 +63,8 @@ func TestTopologyCommand(t *testing.T) {
 			So(out, ShouldBeBlank)
 			So(testExitCode, ShouldEqual, 0)
 			Reset(func() {
-				newApp(s.URL()).run("delete", "test_topology")
-				newApp(s.URL()).run("delete", "test_topology2")
+				newApp(s.URL()).run("drop", "test_topology")
+				newApp(s.URL()).run("drop", "test_topology2")
 			})
 
 			Convey("Then the topology should be listed", func() {
@@ -75,8 +75,8 @@ func TestTopologyCommand(t *testing.T) {
 				So(out, ShouldContainSubstring, "test_topology")
 			})
 
-			Convey("Then deleting the topology should succeed", func() {
-				out, err := newApp(s.URL()).run("delete", "test_topology")
+			Convey("Then dropping the topology should succeed", func() {
+				out, err := newApp(s.URL()).run("drop", "test_topology")
 				So(err, ShouldBeNil)
 				So(out, ShouldBeBlank)
 				So(testExitCode, ShouldEqual, 0)
@@ -113,8 +113,8 @@ func TestTopologyCommand(t *testing.T) {
 			})
 		})
 
-		Convey("When deleting a nonexistent topology", func() {
-			out, err := newApp(s.URL()).run("delete", "test_topology")
+		Convey("When dropping a nonexistent topology", func() {
+			out, err := newApp(s.URL()).run("drop", "test_topology")
 
 			Convey("Then it shouldn't fail", func() {
 				So(err, ShouldBeNil)
@@ -200,7 +200,7 @@ func TestTopologyListCommandValidation(t *testing.T) {
 	})
 }
 
-func TestTopologyDeleteCommandValidation(t *testing.T) {
+func TestTopologyDropCommandValidation(t *testing.T) {
 	testMode = true
 	testutil.TestAPIWithRealHTTPServer = true
 	tmp := testutil.NewServer()
@@ -210,7 +210,7 @@ func TestTopologyDeleteCommandValidation(t *testing.T) {
 	url := s.URL()
 	tmp.Close() // hope tmp's URL won't be reused too soon.
 
-	Convey("Given a sensorbee topology delete command", t, func() {
+	Convey("Given a sensorbee topology drop command", t, func() {
 		cases := []struct {
 			title string
 			args  []string
@@ -224,7 +224,7 @@ func TestTopologyDeleteCommandValidation(t *testing.T) {
 		for _, c := range cases {
 			c := c
 			Convey(c.title, func() {
-				out, err := newApp(url).rawRun("delete", c.args...)
+				out, err := newApp(url).rawRun("drop", c.args...)
 				So(err, ShouldBeNil)
 				So(out, ShouldBeBlank)
 
