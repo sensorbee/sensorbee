@@ -22,6 +22,7 @@ in three phases:
 */
 
 type LogicalPlan struct {
+	GroupingStmt bool
 	parser.EmitterAST
 	Projections []aliasedExpression
 	parser.WindowedFromAST
@@ -195,6 +196,7 @@ func flattenExpressions(s *parser.CreateStreamAsSelectStmt) (*LogicalPlan, error
 	}
 
 	return &LogicalPlan{
+		groupingMode,
 		s.EmitterAST,
 		flatProjExprs,
 		s.WindowedFromAST,

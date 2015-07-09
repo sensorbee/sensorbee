@@ -12,6 +12,7 @@ import (
 
 type groupbyExecutionPlan struct {
 	commonExecutionPlan
+	groupMode    bool
 	emitterType  parser.Emitter
 	emitterRules map[string]parser.IntervalAST
 	emitCounters map[string]int64
@@ -102,6 +103,7 @@ func NewGroupbyExecutionPlan(lp *LogicalPlan, reg udf.FunctionRegistry) (Executi
 			groupList:   groupList,
 			filter:      filter,
 		},
+		groupMode:    lp.GroupingStmt,
 		emitterType:  lp.EmitterType,
 		emitterRules: emitterRules,
 		emitCounters: emitCounters,
