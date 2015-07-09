@@ -76,6 +76,96 @@ func TestGroupbyExecutionPlan(t *testing.T) {
 		})
 	})
 
+	Convey("Given a SELECT clause with only a column and GROUP BY", t, func() {
+		tuples := getTuples(4)
+		tuples[0].Data["foo"] = data.Int(1)
+		tuples[1].Data["foo"] = data.Int(1)
+		tuples[2].Data["foo"] = data.Int(2)
+		tuples[3].Data["foo"] = data.Int(2)
+		s := `CREATE STREAM box AS SELECT RSTREAM foo, count(int + 1) + 2 FROM src [RANGE 3 TUPLES] GROUP BY foo`
+		plan, err := createGroupbyPlan(s, t)
+		So(err, ShouldBeNil)
+
+		Convey("When feeding it with tuples", func() {
+			for idx, inTup := range tuples {
+				out, err := plan.Process(inTup)
+				So(err, ShouldBeNil)
+
+				Convey(fmt.Sprintf("Then those values should appear in %v", idx), func() {
+					if idx == 0 {
+						So(len(out), ShouldEqual, 1)
+						So(out[0], ShouldResemble,
+							data.Map{"foo": data.Int(1), "col_2": data.Int(3)})
+					} else if idx == 1 {
+						So(len(out), ShouldEqual, 1)
+						So(out[0], ShouldResemble,
+							data.Map{"foo": data.Int(1), "col_2": data.Int(4)})
+					} else if idx == 2 {
+						So(len(out), ShouldEqual, 2)
+						So(out[0], ShouldResemble,
+							data.Map{"foo": data.Int(1), "col_2": data.Int(4)})
+						So(out[1], ShouldResemble,
+							data.Map{"foo": data.Int(2), "col_2": data.Int(3)})
+					} else {
+						So(len(out), ShouldEqual, 2)
+						So(out[0], ShouldResemble,
+							data.Map{"foo": data.Int(1), "col_2": data.Int(3)})
+						So(out[1], ShouldResemble,
+							data.Map{"foo": data.Int(2), "col_2": data.Int(4)})
+					}
+				})
+			}
+		})
+	})
+
+	Convey("Given a SELECT clause with only a column and GROUP BY (2 cols)", t, func() {
+		tuples := getTuples(4)
+		tuples[0].Data["foo"] = data.Int(1)
+		tuples[0].Data["bar"] = data.Int(1)
+		tuples[1].Data["foo"] = data.Int(1)
+		tuples[1].Data["bar"] = data.Int(1)
+		tuples[2].Data["foo"] = data.Int(2)
+		tuples[2].Data["bar"] = data.Int(1)
+		tuples[3].Data["foo"] = data.Int(2)
+		tuples[3].Data["bar"] = data.Int(2)
+		s := `CREATE STREAM box AS SELECT RSTREAM foo, count(int) + 2 AS x FROM src [RANGE 3 TUPLES] GROUP BY foo, bar`
+		plan, err := createGroupbyPlan(s, t)
+		So(err, ShouldBeNil)
+
+		Convey("When feeding it with tuples", func() {
+			for idx, inTup := range tuples {
+				out, err := plan.Process(inTup)
+				So(err, ShouldBeNil)
+
+				Convey(fmt.Sprintf("Then those values should appear in %v", idx), func() {
+					if idx == 0 {
+						So(len(out), ShouldEqual, 1)
+						So(out[0], ShouldResemble,
+							data.Map{"foo": data.Int(1), "x": data.Int(3)})
+					} else if idx == 1 {
+						So(len(out), ShouldEqual, 1)
+						So(out[0], ShouldResemble,
+							data.Map{"foo": data.Int(1), "x": data.Int(4)})
+					} else if idx == 2 {
+						So(len(out), ShouldEqual, 2)
+						So(out[0], ShouldResemble,
+							data.Map{"foo": data.Int(1), "x": data.Int(4)})
+						So(out[1], ShouldResemble,
+							data.Map{"foo": data.Int(2), "x": data.Int(3)})
+					} else {
+						So(len(out), ShouldEqual, 3)
+						So(out[0], ShouldResemble,
+							data.Map{"foo": data.Int(1), "x": data.Int(3)})
+						So(out[1], ShouldResemble,
+							data.Map{"foo": data.Int(2), "x": data.Int(3)})
+						So(out[2], ShouldResemble,
+							data.Map{"foo": data.Int(2), "x": data.Int(3)})
+					}
+				})
+			}
+		})
+	})
+
 	Convey("Given a SELECT clause with only a column using the table name", t, func() {
 		tuples := getTuples(4)
 		s := `CREATE STREAM box AS SELECT ISTREAM src:int FROM src [RANGE 2 SECONDS]`

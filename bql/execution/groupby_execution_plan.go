@@ -30,12 +30,24 @@ type groupbyExecutionPlan struct {
 	prevResults []data.Map
 }
 
+// tmpGroupData is an intermediate data structure to represent
+// a set of rows that have the same values for GROUP BY columns.
+type tmpGroupData struct {
+	// this is the group (e.g. [1, "toy"]), where the values are
+	// in order of the items in the GROUP BY clause
+	group data.Array
+	// for each aggregate function, we hold an array with the
+	// input values.
+	aggData map[string][]data.Value
+	// as per our assumptions about grouping, the non-aggregation
+	// data should be identical within every group
+	nonAggData data.Map
+}
+
 // CanBuildGroupbyExecutionPlan checks whether the given statement
 // allows to use an groupbyExecutionPlan.
 func CanBuildGroupbyExecutionPlan(lp *LogicalPlan, reg udf.FunctionRegistry) bool {
-	// TODO check that there are no aggregate functions
-	return len(lp.GroupList) == 0 &&
-		lp.Having == nil
+	return lp.Having == nil
 }
 
 // groupbyExecutionPlan is a very simple plan that follows the
@@ -322,9 +334,59 @@ func (ep *groupbyExecutionPlan) performQueryOnBuffer() error {
 		return nil
 	}
 
+	// groups holds one item for every combination of values that
+	// appear in the GROUP BY clause
+	groups := []tmpGroupData{}
+
+	// findOrCreateGroup looks up the group that has the given
+	// groupValues in the `groups` list. if there is no such
+	// group, a new one is created and a copy of the given map
+	// is used as a representative of this group's values.
+	findOrCreateGroup := func(groupValues []data.Value, d data.Map) (*tmpGroupData, error) {
+		eq := Equal(binOp{}).(*compBinOp).cmpOp
+		groupValuesArr := data.Array(groupValues)
+		// find the correct group
+		groupIdx := -1
+		for i, groupData := range groups {
+			equals, err := eq(groupData.group, groupValuesArr)
+			if err != nil {
+				return nil, err
+			}
+			if equals {
+				groupIdx = i
+				break
+			}
+		}
+		// if there is no such group, create one
+		if groupIdx < 0 {
+			newGroup := tmpGroupData{
+				// the values that make up this group
+				groupValues,
+				// the input values of the aggregate functions
+				map[string][]data.Value{},
+				// a representative set of values for this group for later evaluation
+				// TODO actually we don't need the whole map,
+				//      just the parts common to the whole group
+				d.Copy(),
+			}
+			// initialize the map with the aggregate function inputs
+			for _, proj := range ep.projections {
+				for key := range proj.aggrEvals {
+					newGroup.aggData[key] = make([]data.Value, 0, 1)
+				}
+			}
+			groups = append(groups, newGroup)
+			groupIdx = len(groups) - 1
+		}
+
+		// return a pointer to the (found or created) group
+		return &groups[groupIdx], nil
+	}
+
 	// function to evaluate filter on the input data and -- if the filter does
-	// not exist or evaluates to true -- compute the projections and store
-	// the result in the `output` slice
+	// not exist or evaluates to true -- compute the volues of the GROUP BY
+	// clauses, the input for the aggregate functions, and append the result
+	// to the correct group
 	evalItem := func(d data.Map) error {
 		// evaluate filter condition and convert to bool
 		if ep.filter != nil {
@@ -343,10 +405,62 @@ func (ep *groupbyExecutionPlan) performQueryOnBuffer() error {
 				return nil
 			}
 		}
-		// otherwise, compute all the expressions
+
+		// now compute the expressions in the GROUP BY to find the correct
+		// group to append to
+		itemGroupValues := make([]data.Value, len(ep.groupList))
+		for i, eval := range ep.groupList {
+			// ordinary "flat" expression
+			value, err := eval.Eval(d)
+			if err != nil {
+				return err
+			}
+			itemGroupValues[i] = value
+		}
+
+		itemGroup, err := findOrCreateGroup(itemGroupValues, d)
+		if err != nil {
+			return err
+		}
+
+		// now compute all the input data for the aggregate functions,
+		// e.g. for `SELECT count(a) + max(b/2)`, compute `a` and `b/2`
+		for _, proj := range ep.projections {
+			if proj.hasAggregate {
+				// this column involves an aggregate function, but there
+				// may be multiple ones
+				for key, agg := range proj.aggrEvals {
+					value, err := agg.aggrEval.Eval(d)
+					if err != nil {
+						return err
+					}
+					// now we need to store this value in the output map
+					itemGroup.aggData[key] = append(itemGroup.aggData[key], value)
+				}
+			}
+		}
+		return nil
+	}
+
+	evalGroup := func(group *tmpGroupData) error {
 		result := data.Map(make(map[string]data.Value, len(ep.projections)))
 		for _, proj := range ep.projections {
-			value, err := proj.evaluator.Eval(d)
+			// compute aggregate values
+			if proj.hasAggregate {
+				// this column involves an aggregate function, but there
+				// may be multiple ones
+				for key, agg := range proj.aggrEvals {
+					aggregateInputs := group.aggData[key]
+					_ = agg.aggrFun
+					// TODO use the real function, not poor man's "count",
+					//      and also return an error on failure
+					result := data.Int(len(aggregateInputs))
+					group.nonAggData[key] = result
+					delete(group.aggData, key)
+				}
+			}
+			// now evaluate this projection on  the flattened data
+			value, err := proj.evaluator.Eval(group.nonAggData)
 			if err != nil {
 				return err
 			}
@@ -358,15 +472,7 @@ func (ep *groupbyExecutionPlan) performQueryOnBuffer() error {
 		return nil
 	}
 
-	// Note: `ep.buffers` is a map, so iterating over its keys may yield
-	// different results in every run of the program. We cannot expect
-	// a consistent order in which evalItem is run on the items of the
-	// cartesian product.
-	allStreams := make([]string, 0, len(ep.buffers))
-	for key := range ep.buffers {
-		allStreams = append(allStreams, key)
-	}
-	if err := procCartProd(allStreams, evalItem); err != nil {
+	rollback := func() {
 		// NB. ep.prevResults currently points to an slice with
 		//     results from the previous run. ep.curResults points
 		//     to the same slice. output points to a different slice
@@ -378,7 +484,26 @@ func (ep *groupbyExecutionPlan) performQueryOnBuffer() error {
 		//     different underlying arrays or ISTREAM/DSTREAM will
 		//     return wrong results.
 		ep.prevResults = output
+	}
+
+	// Note: `ep.buffers` is a map, so iterating over its keys may yield
+	// different results in every run of the program. We cannot expect
+	// a consistent order in which evalItem is run on the items of the
+	// cartesian product.
+	allStreams := make([]string, 0, len(ep.buffers))
+	for key := range ep.buffers {
+		allStreams = append(allStreams, key)
+	}
+	if err := procCartProd(allStreams, evalItem); err != nil {
+		rollback()
 		return err
+	}
+
+	for _, group := range groups {
+		if err := evalGroup(&group); err != nil {
+			rollback()
+			return err
+		}
 	}
 
 	ep.curResults = output
