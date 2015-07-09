@@ -575,18 +575,18 @@ func TestAggregateChecker(t *testing.T) {
 		// there is an aggregate call `count(a)`, so it is referenced from
 		// the expression list and appears in the `aggrs` list
 		{"count(a) FROM x [RANGE 1 TUPLES]", "",
-			AggFuncAppRef{"#count(x:a)#"},
+			AggFuncAppRef{"ae5601766"},
 			map[string]AggFuncAppAST{
-				"#count(x:a)#": AggFuncAppAST{"count", RowValue{"x", "a"}},
+				"ae5601766": AggFuncAppAST{"count", RowValue{"x", "a"}},
 			}},
 
 		// there is an aggregate call `count(a)`, so it is referenced from
 		// the expression list and appears in the `aggrs` list
 		{"a + count(a) FROM x [RANGE 1 TUPLES] GROUP BY a", "",
 			BinaryOpAST{parser.Plus,
-				RowValue{"x", "a"}, AggFuncAppRef{"#count(x:a)#"}},
+				RowValue{"x", "a"}, AggFuncAppRef{"ae5601766"}},
 			map[string]AggFuncAppAST{
-				"#count(x:a)#": AggFuncAppAST{"count", RowValue{"x", "a"}},
+				"ae5601766": AggFuncAppAST{"count", RowValue{"x", "a"}},
 			}},
 
 		// there is an aggregate call `udaf(a+1)`, so it is referenced from
@@ -594,9 +594,9 @@ func TestAggregateChecker(t *testing.T) {
 		{"a + udaf(a + 1) FROM x [RANGE 1 TUPLES] GROUP BY a", "",
 			BinaryOpAST{parser.Plus,
 				RowValue{"x", "a"},
-				AggFuncAppRef{"#udaf(x:a+1)#"}},
+				AggFuncAppRef{"a383ac4b7"}},
 			map[string]AggFuncAppAST{
-				"#udaf(x:a+1)#": AggFuncAppAST{"udaf",
+				"a383ac4b7": AggFuncAppAST{"udaf",
 					BinaryOpAST{parser.Plus, RowValue{"x", "a"}, NumericLiteral{1}}},
 			}},
 
@@ -604,31 +604,31 @@ func TestAggregateChecker(t *testing.T) {
 		// expression list and there are two entries in the `aggrs` list
 		{"udaf(a + f(1)) + g(count(a)) FROM x [RANGE 1 TUPLES]", "",
 			BinaryOpAST{parser.Plus,
-				AggFuncAppRef{"#udaf(x:a+f(1))#"},
+				AggFuncAppRef{"a67272403"},
 				FuncAppAST{"g", []FlatExpression{
-					AggFuncAppRef{"#count(x:a)#"},
+					AggFuncAppRef{"ae5601766"},
 				}},
 			},
 			map[string]AggFuncAppAST{
-				"#udaf(x:a+f(1))#": AggFuncAppAST{"udaf",
+				"a67272403": AggFuncAppAST{"udaf",
 					BinaryOpAST{parser.Plus,
 						RowValue{"x", "a"},
 						FuncAppAST{"f", []FlatExpression{NumericLiteral{1}}},
 					}},
-				"#count(x:a)#": AggFuncAppAST{"count", RowValue{"x", "a"}},
+				"ae5601766": AggFuncAppAST{"count", RowValue{"x", "a"}},
 			}},
 
 		// there are two aggregate calls, but they use the same value,
 		// so the `aggrs` list contains only one entry
 		{"count(a) + g(count(a)) FROM x [RANGE 1 TUPLES]", "",
 			BinaryOpAST{parser.Plus,
-				AggFuncAppRef{"#count(x:a)#"},
+				AggFuncAppRef{"ae5601766"},
 				FuncAppAST{"g", []FlatExpression{
-					AggFuncAppRef{"#count(x:a)#"},
+					AggFuncAppRef{"ae5601766"},
 				}},
 			},
 			map[string]AggFuncAppAST{
-				"#count(x:a)#": AggFuncAppAST{"count", RowValue{"x", "a"}},
+				"ae5601766": AggFuncAppAST{"count", RowValue{"x", "a"}},
 			}},
 
 		{"a + udaf(a, 1) FROM x [RANGE 1 TUPLES]",
@@ -652,27 +652,27 @@ func TestAggregateChecker(t *testing.T) {
 			nil},
 
 		{"count(a) FROM x [RANGE 1 TUPLES] GROUP BY a", "",
-			AggFuncAppRef{"#count(x:a)#"},
+			AggFuncAppRef{"ae5601766"},
 			map[string]AggFuncAppAST{
-				"#count(x:a)#": AggFuncAppAST{"count", RowValue{"x", "a"}},
+				"ae5601766": AggFuncAppAST{"count", RowValue{"x", "a"}},
 			}},
 
 		{"count(b) FROM x [RANGE 1 TUPLES] GROUP BY a", "",
-			AggFuncAppRef{"#count(x:b)#"},
+			AggFuncAppRef{"a09f9330d"},
 			map[string]AggFuncAppAST{
-				"#count(x:b)#": AggFuncAppAST{"count", RowValue{"x", "b"}},
+				"a09f9330d": AggFuncAppAST{"count", RowValue{"x", "b"}},
 			}},
 
 		{"count(b), a FROM x [RANGE 1 TUPLES] GROUP BY a", "",
-			AggFuncAppRef{"#count(x:b)#"}, // just the first one
+			AggFuncAppRef{"a09f9330d"}, // just the first one
 			map[string]AggFuncAppAST{
-				"#count(x:b)#": AggFuncAppAST{"count", RowValue{"x", "b"}},
+				"a09f9330d": AggFuncAppAST{"count", RowValue{"x", "b"}},
 			}},
 
 		{"count(b), a, c FROM x [RANGE 1 TUPLES] GROUP BY a, c", "",
-			AggFuncAppRef{"#count(x:b)#"}, // just the first one
+			AggFuncAppRef{"a09f9330d"}, // just the first one
 			map[string]AggFuncAppAST{
-				"#count(x:b)#": AggFuncAppAST{"count", RowValue{"x", "b"}},
+				"a09f9330d": AggFuncAppAST{"count", RowValue{"x", "b"}},
 			}},
 
 		{"a FROM x [RANGE 1 TUPLES] GROUP BY b",
