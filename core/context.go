@@ -2,7 +2,9 @@ package core
 
 import (
 	"github.com/Sirupsen/logrus"
+	"path/filepath"
 	"pfi/sensorbee/sensorbee/data"
+	"runtime"
 	"sync/atomic"
 )
 
@@ -44,12 +46,26 @@ func NewContext(config *ContextConfig) *Context {
 
 // Log returns the logger tied to the Context.
 func (c *Context) Log() *logrus.Entry {
-	return c.logger.WithField("topology", c.topologyName)
+	return c.log(1)
 }
 
 // ErrLog returns the logger tied to the Context having an error information.
 func (c *Context) ErrLog(err error) *logrus.Entry {
-	return c.Log().WithField("err", err)
+	return c.log(1).WithField("err", err)
+}
+
+func (c *Context) log(depth int) *logrus.Entry {
+	// TODO: This is a temporary solution until logrus support filename and line number
+	_, file, line, ok := runtime.Caller(depth + 1)
+	if !ok {
+		return c.logger.WithField("topology", c.topologyName)
+	}
+	file = filepath.Base(file) // only the filename at the moment
+	return c.logger.WithFields(logrus.Fields{
+		"file":     file,
+		"line":     line,
+		"topology": c.topologyName,
+	})
 }
 
 // droppedTuple records tuples dropped by errors.

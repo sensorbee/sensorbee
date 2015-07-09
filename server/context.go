@@ -8,6 +8,8 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"path/filepath"
+	"runtime"
 	"sync/atomic"
 )
 
@@ -69,14 +71,26 @@ func (c *Context) NotFoundHandler(rw web.ResponseWriter, req *web.Request) {
 
 // Log returns the logger having meta information.
 func (c *Context) Log() *logrus.Entry {
-	return c.logger.WithFields(logrus.Fields{
-		"reqid": c.requestID,
-	})
+	return c.log(1)
 }
 
 // ErrLog returns the logger with error information.
 func (c *Context) ErrLog(err error) *logrus.Entry {
-	return c.Log().WithField("err", err)
+	return c.log(1).WithField("err", err)
+}
+
+func (c *Context) log(depth int) *logrus.Entry {
+	// TODO: This is a temporary solution until logrus support filename and line number
+	_, file, line, ok := runtime.Caller(depth + 1)
+	if !ok {
+		return c.logger.WithField("reqid", c.requestID)
+	}
+	file = filepath.Base(file) // only the filename at the moment
+	return c.logger.WithFields(logrus.Fields{
+		"file":  file,
+		"line":  line,
+		"reqid": c.requestID,
+	})
 }
 
 func (c *Context) extractOptionStringFromPath(key string, target *string) error {
