@@ -112,6 +112,17 @@ func (s *TupleEmitterSource) GenerateStream(ctx *Context, w Writer) error {
 	if s.c == nil {
 		s.c = sync.NewCond(&s.m)
 	}
+	s.m.Lock()
+	s.state = 0
+	s.m.Unlock()
+
+	defer func() {
+		s.m.Lock()
+		defer s.m.Unlock()
+		s.state = 2
+		s.c.Broadcast()
+	}()
+
 	for _, t := range s.Tuples {
 		s.m.Lock()
 		if s.state > 0 {
@@ -122,14 +133,15 @@ func (s *TupleEmitterSource) GenerateStream(ctx *Context, w Writer) error {
 		}
 		s.m.Unlock()
 
-		w.Write(ctx, t)
+		if err := w.Write(ctx, t); err != nil {
+			if err == ErrSourceRewound || err == ErrSourceStopped {
+				return err
+			}
+		}
 	}
-	s.m.Lock()
-	defer s.m.Unlock()
-	s.state = 2
-	s.c.Broadcast()
 	return nil
 }
+
 func (s *TupleEmitterSource) Stop(ctx *Context) error {
 	s.m.Lock()
 	defer s.m.Unlock()

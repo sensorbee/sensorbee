@@ -1,6 +1,7 @@
 package core
 
 import (
+	"errors"
 	"fmt"
 	"pfi/sensorbee/sensorbee/data"
 )
@@ -144,6 +145,20 @@ func (ds *defaultSourceNode) Resume() error {
 	ds.dsts.resume()
 	ds.state.setWithoutLock(TSRunning)
 	return nil
+}
+
+func (ds *defaultSourceNode) Rewind() error {
+	rs, ok := ds.source.(RewindableSource)
+	if !ok {
+		return errors.New("the source doesn't support rewinding")
+	}
+
+	ds.stateMutex.Lock()
+	defer ds.stateMutex.Unlock()
+	if ds.state.getWithoutLock() >= TSStopping {
+		return errors.New("the source is stopped")
+	}
+	return rs.Rewind(ds.topology.ctx)
 }
 
 func (ds *defaultSourceNode) Status() data.Map {

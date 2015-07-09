@@ -173,6 +173,14 @@ type SourceNode interface {
 
 	// Resume resumes a paused source. Resume is idempotent.
 	Resume() error
+
+	// Rewind rewinds the stream if the Source supports it. Rewind doesn't
+	// resume the stream if the Source is paused. Call Resume explicitly to
+	// resume a paused Source after Rewind.
+	//
+	// Rewind returns an error if the Source doesn't support Rewind, or the
+	// node is already stopped.
+	Rewind() error
 }
 
 // BoxNode is a Box registered to a topology.
