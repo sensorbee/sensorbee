@@ -39,12 +39,12 @@ func SetUp() cli.Command {
 		Name:        "topology",
 		Aliases:     []string{"t"},
 		Usage:       "manipulate topologies on SensorBee",
-		Description: "topology command allows users to create, delete, list topologies",
+		Description: "topology command allows users to manipulate topologies",
 		Action:      cli.ShowSubcommandHelp,
 		Subcommands: []cli.Command{
 			setUpCreate(),
 			setUpList(),
-			setUpDelete(),
+			setUpDrop(),
 		},
 	}
 	return cmd
