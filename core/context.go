@@ -40,6 +40,7 @@ func NewContext(config *ContextConfig) *Context {
 		logger: logger,
 		Flags:  config.Flags,
 	}
+	c.Flags.DroppedTupleSummarization = 1
 	c.SharedStates = NewDefaultSharedStateRegistry(c)
 	return c
 }
@@ -71,11 +72,18 @@ func (c *Context) log(depth int) *logrus.Entry {
 // droppedTuple records tuples dropped by errors.
 func (c *Context) droppedTuple(t *Tuple, nodeType NodeType, nodeName string, et EventType, err error) {
 	if c.Flags.DroppedTupleLog.Enabled() {
+		var js string
+		if c.Flags.DroppedTupleSummarization.Enabled() {
+			js = data.Summarize(t.Data)
+		} else {
+			js = t.Data.String()
+		}
+
 		l := c.Log().WithFields(nodeLogFields(nodeType, nodeName)).WithFields(logrus.Fields{
 			"event_type": et.String(),
 			"tuple": logrus.Fields{
 				"timestamp": data.Timestamp(t.Timestamp),
-				"data":      t.Data,
+				"data":      js,
 				// TODO: Add trace
 			},
 		})
@@ -118,4 +126,10 @@ type ContextFlags struct {
 	// DroppedTupleLog is a flag which turns on/off logging of dropped tuple
 	// events.
 	DroppedTupleLog AtomicFlag
+
+	// DroppedTupleSummarization is a flag to trun on/off summarization of
+	// dropped tuple logging. If this flag is enabled, tuples being logged will
+	// be a little smaller than the originals. However, they might not be parsed
+	// as JSONs. If the flag is disabled, output JSONs can be parsed.
+	DroppedTupleSummarization AtomicFlag
 }
