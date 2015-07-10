@@ -176,6 +176,11 @@ func flattenExpressions(s *parser.CreateStreamAsSelectStmt) (*LogicalPlan, error
 		for _, expr := range flatProjExprs {
 			// all columns mentioned outside of an aggregate
 			// function must be in the GROUP BY clause
+			if rm, ok := expr.expr.(RowMeta); ok {
+				err := fmt.Errorf("using metadata '%s' in GROUP BY statements is "+
+					"not supported yet", rm.MetaType)
+				return nil, err
+			}
 			usedCols := expr.expr.Columns()
 			for _, usedCol := range usedCols {
 				// look for this col in the GROUP BY clause
