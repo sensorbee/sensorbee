@@ -23,9 +23,7 @@ func CanBuildFilterIstreamPlan(lp *LogicalPlan, reg udf.FunctionRegistry) bool {
 		return false
 	}
 	rangeUnit := lp.Relations[0].Unit
-	// TODO check that there are no aggregate functions
-	return len(lp.GroupList) == 0 &&
-		lp.Having == nil &&
+	return !lp.GroupingStmt &&
 		lp.EmitterType == parser.Istream &&
 		rangeUnit == parser.Tuples
 }

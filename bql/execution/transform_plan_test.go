@@ -395,7 +395,13 @@ func TestRelationChecker(t *testing.T) {
 			}
 
 			Convey("When we analyze it", func() {
-				_, err := Analyze(ast)
+				// the two functions below were just a call to
+				// `Analyze` before, but now `Analyze` does more
+				// than what we want to check for here
+				err := makeRelationAliases(&ast)
+				if err == nil {
+					err = validateReferences(&ast)
+				}
 				expectedError := testCase.expectedError
 				if expectedError == "" {
 					Convey("There is no error", func() {
@@ -434,7 +440,13 @@ func TestRelationChecker(t *testing.T) {
 			}
 
 			Convey("When we analyze it", func() {
-				_, err := Analyze(ast)
+				// the two functions below were just a call to
+				// `Analyze` before, but now `Analyze` does more
+				// than what we want to check for here
+				err := makeRelationAliases(&ast)
+				if err == nil {
+					err = validateReferences(&ast)
+				}
 				expectedError := testCase.expectedError
 				if expectedError == "" {
 					Convey("There is no error", func() {
@@ -529,6 +541,174 @@ func TestRelationAliasing(t *testing.T) {
 				if expectedError == "" {
 					Convey("There is no error", func() {
 						So(err, ShouldBeNil)
+					})
+				} else {
+					Convey("There is an error", func() {
+						So(err, ShouldNotBeNil)
+						So(err.Error(), ShouldStartWith, expectedError)
+					})
+				}
+			})
+		})
+	}
+}
+
+func TestAggregateChecker(t *testing.T) {
+	testCases := []struct {
+		bql           string
+		expectedError string
+		expr          FlatExpression
+		aggrs         map[string]AggFuncAppAST
+	}{
+		// a is no aggregate call, so the `aggrs` list is empty
+		// and the selected expression is transformed normally
+		{"a FROM x [RANGE 1 TUPLES]", "",
+			RowValue{"x", "a"},
+			nil},
+
+		// f(a) is no aggregate call, so the `aggrs` list is empty
+		// and the selected expression is transformed normally
+		{"f(a) FROM x [RANGE 1 TUPLES]", "",
+			FuncAppAST{"f", []FlatExpression{RowValue{"x", "a"}}},
+			nil},
+
+		// there is an aggregate call `count(a)`, so it is referenced from
+		// the expression list and appears in the `aggrs` list
+		{"count(a) FROM x [RANGE 1 TUPLES]", "",
+			AggFuncAppRef{"ae5601766"},
+			map[string]AggFuncAppAST{
+				"ae5601766": AggFuncAppAST{"count", RowValue{"x", "a"}},
+			}},
+
+		// there is an aggregate call `count(a)`, so it is referenced from
+		// the expression list and appears in the `aggrs` list
+		{"a + count(a) FROM x [RANGE 1 TUPLES] GROUP BY a", "",
+			BinaryOpAST{parser.Plus,
+				RowValue{"x", "a"}, AggFuncAppRef{"ae5601766"}},
+			map[string]AggFuncAppAST{
+				"ae5601766": AggFuncAppAST{"count", RowValue{"x", "a"}},
+			}},
+
+		// there is an aggregate call `udaf(a+1)`, so it is referenced from
+		// the expression list and appears in the `aggrs` list
+		{"a + udaf(a + 1) FROM x [RANGE 1 TUPLES] GROUP BY a", "",
+			BinaryOpAST{parser.Plus,
+				RowValue{"x", "a"},
+				AggFuncAppRef{"a383ac4b7"}},
+			map[string]AggFuncAppAST{
+				"a383ac4b7": AggFuncAppAST{"udaf",
+					BinaryOpAST{parser.Plus, RowValue{"x", "a"}, NumericLiteral{1}}},
+			}},
+
+		// there are two aggregate calls, so both are referenced from the
+		// expression list and there are two entries in the `aggrs` list
+		{"udaf(a + f(1)) + g(count(a)) FROM x [RANGE 1 TUPLES]", "",
+			BinaryOpAST{parser.Plus,
+				AggFuncAppRef{"a67272403"},
+				FuncAppAST{"g", []FlatExpression{
+					AggFuncAppRef{"ae5601766"},
+				}},
+			},
+			map[string]AggFuncAppAST{
+				"a67272403": AggFuncAppAST{"udaf",
+					BinaryOpAST{parser.Plus,
+						RowValue{"x", "a"},
+						FuncAppAST{"f", []FlatExpression{NumericLiteral{1}}},
+					}},
+				"ae5601766": AggFuncAppAST{"count", RowValue{"x", "a"}},
+			}},
+
+		// there are two aggregate calls, but they use the same value,
+		// so the `aggrs` list contains only one entry
+		{"count(a) + g(count(a)) FROM x [RANGE 1 TUPLES]", "",
+			BinaryOpAST{parser.Plus,
+				AggFuncAppRef{"ae5601766"},
+				FuncAppAST{"g", []FlatExpression{
+					AggFuncAppRef{"ae5601766"},
+				}},
+			},
+			map[string]AggFuncAppAST{
+				"ae5601766": AggFuncAppAST{"count", RowValue{"x", "a"}},
+			}},
+
+		{"a + udaf(a, 1) FROM x [RANGE 1 TUPLES]",
+			"aggregate functions must have exactly one parameter", nil, nil},
+
+		{"count(udaf(a)) FROM x [RANGE 1 TUPLES]",
+			"aggregate functions cannot be nested", nil, nil},
+
+		{"a FROM x [RANGE 1 TUPLES] WHERE count(a) = 1",
+			"aggregates not allowed in WHERE clause", nil, nil},
+
+		{"a FROM x [RANGE 1 TUPLES] GROUP BY count(a)",
+			"aggregates not allowed in GROUP BY clause", nil, nil},
+
+		{"a FROM x [RANGE 1 TUPLES] GROUP BY f(a)",
+			"grouping by expressions is not supported yet", nil, nil},
+
+		// various grouping checks
+		{"a FROM x [RANGE 1 TUPLES] GROUP BY a", "",
+			RowValue{"x", "a"},
+			nil},
+
+		{"count(a) FROM x [RANGE 1 TUPLES] GROUP BY a", "",
+			AggFuncAppRef{"ae5601766"},
+			map[string]AggFuncAppAST{
+				"ae5601766": AggFuncAppAST{"count", RowValue{"x", "a"}},
+			}},
+
+		{"count(b) FROM x [RANGE 1 TUPLES] GROUP BY a", "",
+			AggFuncAppRef{"a09f9330d"},
+			map[string]AggFuncAppAST{
+				"a09f9330d": AggFuncAppAST{"count", RowValue{"x", "b"}},
+			}},
+
+		{"count(b), a FROM x [RANGE 1 TUPLES] GROUP BY a", "",
+			AggFuncAppRef{"a09f9330d"}, // just the first one
+			map[string]AggFuncAppAST{
+				"a09f9330d": AggFuncAppAST{"count", RowValue{"x", "b"}},
+			}},
+
+		{"count(b), a, c FROM x [RANGE 1 TUPLES] GROUP BY a, c", "",
+			AggFuncAppRef{"a09f9330d"}, // just the first one
+			map[string]AggFuncAppAST{
+				"a09f9330d": AggFuncAppAST{"count", RowValue{"x", "b"}},
+			}},
+
+		{"a FROM x [RANGE 1 TUPLES] GROUP BY b",
+			"column \"x:a\" must appear in the GROUP BY clause or be used in an aggregate function", nil, nil},
+
+		{"a FROM x [RANGE 1 TUPLES] AS y GROUP BY b",
+			"column \"y:a\" must appear in the GROUP BY clause or be used in an aggregate function", nil, nil},
+
+		{"a, count(b) FROM x [RANGE 1 TUPLES]",
+			"column \"x:a\" must appear in the GROUP BY clause or be used in an aggregate function", nil, nil},
+
+		{"a + count(b) FROM x [RANGE 1 TUPLES]",
+			"column \"x:a\" must appear in the GROUP BY clause or be used in an aggregate function", nil, nil},
+	}
+
+	for _, testCase := range testCases {
+		testCase := testCase
+
+		Convey(fmt.Sprintf("Given the statement", testCase.bql), t, func() {
+			p := parser.NewBQLParser()
+			stmt := "CREATE STREAM x AS SELECT ISTREAM " + testCase.bql
+			ast_, _, err := p.ParseStmt(stmt)
+			So(err, ShouldBeNil)
+			So(ast_, ShouldHaveSameTypeAs, parser.CreateStreamAsSelectStmt{})
+			ast := ast_.(parser.CreateStreamAsSelectStmt)
+
+			Convey("When we analyze it", func() {
+				logPlan, err := Analyze(ast)
+				expectedError := testCase.expectedError
+				if expectedError == "" {
+					Convey("There is no error", func() {
+						So(err, ShouldBeNil)
+						So(len(logPlan.Projections), ShouldBeGreaterThanOrEqualTo, 1)
+						proj := logPlan.Projections[0]
+						So(proj.expr, ShouldResemble, testCase.expr)
+						So(proj.aggrInputs, ShouldResemble, testCase.aggrs)
 					})
 				} else {
 					Convey("There is an error", func() {

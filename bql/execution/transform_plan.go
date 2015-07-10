@@ -22,11 +22,12 @@ in three phases:
 */
 
 type LogicalPlan struct {
+	GroupingStmt bool
 	parser.EmitterAST
-	parser.ProjectionsAST
+	Projections []aliasedExpression
 	parser.WindowedFromAST
-	parser.FilterAST
-	parser.GroupingAST
+	Filter    FlatExpression
+	GroupList []FlatExpression
 	parser.HavingAST
 }
 
@@ -69,12 +70,143 @@ func Analyze(s parser.CreateStreamAsSelectStmt) (*LogicalPlan, error) {
 		return nil, err
 	}
 
+	return flattenExpressions(&s)
+}
+
+// dummy implementation of aggregate function lookup
+// TODO think of the real lookup mechanism
+func isAggregateDummy(fName string) bool {
+	if fName == "count" || fName == "udaf" {
+		return true
+	}
+	return false
+}
+
+// flattenExpressions separates the aggregate and non-aggregate
+// part in a statement and returns with an error if there are
+// aggregates in structures that may not have some
+func flattenExpressions(s *parser.CreateStreamAsSelectStmt) (*LogicalPlan, error) {
+	// groupingMode is active when aggregate functions or the
+	// GROUP BY clause are used
+	groupingMode := false
+
+	flatProjExprs := make([]aliasedExpression, len(s.Projections))
+	for i, expr := range s.Projections {
+		// convert the parser Expression to a FlatExpression
+		flatExpr, aggrs, err := ParserExprToMaybeAggregate(expr, isAggregateDummy)
+		if err != nil {
+			return nil, err
+		}
+		// remember if we have aggregates at all
+		if len(aggrs) > 0 {
+			groupingMode = true
+		}
+		// compute column name
+		colHeader := fmt.Sprintf("col_%v", i+1)
+		switch projType := expr.(type) {
+		case parser.RowMeta:
+			if projType.MetaType == parser.TimestampMeta {
+				colHeader = "ts"
+			}
+		case parser.RowValue:
+			colHeader = projType.Column
+		case parser.AliasAST:
+			colHeader = projType.Alias
+		case parser.FuncAppAST:
+			colHeader = string(projType.Function)
+		case parser.Wildcard:
+			// The wildcard projection (without AS) is very special in that
+			// it is the only case where the BQL user does not determine
+			// the output key names (implicitly or explicitly). The
+			// Evaluator interface is designed such that Evaluator
+			// has 100% control over the returned value, but 0% control
+			// over how it is named, therefore the wildcard evaluation
+			// requires handling in multiple locations.
+			// As a workaround, we will return the complete Map from
+			// the wildcard Evaluator, nest it under a hard-coded key
+			// called "*" and flatten them later (this is done correctly
+			// by the assignOutputValue function).
+			// Note that if it is desired at some point that there are
+			// more evaluators with that behavior, we should change the
+			// Evaluator.Eval interface.
+			colHeader = "*"
+		}
+		flatProjExprs[i] = aliasedExpression{colHeader, flatExpr, aggrs}
+	}
+
+	var filterExpr FlatExpression
+	if s.Filter != nil {
+		filterFlatExpr, err := ParserExprToFlatExpr(s.Filter, isAggregateDummy)
+		if err != nil {
+			// return a prettier error message
+			if strings.HasPrefix(err.Error(), "you cannot use aggregate") {
+				err = fmt.Errorf("aggregates not allowed in WHERE clause")
+			}
+			return nil, err
+		}
+		filterExpr = filterFlatExpr
+	}
+
+	groupCols := make([]RowValue, len(s.GroupList))
+	flatGroupExprs := make([]FlatExpression, len(s.GroupList))
+	for i, expr := range s.GroupList {
+		// convert the parser Expression to a FlatExpression
+		flatExpr, err := ParserExprToFlatExpr(expr, isAggregateDummy)
+		if err != nil {
+			// return a prettier error message
+			if strings.HasPrefix(err.Error(), "you cannot use aggregate") {
+				err = fmt.Errorf("aggregates not allowed in GROUP BY clause")
+			}
+			return nil, err
+		}
+		// at the moment we only support grouping by single columns,
+		// not expressions
+		col, ok := flatExpr.(RowValue)
+		if !ok {
+			err := fmt.Errorf("grouping by expressions is not supported yet")
+			return nil, err
+		}
+		groupCols[i] = col
+		flatGroupExprs[i] = flatExpr
+	}
+	groupingMode = groupingMode || len(flatGroupExprs) > 0
+
+	// check if grouping is done correctly
+	if groupingMode {
+		for _, expr := range flatProjExprs {
+			// all columns mentioned outside of an aggregate
+			// function must be in the GROUP BY clause
+			if rm, ok := expr.expr.(RowMeta); ok {
+				err := fmt.Errorf("using metadata '%s' in GROUP BY statements is "+
+					"not supported yet", rm.MetaType)
+				return nil, err
+			}
+			usedCols := expr.expr.Columns()
+			for _, usedCol := range usedCols {
+				// look for this col in the GROUP BY clause
+				mentioned := false
+				for _, groupCol := range groupCols {
+					if usedCol == groupCol {
+						mentioned = true
+						break
+					}
+				}
+				if !mentioned {
+					err := fmt.Errorf("column \"%s\" must appear in the GROUP BY "+
+						"clause or be used in an aggregate function", usedCol.Repr())
+					return nil, err
+				}
+			}
+		}
+	}
+
 	return &LogicalPlan{
+		groupingMode,
 		s.EmitterAST,
-		s.ProjectionsAST,
+		flatProjExprs,
 		s.WindowedFromAST,
-		s.FilterAST,
-		s.GroupingAST,
+		filterExpr,
+		flatGroupExprs,
 		s.HavingAST,
 	}, nil
 }
@@ -296,6 +428,8 @@ func (lp *LogicalPlan) MakePhysicalPlan(reg udf.FunctionRegistry) (ExecutionPlan
 		return NewFilterIstreamPlan(lp, reg)
 	} else if CanBuildDefaultSelectExecutionPlan(lp, reg) {
 		return NewDefaultSelectExecutionPlan(lp, reg)
+	} else if CanBuildGroupbyExecutionPlan(lp, reg) {
+		return NewGroupbyExecutionPlan(lp, reg)
 	}
 	return nil, fmt.Errorf("no plan can deal with such a statement")
 }
