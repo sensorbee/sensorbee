@@ -24,37 +24,37 @@ func TestSummarize(t *testing.T) {
 		Convey("When summarizing it", func() {
 			s := summarize(m)
 
-			Convey("Then a blob should be replaced with <blob>", func() {
+			Convey("Then a blob should be replaced with (blob)", func() {
 				v, err := s.(Map).Get("blob")
 				So(err, ShouldBeNil)
-				So(v, ShouldEqual, "<blob>")
+				So(v, ShouldEqual, "(blob)")
 			})
 
-			Convey("Then a blob nested in a map should be replaced with <blob>", func() {
+			Convey("Then a blob nested in a map should be replaced with (blob)", func() {
 				v, err := s.(Map).Get("map.nested_blob")
 				So(err, ShouldBeNil)
-				So(v, ShouldEqual, "<blob>")
+				So(v, ShouldEqual, "(blob)")
 			})
 
-			Convey("Then a blob nested in an array should be replaced with <blob>", func() {
+			Convey("Then a blob nested in an array should be replaced with (blob)", func() {
 				v, err := s.(Map).Get("array[0]")
 				So(err, ShouldBeNil)
-				So(v, ShouldEqual, "<blob>")
+				So(v, ShouldEqual, "(blob)")
 			})
 		})
 
 		Convey("When summarizing it to a JSON-like string", func() {
 			s := Summarize(m)
 
-			Convey("Then a blob should be replaced with <blob>", func() {
+			Convey("Then a blob should be replaced with (blob)", func() {
 				So(s, ShouldNotContainSubstring, "this is a blob")
 			})
 
-			Convey("Then a blob nested in a map should be replaced with <blob>", func() {
+			Convey("Then a blob nested in a map should be replaced with (blob)", func() {
 				So(s, ShouldNotContainSubstring, "another blob")
 			})
 
-			Convey("Then a blob nested in an array should be replaced with <blob>", func() {
+			Convey("Then a blob nested in an array should be replaced with (blob)", func() {
 				So(s, ShouldNotContainSubstring, "yet")
 			})
 		})
