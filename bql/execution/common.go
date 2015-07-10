@@ -8,67 +8,70 @@ import (
 	"pfi/sensorbee/sensorbee/data"
 )
 
-type colDesc struct {
-	alias     string
-	evaluator Evaluator
+type aliasedEvaluator struct {
+	alias        string
+	evaluator    Evaluator
+	hasAggregate bool
+	aggrEvals    map[string]aggregationEvaluator
+}
+
+type aggregationEvaluator struct {
+	aggrFun  parser.FuncName
+	aggrEval Evaluator
 }
 
 type commonExecutionPlan struct {
-	// TODO turn this into a list of structs to ensure same length
-	projections []colDesc
+	projections []aliasedEvaluator
+	groupList   []Evaluator
 	// filter stores the evaluator of the filter condition,
 	// or nil if there is no WHERE clause.
 	filter Evaluator
 }
 
-func prepareProjections(projections []parser.Expression, reg udf.FunctionRegistry) ([]colDesc, error) {
-	output := make([]colDesc, len(projections))
+func prepareProjections(projections []aliasedExpression, reg udf.FunctionRegistry) ([]aliasedEvaluator, error) {
+	output := make([]aliasedEvaluator, len(projections))
 	for i, proj := range projections {
 		// compute evaluators for each column
-		plan, err := ExpressionToEvaluator(proj, reg)
+		plan, err := ExpressionToEvaluator(proj.expr, reg)
 		if err != nil {
 			return nil, err
 		}
-		// compute column name
-		colHeader := fmt.Sprintf("col_%v", i+1)
-		switch projType := proj.(type) {
-		case parser.RowMeta:
-			if projType.MetaType == parser.TimestampMeta {
-				colHeader = "ts"
+		containsAggregate := len(proj.aggrInputs) > 0
+		// compute evaluators for the aggregate inputs
+		var aggrEvals map[string]aggregationEvaluator
+		if containsAggregate {
+			aggrEvals = make(map[string]aggregationEvaluator, len(proj.aggrInputs))
+			for key, aggrInput := range proj.aggrInputs {
+				aggrEval, err := ExpressionToEvaluator(aggrInput.Expression, reg)
+				if err != nil {
+					return nil, err
+				}
+				aggrEvals[key] = aggregationEvaluator{aggrInput.Function, aggrEval}
 			}
-		case parser.RowValue:
-			colHeader = projType.Column
-		case parser.AliasAST:
-			colHeader = projType.Alias
-		case parser.FuncAppAST:
-			colHeader = string(projType.Function)
-		case parser.Wildcard:
-			// The wildcard projection (without AS) is very special in that
-			// it is the only case where the BQL user does not determine
-			// the output key names (implicitly or explicitly). The
-			// Evaluator interface is designed such that Evaluator
-			// has 100% control over the returned value, but 0% control
-			// over how it is named, therefore the wildcard evaluation
-			// requires handling in multiple locations.
-			// As a workaround, we will return the complete Map from
-			// the wildcard Evaluator, nest it under a hard-coded key
-			// called "*" and flatten them later (this is done correctly
-			// by the assignOutputValue function).
-			// Note that if it is desired at some point that there are
-			// more evaluators with that behavior, we should change the
-			// Evaluator.Eval interface.
-			colHeader = "*"
 		}
-		output[i] = colDesc{colHeader, plan}
+		output[i] = aliasedEvaluator{proj.alias, plan, containsAggregate, aggrEvals}
 	}
 	return output, nil
 }
 
-func prepareFilter(filter parser.Expression, reg udf.FunctionRegistry) (Evaluator, error) {
+func prepareFilter(filter FlatExpression, reg udf.FunctionRegistry) (Evaluator, error) {
 	if filter != nil {
 		return ExpressionToEvaluator(filter, reg)
 	}
 	return nil, nil
+}
+
+func prepareGroupList(groupList []FlatExpression, reg udf.FunctionRegistry) ([]Evaluator, error) {
+	output := make([]Evaluator, len(groupList))
+	for i, expr := range groupList {
+		// compute evaluators for each expression
+		plan, err := ExpressionToEvaluator(expr, reg)
+		if err != nil {
+			return nil, err
+		}
+		output[i] = plan
+	}
+	return output, nil
 }
 
 // setMetadata adds the metadata contained in the given Tuple into the

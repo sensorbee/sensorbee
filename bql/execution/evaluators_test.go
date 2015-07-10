@@ -27,7 +27,9 @@ func TestEvaluators(t *testing.T) {
 		Convey(fmt.Sprintf("Given the AST Expression %v", ast), t, func() {
 
 			Convey("Then an Evaluator can be computed", func() {
-				eval, err := ExpressionToEvaluator(ast, reg)
+				flatExpr, err := ParserExprToFlatExpr(ast, isAggregateDummy)
+				So(err, ShouldBeNil)
+				eval, err := ExpressionToEvaluator(flatExpr, reg)
 				So(err, ShouldBeNil)
 
 				for i, tc := range testCase.inputs {
@@ -166,7 +168,9 @@ func TestFuncAppConversion(t *testing.T) {
 				}}}
 
 			Convey("Then we obtain an evaluatable funcApp", func() {
-				eval, err := ExpressionToEvaluator(ast, reg)
+				flatExpr, err := ParserExprToFlatExpr(ast, isAggregateDummy)
+				So(err, ShouldBeNil)
+				eval, err := ExpressionToEvaluator(flatExpr, reg)
 				So(err, ShouldBeNil)
 				So(eval, ShouldHaveSameTypeAs, &funcApp{})
 			})
@@ -179,7 +183,9 @@ func TestFuncAppConversion(t *testing.T) {
 				}}}
 
 			Convey("Then converting to an Evaluator fails", func() {
-				_, err := ExpressionToEvaluator(ast, reg)
+				flatExpr, err := ParserExprToFlatExpr(ast, isAggregateDummy)
+				So(err, ShouldBeNil)
+				_, err = ExpressionToEvaluator(flatExpr, reg)
 				So(err, ShouldNotBeNil)
 			})
 		})
@@ -226,7 +232,7 @@ func (tfr *testFuncRegistry) Lookup(name string, arity int) (udf.UDF, error) {
 }
 
 func getTestCases() []struct {
-	ast    interface{}
+	ast    parser.Expression
 	inputs []evalTest
 } {
 	now := time.Now()
@@ -426,7 +432,7 @@ func getTestCases() []struct {
 	// we should check that every AST expression maps to
 	// an evaluator with the correct behavior
 	testCases := []struct {
-		ast    interface{}
+		ast    parser.Expression
 		inputs []evalTest
 	}{
 		// Literals should always be independent of the input data
