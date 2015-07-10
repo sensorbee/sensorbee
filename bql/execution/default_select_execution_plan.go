@@ -356,15 +356,7 @@ func (ep *defaultSelectExecutionPlan) performQueryOnBuffer() error {
 		return nil
 	}
 
-	// Note: `ep.buffers` is a map, so iterating over its keys may yield
-	// different results in every run of the program. We cannot expect
-	// a consistent order in which evalItem is run on the items of the
-	// cartesian product.
-	allStreams := make([]string, 0, len(ep.buffers))
-	for key := range ep.buffers {
-		allStreams = append(allStreams, key)
-	}
-	if err := procCartProd(allStreams, evalItem); err != nil {
+	rollback := func() {
 		// NB. ep.prevResults currently points to an slice with
 		//     results from the previous run. ep.curResults points
 		//     to the same slice. output points to a different slice
@@ -376,6 +368,18 @@ func (ep *defaultSelectExecutionPlan) performQueryOnBuffer() error {
 		//     different underlying arrays or ISTREAM/DSTREAM will
 		//     return wrong results.
 		ep.prevResults = output
+	}
+
+	// Note: `ep.buffers` is a map, so iterating over its keys may yield
+	// different results in every run of the program. We cannot expect
+	// a consistent order in which evalItem is run on the items of the
+	// cartesian product.
+	allStreams := make([]string, 0, len(ep.buffers))
+	for key := range ep.buffers {
+		allStreams = append(allStreams, key)
+	}
+	if err := procCartProd(allStreams, evalItem); err != nil {
+		rollback()
 		return err
 	}
 
