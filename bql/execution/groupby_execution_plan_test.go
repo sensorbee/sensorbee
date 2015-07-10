@@ -13,7 +13,7 @@ import (
 
 func createGroupbyPlan(s string, t *testing.T) (ExecutionPlan, error) {
 	p := parser.NewBQLParser()
-	reg := udf.CopyGlobalUDFRegistry(newTestContext())
+	reg := udf.CopyGlobalUDFRegistry(core.NewContext(nil))
 	_stmt, _, err := p.ParseStmt(s)
 	if err != nil {
 		return nil, err

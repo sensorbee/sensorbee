@@ -33,13 +33,20 @@ func createDefaultSelectPlan(s string, t *testing.T) (ExecutionPlan, error) {
 	p := parser.NewBQLParser()
 	reg := udf.CopyGlobalUDFRegistry(core.NewContext(nil))
 	_stmt, _, err := p.ParseStmt(s)
-	So(err, ShouldBeNil)
+	if err != nil {
+		return nil, err
+	}
 	So(_stmt, ShouldHaveSameTypeAs, parser.CreateStreamAsSelectStmt{})
 	stmt := _stmt.(parser.CreateStreamAsSelectStmt)
 	logicalPlan, err := Analyze(stmt)
-	So(err, ShouldBeNil)
+	if err != nil {
+		return nil, err
+	}
 	canBuild := CanBuildDefaultSelectExecutionPlan(logicalPlan, reg)
-	So(canBuild, ShouldBeTrue)
+	if !canBuild {
+		err := fmt.Errorf("defaultSelectExecutionPlan cannot be used for statement: %s", s)
+		return nil, err
+	}
 	return NewDefaultSelectExecutionPlan(logicalPlan, reg)
 }
 
