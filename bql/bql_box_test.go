@@ -126,6 +126,40 @@ func TestBQLBoxJoinCapability(t *testing.T) {
 	})
 }
 
+func TestBQLBoxGroupByCapability(t *testing.T) {
+	Convey("Given an ISTREAM/2 SECONDS BQL statement", t, func() {
+		s := "CREATE STREAM box AS SELECT " +
+			"ISTREAM count(1) FROM source [RANGE 2 SECONDS] WHERE int % 2 = 0"
+		dt, err := setupTopology(s)
+		So(err, ShouldBeNil)
+		Reset(func() {
+			dt.Stop()
+		})
+
+		sin, err := dt.Sink("snk")
+		So(err, ShouldBeNil)
+		si := sin.Sink().(*tupleCollectorSink)
+
+		Convey("When 4 tuples are emitted by the source", func() {
+
+			Convey("Then the sink receives 2 tuples", func() {
+				si.Wait(2)
+				So(si.Tuples, ShouldNotBeNil)
+				So(len(si.Tuples), ShouldEqual, 2)
+
+				Convey("And the tuples have the correct counts", func() {
+					// after the first tuple, the input is empty so nothing
+					// is emitted (actually 0 should be emitted)
+					So(si.Tuples[0].Data["count"], ShouldResemble, data.Int(1))
+					// the third tuple is not counted because of WHERE, so
+					// ISTREAM doesn't emit anything
+					So(si.Tuples[1].Data["count"], ShouldResemble, data.Int(2))
+				})
+			})
+		})
+	})
+}
+
 func TestBQLBoxUDSF(t *testing.T) {
 	Convey("Given a topology using UDSF", t, func() {
 		dt, err := setupTopology(`CREATE STREAM box AS SELECT ISTREAM duplicate:int FROM duplicate('source', 3) [RANGE 1 TUPLES]`)

@@ -8,7 +8,6 @@ import (
 
 type groupbyExecutionPlan struct {
 	streamRelationStreamExecutionPlan
-	groupMode bool
 }
 
 // tmpGroupData is an intermediate data structure to represent
@@ -28,11 +27,12 @@ type tmpGroupData struct {
 // CanBuildGroupbyExecutionPlan checks whether the given statement
 // allows to use an groupbyExecutionPlan.
 func CanBuildGroupbyExecutionPlan(lp *LogicalPlan, reg udf.FunctionRegistry) bool {
-	return lp.Having == nil
+	return lp.GroupingStmt && lp.Having == nil
 }
 
-// groupbyExecutionPlan is a very simple plan that follows the
-// theoretical processing model.
+// groupbyExecutionPlan is a simple plan that follows the
+// theoretical processing model. It supports only statements
+// that use aggregation.
 //
 // After each tuple arrives,
 // - compute the contents of the current window using the
@@ -47,7 +47,6 @@ func NewGroupbyExecutionPlan(lp *LogicalPlan, reg udf.FunctionRegistry) (Executi
 	}
 	return &groupbyExecutionPlan{
 		*underlying,
-		lp.GroupingStmt,
 	}, nil
 }
 
@@ -171,60 +170,38 @@ func (ep *groupbyExecutionPlan) performQueryOnBuffer() error {
 			}
 		}
 
-		// if we arrive here, the input tuple fulfills the filter criteria.
-		// we now must act differently depending on whether we are in
-		// grouping mode or not. in grouping mode, compute only the GROUP BY
-		// expressions and the input expressions for aggregate functions now.
-		// in non-grouping mode, already compute the final output.
-
-		if ep.groupMode {
-			// now compute the expressions in the GROUP BY to find the correct
-			// group to append to
-			itemGroupValues := make([]data.Value, len(ep.groupList))
-			for i, eval := range ep.groupList {
-				// ordinary "flat" expression
-				value, err := eval.Eval(d)
-				if err != nil {
-					return err
-				}
-				itemGroupValues[i] = value
-			}
-
-			itemGroup, err := findOrCreateGroup(itemGroupValues, d)
+		// now compute the expressions in the GROUP BY to find the correct
+		// group to append to
+		itemGroupValues := make([]data.Value, len(ep.groupList))
+		for i, eval := range ep.groupList {
+			// ordinary "flat" expression
+			value, err := eval.Eval(d)
 			if err != nil {
 				return err
 			}
+			itemGroupValues[i] = value
+		}
 
-			// now compute all the input data for the aggregate functions,
-			// e.g. for `SELECT count(a) + max(b/2)`, compute `a` and `b/2`
-			for _, proj := range ep.projections {
-				if proj.hasAggregate {
-					// this column involves an aggregate function, but there
-					// may be multiple ones
-					for key, agg := range proj.aggrEvals {
-						value, err := agg.aggrEval.Eval(d)
-						if err != nil {
-							return err
-						}
-						// now we need to store this value in the output map
-						itemGroup.aggData[key] = append(itemGroup.aggData[key], value)
+		itemGroup, err := findOrCreateGroup(itemGroupValues, d)
+		if err != nil {
+			return err
+		}
+
+		// now compute all the input data for the aggregate functions,
+		// e.g. for `SELECT count(a) + max(b/2)`, compute `a` and `b/2`
+		for _, proj := range ep.projections {
+			if proj.hasAggregate {
+				// this column involves an aggregate function, but there
+				// may be multiple ones
+				for key, agg := range proj.aggrEvals {
+					value, err := agg.aggrEval.Eval(d)
+					if err != nil {
+						return err
 					}
+					// now we need to store this value in the output map
+					itemGroup.aggData[key] = append(itemGroup.aggData[key], value)
 				}
 			}
-
-		} else {
-			// otherwise, compute all the projection expressions
-			result := data.Map(make(map[string]data.Value, len(ep.projections)))
-			for _, proj := range ep.projections {
-				value, err := proj.evaluator.Eval(d)
-				if err != nil {
-					return err
-				}
-				if err := assignOutputValue(result, proj.alias, value); err != nil {
-					return err
-				}
-			}
-			output = append(output, result)
 		}
 		return nil
 	}
@@ -272,16 +249,13 @@ func (ep *groupbyExecutionPlan) performQueryOnBuffer() error {
 		return err
 	}
 
-	// if we arrive here, then in non-grouping mode, the final result
-	// is already in the `output` list. otherwise the input for the
-	// aggregation functions is still in the `group` list and we need
-	// to compute aggregation and output now.
-	if ep.groupMode {
-		for _, group := range groups {
-			if err := evalGroup(&group); err != nil {
-				rollback()
-				return err
-			}
+	// if we arrive here, then the input for the aggregation functions
+	// is in the `group` list and we need to compute aggregation and output.
+	// TODO deal with the case of an empty list
+	for _, group := range groups {
+		if err := evalGroup(&group); err != nil {
+			rollback()
+			return err
 		}
 	}
 
