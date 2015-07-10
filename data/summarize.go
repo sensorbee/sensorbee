@@ -18,7 +18,7 @@ func Summarize(val Value) string {
 func summarize(v Value) Value {
 	switch v.Type() {
 	case TypeBlob:
-		return String("<blob>")
+		return String("(blob)")
 
 	case TypeMap:
 		m, _ := v.asMap()
