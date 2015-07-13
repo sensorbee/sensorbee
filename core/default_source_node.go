@@ -69,8 +69,8 @@ func (ds *defaultSourceNode) Stop() error {
 
 	if paused {
 		// The source doesn't have to be resumed since Stop must stop the source
-		// without resuming it when it implements ResumableNode.
-		if _, ok := ds.source.(ResumableNode); !ok {
+		// without resuming it when it implements Resumable.
+		if _, ok := ds.source.(Resumable); !ok {
 			// When the default pause&resume implementation is used, dsts just
 			// has to be closed to stop correctly. Because dsts.Write doesn't
 			// return pipe closed errors, no error log will be written by
@@ -105,7 +105,7 @@ func (ds *defaultSourceNode) Pause() error {
 
 func (ds *defaultSourceNode) pause() error {
 	// pause doesn't acquire lock
-	if rn, ok := ds.source.(ResumableNode); ok {
+	if rn, ok := ds.source.(Resumable); ok {
 		// prefer the implementation of the source to the default one.
 		if err := rn.Pause(ds.topology.ctx); err != nil {
 			return err
@@ -114,7 +114,7 @@ func (ds *defaultSourceNode) pause() error {
 		return nil
 	}
 
-	// If the source doesn't implement ResumableNode, the default pause/resume
+	// If the source doesn't implement Resumable, the default pause/resume
 	// implementation in dataDestinations is used.
 	ds.dsts.pause()
 	ds.state.setWithoutLock(TSPaused)
@@ -133,7 +133,7 @@ func (ds *defaultSourceNode) Resume() error {
 		return fmt.Errorf("source '%v' is already stopped", ds.name)
 	}
 
-	if rn, ok := ds.source.(ResumableNode); ok {
+	if rn, ok := ds.source.(Resumable); ok {
 		// prefer the implementation of the source to the default one.
 		if err := rn.Resume(ds.topology.ctx); err != nil {
 			return err
