@@ -9,32 +9,9 @@ import (
 )
 
 type stubSharedState struct {
-	initCnt     int
-	initFailAt  int
-	initPanicAt int
-
 	terminateCnt     int
 	terminateFailAt  int
 	terminatePanicAt int
-}
-
-func (s *stubSharedState) TypeName() string {
-	return "mock_shared_state"
-}
-
-func (s *stubSharedState) Init(ctx *Context) error {
-	s.initCnt++
-	if s.initCnt == s.initPanicAt {
-		panic(fmt.Errorf("mock shared state panic"))
-	}
-	if s.initCnt == s.initFailAt {
-		return fmt.Errorf("mock shared state failure")
-	}
-	return nil
-}
-
-func (s *stubSharedState) Write(ctx *Context, t *Tuple) error {
-	return nil
 }
 
 func (s *stubSharedState) Terminate(ctx *Context) error {
@@ -100,45 +77,6 @@ func TestDefaultSharedStateRegistry(t *testing.T) {
 				Convey("And it should be terminated", func() {
 					So(s.terminateCnt, ShouldEqual, 1)
 				})
-			})
-		})
-
-		Convey("When a state panics on initialization while adding it to registry", func() {
-			s := &stubSharedState{}
-			s.initPanicAt = 1
-
-			Convey("Then Add should panic", func() {
-				So(func() {
-					r.Add("test_state", s)
-				}, ShouldPanic)
-
-				Convey("And the state shouldn't be added", func() {
-					_, err := r.Get("test_state")
-					So(err, ShouldNotBeNil)
-				})
-
-				Convey("And terminate shouldn't be called", func() {
-					So(s.terminateCnt, ShouldEqual, 0)
-				})
-			})
-		})
-
-		Convey("When a state fails to initialize while adding it to registry", func() {
-			s := &stubSharedState{}
-			s.initFailAt = 1
-			err := r.Add("test_state", s)
-
-			Convey("Then it should fail", func() {
-				So(err, ShouldNotBeNil)
-			})
-
-			Convey("Then the state shouldn't be added", func() {
-				_, err := r.Get("test_state")
-				So(err, ShouldNotBeNil)
-			})
-
-			Convey("Then terminate shouldn't be called", func() {
-				So(s.terminateCnt, ShouldEqual, 0)
 			})
 		})
 
@@ -218,14 +156,6 @@ type countingSharedState struct {
 	cnt int32
 }
 
-func (c *countingSharedState) TypeName() string {
-	return "counter"
-}
-
-func (c *countingSharedState) Init(ctx *Context) error {
-	return nil
-}
-
 func (c *countingSharedState) Write(ctx *Context, t *Tuple) error {
 	i, _ := data.ToInt(t.Data["n"])
 	atomic.AddInt32(&c.cnt, int32(i))
@@ -267,7 +197,7 @@ func TestSharedStateInTopology(t *testing.T) {
 			if err != nil {
 				return err
 			}
-			s.Write(ctx, t)
+			s.(Writer).Write(ctx, t)
 			return w.Write(ctx, t)
 		})
 		bn1, err := t.AddBox("box1", b1, nil)
@@ -278,9 +208,6 @@ func TestSharedStateInTopology(t *testing.T) {
 			s, err := ctx.SharedStates.Get("test_counter")
 			if err != nil {
 				return err
-			}
-			if s.TypeName() != "counter" {
-				return fmt.Errorf("unsupported state type: %v", s.TypeName())
 			}
 			c, ok := s.(*countingSharedState)
 			if !ok {
