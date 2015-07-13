@@ -32,7 +32,7 @@ Statement <- (SelectStmt / CreateStreamAsSelectStmt / CreateSourceStmt /
              CreateStateStmt / PauseSourceStmt / ResumeSourceStmt /
              RewindSourceStmt / DropSourceStmt / DropStreamStmt /
              DropSinkStmt / DropStateStmt / UpdateStateStmt /
-             UpdateSourceStmt)
+             UpdateSourceStmt / UpdateSinkStmt)
 
 SelectStmt <- "SELECT" sp
               Emitter sp
@@ -89,6 +89,12 @@ UpdateSourceStmt <- "UPDATE" sp "SOURCE" sp
                     StreamIdentifier sp
                     UpdateSourceSinkSpecs {
         p.AssembleUpdateSource()
+    }
+
+UpdateSinkStmt <- "UPDATE" sp "SINK" sp
+                    StreamIdentifier sp
+                    UpdateSourceSinkSpecs {
+        p.AssembleUpdateSink()
     }
 
 InsertIntoSelectStmt <- "INSERT" sp "INTO" sp

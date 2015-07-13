@@ -67,6 +67,11 @@ type UpdateSourceStmt struct {
 	SourceSinkSpecsAST
 }
 
+type UpdateSinkStmt struct {
+	Name StreamIdentifier
+	SourceSinkSpecsAST
+}
+
 type InsertIntoSelectStmt struct {
 	Sink StreamIdentifier
 	SelectStmt
