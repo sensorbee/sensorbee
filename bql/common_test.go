@@ -44,18 +44,6 @@ func newDummyUDS(ctx *core.Context, params data.Map) (core.SharedState, error) {
 	return s, nil
 }
 
-func (s *dummyUDS) TypeName() string {
-	return "dummy_uds"
-}
-
-func (s *dummyUDS) Init(ctx *core.Context) error {
-	return nil
-}
-
-func (s *dummyUDS) Write(ctx *core.Context, t *core.Tuple) error {
-	return nil
-}
-
 func (s *dummyUDS) Terminate(ctx *core.Context) error {
 	return nil
 }

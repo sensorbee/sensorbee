@@ -14,31 +14,18 @@ import (
 // easiest way to use SharedState from a component is to obtain the actual
 // data type via the type assertion. See examples to learn more about how to
 // use it.
+//
+// If a SharedState also implements Writer interface, it can be updated via
+// SharedStateSink. Write method in it writes a tuple to the state. How tuples
+// are processed depends on each SharedState. For example, a machine learning
+// model might use a tuple as a training data, and another state could compute
+// the average of a specific field. Write may return fatal or temporary errors
+// as Box.Process does. See the documentation of Box.Process for details.
+//
+// Write method might be called after Terminate method is called. When it
+// occurs, Write should return an error. Also, Write and Terminate can be
+// called concurrently.
 type SharedState interface {
-	// TypeName returns the name of SharedState's type. There can be multiple
-	// instances of the same type. For example, a user can use "classifier"
-	// as a type name and create SharedStates "category_classifier" and
-	// "age_classifier" having the type name.
-	TypeName() string
-
-	// Init initialize the SharedState. Each SharedState can allocate resources
-	// required for its computation. SharedState doesn't have to store ctx in it
-	// because all method which are called from topologies have ctx arguments.
-	//
-	// Init isn't called concurrently.
-	Init(ctx *Context) error
-
-	// Write writes a tuple to the state. How tuples are processed depends on
-	// each SharedState. For example, a machine learning model might use a
-	// tuple as a training data, and another state could compute the average
-	// of a specific field. Write may return fatal or temporary errors as
-	// Box.Process does. See the documentation of Box.Process for details.
-	//
-	// Write method might be called after Terminate method is called. When it
-	// occurs, Write should return an error. Also, Write and Terminate can be
-	// called concurrently
-	Write(ctx *Context, t *Tuple) error
-
 	// Terminate finalizes the state. The state can no longer be used after
 	// this method is called. This method doesn't have to be idempotent.
 	// Terminate won't be called when Init fails.
@@ -99,10 +86,6 @@ func NewDefaultSharedStateRegistry(ctx *Context) SharedStateRegistry {
 }
 
 func (r *defaultSharedStateRegistry) Add(name string, s SharedState) error {
-	if err := s.Init(r.ctx); err != nil {
-		return err
-	}
-
 	err := func() error {
 		r.m.Lock()
 		defer r.m.Unlock()
