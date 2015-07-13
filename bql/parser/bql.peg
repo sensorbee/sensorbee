@@ -30,7 +30,8 @@ Statements <- sp ((Statement sp ';' .*) / Statement) !.
 Statement <- (SelectStmt / CreateStreamAsSelectStmt / CreateSourceStmt /
              CreateSinkStmt / InsertIntoSelectStmt / InsertIntoFromStmt /
              CreateStateStmt / PauseSourceStmt / ResumeSourceStmt /
-             RewindSourceStmt)
+             RewindSourceStmt / DropSourceStmt / DropStreamStmt /
+             DropSinkStmt / DropStateStmt)
 
 SelectStmt <- "SELECT" sp
               Emitter sp
@@ -101,6 +102,21 @@ RewindSourceStmt <- "REWIND" sp "SOURCE" sp StreamIdentifier {
         p.AssembleRewindSource()
     }
 
+DropSourceStmt <- "DROP" sp "SOURCE" sp StreamIdentifier {
+        p.AssembleDropSource()
+    }
+
+DropStreamStmt <- "DROP" sp "STREAM" sp StreamIdentifier {
+        p.AssembleDropStream()
+    }
+
+DropSinkStmt <- "DROP" sp "SINK" sp StreamIdentifier {
+        p.AssembleDropSink()
+    }
+
+DropStateStmt <- "DROP" sp "STATE" sp StreamIdentifier {
+        p.AssembleDropState()
+    }
 
 ################################
 ##### STATEMENT COMPONENTS #####

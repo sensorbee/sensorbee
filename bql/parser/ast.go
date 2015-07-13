@@ -79,6 +79,22 @@ type RewindSourceStmt struct {
 	Source StreamIdentifier
 }
 
+type DropSourceStmt struct {
+	Source StreamIdentifier
+}
+
+type DropStreamStmt struct {
+	Source StreamIdentifier
+}
+
+type DropSinkStmt struct {
+	Source StreamIdentifier
+}
+
+type DropStateStmt struct {
+	Source StreamIdentifier
+}
+
 type EmitterAST struct {
 	EmitterType   Emitter
 	EmitIntervals []StreamEmitIntervalAST
