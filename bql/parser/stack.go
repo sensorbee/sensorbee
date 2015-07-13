@@ -320,6 +320,23 @@ func (ps *parseStack) AssembleDropStream() {
 	ps.Push(&se)
 }
 
+// AssembleDropSink takes the topmost elements from the stack,
+// assuming they are components of a DROP SINK statement, and
+// replaces them by a single DropSinkStmt element.
+//
+//  StreamIdentifier
+//   =>
+//  DropSinkStmt{StreamIdentifier}
+func (ps *parseStack) AssembleDropSink() {
+	// pop the components from the stack in reverse order
+	_name := ps.Pop()
+
+	name := _name.comp.(StreamIdentifier)
+
+	se := ParsedComponent{_name.begin, _name.end, DropSinkStmt{name}}
+	ps.Push(&se)
+}
+
 /* Projections/Columns */
 
 // AssembleEmitter takes the topmost elements from the stack, assuming
