@@ -479,4 +479,8 @@ ident <- [[a-z]] ([[a-z]] / [0-9] / '_')*
 # TODO actual JSON Path must allow a larger range of characters
 jsonPath <- [[a-z]] ([[a-z]] / [0-9] / '_' / '.' / '[' / ']' / '"')*
 
-sp <- ( ' ' / '\t' / '\n' )*
+sp <- ( ' ' / '\t' / '\n' / '\r' / comment )*
+
+# Note: we need a negative-lookahead *and then* need to eat
+# one character, or we will have infinite recursion.
+comment <- '--' (![\r\n] .)* [\r\n]

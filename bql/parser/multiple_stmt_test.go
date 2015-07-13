@@ -113,6 +113,79 @@ func TestMultipleStmtParser(t *testing.T) {
 
 }
 
+func TestComment(t *testing.T) {
+	testCases := map[string][]interface{}{
+		// single statement
+		"SELECT ISTREAM a": []interface{}{
+			SelectStmt{EmitterAST: EmitterAST{Istream, nil},
+				ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "a"}}}},
+		},
+		// single statement on two lines
+		"SELECT ISTREAM \na": []interface{}{
+			SelectStmt{EmitterAST: EmitterAST{Istream, nil},
+				ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "a"}}}},
+		},
+		// single statement with an empty comment on two lines
+		"SELECT ISTREAM --\na": []interface{}{
+			SelectStmt{EmitterAST: EmitterAST{Istream, nil},
+				ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "a"}}}},
+		},
+		// single statement with a space-only comment on two lines
+		"SELECT ISTREAM --   \na": []interface{}{
+			SelectStmt{EmitterAST: EmitterAST{Istream, nil},
+				ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "a"}}}},
+		},
+		// single statement with a normal comment on two lines
+		"SELECT ISTREAM -- comment here\na": []interface{}{
+			SelectStmt{EmitterAST: EmitterAST{Istream, nil},
+				ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "a"}}}},
+		},
+		// single statement with multiple comments
+		"SELECT ISTREAM -- comment\n  -- continues\n--even longer\na": []interface{}{
+			SelectStmt{EmitterAST: EmitterAST{Istream, nil},
+				ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "a"}}}},
+		},
+		// single statement introduced by comment
+		" -- comment\nSELECT ISTREAM a": []interface{}{
+			SelectStmt{EmitterAST: EmitterAST{Istream, nil},
+				ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "a"}}}},
+		},
+		// multiple statements separated by comment
+		"SELECT ISTREAM a;\n--comment\nSELECT ISTREAM b": []interface{}{
+			SelectStmt{EmitterAST: EmitterAST{Istream, nil},
+				ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "a"}}}},
+			SelectStmt{EmitterAST: EmitterAST{Istream, nil},
+				ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "b"}}}},
+		},
+	}
+
+	Convey("Given a BQL parser", t, func() {
+		p := NewBQLParser()
+
+		for input, expected := range testCases {
+			// avoid closure over loop variables
+			input, expected := input, expected
+
+			Convey(fmt.Sprintf("When parsing %s", input), func() {
+				results, err := p.ParseStmts(input)
+
+				Convey(fmt.Sprintf("Then the result should be %v", expected), func() {
+					if expected == nil {
+						So(err, ShouldNotBeNil)
+					} else {
+						// check there is no error
+						So(err, ShouldBeNil)
+						// check we go what we expected
+						So(results, ShouldResemble, expected)
+					}
+				})
+			})
+		}
+
+	})
+
+}
+
 func TestSingleStmtParser(t *testing.T) {
 	testCases := map[string]string{
 		// single statement
