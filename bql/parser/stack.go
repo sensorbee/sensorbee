@@ -216,6 +216,25 @@ func (ps *parseStack) AssembleUpdateState() {
 	ps.Push(&se)
 }
 
+// AssembleUpdateSource takes the topmost elements from the stack,
+// assuming they are components of a UPDATE SOURCE statement, and
+// replaces them by a single UpdateSourceStmt element.
+//
+//  SourceSinkSpecsAST
+//  StreamIdentifier
+//   =>
+//  UpdateSourceStmt{StreamIdentifier, SourceSinkSpecsAST}
+func (ps *parseStack) AssembleUpdateSource() {
+	_specs, _name := ps.pop2()
+
+	specs := _specs.comp.(SourceSinkSpecsAST)
+	name := _name.comp.(StreamIdentifier)
+
+	s := UpdateSourceStmt{name, specs}
+	se := ParsedComponent{_name.begin, _specs.end, s}
+	ps.Push(&se)
+}
+
 // AssembleInsertIntoSelect takes the topmost elements from the stack,
 // assuming they are components of a INSERT ... SELECT statement, and
 // replaces them by a single InsertIntoSelectStmt element.
