@@ -109,8 +109,40 @@ func (s *tupleEmitterSource) Stop(ctx *core.Context) error {
 	return nil
 }
 
+// createDummyUpdatableSource creates a source that
+// can be updated source. It creates tupleEmitterSource inherited object.
+func createDummyUpdatableSource(ctx *core.Context, params data.Map) (core.Source, error) {
+	numTuples := 4
+	// check the given source parameters
+	for key, value := range params {
+		if key == "num" {
+			numTuples64, err := data.AsInt(value)
+			if err != nil {
+				msg := "num: cannot convert value %s into integer"
+				return nil, fmt.Errorf(msg, value)
+			}
+			numTuples = int(numTuples64)
+		} else {
+			return nil, fmt.Errorf("unknown source parameter: %s", key)
+		}
+	}
+
+	s := &tupleEmitterUpdatableSource{tupleEmitterSource: &tupleEmitterSource{Tuples: mkTuples(numTuples)}}
+	s.c = sync.NewCond(&s.m)
+	return s, nil
+}
+
+type tupleEmitterUpdatableSource struct {
+	*tupleEmitterSource
+}
+
+func (s *tupleEmitterUpdatableSource) Update(params data.Map) error {
+	return nil
+}
+
 func init() {
 	RegisterGlobalSourceCreator("dummy", SourceCreatorFunc(createDummySource))
+	RegisterGlobalSourceCreator("dummy_updatable", SourceCreatorFunc(createDummyUpdatableSource))
 }
 
 // createCollectorSink creates a sink that collects all received
