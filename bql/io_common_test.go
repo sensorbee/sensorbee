@@ -188,6 +188,26 @@ func (s *tupleCollectorSink) Close(ctx *core.Context) error {
 	return nil
 }
 
+type tupleCollectorUpdatableSink struct {
+	*tupleCollectorSink
+}
+
+// createCollectorUpdatableSink creates a sink that can be updated.
+func createCollectorUpdatableSink(ctx *core.Context, params data.Map) (core.Sink, error) {
+	// check the given sink parameters
+	for key := range params {
+		return nil, fmt.Errorf("unknown sink parameter: %s", key)
+	}
+	si := tupleCollectorUpdatableSink{tupleCollectorSink: &tupleCollectorSink{}}
+	si.c = sync.NewCond(&si.m)
+	return &si, nil
+}
+
+func (s *tupleCollectorUpdatableSink) Update(params data.Map) error {
+	return nil
+}
+
 func init() {
 	RegisterGlobalSinkCreator("collector", SinkCreatorFunc(createCollectorSink))
+	RegisterGlobalSinkCreator("collector_updatable", SinkCreatorFunc(createCollectorUpdatableSink))
 }

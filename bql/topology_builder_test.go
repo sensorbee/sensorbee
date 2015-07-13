@@ -577,3 +577,44 @@ func TestUpdateSourceStmt(t *testing.T) {
 		})
 	})
 }
+
+func TestUpdateSinkStmt(t *testing.T) {
+	Convey("Given a BQL TopologyBuilder", t, func() {
+		dt := newTestTopology()
+		Reset(func() {
+			dt.Stop()
+		})
+		tb, err := NewTopologyBuilder(dt)
+		So(err, ShouldBeNil)
+
+		Convey("When there is no updatable sink", func() {
+			Convey("When updating a dummy sink should fail.", func() {
+				So(addBQLToTopology(tb, `UPDATE SINK hoge SET num=5;`), ShouldNotBeNil)
+			})
+		})
+
+		Convey("Given non-Updater sink", func() {
+			So(addBQLToTopology(tb, `CREATE SINK hoge TYPE collector;`), ShouldBeNil)
+
+			Convey("When updating the sink", func() {
+				err := addBQLToTopology(tb, `UPDATE SINK hoge SET num=5;`)
+
+				Convey("There should be an error", func() {
+					So(err, ShouldNotBeNil)
+				})
+			})
+		})
+
+		Convey("Given updater sink", func() {
+			So(addBQLToTopology(tb, `CREATE SINK hoge TYPE collector_updatable;`), ShouldBeNil)
+
+			Convey("When updating the updatable sink", func() {
+				err := addBQLToTopology(tb, `UPDATE SINK hoge SET num=5;`)
+
+				Convey("There should not be an error", func() {
+					So(err, ShouldBeNil)
+				})
+			})
+		})
+	})
+}
