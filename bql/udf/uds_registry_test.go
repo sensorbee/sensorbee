@@ -10,18 +10,6 @@ import (
 type testSharedState struct {
 }
 
-func (s *testSharedState) TypeName() string {
-	return "test_state_func"
-}
-
-func (s *testSharedState) Init(ctx *core.Context) error {
-	return nil
-}
-
-func (s *testSharedState) Write(ctx *core.Context, t *core.Tuple) error {
-	return nil
-}
-
 func (s *testSharedState) Terminate(ctx *core.Context) error {
 	return nil
 }
