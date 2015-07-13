@@ -141,8 +141,9 @@ func TestBQLBoxGroupByCapability(t *testing.T) {
 	Convey("Given an ISTREAM/2 SECONDS BQL statement", t, func() {
 		s := "CREATE STREAM box AS SELECT " +
 			"ISTREAM count(1) FROM source [RANGE 2 SECONDS] WHERE int % 2 = 0"
-		dt, err := setupTopology(s)
+		tb, err := setupTopology(s)
 		So(err, ShouldBeNil)
+		dt := tb.Topology()
 		Reset(func() {
 			dt.Stop()
 		})
