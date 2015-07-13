@@ -286,6 +286,23 @@ func (ps *parseStack) AssembleRewindSource() {
 	ps.Push(&se)
 }
 
+// AssembleDropSource takes the topmost elements from the stack,
+// assuming they are components of a DROP SOURCE statement, and
+// replaces them by a single DropSourceStmt element.
+//
+//  StreamIdentifier
+//   =>
+//  DropSourceStmt{StreamIdentifier}
+func (ps *parseStack) AssembleDropSource() {
+	// pop the components from the stack in reverse order
+	_name := ps.Pop()
+
+	name := _name.comp.(StreamIdentifier)
+
+	se := ParsedComponent{_name.begin, _name.end, DropSourceStmt{name}}
+	ps.Push(&se)
+}
+
 /* Projections/Columns */
 
 // AssembleEmitter takes the topmost elements from the stack, assuming
