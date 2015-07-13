@@ -31,7 +31,7 @@ Statement <- (SelectStmt / CreateStreamAsSelectStmt / CreateSourceStmt /
              CreateSinkStmt / InsertIntoSelectStmt / InsertIntoFromStmt /
              CreateStateStmt / PauseSourceStmt / ResumeSourceStmt /
              RewindSourceStmt / DropSourceStmt / DropStreamStmt /
-             DropSinkStmt / DropStateStmt)
+             DropSinkStmt / DropStateStmt / UpdateStateStmt)
 
 SelectStmt <- "SELECT" sp
               Emitter sp
@@ -76,6 +76,12 @@ CreateStateStmt <- "CREATE" sp "STATE" sp
                     "TYPE" sp SourceSinkType sp
                     SourceSinkSpecs {
         p.AssembleCreateState()
+    }
+
+UpdateStateStmt <- "UPDATE" sp "STATE" sp
+                    StreamIdentifier sp
+                    UpdateSourceSinkSpecs {
+        p.AssembleUpdateState()
     }
 
 InsertIntoSelectStmt <- "INSERT" sp "INTO" sp
@@ -215,6 +221,10 @@ UDSFFuncApp <- FuncApp {
     }
 
 SourceSinkSpecs <- < ("WITH" sp SourceSinkParam sp (',' sp SourceSinkParam)*)? > {
+        p.AssembleSourceSinkSpecs(begin, end)
+    }
+
+UpdateSourceSinkSpecs <- < "SET" sp SourceSinkParam sp (',' sp SourceSinkParam)* > {
         p.AssembleSourceSinkSpecs(begin, end)
     }
 
