@@ -536,3 +536,44 @@ func TestUpdateStateStmt(t *testing.T) {
 		})
 	})
 }
+
+func TestUpdateSourceStmt(t *testing.T) {
+	Convey("Given a BQL TopologyBuilder", t, func() {
+		dt := newTestTopology()
+		Reset(func() {
+			dt.Stop()
+		})
+		tb, err := NewTopologyBuilder(dt)
+		So(err, ShouldBeNil)
+
+		Convey("When there is no updatable source", func() {
+			Convey("When updating a dummy source should fail.", func() {
+				So(addBQLToTopology(tb, `UPDATE SOURCE hoge SET num=5;`), ShouldNotBeNil)
+			})
+		})
+
+		Convey("Given non-Updater source", func() {
+			So(addBQLToTopology(tb, `CREATE SOURCE hoge TYPE dummy WITH num=4`), ShouldBeNil)
+
+			Convey("When updating the source", func() {
+				err := addBQLToTopology(tb, `UPDATE SOURCE hoge SET num=5;`)
+
+				Convey("There should be an error", func() {
+					So(err, ShouldNotBeNil)
+				})
+			})
+		})
+
+		Convey("Given updater source", func() {
+			So(addBQLToTopology(tb, `CREATE SOURCE hoge TYPE dummy_updatable WITH num=5;`), ShouldBeNil)
+
+			Convey("When updating the updatable source", func() {
+				err := addBQLToTopology(tb, `UPDATE SOURCE hoge SET num=5;`)
+
+				Convey("There should not be an error", func() {
+					So(err, ShouldBeNil)
+				})
+			})
+		})
+	})
+}
