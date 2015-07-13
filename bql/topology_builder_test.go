@@ -495,3 +495,44 @@ func TestCreateStateStmt(t *testing.T) {
 		})
 	})
 }
+
+func TestUpdateStateStmt(t *testing.T) {
+	Convey("Given a BQL TopologyBuilder", t, func() {
+		dt := newTestTopology()
+		Reset(func() {
+			dt.Stop()
+		})
+		tb, err := NewTopologyBuilder(dt)
+		So(err, ShouldBeNil)
+
+		Convey("When there is no UDS", func() {
+			Convey("When updating a dummy UDS should fail.", func() {
+				So(addBQLToTopology(tb, `UPDATE STATE hoge SET num=5;`), ShouldNotBeNil)
+			})
+		})
+
+		Convey("Given non-Updater UDS", func() {
+			So(addBQLToTopology(tb, `CREATE STATE hoge TYPE dummy_uds WITH num=5;`), ShouldBeNil)
+
+			Convey("When updating the UDS", func() {
+				err := addBQLToTopology(tb, `UPDATE STATE hoge SET num=5;`)
+
+				Convey("There should be an error", func() {
+					So(err, ShouldNotBeNil)
+				})
+			})
+		})
+
+		Convey("Given updater UDS", func() {
+			So(addBQLToTopology(tb, `CREATE STATE hoge TYPE dummy_updatable_uds WITH num=5;`), ShouldBeNil)
+
+			Convey("When updating the UDS", func() {
+				err := addBQLToTopology(tb, `UPDATE STATE hoge SET num=5;`)
+
+				Convey("There should not be an error", func() {
+					So(err, ShouldBeNil)
+				})
+			})
+		})
+	})
+}

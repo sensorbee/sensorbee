@@ -143,6 +143,19 @@ func (tb *TopologyBuilder) AddStmt(stmt interface{}) (core.Node, error) {
 		}
 		return nil, nil
 
+	case parser.UpdateStateStmt:
+		ctx := tb.topology.Context()
+		state, err := ctx.SharedStates.Get(string(stmt.Name))
+		if err != nil {
+			return nil, err
+		}
+
+		u, ok := state.(core.Updater)
+		if !ok {
+			return nil, fmt.Errorf("%s cannot be updated", string(stmt.Name))
+		}
+		return nil, u.Update(tb.mkParamsMap(stmt.Params))
+
 	case parser.InsertIntoSelectStmt:
 		// get the sink to add an input to
 		sink, err := tb.topology.Sink(string(stmt.Sink))
