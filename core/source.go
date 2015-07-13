@@ -37,13 +37,13 @@ type Source interface {
 // handling pause and resume appropriately.
 type RewindableSource interface {
 	Source
-	ResumableNode
+	Resumable
 
 	// Rewind rewinds the stream the Source has. Rewind may be called
 	// concurrently while GenerateStream is running. If Rewind is called while
 	// the Source is being paused, the Source must not be resumed until
 	// Resume is explicitly called. The Source doesn't have to care about
-	// Pause/Resume if it doesn't implement ResumableNode.
+	// Pause/Resume if it doesn't implement Resumable.
 	Rewind(ctx *Context) error
 }
 

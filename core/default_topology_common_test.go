@@ -165,7 +165,7 @@ type TupleIncrementalEmitterSource struct {
 }
 
 var (
-	_ ResumableNode = &TupleIncrementalEmitterSource{}
+	_ Resumable = &TupleIncrementalEmitterSource{}
 )
 
 func NewTupleIncrementalEmitterSource(ts []*Tuple) *TupleIncrementalEmitterSource {

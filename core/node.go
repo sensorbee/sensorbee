@@ -309,9 +309,9 @@ func (c *SinkInputConfig) capacity() int {
 
 var defaultSinkInputConfig = &SinkInputConfig{}
 
-// ResumableNode is a node in a topology which can dynamically be paused and
+// Resumable is a node in a topology which can dynamically be paused and
 // resumed at runtime.
-type ResumableNode interface {
+type Resumable interface {
 	// Pause pauses a running node. A paused node can be resumed by calling
 	// Resume method. Pause is idempotent and pausing a paused node shouldn't
 	// fail. Pause may be called before a node runs. For example, when a node
