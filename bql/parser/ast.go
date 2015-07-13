@@ -83,6 +83,10 @@ type DropSourceStmt struct {
 	Source StreamIdentifier
 }
 
+type DropStreamStmt struct {
+	Source StreamIdentifier
+}
+
 type EmitterAST struct {
 	EmitterType   Emitter
 	EmitIntervals []StreamEmitIntervalAST
