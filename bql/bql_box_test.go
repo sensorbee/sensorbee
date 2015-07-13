@@ -3,12 +3,11 @@ package bql
 import (
 	"fmt"
 	. "github.com/smartystreets/goconvey/convey"
-	"pfi/sensorbee/sensorbee/core"
 	"pfi/sensorbee/sensorbee/data"
 	"testing"
 )
 
-func setupTopology(stmt string) (core.Topology, error) {
+func setupTopology(stmt string) (*TopologyBuilder, error) {
 	// create a stream from a dummy source
 	dt := newTestTopology()
 	tb, err := NewTopologyBuilder(dt)
@@ -31,7 +30,7 @@ func setupTopology(stmt string) (core.Topology, error) {
 	if err != nil {
 		return nil, err
 	}
-	return dt, err
+	return tb, err
 }
 
 func TestBasicBQLBoxConnectivity(t *testing.T) {
@@ -41,9 +40,10 @@ func TestBasicBQLBoxConnectivity(t *testing.T) {
 
 	Convey("Given an ISTREAM/2 SECONDS BQL statement", t, func() {
 		s := "CREATE STREAM box AS SELECT " +
-			"ISTREAM int, str((int+1) % 3) AS x FROM source [RANGE 2 SECONDS] WHERE int % 2 = 0"
-		dt, err := setupTopology(s)
+			"ISTREAM int, str((int+1) % 3) AS x FROM source [RANGE 1 TUPLES] WHERE int % 2 = 0"
+		tb, err := setupTopology(s)
 		So(err, ShouldBeNil)
+		dt := tb.Topology()
 		Reset(func() {
 			dt.Stop()
 		})
@@ -72,6 +72,16 @@ func TestBasicBQLBoxConnectivity(t *testing.T) {
 				})
 			})
 		})
+
+		Convey("When rewinding the source", func() {
+			si.Wait(2)
+			So(addBQLToTopology(tb, `REWIND SOURCE source;`), ShouldBeNil)
+
+			Convey("Then the sinkreceives tuples again", func() {
+				si.Wait(4)
+				So(len(si.Tuples), ShouldEqual, 4)
+			})
+		})
 	})
 }
 
@@ -86,8 +96,9 @@ func TestBQLBoxJoinCapability(t *testing.T) {
 		     duplicate('source', 3) [RANGE 1 TUPLES],
 		     duplicate('source', 2) [RANGE 1 TUPLES] AS d2
 		`
-		dt, err := setupTopology(s)
+		tb, err := setupTopology(s)
 		So(err, ShouldBeNil)
+		dt := tb.Topology()
 		Reset(func() {
 			dt.Stop()
 		})
@@ -162,8 +173,9 @@ func TestBQLBoxGroupByCapability(t *testing.T) {
 
 func TestBQLBoxUDSF(t *testing.T) {
 	Convey("Given a topology using UDSF", t, func() {
-		dt, err := setupTopology(`CREATE STREAM box AS SELECT ISTREAM duplicate:int FROM duplicate('source', 3) [RANGE 1 TUPLES]`)
+		tb, err := setupTopology(`CREATE STREAM box AS SELECT ISTREAM duplicate:int FROM duplicate('source', 3) [RANGE 1 TUPLES]`)
 		So(err, ShouldBeNil)
+		dt := tb.Topology()
 		Reset(func() {
 			dt.Stop()
 		})

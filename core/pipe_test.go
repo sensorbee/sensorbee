@@ -516,6 +516,7 @@ func TestDataDestinations(t *testing.T) {
 			Convey("Then the write should be blocked", func() {
 				Reset(func() {
 					dsts.resume()
+					<-ch
 				})
 
 				blocked := true

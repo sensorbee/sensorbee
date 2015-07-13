@@ -209,9 +209,17 @@ func (tb *TopologyBuilder) AddStmt(stmt interface{}) (core.Node, error) {
 			return nil, err
 		}
 		return src, nil
-	}
 
-	// TODO: case parser.RewindSourceStmt
+	case parser.RewindSourceStmt:
+		src, err := tb.topology.Source(string(stmt.Source))
+		if err != nil {
+			return nil, err
+		}
+		if err := src.Rewind(); err != nil {
+			return nil, err
+		}
+		return src, nil
+	}
 
 	return nil, fmt.Errorf("statement of type %T is unimplemented", stmt)
 }

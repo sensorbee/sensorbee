@@ -50,7 +50,7 @@ func createDummySource(ctx *core.Context, params data.Map) (core.Source, error) 
 
 	s := &tupleEmitterSource{Tuples: mkTuples(numTuples)}
 	s.c = sync.NewCond(&s.m)
-	return s, nil
+	return core.NewRewindableSource(s), nil
 }
 
 // tupleEmitterSource is a source that emits all tuples in the given
@@ -65,6 +65,17 @@ type tupleEmitterSource struct {
 }
 
 func (s *tupleEmitterSource) GenerateStream(ctx *core.Context, w core.Writer) error {
+	s.m.Lock()
+	s.state = 0
+	s.m.Unlock()
+
+	defer func() {
+		s.m.Lock()
+		defer s.m.Unlock()
+		s.state = 2
+		s.c.Broadcast()
+	}()
+
 	for _, t := range s.Tuples {
 		s.m.Lock()
 		if s.state > 0 {
@@ -75,13 +86,12 @@ func (s *tupleEmitterSource) GenerateStream(ctx *core.Context, w core.Writer) er
 		}
 		s.m.Unlock()
 
-		w.Write(ctx, t)
+		if err := w.Write(ctx, t.Copy()); err != nil {
+			if err == core.ErrSourceRewound || err == core.ErrSourceStopped {
+				return err
+			}
+		}
 	}
-
-	s.m.Lock()
-	defer s.m.Unlock()
-	s.state = 2
-	s.c.Broadcast()
 	return nil
 }
 
