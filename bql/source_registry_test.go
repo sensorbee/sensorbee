@@ -73,7 +73,7 @@ func TestDefaultSourceCreatorRegistry(t *testing.T) {
 				Convey("And it should have the expected type", func() {
 					s, err := c.CreateSource(ctx, nil)
 					So(err, ShouldBeNil)
-					So(s, ShouldHaveSameTypeAs, &tupleEmitterSource{})
+					So(s, ShouldImplement, (*core.RewindableSource)(nil))
 				})
 			})
 		})
