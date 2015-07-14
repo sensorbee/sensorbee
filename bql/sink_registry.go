@@ -130,3 +130,21 @@ func CopyGlobalSinkCreatorRegistry() (SinkCreatorRegistry, error) {
 	}
 	return r, nil
 }
+
+func createSharedStateSink(ctx *core.Context, params data.Map) (core.Sink, error) {
+	// Get only name parameter from params
+	name, ok := params["name"]
+	if !ok {
+		return nil, fmt.Errorf("cannot find 'name' field")
+	}
+	nameStr, err := data.AsString(name)
+	if err != nil {
+		return nil, err
+	}
+
+	return core.NewSharedStateSink(ctx, nameStr)
+}
+
+func init() {
+	RegisterGlobalSinkCreator("uds", SinkCreatorFunc(createSharedStateSink))
+}
