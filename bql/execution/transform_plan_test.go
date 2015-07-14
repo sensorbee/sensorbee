@@ -15,7 +15,18 @@ type dummyAggregate struct {
 }
 
 func (f *dummyAggregate) Call(ctx *core.Context, args ...data.Value) (data.Value, error) {
-	return data.Int(42), nil
+	if len(args) == 1 || len(args) == 2 {
+		arr, err := data.AsArray(args[0])
+		if err != nil {
+			return nil, fmt.Errorf("udaf needs an array input, not %v", args[0])
+		}
+		c := len(arr)
+		if len(args) == 1 {
+			return data.String(fmt.Sprintf("%d", c)), nil
+		}
+		return data.String(fmt.Sprintf("%d+%s", c, args[1])), nil
+	}
+	return nil, fmt.Errorf("udaf takes one or two arguments")
 }
 
 func (f *dummyAggregate) Accept(arity int) bool {
@@ -575,7 +586,6 @@ func TestRelationAliasing(t *testing.T) {
 func TestAggregateChecker(t *testing.T) {
 	reg := udf.CopyGlobalUDFRegistry(core.NewContext(nil))
 
-	countFun, _ := reg.Lookup("count", 1)
 	dummyFun := &dummyAggregate{}
 	toString := udf.UnaryFunc(func(ctx *core.Context, v data.Value) (data.Value, error) {
 		return data.String(v.String()), nil
@@ -589,7 +599,7 @@ func TestAggregateChecker(t *testing.T) {
 		bql           string
 		expectedError string
 		expr          FlatExpression
-		aggrs         map[string]AggFuncAppAST
+		aggrs         map[string]FlatExpression
 	}{
 		// a is no aggregate call, so the `aggrs` list is empty
 		// and the selected expression is transformed normally
@@ -606,18 +616,18 @@ func TestAggregateChecker(t *testing.T) {
 		// there is an aggregate call `count(a)`, so it is referenced from
 		// the expression list and appears in the `aggrs` list
 		{"count(a) FROM x [RANGE 1 TUPLES]", "",
-			AggFuncAppRef{"ae5601766"},
-			map[string]AggFuncAppAST{
-				"ae5601766": AggFuncAppAST{countFun, RowValue{"x", "a"}},
+			FuncAppAST{"count", []FlatExpression{AggInputRef{"_f12cd6bc"}}},
+			map[string]FlatExpression{
+				"_f12cd6bc": RowValue{"x", "a"},
 			}},
 
 		// there is an aggregate call `count(a)`, so it is referenced from
 		// the expression list and appears in the `aggrs` list
 		{"a + count(a) FROM x [RANGE 1 TUPLES] GROUP BY a", "",
 			BinaryOpAST{parser.Plus,
-				RowValue{"x", "a"}, AggFuncAppRef{"ae5601766"}},
-			map[string]AggFuncAppAST{
-				"ae5601766": AggFuncAppAST{countFun, RowValue{"x", "a"}},
+				RowValue{"x", "a"}, FuncAppAST{"count", []FlatExpression{AggInputRef{"_f12cd6bc"}}}},
+			map[string]FlatExpression{
+				"_f12cd6bc": RowValue{"x", "a"},
 			}},
 
 		// there is an aggregate call `udaf(a+1)`, so it is referenced from
@@ -625,45 +635,40 @@ func TestAggregateChecker(t *testing.T) {
 		{"a + udaf(a + 1) FROM x [RANGE 1 TUPLES] GROUP BY a", "",
 			BinaryOpAST{parser.Plus,
 				RowValue{"x", "a"},
-				AggFuncAppRef{"a383ac4b7"}},
-			map[string]AggFuncAppAST{
-				"a383ac4b7": AggFuncAppAST{dummyFun,
-					BinaryOpAST{parser.Plus, RowValue{"x", "a"}, NumericLiteral{1}}},
+				FuncAppAST{"udaf", []FlatExpression{AggInputRef{"_20fea01a"}}}},
+			map[string]FlatExpression{
+				"_20fea01a": BinaryOpAST{parser.Plus, RowValue{"x", "a"}, NumericLiteral{1}},
 			}},
 
 		// there are two aggregate calls, so both are referenced from the
 		// expression list and there are two entries in the `aggrs` list
 		{"udaf(a + f(1)) + g(count(a)) FROM x [RANGE 1 TUPLES]", "",
 			BinaryOpAST{parser.Plus,
-				AggFuncAppRef{"a67272403"},
+				FuncAppAST{"udaf", []FlatExpression{AggInputRef{"_dc5401d5"}}},
 				FuncAppAST{"g", []FlatExpression{
-					AggFuncAppRef{"ae5601766"},
+					FuncAppAST{"count", []FlatExpression{AggInputRef{"_f12cd6bc"}}},
 				}},
 			},
-			map[string]AggFuncAppAST{
-				"a67272403": AggFuncAppAST{dummyFun,
-					BinaryOpAST{parser.Plus,
-						RowValue{"x", "a"},
-						FuncAppAST{"f", []FlatExpression{NumericLiteral{1}}},
-					}},
-				"ae5601766": AggFuncAppAST{countFun, RowValue{"x", "a"}},
+			map[string]FlatExpression{
+				"_dc5401d5": BinaryOpAST{parser.Plus,
+					RowValue{"x", "a"},
+					FuncAppAST{"f", []FlatExpression{NumericLiteral{1}}},
+				},
+				"_f12cd6bc": RowValue{"x", "a"},
 			}},
 
 		// there are two aggregate calls, but they use the same value,
 		// so the `aggrs` list contains only one entry
 		{"count(a) + g(count(a)) FROM x [RANGE 1 TUPLES]", "",
 			BinaryOpAST{parser.Plus,
-				AggFuncAppRef{"ae5601766"},
+				FuncAppAST{"count", []FlatExpression{AggInputRef{"_f12cd6bc"}}},
 				FuncAppAST{"g", []FlatExpression{
-					AggFuncAppRef{"ae5601766"},
+					FuncAppAST{"count", []FlatExpression{AggInputRef{"_f12cd6bc"}}},
 				}},
 			},
-			map[string]AggFuncAppAST{
-				"ae5601766": AggFuncAppAST{countFun, RowValue{"x", "a"}},
+			map[string]FlatExpression{
+				"_f12cd6bc": RowValue{"x", "a"},
 			}},
-
-		{"a + udaf(a, 1) FROM x [RANGE 1 TUPLES]",
-			"aggregate functions must have exactly one parameter", nil, nil},
 
 		{"count(udaf(a)) FROM x [RANGE 1 TUPLES]",
 			"aggregate functions cannot be nested", nil, nil},
@@ -683,28 +688,31 @@ func TestAggregateChecker(t *testing.T) {
 			nil},
 
 		{"count(a) FROM x [RANGE 1 TUPLES] GROUP BY a", "",
-			AggFuncAppRef{"ae5601766"},
-			map[string]AggFuncAppAST{
-				"ae5601766": AggFuncAppAST{countFun, RowValue{"x", "a"}},
+			FuncAppAST{"count", []FlatExpression{AggInputRef{"_f12cd6bc"}}},
+			map[string]FlatExpression{
+				"_f12cd6bc": RowValue{"x", "a"},
 			}},
 
 		{"count(b) FROM x [RANGE 1 TUPLES] GROUP BY a", "",
-			AggFuncAppRef{"a09f9330d"},
-			map[string]AggFuncAppAST{
-				"a09f9330d": AggFuncAppAST{countFun, RowValue{"x", "b"}},
+			FuncAppAST{"count", []FlatExpression{AggInputRef{"_77d2dd39"}}},
+			map[string]FlatExpression{
+				"_77d2dd39": RowValue{"x", "b"},
 			}},
 
 		{"count(b), a FROM x [RANGE 1 TUPLES] GROUP BY a", "",
-			AggFuncAppRef{"a09f9330d"}, // just the first one
-			map[string]AggFuncAppAST{
-				"a09f9330d": AggFuncAppAST{countFun, RowValue{"x", "b"}},
+			FuncAppAST{"count", []FlatExpression{AggInputRef{"_77d2dd39"}}}, // just the first one
+			map[string]FlatExpression{
+				"_77d2dd39": RowValue{"x", "b"},
 			}},
 
 		{"count(b), a, c FROM x [RANGE 1 TUPLES] GROUP BY a, c", "",
-			AggFuncAppRef{"a09f9330d"}, // just the first one
-			map[string]AggFuncAppAST{
-				"a09f9330d": AggFuncAppAST{countFun, RowValue{"x", "b"}},
+			FuncAppAST{"count", []FlatExpression{AggInputRef{"_77d2dd39"}}}, // just the first one
+			map[string]FlatExpression{
+				"_77d2dd39": RowValue{"x", "b"},
 			}},
+
+		{"udaf(x, a) FROM x [RANGE 1 TUPLES] GROUP BY b",
+			"column \"x:a\" must appear in the GROUP BY clause or be used in an aggregate function", nil, nil},
 
 		{"a FROM x [RANGE 1 TUPLES] GROUP BY b",
 			"column \"x:a\" must appear in the GROUP BY clause or be used in an aggregate function", nil, nil},

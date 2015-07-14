@@ -15,7 +15,7 @@ import (
 type aliasedExpression struct {
 	alias      string
 	expr       FlatExpression
-	aggrInputs map[string]AggFuncAppAST
+	aggrInputs map[string]FlatExpression
 }
 
 // ParserExprToFlatExpr converts an expression obtained by the BQL parser
@@ -90,7 +90,7 @@ func ParserExprToFlatExpr(e parser.Expression, reg udf.FunctionRegistry) (FlatEx
 // ParserExprToMaybeAggregate converts an expression obtained by the BQL
 // parser into a data structure where the aggregate and the non-aggregate
 // parts are separated.
-func ParserExprToMaybeAggregate(e parser.Expression, reg udf.FunctionRegistry) (FlatExpression, map[string]AggFuncAppAST, error) {
+func ParserExprToMaybeAggregate(e parser.Expression, reg udf.FunctionRegistry) (FlatExpression, map[string]FlatExpression, error) {
 	switch obj := e.(type) {
 	default:
 		// elementary types
@@ -108,7 +108,7 @@ func ParserExprToMaybeAggregate(e parser.Expression, reg udf.FunctionRegistry) (
 		if err != nil {
 			return nil, nil, err
 		}
-		var returnAgg map[string]AggFuncAppAST
+		var returnAgg map[string]FlatExpression
 		if leftAgg != nil {
 			returnAgg = leftAgg
 			for key, val := range rightAgg {
@@ -131,35 +131,38 @@ func ParserExprToMaybeAggregate(e parser.Expression, reg udf.FunctionRegistry) (
 		if err != nil {
 			return nil, nil, err
 		}
+		// compute child expressions
+		exprs := make([]FlatExpression, len(obj.Expressions))
+		returnAgg := map[string]FlatExpression{}
 		if isAggregateFunc(function, len(obj.Expressions), reg) {
-			// we can only have one parameter
-			if len(obj.Expressions) != 1 {
-				err := fmt.Errorf("aggregate functions must have exactly one parameter")
-				return nil, nil, err
-			}
-			// this expression must be flat, there must not be other aggregates
-			expr, err := ParserExprToFlatExpr(obj.Expressions[0], reg)
-			if err != nil {
-				// return a prettier error message
-				if strings.HasPrefix(err.Error(), "you cannot use aggregate") {
-					err = fmt.Errorf("aggregate functions cannot be nested")
+			// we have a setting like
+			//  SELECT udaf(x+1, 'state', c) ... GROUP BY c
+			// where some parameters are aggregates, others aren't.
+			for i, ast := range obj.Expressions {
+				// this expression must be flat, there must not be other aggregates
+				expr, err := ParserExprToFlatExpr(ast, reg)
+				if err != nil {
+					// return a prettier error message
+					if strings.HasPrefix(err.Error(), "you cannot use aggregate") {
+						err = fmt.Errorf("aggregate functions cannot be nested")
+					}
+					return nil, nil, err
 				}
-				return nil, nil, err
+				isAggr := function.IsAggregationParameter(i + 1) // parameters count from 1
+				if isAggr {
+					// this is an aggregation parameter, we will replace
+					// it by a reference to the aggregated list of values
+					h := sha1.New()
+					h.Write([]byte(fmt.Sprintf("%s", expr.Repr())))
+					exprId := "_" + hex.EncodeToString(h.Sum(nil))[:8]
+					exprs[i] = AggInputRef{exprId}
+					returnAgg[exprId] = expr
+				} else {
+					// this is a non-aggregate parameter, use as is
+					exprs[i] = expr
+				}
 			}
-			// get a string that identifies this sub-expression and that
-			// can be used for key access in a Map (i.e., no special chars).
-			// we use the first characters of the SHA1 hash of a string
-			// representation like "count(x:a+1)" and prefix it with an "a"
-			// to prevent all-numeric strings
-			h := sha1.New()
-			h.Write([]byte(fmt.Sprintf("%s(%s)", obj.Function, expr.Repr())))
-			funcId := "a" + hex.EncodeToString(h.Sum(nil))[:8]
-			a := AggFuncAppAST{function, expr}
-			return AggFuncAppRef{funcId}, map[string]AggFuncAppAST{funcId: a}, nil
 		} else {
-			// compute child expressions
-			exprs := make([]FlatExpression, len(obj.Expressions))
-			returnAgg := map[string]AggFuncAppAST{}
 			for i, ast := range obj.Expressions {
 				expr, agg, err := ParserExprToMaybeAggregate(ast, reg)
 				if err != nil {
@@ -173,8 +176,8 @@ func ParserExprToMaybeAggregate(e parser.Expression, reg udf.FunctionRegistry) (
 			if len(returnAgg) == 0 {
 				returnAgg = nil
 			}
-			return FuncAppAST{obj.Function, exprs}, returnAgg, nil
 		}
+		return FuncAppAST{obj.Function, exprs}, returnAgg, nil
 	}
 	err := fmt.Errorf("don't know how to convert type %#v", e)
 	return nil, nil, err
@@ -235,7 +238,11 @@ func (f FuncAppAST) Repr() string {
 }
 
 func (f FuncAppAST) Columns() []RowValue {
-	return nil
+	allColumns := []RowValue{}
+	for _, e := range f.Expressions {
+		allColumns = append(allColumns, e.Columns()...)
+	}
+	return allColumns
 }
 
 type WildcardAST struct {
@@ -249,15 +256,15 @@ func (w WildcardAST) Columns() []RowValue {
 	return nil
 }
 
-type AggFuncAppRef struct {
+type AggInputRef struct {
 	Ref string
 }
 
-func (af AggFuncAppRef) Repr() string {
-	return af.Ref
+func (a AggInputRef) Repr() string {
+	return a.Ref
 }
 
-func (af AggFuncAppRef) Columns() []RowValue {
+func (a AggInputRef) Columns() []RowValue {
 	return nil
 }
 

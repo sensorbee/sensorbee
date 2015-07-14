@@ -63,7 +63,7 @@ func ExpressionToEvaluator(ast FlatExpression, reg udf.FunctionRegistry) (Evalua
 		}
 	case RowValue:
 		return &PathAccess{obj.Relation + "." + obj.Column}, nil
-	case AggFuncAppRef:
+	case AggInputRef:
 		return &PathAccess{obj.Ref}, nil
 	case NullLiteral:
 		return &NullConstant{}, nil

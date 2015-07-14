@@ -187,6 +187,82 @@ func TestGroupbyExecutionPlan(t *testing.T) {
 		})
 	})
 
+	Convey("Given a SELECT clause with a multiple-parameters aggregation (agg+const) and GROUP BY", t, func() {
+		tuples := getOtherTuples()
+		s := `CREATE STREAM box AS SELECT RSTREAM foo, udaf(int, 'hoge') FROM src [RANGE 3 TUPLES] GROUP BY foo`
+		plan, err := createGroupbyPlan(s, t)
+		So(err, ShouldBeNil)
+
+		Convey("When feeding it with tuples", func() {
+			for idx, inTup := range tuples {
+				out, err := plan.Process(inTup)
+				So(err, ShouldBeNil)
+
+				Convey(fmt.Sprintf("Then those values should appear in %v", idx), func() {
+					if idx == 0 {
+						So(len(out), ShouldEqual, 1)
+						So(out[0], ShouldResemble,
+							data.Map{"foo": data.Int(1), "udaf": data.String(`1+"hoge"`)})
+					} else if idx == 1 {
+						So(len(out), ShouldEqual, 1)
+						So(out[0], ShouldResemble,
+							data.Map{"foo": data.Int(1), "udaf": data.String(`2+"hoge"`)})
+					} else if idx == 2 {
+						So(len(out), ShouldEqual, 2)
+						So(out[0], ShouldResemble,
+							data.Map{"foo": data.Int(1), "udaf": data.String(`2+"hoge"`)})
+						So(out[1], ShouldResemble,
+							data.Map{"foo": data.Int(2), "udaf": data.String(`1+"hoge"`)})
+					} else {
+						So(len(out), ShouldEqual, 2)
+						So(out[0], ShouldResemble,
+							data.Map{"foo": data.Int(1), "udaf": data.String(`1+"hoge"`)})
+						So(out[1], ShouldResemble,
+							data.Map{"foo": data.Int(2), "udaf": data.String(`2+"hoge"`)})
+					}
+				})
+			}
+		})
+	})
+
+	Convey("Given a SELECT clause with a multiple-parameters aggregation (agg+groupby) and GROUP BY", t, func() {
+		tuples := getOtherTuples()
+		s := `CREATE STREAM box AS SELECT RSTREAM foo, udaf(int, foo) FROM src [RANGE 3 TUPLES] GROUP BY foo`
+		plan, err := createGroupbyPlan(s, t)
+		So(err, ShouldBeNil)
+
+		Convey("When feeding it with tuples", func() {
+			for idx, inTup := range tuples {
+				out, err := plan.Process(inTup)
+				So(err, ShouldBeNil)
+
+				Convey(fmt.Sprintf("Then those values should appear in %v", idx), func() {
+					if idx == 0 {
+						So(len(out), ShouldEqual, 1)
+						So(out[0], ShouldResemble,
+							data.Map{"foo": data.Int(1), "udaf": data.String(`1+1`)})
+					} else if idx == 1 {
+						So(len(out), ShouldEqual, 1)
+						So(out[0], ShouldResemble,
+							data.Map{"foo": data.Int(1), "udaf": data.String(`2+1`)})
+					} else if idx == 2 {
+						So(len(out), ShouldEqual, 2)
+						So(out[0], ShouldResemble,
+							data.Map{"foo": data.Int(1), "udaf": data.String(`2+1`)})
+						So(out[1], ShouldResemble,
+							data.Map{"foo": data.Int(2), "udaf": data.String(`1+2`)})
+					} else {
+						So(len(out), ShouldEqual, 2)
+						So(out[0], ShouldResemble,
+							data.Map{"foo": data.Int(1), "udaf": data.String(`1+1`)})
+						So(out[1], ShouldResemble,
+							data.Map{"foo": data.Int(2), "udaf": data.String(`2+2`)})
+					}
+				})
+			}
+		})
+	})
+
 	Convey("Given a SELECT clause with a simple aggregation and GROUP BY and WHERE on the aggregated column", t, func() {
 		tuples := getOtherTuples()
 		s := `CREATE STREAM box AS SELECT RSTREAM foo, count(int) FROM src [RANGE 3 TUPLES] WHERE int%2=1 GROUP BY foo`
@@ -478,22 +554,6 @@ func TestGroupbyExecutionPlan(t *testing.T) {
 		_, err := createGroupbyPlan(s, t)
 		So(err, ShouldNotBeNil)
 		So(err.Error(), ShouldStartWith, "function 'unknownUDAF' is unknown")
-	})
-
-	Convey("Given an SELECT statement with a multiple-paramater UDAF (1)", t, func() {
-		// using one column-involving expression and one foldable expression
-		s := `CREATE STREAM box AS SELECT RSTREAM foo, udaf(int, 'hoge') FROM src [RANGE 3 TUPLES] GROUP BY foo`
-		_, err := createGroupbyPlan(s, t)
-		So(err, ShouldNotBeNil)
-		So(err.Error(), ShouldEqual, "aggregate functions must have exactly one parameter")
-	})
-
-	Convey("Given an SELECT statement with a multiple-paramater UDAF (2)", t, func() {
-		// using two column-involving expressions
-		s := `CREATE STREAM box AS SELECT RSTREAM foo, udaf(int, int) FROM src [RANGE 3 TUPLES] GROUP BY foo`
-		_, err := createGroupbyPlan(s, t)
-		So(err, ShouldNotBeNil)
-		So(err.Error(), ShouldEqual, "aggregate functions must have exactly one parameter")
 	})
 
 	Convey("Given an SELECT statement with a timestamp", t, func() {

@@ -194,7 +194,7 @@ func (ep *groupbyExecutionPlan) performQueryOnBuffer() error {
 				// this column involves an aggregate function, but there
 				// may be multiple ones
 				for key, agg := range proj.aggrEvals {
-					value, err := agg.aggrEval.Eval(d)
+					value, err := agg.Eval(d)
 					if err != nil {
 						return err
 					}
@@ -209,23 +209,15 @@ func (ep *groupbyExecutionPlan) performQueryOnBuffer() error {
 	evalGroup := func(group *tmpGroupData) error {
 		result := data.Map(make(map[string]data.Value, len(ep.projections)))
 		for _, proj := range ep.projections {
-			// compute aggregate values
+			// collect input for aggregate functions
 			if proj.hasAggregate {
-				// this column involves an aggregate function, but there
-				// may be multiple ones
-				for key, agg := range proj.aggrEvals {
+				for key := range proj.aggrEvals {
 					aggregateInputs := group.aggData[key]
-					// call the UDAF with the aggregated data
-					// TODO pass the context as well
-					result, err := agg.aggrFun.Call(nil, data.Array(aggregateInputs))
-					if err != nil {
-						return err
-					}
-					group.nonAggData[key] = result
+					group.nonAggData[key] = data.Array(aggregateInputs)
 					delete(group.aggData, key)
 				}
 			}
-			// now evaluate this projection on  the flattened data
+			// now evaluate this projection on the flattened data
 			value, err := proj.evaluator.Eval(group.nonAggData)
 			if err != nil {
 				return err
