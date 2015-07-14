@@ -37,7 +37,7 @@ func createDuplicateUDSF(decl UDSFDeclarer, stream string, dup int) (UDSF, error
 }
 
 func init() {
-	RegisterGlobalUDSFCreator("duplicate", MustConvertToUDSFCreator(createDuplicateUDSF))
+	MustRegisterGlobalUDSFCreator("duplicate", MustConvertToUDSFCreator(createDuplicateUDSF))
 }
 
 func TestDuplicateUDSF(t *testing.T) {
