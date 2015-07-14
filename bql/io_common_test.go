@@ -109,8 +109,8 @@ func (s *tupleEmitterSource) Stop(ctx *core.Context) error {
 	return nil
 }
 
-// createDummyUpdatableSource creates a source that
-// can be updated source. It creates tupleEmitterSource inherited object.
+// createDummyUpdatableSource creates a source that can be updated.
+// It creates an object inheriting from tupleEmitterSource.
 func createDummyUpdatableSource(ctx *core.Context, params data.Map) (core.Source, error) {
 	numTuples := 4
 	// check the given source parameters
