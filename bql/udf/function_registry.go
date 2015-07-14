@@ -15,6 +15,12 @@ type UDF interface {
 	// Accept checks if the function accepts the given number of arguments
 	// excluding core.Context.
 	Accept(arity int) bool
+
+	// IsAggregationParameter returns true if the k-th parameter expects
+	// aggregated values. A UDF with Accept(n) == true is an aggregate
+	// function if and only if this function returns true for one or more
+	// values of k in the range 1, ..., n.
+	IsAggregationParameter(k int) bool
 }
 
 type function struct {
@@ -31,6 +37,10 @@ func (f *function) Accept(arity int) bool {
 		return true
 	}
 	return arity == f.arity
+}
+
+func (f *function) IsAggregationParameter(k int) bool {
+	return false
 }
 
 // VariadicFunc creates a UDF based on a function receiving the variadic number
@@ -195,4 +205,5 @@ func init() {
 		return data.String(v.String()), nil
 	}
 	globalUDFRegistry.Register("str", UnaryFunc(toString))
+	globalUDFRegistry.Register("count", &countAggregate{})
 }

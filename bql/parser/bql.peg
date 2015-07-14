@@ -315,7 +315,7 @@ FuncApp <- Function sp '(' sp FuncParams sp ')' {
         p.AssembleFuncApp()
     }
 
-FuncParams <- < Expression sp (',' sp Expression)* > {
+FuncParams <- < Wildcard / (Expression sp (',' sp Expression)*) > {
         p.AssembleExpressions(begin, end)
     }
 

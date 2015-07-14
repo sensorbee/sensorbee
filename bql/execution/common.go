@@ -12,12 +12,7 @@ type aliasedEvaluator struct {
 	alias        string
 	evaluator    Evaluator
 	hasAggregate bool
-	aggrEvals    map[string]aggregationEvaluator
-}
-
-type aggregationEvaluator struct {
-	aggrFun  parser.FuncName
-	aggrEval Evaluator
+	aggrEvals    map[string]Evaluator
 }
 
 type commonExecutionPlan struct {
@@ -38,15 +33,15 @@ func prepareProjections(projections []aliasedExpression, reg udf.FunctionRegistr
 		}
 		containsAggregate := len(proj.aggrInputs) > 0
 		// compute evaluators for the aggregate inputs
-		var aggrEvals map[string]aggregationEvaluator
+		var aggrEvals map[string]Evaluator
 		if containsAggregate {
-			aggrEvals = make(map[string]aggregationEvaluator, len(proj.aggrInputs))
+			aggrEvals = make(map[string]Evaluator, len(proj.aggrInputs))
 			for key, aggrInput := range proj.aggrInputs {
-				aggrEval, err := ExpressionToEvaluator(aggrInput.Expression, reg)
+				aggrEval, err := ExpressionToEvaluator(aggrInput, reg)
 				if err != nil {
 					return nil, err
 				}
-				aggrEvals[key] = aggregationEvaluator{aggrInput.Function, aggrEval}
+				aggrEvals[key] = aggrEval
 			}
 		}
 		output[i] = aliasedEvaluator{proj.alias, plan, containsAggregate, aggrEvals}

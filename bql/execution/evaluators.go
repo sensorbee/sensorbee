@@ -38,7 +38,7 @@ func EvaluateFoldable(expr parser.Expression, reg udf.FunctionRegistry) (data.Va
 	if !expr.Foldable() {
 		return nil, fmt.Errorf("expression is not foldable: %s", expr)
 	}
-	flatExpr, err := ParserExprToFlatExpr(expr, isAggregateDummy)
+	flatExpr, err := ParserExprToFlatExpr(expr, reg)
 	if err != nil {
 		return nil, err
 	}
@@ -63,7 +63,7 @@ func ExpressionToEvaluator(ast FlatExpression, reg udf.FunctionRegistry) (Evalua
 		}
 	case RowValue:
 		return &PathAccess{obj.Relation + "." + obj.Column}, nil
-	case AggFuncAppRef:
+	case AggInputRef:
 		return &PathAccess{obj.Ref}, nil
 	case NullLiteral:
 		return &NullConstant{}, nil

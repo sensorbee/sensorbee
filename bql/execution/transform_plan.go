@@ -46,7 +46,7 @@ type ExecutionPlan interface {
 	Process(input *core.Tuple) ([]data.Map, error)
 }
 
-func Analyze(s parser.CreateStreamAsSelectStmt) (*LogicalPlan, error) {
+func Analyze(s parser.CreateStreamAsSelectStmt, reg udf.FunctionRegistry) (*LogicalPlan, error) {
 	/*
 	   In Spark, this does the following:
 
@@ -70,22 +70,26 @@ func Analyze(s parser.CreateStreamAsSelectStmt) (*LogicalPlan, error) {
 		return nil, err
 	}
 
-	return flattenExpressions(&s)
+	return flattenExpressions(&s, reg)
 }
 
-// dummy implementation of aggregate function lookup
-// TODO think of the real lookup mechanism
-func isAggregateDummy(fName string) bool {
-	if fName == "count" || fName == "udaf" {
-		return true
+// isAggregateFunc is a helper function to check if one of
+// the parameters of the given function is an aggregate
+// parameter.
+func isAggregateFunc(f udf.UDF, arity int, reg udf.FunctionRegistry) bool {
+	agg := false
+	for k := 1; k <= arity; k++ {
+		if f.IsAggregationParameter(k) {
+			agg = true
+		}
 	}
-	return false
+	return agg
 }
 
 // flattenExpressions separates the aggregate and non-aggregate
 // part in a statement and returns with an error if there are
 // aggregates in structures that may not have some
-func flattenExpressions(s *parser.CreateStreamAsSelectStmt) (*LogicalPlan, error) {
+func flattenExpressions(s *parser.CreateStreamAsSelectStmt, reg udf.FunctionRegistry) (*LogicalPlan, error) {
 	// groupingMode is active when aggregate functions or the
 	// GROUP BY clause are used
 	groupingMode := false
@@ -93,7 +97,7 @@ func flattenExpressions(s *parser.CreateStreamAsSelectStmt) (*LogicalPlan, error
 	flatProjExprs := make([]aliasedExpression, len(s.Projections))
 	for i, expr := range s.Projections {
 		// convert the parser Expression to a FlatExpression
-		flatExpr, aggrs, err := ParserExprToMaybeAggregate(expr, isAggregateDummy)
+		flatExpr, aggrs, err := ParserExprToMaybeAggregate(expr, reg)
 		if err != nil {
 			return nil, err
 		}
@@ -136,7 +140,7 @@ func flattenExpressions(s *parser.CreateStreamAsSelectStmt) (*LogicalPlan, error
 
 	var filterExpr FlatExpression
 	if s.Filter != nil {
-		filterFlatExpr, err := ParserExprToFlatExpr(s.Filter, isAggregateDummy)
+		filterFlatExpr, err := ParserExprToFlatExpr(s.Filter, reg)
 		if err != nil {
 			// return a prettier error message
 			if strings.HasPrefix(err.Error(), "you cannot use aggregate") {
@@ -151,7 +155,7 @@ func flattenExpressions(s *parser.CreateStreamAsSelectStmt) (*LogicalPlan, error
 	flatGroupExprs := make([]FlatExpression, len(s.GroupList))
 	for i, expr := range s.GroupList {
 		// convert the parser Expression to a FlatExpression
-		flatExpr, err := ParserExprToFlatExpr(expr, isAggregateDummy)
+		flatExpr, err := ParserExprToFlatExpr(expr, reg)
 		if err != nil {
 			// return a prettier error message
 			if strings.HasPrefix(err.Error(), "you cannot use aggregate") {

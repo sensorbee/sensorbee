@@ -425,3 +425,8 @@ func (g *genericFunc) Accept(arity int) bool {
 	}
 	return true
 }
+
+func (g *genericFunc) IsAggregationParameter(k int) bool {
+	// at the moment we cannot produce generic aggregate functions
+	return false
+}

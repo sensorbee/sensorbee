@@ -38,7 +38,7 @@ func createDefaultSelectPlan(s string, t *testing.T) (ExecutionPlan, error) {
 	}
 	So(_stmt, ShouldHaveSameTypeAs, parser.CreateStreamAsSelectStmt{})
 	stmt := _stmt.(parser.CreateStreamAsSelectStmt)
-	logicalPlan, err := Analyze(stmt)
+	logicalPlan, err := Analyze(stmt, reg)
 	if err != nil {
 		return nil, err
 	}

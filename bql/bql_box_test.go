@@ -154,18 +154,17 @@ func TestBQLBoxGroupByCapability(t *testing.T) {
 
 		Convey("When 4 tuples are emitted by the source", func() {
 
-			Convey("Then the sink receives 2 tuples", func() {
-				si.Wait(2)
+			Convey("Then the sink receives 3 tuples", func() {
+				si.Wait(3)
 				So(si.Tuples, ShouldNotBeNil)
-				So(len(si.Tuples), ShouldEqual, 2)
+				So(len(si.Tuples), ShouldEqual, 3)
 
 				Convey("And the tuples have the correct counts", func() {
-					// after the first tuple, the input is empty so nothing
-					// is emitted (actually 0 should be emitted)
-					So(si.Tuples[0].Data["count"], ShouldResemble, data.Int(1))
+					So(si.Tuples[0].Data["count"], ShouldResemble, data.Int(0))
+					So(si.Tuples[1].Data["count"], ShouldResemble, data.Int(1))
 					// the third tuple is not counted because of WHERE, so
 					// ISTREAM doesn't emit anything
-					So(si.Tuples[1].Data["count"], ShouldResemble, data.Int(2))
+					So(si.Tuples[2].Data["count"], ShouldResemble, data.Int(2))
 				})
 			})
 		})
