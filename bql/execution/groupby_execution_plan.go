@@ -215,10 +215,12 @@ func (ep *groupbyExecutionPlan) performQueryOnBuffer() error {
 				// may be multiple ones
 				for key, agg := range proj.aggrEvals {
 					aggregateInputs := group.aggData[key]
-					_ = agg.aggrFun
-					// TODO use the real function, not poor man's "count",
-					//      and also return an error on failure
-					result := data.Int(len(aggregateInputs))
+					// call the UDAF with the aggregated data
+					// TODO pass the context as well
+					result, err := agg.aggrFun.Call(nil, data.Array(aggregateInputs))
+					if err != nil {
+						return err
+					}
 					group.nonAggData[key] = result
 					delete(group.aggData, key)
 				}
