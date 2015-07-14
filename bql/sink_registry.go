@@ -106,6 +106,14 @@ func RegisterGlobalSinkCreator(typeName string, c SinkCreator) error {
 	return globalSinkCreatorRegistry.Register(typeName, c)
 }
 
+// MustRegisterGlobalSinkCreator is like RegisterGlobalSinkCreator but panics
+// if the typeName is already registered.
+func MustRegisterGlobalSinkCreator(typeName string, c SinkCreator) {
+	if err := globalSinkCreatorRegistry.Register(typeName, c); err != nil {
+		panic(fmt.Errorf("bql.MustRegisterGlobalSinkCreator: cannot register '%v': %v", typeName, err))
+	}
+}
+
 // CopyGlobalSinkCreatorRegistry creates a new independent copy of the global
 // SinkCreatorRegistry.
 func CopyGlobalSinkCreatorRegistry() (SinkCreatorRegistry, error) {
