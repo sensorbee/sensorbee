@@ -145,6 +145,27 @@ func TestGroupbyExecutionPlan(t *testing.T) {
 		})
 	})
 
+	Convey("Given a SELECT clause with count(*) but no GROUP BY", t, func() {
+		tuples := getOtherTuples()
+
+		s := `CREATE STREAM box AS SELECT RSTREAM count(*) FROM src [RANGE 3 TUPLES]`
+		plan, err := createGroupbyPlan(s, t)
+		So(err, ShouldBeNil)
+
+		Convey("When feeding it with tuples", func() {
+			for idx, inTup := range tuples {
+				out, err := plan.Process(inTup)
+				So(err, ShouldBeNil)
+
+				Convey(fmt.Sprintf("Then those values should appear in %v", idx), func() {
+					So(len(out), ShouldEqual, 1)
+					So(out[0], ShouldResemble,
+						data.Map{"count": data.Int(math.Min(float64(idx+1), 3))})
+				})
+			}
+		})
+	})
+
 	Convey("Given a SELECT clause with a simple aggregation and GROUP BY", t, func() {
 		tuples := getOtherTuples()
 		tuples[3].Data["int"] = data.Null{} // NULL should not be counted
@@ -528,14 +549,6 @@ func TestGroupbyExecutionPlan(t *testing.T) {
 		_, err := createGroupbyPlan(s, t)
 		So(err, ShouldNotBeNil)
 		So(err.Error(), ShouldEqual, `grouping by expressions is not supported yet`)
-	})
-
-	Convey("Given an SELECT statement with count(*)", t, func() {
-		// using a wildcard at non-toplevel
-		s := `CREATE STREAM box AS SELECT RSTREAM foo, count(*) FROM src [RANGE 3 TUPLES] GROUP BY foo`
-		_, err := createGroupbyPlan(s, t)
-		So(err, ShouldNotBeNil)
-		So(err.Error(), ShouldContainSubstring, "parse error near")
 	})
 
 	Convey("Given an SELECT statement with HAVING", t, func() {
