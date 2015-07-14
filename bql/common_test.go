@@ -108,7 +108,7 @@ func failingUDSFCreator(decl udf.UDSFDeclarer, stream string, dup int) (udf.UDSF
 }
 
 func init() {
-	udf.RegisterGlobalUDSFCreator("duplicate", udf.MustConvertToUDSFCreator(createDuplicateUDSF))
-	udf.RegisterGlobalUDSFCreator("no_input_duplicate", udf.MustConvertToUDSFCreator(noInputUDSFCreator))
-	udf.RegisterGlobalUDSFCreator("failing_duplicate", udf.MustConvertToUDSFCreator(failingUDSFCreator))
+	udf.MustRegisterGlobalUDSFCreator("duplicate", udf.MustConvertToUDSFCreator(createDuplicateUDSF))
+	udf.MustRegisterGlobalUDSFCreator("no_input_duplicate", udf.MustConvertToUDSFCreator(noInputUDSFCreator))
+	udf.MustRegisterGlobalUDSFCreator("failing_duplicate", udf.MustConvertToUDSFCreator(failingUDSFCreator))
 }
