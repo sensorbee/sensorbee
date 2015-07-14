@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"pfi/sensorbee/sensorbee/bql/parser"
+	"pfi/sensorbee/sensorbee/bql/udf"
 	"strings"
 )
 
@@ -21,14 +22,14 @@ type aliasedExpression struct {
 // to a FlatExpression, i.e., there are only expressions contained that
 // can be evaluated on one single row and return an (unnamed) value.
 // In particular, this fails for Expressions containing aggregate functions.
-func ParserExprToFlatExpr(e parser.Expression, isAggregate func(string) bool) (FlatExpression, error) {
+func ParserExprToFlatExpr(e parser.Expression, reg udf.FunctionRegistry) (FlatExpression, error) {
 	switch obj := e.(type) {
 	case parser.RowMeta:
 		return RowMeta{obj.Relation, obj.MetaType}, nil
 	case parser.RowValue:
 		return RowValue{obj.Relation, obj.Column}, nil
 	case parser.AliasAST:
-		return ParserExprToFlatExpr(obj.Expr, isAggregate)
+		return ParserExprToFlatExpr(obj.Expr, reg)
 	case parser.NullLiteral:
 		return NullLiteral{}, nil
 	case parser.NumericLiteral:
@@ -41,25 +42,30 @@ func ParserExprToFlatExpr(e parser.Expression, isAggregate func(string) bool) (F
 		return StringLiteral{obj.Value}, nil
 	case parser.BinaryOpAST:
 		// recurse
-		left, err := ParserExprToFlatExpr(obj.Left, isAggregate)
+		left, err := ParserExprToFlatExpr(obj.Left, reg)
 		if err != nil {
 			return nil, err
 		}
-		right, err := ParserExprToFlatExpr(obj.Right, isAggregate)
+		right, err := ParserExprToFlatExpr(obj.Right, reg)
 		if err != nil {
 			return nil, err
 		}
 		return BinaryOpAST{obj.Op, left, right}, nil
 	case parser.UnaryOpAST:
 		// recurse
-		expr, err := ParserExprToFlatExpr(obj.Expr, isAggregate)
+		expr, err := ParserExprToFlatExpr(obj.Expr, reg)
 		if err != nil {
 			return nil, err
 		}
 		return UnaryOpAST{obj.Op, expr}, nil
 	case parser.FuncAppAST:
+		// look up the function
+		function, err := reg.Lookup(string(obj.Function), len(obj.Expressions))
+		if err != nil {
+			return nil, err
+		}
 		// fail if this is an aggregate function
-		if isAggregate(string(obj.Function)) {
+		if isAggregateFunc(function, len(obj.Expressions), reg) {
 			err := fmt.Errorf("you cannot use aggregate function '%s' "+
 				"in a flat expression", obj.Function)
 			return nil, err
@@ -67,7 +73,7 @@ func ParserExprToFlatExpr(e parser.Expression, isAggregate func(string) bool) (F
 		// compute child expressions
 		exprs := make([]FlatExpression, len(obj.Expressions))
 		for i, ast := range obj.Expressions {
-			expr, err := ParserExprToFlatExpr(ast, isAggregate)
+			expr, err := ParserExprToFlatExpr(ast, reg)
 			if err != nil {
 				return nil, err
 			}
@@ -84,21 +90,21 @@ func ParserExprToFlatExpr(e parser.Expression, isAggregate func(string) bool) (F
 // ParserExprToMaybeAggregate converts an expression obtained by the BQL
 // parser into a data structure where the aggregate and the non-aggregate
 // parts are separated.
-func ParserExprToMaybeAggregate(e parser.Expression, isAggregate func(string) bool) (FlatExpression, map[string]AggFuncAppAST, error) {
+func ParserExprToMaybeAggregate(e parser.Expression, reg udf.FunctionRegistry) (FlatExpression, map[string]AggFuncAppAST, error) {
 	switch obj := e.(type) {
 	default:
 		// elementary types
-		expr, err := ParserExprToFlatExpr(e, isAggregate)
+		expr, err := ParserExprToFlatExpr(e, reg)
 		return expr, nil, err
 	case parser.AliasAST:
-		return ParserExprToMaybeAggregate(obj.Expr, isAggregate)
+		return ParserExprToMaybeAggregate(obj.Expr, reg)
 	case parser.BinaryOpAST:
 		// recurse
-		left, leftAgg, err := ParserExprToMaybeAggregate(obj.Left, isAggregate)
+		left, leftAgg, err := ParserExprToMaybeAggregate(obj.Left, reg)
 		if err != nil {
 			return nil, nil, err
 		}
-		right, rightAgg, err := ParserExprToMaybeAggregate(obj.Right, isAggregate)
+		right, rightAgg, err := ParserExprToMaybeAggregate(obj.Right, reg)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -114,20 +120,25 @@ func ParserExprToMaybeAggregate(e parser.Expression, isAggregate func(string) bo
 		return BinaryOpAST{obj.Op, left, right}, returnAgg, nil
 	case parser.UnaryOpAST:
 		// recurse
-		expr, agg, err := ParserExprToMaybeAggregate(obj.Expr, isAggregate)
+		expr, agg, err := ParserExprToMaybeAggregate(obj.Expr, reg)
 		if err != nil {
 			return nil, nil, err
 		}
 		return UnaryOpAST{obj.Op, expr}, agg, nil
 	case parser.FuncAppAST:
-		if isAggregate(string(obj.Function)) {
+		// look up the function
+		function, err := reg.Lookup(string(obj.Function), len(obj.Expressions))
+		if err != nil {
+			return nil, nil, err
+		}
+		if isAggregateFunc(function, len(obj.Expressions), reg) {
 			// we can only have one parameter
 			if len(obj.Expressions) != 1 {
 				err := fmt.Errorf("aggregate functions must have exactly one parameter")
 				return nil, nil, err
 			}
 			// this expression must be flat, there must not be other aggregates
-			expr, err := ParserExprToFlatExpr(obj.Expressions[0], isAggregate)
+			expr, err := ParserExprToFlatExpr(obj.Expressions[0], reg)
 			if err != nil {
 				// return a prettier error message
 				if strings.HasPrefix(err.Error(), "you cannot use aggregate") {
@@ -143,14 +154,14 @@ func ParserExprToMaybeAggregate(e parser.Expression, isAggregate func(string) bo
 			h := sha1.New()
 			h.Write([]byte(fmt.Sprintf("%s(%s)", obj.Function, expr.Repr())))
 			funcId := "a" + hex.EncodeToString(h.Sum(nil))[:8]
-			a := AggFuncAppAST{obj.Function, expr}
+			a := AggFuncAppAST{function, expr}
 			return AggFuncAppRef{funcId}, map[string]AggFuncAppAST{funcId: a}, nil
 		} else {
 			// compute child expressions
 			exprs := make([]FlatExpression, len(obj.Expressions))
 			returnAgg := map[string]AggFuncAppAST{}
 			for i, ast := range obj.Expressions {
-				expr, agg, err := ParserExprToMaybeAggregate(ast, isAggregate)
+				expr, agg, err := ParserExprToMaybeAggregate(ast, reg)
 				if err != nil {
 					return nil, nil, err
 				}
@@ -336,6 +347,6 @@ func (l StringLiteral) Columns() []RowValue {
 }
 
 type AggFuncAppAST struct {
-	Function   parser.FuncName
+	Function   udf.UDF
 	Expression FlatExpression
 }

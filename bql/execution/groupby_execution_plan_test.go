@@ -14,13 +14,14 @@ import (
 func createGroupbyPlan(s string, t *testing.T) (ExecutionPlan, error) {
 	p := parser.NewBQLParser()
 	reg := udf.CopyGlobalUDFRegistry(core.NewContext(nil))
+	reg.Register("udaf", &dummyAggregate{})
 	_stmt, _, err := p.ParseStmt(s)
 	if err != nil {
 		return nil, err
 	}
 	So(_stmt, ShouldHaveSameTypeAs, parser.CreateStreamAsSelectStmt{})
 	stmt := _stmt.(parser.CreateStreamAsSelectStmt)
-	logicalPlan, err := Analyze(stmt)
+	logicalPlan, err := Analyze(stmt, reg)
 	if err != nil {
 		return nil, err
 	}
@@ -148,6 +149,7 @@ func TestGroupbyExecutionPlan(t *testing.T) {
 
 	Convey("Given a SELECT clause with a simple aggregation and GROUP BY", t, func() {
 		tuples := getOtherTuples()
+		tuples[3].Data["int"] = data.Null{} // NULL should not be counted
 		s := `CREATE STREAM box AS SELECT RSTREAM foo, count(int) FROM src [RANGE 3 TUPLES] GROUP BY foo`
 		plan, err := createGroupbyPlan(s, t)
 		So(err, ShouldBeNil)
@@ -177,7 +179,8 @@ func TestGroupbyExecutionPlan(t *testing.T) {
 						So(out[0], ShouldResemble,
 							data.Map{"foo": data.Int(1), "count": data.Int(1)})
 						So(out[1], ShouldResemble,
-							data.Map{"foo": data.Int(2), "count": data.Int(2)})
+							// the below is just 1 because NULL isn't counted
+							data.Map{"foo": data.Int(2), "count": data.Int(1)})
 					}
 				})
 			}
@@ -479,7 +482,7 @@ func TestGroupbyExecutionPlan(t *testing.T) {
 
 	Convey("Given an SELECT statement with a multiple-paramater UDAF (1)", t, func() {
 		// using one column-involving expression and one foldable expression
-		s := `CREATE STREAM box AS SELECT RSTREAM foo, count(int, 'hoge') FROM src [RANGE 3 TUPLES] GROUP BY foo`
+		s := `CREATE STREAM box AS SELECT RSTREAM foo, udaf(int, 'hoge') FROM src [RANGE 3 TUPLES] GROUP BY foo`
 		_, err := createGroupbyPlan(s, t)
 		So(err, ShouldNotBeNil)
 		So(err.Error(), ShouldEqual, "aggregate functions must have exactly one parameter")
@@ -487,7 +490,7 @@ func TestGroupbyExecutionPlan(t *testing.T) {
 
 	Convey("Given an SELECT statement with a multiple-paramater UDAF (2)", t, func() {
 		// using two column-involving expressions
-		s := `CREATE STREAM box AS SELECT RSTREAM foo, count(int, int) FROM src [RANGE 3 TUPLES] GROUP BY foo`
+		s := `CREATE STREAM box AS SELECT RSTREAM foo, udaf(int, int) FROM src [RANGE 3 TUPLES] GROUP BY foo`
 		_, err := createGroupbyPlan(s, t)
 		So(err, ShouldNotBeNil)
 		So(err.Error(), ShouldEqual, "aggregate functions must have exactly one parameter")

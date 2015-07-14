@@ -4,9 +4,27 @@ import (
 	"fmt"
 	. "github.com/smartystreets/goconvey/convey"
 	"pfi/sensorbee/sensorbee/bql/parser"
+	"pfi/sensorbee/sensorbee/bql/udf"
+	"pfi/sensorbee/sensorbee/core"
+	"pfi/sensorbee/sensorbee/data"
 	"reflect"
 	"testing"
 )
+
+type dummyAggregate struct {
+}
+
+func (f *dummyAggregate) Call(ctx *core.Context, args ...data.Value) (data.Value, error) {
+	return data.Int(42), nil
+}
+
+func (f *dummyAggregate) Accept(arity int) bool {
+	return arity == 1 || arity == 2
+}
+
+func (f *dummyAggregate) IsAggregationParameter(k int) bool {
+	return k == 1
+}
 
 type analyzeTest struct {
 	input         *parser.SelectStmt
@@ -523,6 +541,7 @@ func TestRelationAliasing(t *testing.T) {
 		}, "cannot use relations"},
 	}
 
+	reg := udf.CopyGlobalUDFRegistry(core.NewContext(nil))
 	for _, testCase := range testCases {
 		testCase := testCase
 		selectAst := testCase.input
@@ -536,7 +555,7 @@ func TestRelationAliasing(t *testing.T) {
 			}
 
 			Convey("When we analyze it", func() {
-				_, err := Analyze(ast)
+				_, err := Analyze(ast, reg)
 				expectedError := testCase.expectedError
 				if expectedError == "" {
 					Convey("There is no error", func() {
@@ -554,6 +573,18 @@ func TestRelationAliasing(t *testing.T) {
 }
 
 func TestAggregateChecker(t *testing.T) {
+	reg := udf.CopyGlobalUDFRegistry(core.NewContext(nil))
+
+	countFun, _ := reg.Lookup("count", 1)
+	dummyFun := &dummyAggregate{}
+	toString := udf.UnaryFunc(func(ctx *core.Context, v data.Value) (data.Value, error) {
+		return data.String(v.String()), nil
+	})
+
+	reg.Register("udaf", dummyFun)
+	reg.Register("f", toString)
+	reg.Register("g", toString)
+
 	testCases := []struct {
 		bql           string
 		expectedError string
@@ -577,7 +608,7 @@ func TestAggregateChecker(t *testing.T) {
 		{"count(a) FROM x [RANGE 1 TUPLES]", "",
 			AggFuncAppRef{"ae5601766"},
 			map[string]AggFuncAppAST{
-				"ae5601766": AggFuncAppAST{"count", RowValue{"x", "a"}},
+				"ae5601766": AggFuncAppAST{countFun, RowValue{"x", "a"}},
 			}},
 
 		// there is an aggregate call `count(a)`, so it is referenced from
@@ -586,7 +617,7 @@ func TestAggregateChecker(t *testing.T) {
 			BinaryOpAST{parser.Plus,
 				RowValue{"x", "a"}, AggFuncAppRef{"ae5601766"}},
 			map[string]AggFuncAppAST{
-				"ae5601766": AggFuncAppAST{"count", RowValue{"x", "a"}},
+				"ae5601766": AggFuncAppAST{countFun, RowValue{"x", "a"}},
 			}},
 
 		// there is an aggregate call `udaf(a+1)`, so it is referenced from
@@ -596,7 +627,7 @@ func TestAggregateChecker(t *testing.T) {
 				RowValue{"x", "a"},
 				AggFuncAppRef{"a383ac4b7"}},
 			map[string]AggFuncAppAST{
-				"a383ac4b7": AggFuncAppAST{"udaf",
+				"a383ac4b7": AggFuncAppAST{dummyFun,
 					BinaryOpAST{parser.Plus, RowValue{"x", "a"}, NumericLiteral{1}}},
 			}},
 
@@ -610,12 +641,12 @@ func TestAggregateChecker(t *testing.T) {
 				}},
 			},
 			map[string]AggFuncAppAST{
-				"a67272403": AggFuncAppAST{"udaf",
+				"a67272403": AggFuncAppAST{dummyFun,
 					BinaryOpAST{parser.Plus,
 						RowValue{"x", "a"},
 						FuncAppAST{"f", []FlatExpression{NumericLiteral{1}}},
 					}},
-				"ae5601766": AggFuncAppAST{"count", RowValue{"x", "a"}},
+				"ae5601766": AggFuncAppAST{countFun, RowValue{"x", "a"}},
 			}},
 
 		// there are two aggregate calls, but they use the same value,
@@ -628,7 +659,7 @@ func TestAggregateChecker(t *testing.T) {
 				}},
 			},
 			map[string]AggFuncAppAST{
-				"ae5601766": AggFuncAppAST{"count", RowValue{"x", "a"}},
+				"ae5601766": AggFuncAppAST{countFun, RowValue{"x", "a"}},
 			}},
 
 		{"a + udaf(a, 1) FROM x [RANGE 1 TUPLES]",
@@ -643,7 +674,7 @@ func TestAggregateChecker(t *testing.T) {
 		{"a FROM x [RANGE 1 TUPLES] GROUP BY count(a)",
 			"aggregates not allowed in GROUP BY clause", nil, nil},
 
-		{"a FROM x [RANGE 1 TUPLES] GROUP BY f(a)",
+		{"a FROM x [RANGE 1 TUPLES] GROUP BY a + 2",
 			"grouping by expressions is not supported yet", nil, nil},
 
 		// various grouping checks
@@ -654,25 +685,25 @@ func TestAggregateChecker(t *testing.T) {
 		{"count(a) FROM x [RANGE 1 TUPLES] GROUP BY a", "",
 			AggFuncAppRef{"ae5601766"},
 			map[string]AggFuncAppAST{
-				"ae5601766": AggFuncAppAST{"count", RowValue{"x", "a"}},
+				"ae5601766": AggFuncAppAST{countFun, RowValue{"x", "a"}},
 			}},
 
 		{"count(b) FROM x [RANGE 1 TUPLES] GROUP BY a", "",
 			AggFuncAppRef{"a09f9330d"},
 			map[string]AggFuncAppAST{
-				"a09f9330d": AggFuncAppAST{"count", RowValue{"x", "b"}},
+				"a09f9330d": AggFuncAppAST{countFun, RowValue{"x", "b"}},
 			}},
 
 		{"count(b), a FROM x [RANGE 1 TUPLES] GROUP BY a", "",
 			AggFuncAppRef{"a09f9330d"}, // just the first one
 			map[string]AggFuncAppAST{
-				"a09f9330d": AggFuncAppAST{"count", RowValue{"x", "b"}},
+				"a09f9330d": AggFuncAppAST{countFun, RowValue{"x", "b"}},
 			}},
 
 		{"count(b), a, c FROM x [RANGE 1 TUPLES] GROUP BY a, c", "",
 			AggFuncAppRef{"a09f9330d"}, // just the first one
 			map[string]AggFuncAppAST{
-				"a09f9330d": AggFuncAppAST{"count", RowValue{"x", "b"}},
+				"a09f9330d": AggFuncAppAST{countFun, RowValue{"x", "b"}},
 			}},
 
 		{"a FROM x [RANGE 1 TUPLES] GROUP BY b",
@@ -700,7 +731,7 @@ func TestAggregateChecker(t *testing.T) {
 			ast := ast_.(parser.CreateStreamAsSelectStmt)
 
 			Convey("When we analyze it", func() {
-				logPlan, err := Analyze(ast)
+				logPlan, err := Analyze(ast, reg)
 				expectedError := testCase.expectedError
 				if expectedError == "" {
 					Convey("There is no error", func() {

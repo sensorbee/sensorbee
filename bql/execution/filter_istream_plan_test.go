@@ -17,7 +17,7 @@ func createFilterIstreamPlan(s string, t *testing.T) (ExecutionPlan, ExecutionPl
 	So(err, ShouldBeNil)
 	So(_stmt, ShouldHaveSameTypeAs, parser.CreateStreamAsSelectStmt{})
 	stmt := _stmt.(parser.CreateStreamAsSelectStmt)
-	logicalPlan, err := Analyze(stmt)
+	logicalPlan, err := Analyze(stmt, reg)
 	So(err, ShouldBeNil)
 	canBuild := CanBuildFilterIstreamPlan(logicalPlan, reg)
 	So(canBuild, ShouldBeTrue)

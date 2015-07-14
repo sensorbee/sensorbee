@@ -16,7 +16,7 @@ type aliasedEvaluator struct {
 }
 
 type aggregationEvaluator struct {
-	aggrFun  parser.FuncName
+	aggrFun  udf.UDF
 	aggrEval Evaluator
 }
 
