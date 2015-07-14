@@ -3,6 +3,7 @@ package bql
 import (
 	. "github.com/smartystreets/goconvey/convey"
 	"pfi/sensorbee/sensorbee/core"
+	"pfi/sensorbee/sensorbee/data"
 	"testing"
 )
 
@@ -106,6 +107,50 @@ func TestDefaultSinkCreatorRegistry(t *testing.T) {
 				Convey("And the other creator should be found", func() {
 					_, err := r.Lookup("test_sink2")
 					So(err, ShouldBeNil)
+				})
+			})
+		})
+	})
+}
+
+func TestGlobalSinkCreatorRegistry(t *testing.T) {
+	ctx := core.NewContext(nil)
+
+	Convey("Given an default Global Sink registry", t, func() {
+		r, err := CopyGlobalSinkCreatorRegistry()
+		So(r, ShouldNotBeNil)
+		So(err, ShouldBeNil)
+		Reset(func() {
+			r, _ = CopyGlobalSinkCreatorRegistry()
+		})
+
+		Convey("When adding a new type having the registered type name", func() {
+			err := r.Register("uds", SinkCreatorFunc(createCollectorSink))
+
+			Convey("Then it should fail", func() {
+				So(err, ShouldNotBeNil)
+			})
+		})
+
+		Convey("When looking up a creator", func() {
+			c, err := r.Lookup("uds")
+
+			Convey("Then it should succeed", func() {
+				So(err, ShouldBeNil)
+
+				Convey("And it should return error when parameter is empty", func() {
+					_, err := c.CreateSink(ctx, nil)
+					So(err.Error(), ShouldContainSubstring, "field")
+				})
+
+				Convey("And it should return error because the specified parameter is invalid type", func() {
+					_, err := c.CreateSink(ctx, data.Map{"name": data.Int(100)})
+					So(err.Error(), ShouldContainSubstring, "unsupported")
+				})
+
+				Convey("And it should return error because the specified shared state is missing", func() {
+					_, err := c.CreateSink(ctx, data.Map{"name": data.String("shared_state_not_found")})
+					So(err.Error(), ShouldContainSubstring, "was not found")
 				})
 			})
 		})
