@@ -205,4 +205,5 @@ func init() {
 		return data.String(v.String()), nil
 	}
 	globalUDFRegistry.Register("str", UnaryFunc(toString))
+	globalUDFRegistry.Register("count", &countAggregate{})
 }
