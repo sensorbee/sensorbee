@@ -506,15 +506,15 @@ func TestUpdateStateStmt(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		Convey("When there is no UDS", func() {
-			Convey("When updating a dummy UDS should fail.", func() {
+			Convey("Then updating should fail", func() {
 				So(addBQLToTopology(tb, `UPDATE STATE hoge SET num=5;`), ShouldNotBeNil)
 			})
 		})
 
-		Convey("Given non-Updater UDS", func() {
+		Convey("Given a non-Updater UDS", func() {
 			So(addBQLToTopology(tb, `CREATE STATE hoge TYPE dummy_uds WITH num=5;`), ShouldBeNil)
 
-			Convey("When updating the UDS", func() {
+			Convey("When updating it", func() {
 				err := addBQLToTopology(tb, `UPDATE STATE hoge SET num=5;`)
 
 				Convey("There should be an error", func() {
@@ -523,13 +523,13 @@ func TestUpdateStateStmt(t *testing.T) {
 			})
 		})
 
-		Convey("Given updater UDS", func() {
+		Convey("Given an Updater UDS", func() {
 			So(addBQLToTopology(tb, `CREATE STATE hoge TYPE dummy_updatable_uds WITH num=5;`), ShouldBeNil)
 
-			Convey("When updating the UDS", func() {
+			Convey("When updating it", func() {
 				err := addBQLToTopology(tb, `UPDATE STATE hoge SET num=5;`)
 
-				Convey("There should not be an error", func() {
+				Convey("There should be no error", func() {
 					So(err, ShouldBeNil)
 				})
 			})
@@ -547,12 +547,12 @@ func TestUpdateSourceStmt(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		Convey("When there is no updatable source", func() {
-			Convey("When updating a dummy source should fail.", func() {
+			Convey("Then updating should fail", func() {
 				So(addBQLToTopology(tb, `UPDATE SOURCE hoge SET num=5;`), ShouldNotBeNil)
 			})
 		})
 
-		Convey("Given non-Updater source", func() {
+		Convey("Given a non-Updater source", func() {
 			So(addBQLToTopology(tb, `CREATE SOURCE hoge TYPE dummy WITH num=4`), ShouldBeNil)
 
 			Convey("When updating the source", func() {
@@ -564,13 +564,13 @@ func TestUpdateSourceStmt(t *testing.T) {
 			})
 		})
 
-		Convey("Given updater source", func() {
+		Convey("Given an Updater source", func() {
 			So(addBQLToTopology(tb, `CREATE SOURCE hoge TYPE dummy_updatable WITH num=5;`), ShouldBeNil)
 
 			Convey("When updating the updatable source", func() {
 				err := addBQLToTopology(tb, `UPDATE SOURCE hoge SET num=5;`)
 
-				Convey("There should not be an error", func() {
+				Convey("There should be no error", func() {
 					So(err, ShouldBeNil)
 				})
 			})
@@ -588,15 +588,15 @@ func TestUpdateSinkStmt(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		Convey("When there is no updatable sink", func() {
-			Convey("When updating a dummy sink should fail.", func() {
+			Convey("Then updating should fail", func() {
 				So(addBQLToTopology(tb, `UPDATE SINK hoge SET num=5;`), ShouldNotBeNil)
 			})
 		})
 
-		Convey("Given non-Updater sink", func() {
+		Convey("Given a non-Updater sink", func() {
 			So(addBQLToTopology(tb, `CREATE SINK hoge TYPE collector;`), ShouldBeNil)
 
-			Convey("When updating the sink", func() {
+			Convey("When updating it", func() {
 				err := addBQLToTopology(tb, `UPDATE SINK hoge SET num=5;`)
 
 				Convey("There should be an error", func() {
@@ -605,13 +605,13 @@ func TestUpdateSinkStmt(t *testing.T) {
 			})
 		})
 
-		Convey("Given updater sink", func() {
+		Convey("Given an Updater sink", func() {
 			So(addBQLToTopology(tb, `CREATE SINK hoge TYPE collector_updatable;`), ShouldBeNil)
 
-			Convey("When updating the updatable sink", func() {
+			Convey("When updating it", func() {
 				err := addBQLToTopology(tb, `UPDATE SINK hoge SET num=5;`)
 
-				Convey("There should not be an error", func() {
+				Convey("There should be no error", func() {
 					So(err, ShouldBeNil)
 				})
 			})
