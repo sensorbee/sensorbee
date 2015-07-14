@@ -103,9 +103,7 @@ func TestGroupbyExecutionPlan(t *testing.T) {
 		})
 	})
 
-	// TODO currently in the case below, there are no rows returned,
-	//      but there should be one row with value 0
-	SkipConvey("Given a SELECT clause with aggregation but no GROUP BY on empty input", t, func() {
+	Convey("Given a SELECT clause with aggregation but no GROUP BY on empty input", t, func() {
 		tuples := getOtherTuples()
 
 		s := `CREATE STREAM box AS SELECT RSTREAM count(foo) FROM src [RANGE 3 TUPLES] WHERE foo=7`
