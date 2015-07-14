@@ -27,11 +27,17 @@ type bqlPeg Peg {
 
 Statements <- sp ((Statement sp ';' .*) / Statement) !.
 
-Statement <- (SelectStmt / CreateStreamAsSelectStmt / CreateSourceStmt /
-             CreateSinkStmt / InsertIntoSelectStmt / InsertIntoFromStmt /
-             CreateStateStmt / PauseSourceStmt / ResumeSourceStmt /
-             RewindSourceStmt / DropSourceStmt / DropStreamStmt /
-             DropSinkStmt / DropStateStmt)
+Statement <- (SelectStmt / SourceStmt / SinkStmt / StateStmt / StreamStmt)
+
+SourceStmt <- CreateSourceStmt / UpdateSourceStmt / DropSourceStmt /
+              PauseSourceStmt / ResumeSourceStmt / RewindSourceStmt
+
+SinkStmt <-   CreateSinkStmt / UpdateSinkStmt / DropSinkStmt
+
+StateStmt <-  CreateStateStmt / UpdateStateStmt / DropStateStmt
+
+StreamStmt <- CreateStreamAsSelectStmt / DropStreamStmt /
+              InsertIntoSelectStmt / InsertIntoFromStmt
 
 SelectStmt <- "SELECT" sp
               Emitter sp
@@ -76,6 +82,24 @@ CreateStateStmt <- "CREATE" sp "STATE" sp
                     "TYPE" sp SourceSinkType sp
                     SourceSinkSpecs {
         p.AssembleCreateState()
+    }
+
+UpdateStateStmt <- "UPDATE" sp "STATE" sp
+                    StreamIdentifier sp
+                    UpdateSourceSinkSpecs {
+        p.AssembleUpdateState()
+    }
+
+UpdateSourceStmt <- "UPDATE" sp "SOURCE" sp
+                    StreamIdentifier sp
+                    UpdateSourceSinkSpecs {
+        p.AssembleUpdateSource()
+    }
+
+UpdateSinkStmt <- "UPDATE" sp "SINK" sp
+                    StreamIdentifier sp
+                    UpdateSourceSinkSpecs {
+        p.AssembleUpdateSink()
     }
 
 InsertIntoSelectStmt <- "INSERT" sp "INTO" sp
@@ -215,6 +239,10 @@ UDSFFuncApp <- FuncApp {
     }
 
 SourceSinkSpecs <- < ("WITH" sp SourceSinkParam sp (',' sp SourceSinkParam)*)? > {
+        p.AssembleSourceSinkSpecs(begin, end)
+    }
+
+UpdateSourceSinkSpecs <- < "SET" sp SourceSinkParam sp (',' sp SourceSinkParam)* > {
         p.AssembleSourceSinkSpecs(begin, end)
     }
 

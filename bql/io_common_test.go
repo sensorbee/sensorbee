@@ -109,8 +109,40 @@ func (s *tupleEmitterSource) Stop(ctx *core.Context) error {
 	return nil
 }
 
+// createDummyUpdatableSource creates a source that can be updated.
+// It creates an object inheriting from tupleEmitterSource.
+func createDummyUpdatableSource(ctx *core.Context, params data.Map) (core.Source, error) {
+	numTuples := 4
+	// check the given source parameters
+	for key, value := range params {
+		if key == "num" {
+			numTuples64, err := data.AsInt(value)
+			if err != nil {
+				msg := "num: cannot convert value %s into integer"
+				return nil, fmt.Errorf(msg, value)
+			}
+			numTuples = int(numTuples64)
+		} else {
+			return nil, fmt.Errorf("unknown source parameter: %s", key)
+		}
+	}
+
+	s := &tupleEmitterUpdatableSource{tupleEmitterSource: &tupleEmitterSource{Tuples: mkTuples(numTuples)}}
+	s.c = sync.NewCond(&s.m)
+	return s, nil
+}
+
+type tupleEmitterUpdatableSource struct {
+	*tupleEmitterSource
+}
+
+func (s *tupleEmitterUpdatableSource) Update(params data.Map) error {
+	return nil
+}
+
 func init() {
 	RegisterGlobalSourceCreator("dummy", SourceCreatorFunc(createDummySource))
+	RegisterGlobalSourceCreator("dummy_updatable", SourceCreatorFunc(createDummyUpdatableSource))
 }
 
 // createCollectorSink creates a sink that collects all received
@@ -156,6 +188,26 @@ func (s *tupleCollectorSink) Close(ctx *core.Context) error {
 	return nil
 }
 
+type tupleCollectorUpdatableSink struct {
+	*tupleCollectorSink
+}
+
+// createCollectorUpdatableSink creates a sink that can be updated.
+func createCollectorUpdatableSink(ctx *core.Context, params data.Map) (core.Sink, error) {
+	// check the given sink parameters
+	for key := range params {
+		return nil, fmt.Errorf("unknown sink parameter: %s", key)
+	}
+	si := tupleCollectorUpdatableSink{tupleCollectorSink: &tupleCollectorSink{}}
+	si.c = sync.NewCond(&si.m)
+	return &si, nil
+}
+
+func (s *tupleCollectorUpdatableSink) Update(params data.Map) error {
+	return nil
+}
+
 func init() {
 	RegisterGlobalSinkCreator("collector", SinkCreatorFunc(createCollectorSink))
+	RegisterGlobalSinkCreator("collector_updatable", SinkCreatorFunc(createCollectorUpdatableSink))
 }

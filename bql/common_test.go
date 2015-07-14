@@ -48,8 +48,28 @@ func (s *dummyUDS) Terminate(ctx *core.Context) error {
 	return nil
 }
 
+type dummyUpdatableUDS struct {
+	*dummyUDS
+}
+
+func (s *dummyUpdatableUDS) Update(params data.Map) error {
+	return nil
+}
+
+func newDummyUpdatableUDS(ctx *core.Context, params data.Map) (core.SharedState, error) {
+	state, _ := newDummyUDS(ctx, params)
+	uds, _ := state.(*dummyUDS)
+	s := &dummyUpdatableUDS{
+		dummyUDS: uds,
+	}
+	return s, nil
+}
+
 func init() {
 	if err := udf.RegisterGlobalUDSCreator("dummy_uds", udf.UDSCreatorFunc(newDummyUDS)); err != nil {
+		panic(err)
+	}
+	if err := udf.RegisterGlobalUDSCreator("dummy_updatable_uds", udf.UDSCreatorFunc(newDummyUpdatableUDS)); err != nil {
 		panic(err)
 	}
 }
