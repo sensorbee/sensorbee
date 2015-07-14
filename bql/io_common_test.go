@@ -208,6 +208,6 @@ func (s *tupleCollectorUpdatableSink) Update(params data.Map) error {
 }
 
 func init() {
-	RegisterGlobalSinkCreator("collector", SinkCreatorFunc(createCollectorSink))
-	RegisterGlobalSinkCreator("collector_updatable", SinkCreatorFunc(createCollectorUpdatableSink))
+	MustRegisterGlobalSinkCreator("collector", SinkCreatorFunc(createCollectorSink))
+	MustRegisterGlobalSinkCreator("collector_updatable", SinkCreatorFunc(createCollectorUpdatableSink))
 }
