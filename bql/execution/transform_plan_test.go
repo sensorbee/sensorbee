@@ -613,12 +613,25 @@ func TestAggregateChecker(t *testing.T) {
 			FuncAppAST{"f", []FlatExpression{RowValue{"x", "a"}}},
 			nil},
 
+		// f(*) is not a valid call, so this should fail
+		{"f(*) FROM x [RANGE 1 TUPLES]", "* can only be used as a parameter in count()",
+			nil,
+			nil},
+
 		// there is an aggregate call `count(a)`, so it is referenced from
 		// the expression list and appears in the `aggrs` list
 		{"count(a) FROM x [RANGE 1 TUPLES]", "",
 			FuncAppAST{"count", []FlatExpression{AggInputRef{"_f12cd6bc"}}},
 			map[string]FlatExpression{
 				"_f12cd6bc": RowValue{"x", "a"},
+			}},
+
+		// there is an aggregate call `count(*)`, so it is referenced from
+		// the expression list and a constant appears in the `aggrs` list
+		{"count(*) FROM x [RANGE 1 TUPLES]", "",
+			FuncAppAST{"count", []FlatExpression{AggInputRef{"_356a192b"}}},
+			map[string]FlatExpression{
+				"_356a192b": NumericLiteral{1},
 			}},
 
 		// there is an aggregate call `count(a)`, so it is referenced from
