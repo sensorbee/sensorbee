@@ -18,6 +18,67 @@ type aliasedExpression struct {
 	aggrInputs map[string]FlatExpression
 }
 
+// Explanation of the Aggregation Workflow
+// ---------------------------------------
+// For a SELECT or CREATE STREAM FROM SELECT statement, we deal mostly
+// with the "projections", i.e., the terms after the SELECT keyword.
+// For a non-aggregate statement, we receive an instance of parser.Expression
+// and transform it to an instance of execution.FlatExpression (which is
+// guaranteed not to have any aggregate functions in it). This FlatExpression
+// is then converted to an Evaluator that can be evaluated with a row
+// as an input.
+//
+// Example 1: The BQL expression "x:a" will be converted to a
+// `parser.RowValue{"x", "a"}` and then to an `execution.RowValue{"x", "a"}` and
+// then to an `execution.PathAccess{"x.a"}`. If this `PathAccess{"x.a"}` is evaluated
+// on a row like `data.Map{"x": data.Map{"a": data.Int(2), "b": data.Int(6)}}`,
+// it will return `data.Int(2)`.
+//
+// Example 2: The BQL expression "f(x:a)" will be converted to a
+// `parser.FuncAppAST{"f", parser.RowValue{"x", "a"}}` and then
+// (if f is not an aggregate function) to an `execution.FuncAppAST{"f",
+// execution.RowValue{"x", "a"}}` and then to a `execution.funcApp{"f", ...,
+// []Evaluator{execution.PathAccess{"x.a"}}, ...}`. If this `funcApp` is evaluated
+// on a row like `data.Map{"x": data.Map{"a": data.Int(2),  "b": data.Int(6)}}`,
+// the `PathAccess` evaluator will first return extract `data.Int(2)` and then
+// the `funcApp` evaluator will compute the result of f using `data.Int(2)`
+// as an input.
+//
+// For an expression that involves an aggregate function call, the flow
+// is necessarily different:
+// - The projections are not evaluated using the original rows as an input,
+//   but using groups of rows that have the same values in the GROUP BY columns.
+// - That means that in a pre-processing step, the input rows need to be traversed
+//   and the groups described above must be created.
+// - Each of those groups consists of
+//   - the values that are common to all rows in a group
+//   - a list of values that are to be aggregated.
+// - After the groups have been created, each list of values for aggregation
+//   is transformed to an array and added to the set of "common values" of
+//   that group.
+// - The aggregate function is executed like a normal function, but using the
+//   array mentioned before as an input.
+//
+// Example: The BQL expression "avg(x:a)" will be converted to a
+// `parser.FuncAppAST{"avg", parser.RowValue{"x", "a"}}`and then
+// to an `execution.FuncAppAST{"avg", execution.AggInputRef{"randstr"}}`
+// together with a mapping `{"randstr": execution.RowValue{"x", "a"}}`.
+// Those FlatExpressions are then converted to Evaluators so that we obtain
+// `execution.funcApp{"avg", ..., []Evaluator{execution.PathAccess{"randstr"}}, ...}`
+// and the map `{"randstr": execution.PathAccess{"x.a"}}`.
+// For each row, the correct group will be computed and the data computed
+// by the PathAccess{"x.a"} evaluator appended to a list, so that at the
+// end of this process there is a group list such as:
+//  group values | common data     | aggregate input
+//  [1]          | {"x": {"b": 1}} | {"randstr": [3.5, 1.7, 0.9, 4.5, ...]}
+//  [2]          | {"x": {"b": 2}} | {"randstr": [1.2, 0.8, 2.3]}
+// This data is then merged so that we obtain a list such as:
+//  common data
+//  {"x": {"b": 1}, "randstr": [3.5, 1.7, 0.9, 4.5, ...]}
+//  {"x": {"b": 2}, "randstr": [1.2, 0.8, 2.3]}
+// This list looks exactly like a usual set of input rows so that the
+// `funcApp{"avg", ...}` evaluator can be used normally.
+
 // ParserExprToFlatExpr converts an expression obtained by the BQL parser
 // to a FlatExpression, i.e., there are only expressions contained that
 // can be evaluated on one single row and return an (unnamed) value.
