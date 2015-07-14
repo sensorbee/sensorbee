@@ -230,6 +230,41 @@ func (ep *groupbyExecutionPlan) performQueryOnBuffer() error {
 		return nil
 	}
 
+	evalNoGroup := func() error {
+		// if we have an empty group list *and* a GROUP BY clause,
+		// we have to return an empty result (because there are no
+		// rows with "the same values"). but if the list is empty and
+		// we *don't* have a GROUP BY clause, then we need to compute
+		// all foldables and aggregates with an empty input
+		if len(ep.groupList) > 0 {
+			return nil
+		}
+		input := data.Map{}
+		result := data.Map(make(map[string]data.Value, len(ep.projections)))
+		for _, proj := range ep.projections {
+			// collect input for aggregate functions
+			if proj.hasAggregate {
+				for key := range proj.aggrEvals {
+					input[key] = data.Array{}
+				}
+			}
+			// now evaluate this projection on the flattened data.
+			// note that input has *only* the keys of the empty
+			// arrays, no other columns, but we cannot have other
+			// columns involved in the projection (since we know
+			// that GROUP BY is empty).
+			value, err := proj.evaluator.Eval(input)
+			if err != nil {
+				return err
+			}
+			if err := assignOutputValue(result, proj.alias, value); err != nil {
+				return err
+			}
+		}
+		output = append(output, result)
+		return nil
+	}
+
 	// Note: `ep.buffers` is a map, so iterating over its keys may yield
 	// different results in every run of the program. We cannot expect
 	// a consistent order in which evalItem is run on the items of the
@@ -248,6 +283,12 @@ func (ep *groupbyExecutionPlan) performQueryOnBuffer() error {
 	// TODO deal with the case of an empty list
 	for _, group := range groups {
 		if err := evalGroup(&group); err != nil {
+			rollback()
+			return err
+		}
+	}
+	if len(groups) == 0 {
+		if err := evalNoGroup(); err != nil {
 			rollback()
 			return err
 		}
