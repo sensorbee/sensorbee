@@ -66,12 +66,8 @@ func newDummyUpdatableUDS(ctx *core.Context, params data.Map) (core.SharedState,
 }
 
 func init() {
-	if err := udf.RegisterGlobalUDSCreator("dummy_uds", udf.UDSCreatorFunc(newDummyUDS)); err != nil {
-		panic(err)
-	}
-	if err := udf.RegisterGlobalUDSCreator("dummy_updatable_uds", udf.UDSCreatorFunc(newDummyUpdatableUDS)); err != nil {
-		panic(err)
-	}
+	udf.MustRegisterGlobalUDSCreator("dummy_uds", udf.UDSCreatorFunc(newDummyUDS))
+	udf.MustRegisterGlobalUDSCreator("dummy_updatable_uds", udf.UDSCreatorFunc(newDummyUpdatableUDS))
 }
 
 type duplicateUDSF struct {
