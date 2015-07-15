@@ -47,7 +47,7 @@ func (a *App) prompt(line *liner.State) {
 	if input != "" {
 		line.AppendHistory(input)
 
-		if input == "exit" {
+		if strings.ToLower(input) == "exit" {
 			fmt.Fprintln(os.Stdout, "SensorBee is closed")
 			return
 		}
