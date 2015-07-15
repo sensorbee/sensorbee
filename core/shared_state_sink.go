@@ -12,10 +12,8 @@ type sharedStateSink struct {
 
 // NewSharedStateSink creates a sink that writes to SharedState.
 func NewSharedStateSink(ctx *Context, name string) (Sink, error) {
-	registry := ctx.SharedStates
-
 	// Get SharedState by name
-	state, err := registry.Get(name)
+	state, err := ctx.SharedStates.Get(name)
 	if err != nil {
 		return nil, err
 	}
