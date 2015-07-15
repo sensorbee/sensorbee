@@ -174,5 +174,7 @@ func (s *sharedStateSink) Write(ctx *Context, t *Tuple) error {
 }
 
 func (s *sharedStateSink) Close(ctx *Context) error {
+	// SharedState must not be terminated when this sink is closed because
+	// the state is still being used by other components.
 	return nil
 }
