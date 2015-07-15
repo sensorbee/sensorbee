@@ -19,7 +19,7 @@ type UDF interface {
 	// IsAggregationParameter returns true if the k-th parameter expects
 	// aggregated values. A UDF with Accept(n) == true is an aggregate
 	// function if and only if this function returns true for one or more
-	// values of k in the range 1, ..., n.
+	// values of k in the range 0, ..., n-1.
 	IsAggregationParameter(k int) bool
 }
 

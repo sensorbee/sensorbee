@@ -30,11 +30,11 @@ func (f *dummyAggregate) Call(ctx *core.Context, args ...data.Value) (data.Value
 }
 
 func (f *dummyAggregate) Accept(arity int) bool {
-	return arity == 1 || arity == 2
+	return arity == 1 || arity == 2 || arity == 3
 }
 
 func (f *dummyAggregate) IsAggregationParameter(k int) bool {
-	return k == 1
+	return k == 0 || k == 2
 }
 
 type analyzeTest struct {
@@ -655,17 +655,17 @@ func TestAggregateChecker(t *testing.T) {
 
 		// there are two aggregate calls, so both are referenced from the
 		// expression list and there are two entries in the `aggrs` list
-		{"udaf(a + f(1)) + g(count(a)) FROM x [RANGE 1 TUPLES]", "",
+		{"udaf(a + 1) + g(count(a)) FROM x [RANGE 1 TUPLES]", "",
 			BinaryOpAST{parser.Plus,
-				FuncAppAST{"udaf", []FlatExpression{AggInputRef{"_dc5401d5"}}},
+				FuncAppAST{"udaf", []FlatExpression{AggInputRef{"_20fea01a"}}},
 				FuncAppAST{"g", []FlatExpression{
 					FuncAppAST{"count", []FlatExpression{AggInputRef{"_f12cd6bc"}}},
 				}},
 			},
 			map[string]FlatExpression{
-				"_dc5401d5": BinaryOpAST{parser.Plus,
+				"_20fea01a": BinaryOpAST{parser.Plus,
 					RowValue{"x", "a"},
-					FuncAppAST{"f", []FlatExpression{NumericLiteral{1}}},
+					NumericLiteral{1},
 				},
 				"_f12cd6bc": RowValue{"x", "a"},
 			}},
@@ -761,6 +761,168 @@ func TestAggregateChecker(t *testing.T) {
 						proj := logPlan.Projections[0]
 						So(proj.expr, ShouldResemble, testCase.expr)
 						So(proj.aggrInputs, ShouldResemble, testCase.aggrs)
+					})
+				} else {
+					Convey("There is an error", func() {
+						So(err, ShouldNotBeNil)
+						So(err.Error(), ShouldStartWith, expectedError)
+					})
+				}
+			})
+		})
+	}
+}
+
+func TestVolatileAggregateChecker(t *testing.T) {
+	reg := udf.CopyGlobalUDFRegistry(core.NewContext(nil))
+
+	dummyFun := &dummyAggregate{}
+	toString := udf.UnaryFunc(func(ctx *core.Context, v data.Value) (data.Value, error) {
+		return data.String(v.String()), nil
+	})
+
+	reg.Register("udaf", dummyFun)
+	reg.Register("f", toString)
+
+	// For volatile expressions as aggregate function parameters,
+	// we must generate unique reference strings.
+
+	testCases := []struct {
+		bql           string
+		expectedError string
+		exprs         []FlatExpression
+		aggrs         []map[string]FlatExpression
+	}{
+		// for comparison: two UDAFs referencing the same immutable
+		// expression use the same reference string
+		{"count(a) + udaf(a) FROM x [RANGE 1 TUPLES] GROUP BY a", "",
+			[]FlatExpression{
+				BinaryOpAST{parser.Plus,
+					FuncAppAST{"count", []FlatExpression{AggInputRef{"_f12cd6bc"}}},
+					FuncAppAST{"udaf", []FlatExpression{AggInputRef{"_f12cd6bc"}}}},
+			},
+			[]map[string]FlatExpression{{
+				"_f12cd6bc": RowValue{"x", "a"},
+			}}},
+
+		// one immutable and one volatile parameter
+		{"count(a) + udaf(f(a)) FROM x [RANGE 1 TUPLES] GROUP BY a", "",
+			[]FlatExpression{
+				BinaryOpAST{parser.Plus,
+					FuncAppAST{"count", []FlatExpression{AggInputRef{"_f12cd6bc"}}},
+					FuncAppAST{"udaf", []FlatExpression{AggInputRef{"_2523c3a2_1"}}}},
+			},
+			[]map[string]FlatExpression{{
+				"_f12cd6bc":   RowValue{"x", "a"},
+				"_2523c3a2_1": FuncAppAST{"f", []FlatExpression{RowValue{"x", "a"}}},
+			}}},
+
+		// one volatile and one immutable parameter (order reversed)
+		{"udaf(f(a)) + count(a) FROM x [RANGE 1 TUPLES] GROUP BY a", "",
+			[]FlatExpression{
+				BinaryOpAST{parser.Plus,
+					FuncAppAST{"udaf", []FlatExpression{AggInputRef{"_2523c3a2_0"}}},
+					FuncAppAST{"count", []FlatExpression{AggInputRef{"_f12cd6bc"}}}},
+			},
+			[]map[string]FlatExpression{{
+				"_2523c3a2_0": FuncAppAST{"f", []FlatExpression{RowValue{"x", "a"}}},
+				"_f12cd6bc":   RowValue{"x", "a"},
+			}}},
+
+		// two UDAFs referencing the same volatile expression
+		// use different reference strings
+		{"count(f(a)) + udaf(f(a)) FROM x [RANGE 1 TUPLES] GROUP BY a", "",
+			[]FlatExpression{
+				BinaryOpAST{parser.Plus,
+					FuncAppAST{"count", []FlatExpression{AggInputRef{"_2523c3a2_0"}}},
+					FuncAppAST{"udaf", []FlatExpression{AggInputRef{"_2523c3a2_1"}}}},
+			},
+			[]map[string]FlatExpression{{
+				"_2523c3a2_0": FuncAppAST{"f", []FlatExpression{RowValue{"x", "a"}}},
+				"_2523c3a2_1": FuncAppAST{"f", []FlatExpression{RowValue{"x", "a"}}},
+			}}},
+
+		// three UDAFs referencing the same volatile expression
+		// from different columns all use different reference strings
+		{"count(f(a)) + udaf(f(a)), udaf(f(a)) FROM x [RANGE 1 TUPLES] GROUP BY a", "",
+			[]FlatExpression{
+				BinaryOpAST{parser.Plus,
+					FuncAppAST{"count", []FlatExpression{AggInputRef{"_2523c3a2_0"}}},
+					FuncAppAST{"udaf", []FlatExpression{AggInputRef{"_2523c3a2_1"}}}},
+				FuncAppAST{"udaf", []FlatExpression{AggInputRef{"_2523c3a2_2"}}},
+			},
+			[]map[string]FlatExpression{
+				{
+					"_2523c3a2_0": FuncAppAST{"f", []FlatExpression{RowValue{"x", "a"}}},
+					"_2523c3a2_1": FuncAppAST{"f", []FlatExpression{RowValue{"x", "a"}}},
+				},
+				{
+					"_2523c3a2_2": FuncAppAST{"f", []FlatExpression{RowValue{"x", "a"}}},
+				}}},
+
+		// three UDAFs referencing the same volatile expression
+		// from different columns and on different parameter positions
+		// all use different reference strings
+		{"udaf(f(a), a, f(a)), count(f(a)) + udaf(f(a)) FROM x [RANGE 1 TUPLES] GROUP BY a", "",
+			[]FlatExpression{
+				FuncAppAST{"udaf", []FlatExpression{AggInputRef{"_2523c3a2_0"},
+					RowValue{"x", "a"}, AggInputRef{"_2523c3a2_1"}}},
+				BinaryOpAST{parser.Plus,
+					FuncAppAST{"count", []FlatExpression{AggInputRef{"_2523c3a2_2"}}},
+					FuncAppAST{"udaf", []FlatExpression{AggInputRef{"_2523c3a2_3"}}}},
+			},
+			[]map[string]FlatExpression{
+				{
+					"_2523c3a2_0": FuncAppAST{"f", []FlatExpression{RowValue{"x", "a"}}},
+					"_2523c3a2_1": FuncAppAST{"f", []FlatExpression{RowValue{"x", "a"}}},
+				},
+				{
+					"_2523c3a2_2": FuncAppAST{"f", []FlatExpression{RowValue{"x", "a"}}},
+					"_2523c3a2_3": FuncAppAST{"f", []FlatExpression{RowValue{"x", "a"}}},
+				}}},
+
+		// very weird mixed combination
+		{"udaf(f(a), a, f(a)), count(a), udaf(f(a)) FROM x [RANGE 1 TUPLES] GROUP BY a", "",
+			[]FlatExpression{
+				FuncAppAST{"udaf", []FlatExpression{AggInputRef{"_2523c3a2_0"},
+					RowValue{"x", "a"}, AggInputRef{"_2523c3a2_1"}}},
+				FuncAppAST{"count", []FlatExpression{AggInputRef{"_f12cd6bc"}}},
+				FuncAppAST{"udaf", []FlatExpression{AggInputRef{"_2523c3a2_3"}}},
+			},
+			[]map[string]FlatExpression{
+				{
+					"_2523c3a2_0": FuncAppAST{"f", []FlatExpression{RowValue{"x", "a"}}},
+					"_2523c3a2_1": FuncAppAST{"f", []FlatExpression{RowValue{"x", "a"}}},
+				},
+				{
+					"_f12cd6bc": RowValue{"x", "a"},
+				},
+				{
+					"_2523c3a2_3": FuncAppAST{"f", []FlatExpression{RowValue{"x", "a"}}},
+				}}},
+	}
+
+	for _, testCase := range testCases {
+		testCase := testCase
+
+		Convey(fmt.Sprintf("Given the statement", testCase.bql), t, func() {
+			p := parser.NewBQLParser()
+			stmt := "CREATE STREAM x AS SELECT ISTREAM " + testCase.bql
+			ast_, _, err := p.ParseStmt(stmt)
+			So(err, ShouldBeNil)
+			So(ast_, ShouldHaveSameTypeAs, parser.CreateStreamAsSelectStmt{})
+			ast := ast_.(parser.CreateStreamAsSelectStmt)
+
+			Convey("When we analyze it", func() {
+				logPlan, err := Analyze(ast, reg)
+				expectedError := testCase.expectedError
+				if expectedError == "" {
+					Convey("There is no error", func() {
+						So(err, ShouldBeNil)
+						for i, proj := range logPlan.Projections {
+							So(proj.expr, ShouldResemble, testCase.exprs[i])
+							So(proj.aggrInputs, ShouldResemble, testCase.aggrs[i])
+						}
 					})
 				} else {
 					Convey("There is an error", func() {
