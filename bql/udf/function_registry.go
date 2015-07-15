@@ -183,6 +183,14 @@ func RegisterGlobalUDF(name string, f UDF) error {
 	return globalUDFRegistry.Register(name, f)
 }
 
+// MustRegisterGlobalUDF is like RegisterGlobalUDF but
+// panics if an error occurred.
+func MustRegisterGlobalUDF(name string, f UDF) {
+	if err := globalUDFRegistry.Register(name, f); err != nil {
+		panic(fmt.Errorf("udf.MustRegisterGlobalUDF: cannot register '%v': %v", name, err))
+	}
+}
+
 // CopyGlobalUDFRegistry creates a new FunctionManager which has all UDFs
 // registered to the global function manager.
 func CopyGlobalUDFRegistry(ctx *core.Context) FunctionManager {

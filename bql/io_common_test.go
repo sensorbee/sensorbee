@@ -141,8 +141,8 @@ func (s *tupleEmitterUpdatableSource) Update(params data.Map) error {
 }
 
 func init() {
-	RegisterGlobalSourceCreator("dummy", SourceCreatorFunc(createDummySource))
-	RegisterGlobalSourceCreator("dummy_updatable", SourceCreatorFunc(createDummyUpdatableSource))
+	MustRegisterGlobalSourceCreator("dummy", SourceCreatorFunc(createDummySource))
+	MustRegisterGlobalSourceCreator("dummy_updatable", SourceCreatorFunc(createDummyUpdatableSource))
 }
 
 // createCollectorSink creates a sink that collects all received
@@ -208,6 +208,6 @@ func (s *tupleCollectorUpdatableSink) Update(params data.Map) error {
 }
 
 func init() {
-	RegisterGlobalSinkCreator("collector", SinkCreatorFunc(createCollectorSink))
-	RegisterGlobalSinkCreator("collector_updatable", SinkCreatorFunc(createCollectorUpdatableSink))
+	MustRegisterGlobalSinkCreator("collector", SinkCreatorFunc(createCollectorSink))
+	MustRegisterGlobalSinkCreator("collector_updatable", SinkCreatorFunc(createCollectorUpdatableSink))
 }
