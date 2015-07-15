@@ -275,6 +275,41 @@ type FlatExpression interface {
 
 	// Columns returns a list of RowValues used in this expression.
 	Columns() []RowValue
+
+	// Volatility returns the volatility type of an expression as
+	// per the PostgreSQL classification:
+	// - VOLATILE: can do anything, in particular return a different
+	//             result on every call
+	// - STABLE: returns the same result for the same input values
+	//           within a single statement execution
+	// - IMMUTABLE: returns the same result for the same input values
+	//              forever
+	// One good hint to distinguish between Stable and Immutable is
+	// that (in PostgreSQL) Immutable functions can be used in
+	// functional indexes, while Stable functions can't.
+	Volatility() VolatilityType
+}
+
+type VolatilityType int
+
+const (
+	UnknownVolatility = iota
+	Volatile
+	Stable
+	Immutable
+)
+
+func (v VolatilityType) String() string {
+	s := "UNKNOWN"
+	switch v {
+	case Volatile:
+		s = "VOLATILE"
+	case Stable:
+		s = "STABLE"
+	case Immutable:
+		s = "IMMUTABLE"
+	}
+	return s
 }
 
 type BinaryOpAST struct {
@@ -291,6 +326,17 @@ func (b BinaryOpAST) Columns() []RowValue {
 	return append(b.Left.Columns(), b.Right.Columns()...)
 }
 
+func (b BinaryOpAST) Volatility() VolatilityType {
+	// take the lower level of both sub-expressions
+	// (all of the operators have IMMUTABLE behavior)
+	l := b.Left.Volatility()
+	r := b.Right.Volatility()
+	if l < r {
+		return l
+	}
+	return r
+}
+
 type UnaryOpAST struct {
 	Op   parser.Operator
 	Expr FlatExpression
@@ -302,6 +348,10 @@ func (u UnaryOpAST) Repr() string {
 
 func (u UnaryOpAST) Columns() []RowValue {
 	return u.Expr.Columns()
+}
+
+func (u UnaryOpAST) Volatility() VolatilityType {
+	return u.Expr.Volatility()
 }
 
 type FuncAppAST struct {
@@ -325,6 +375,13 @@ func (f FuncAppAST) Columns() []RowValue {
 	return allColumns
 }
 
+func (f FuncAppAST) Volatility() VolatilityType {
+	// we can change this later, but for the moment we
+	// cannot assume that UDFs are stable or immutable
+	// in general
+	return Volatile
+}
+
 type WildcardAST struct {
 }
 
@@ -334,6 +391,13 @@ func (w WildcardAST) Repr() string {
 
 func (w WildcardAST) Columns() []RowValue {
 	return nil
+}
+
+func (w WildcardAST) Volatility() VolatilityType {
+	// this selects all elements of a tuple, which is
+	// a stable operation (maybe it is even immutable,
+	// but probably we will never evaluate this)
+	return Stable
 }
 
 type AggInputRef struct {
@@ -346,6 +410,12 @@ func (a AggInputRef) Repr() string {
 
 func (a AggInputRef) Columns() []RowValue {
 	return nil
+}
+
+func (a AggInputRef) Volatility() VolatilityType {
+	// TODO make this the same volatility level as the
+	//      aggregate function used
+	return Volatile
 }
 
 type RowValue struct {
@@ -361,6 +431,10 @@ func (rv RowValue) Columns() []RowValue {
 	return []RowValue{rv}
 }
 
+func (rv RowValue) Volatility() VolatilityType {
+	return Immutable
+}
+
 type RowMeta struct {
 	Relation string
 	MetaType parser.MetaInformation
@@ -372,6 +446,10 @@ func (rm RowMeta) Repr() string {
 
 func (rm RowMeta) Columns() []RowValue {
 	return nil
+}
+
+func (rm RowMeta) Volatility() VolatilityType {
+	return Immutable
 }
 
 type NumericLiteral struct {
@@ -386,6 +464,10 @@ func (l NumericLiteral) Columns() []RowValue {
 	return nil
 }
 
+func (l NumericLiteral) Volatility() VolatilityType {
+	return Immutable
+}
+
 type FloatLiteral struct {
 	Value float64
 }
@@ -398,6 +480,10 @@ func (l FloatLiteral) Columns() []RowValue {
 	return nil
 }
 
+func (l FloatLiteral) Volatility() VolatilityType {
+	return Immutable
+}
+
 type NullLiteral struct {
 }
 
@@ -407,6 +493,10 @@ func (l NullLiteral) Repr() string {
 
 func (l NullLiteral) Columns() []RowValue {
 	return nil
+}
+
+func (l NullLiteral) Volatility() VolatilityType {
+	return Immutable
 }
 
 type BoolLiteral struct {
@@ -421,6 +511,10 @@ func (l BoolLiteral) Columns() []RowValue {
 	return nil
 }
 
+func (l BoolLiteral) Volatility() VolatilityType {
+	return Immutable
+}
+
 type StringLiteral struct {
 	Value string
 }
@@ -431,6 +525,10 @@ func (l StringLiteral) Repr() string {
 
 func (l StringLiteral) Columns() []RowValue {
 	return nil
+}
+
+func (l StringLiteral) Volatility() VolatilityType {
+	return Immutable
 }
 
 type AggFuncAppAST struct {
