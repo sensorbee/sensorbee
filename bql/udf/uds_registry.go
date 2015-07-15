@@ -110,6 +110,14 @@ func RegisterGlobalUDSCreator(typeName string, c UDSCreator) error {
 	return globalUDSCreatorRegistry.Register(typeName, c)
 }
 
+// MustRegisterGlobalUDSCreator is like RegisterGlobalUDSCreator
+// but panics if an error occurred.
+func MustRegisterGlobalUDSCreator(typeName string, c UDSCreator) {
+	if err := globalUDSCreatorRegistry.Register(typeName, c); err != nil {
+		panic(fmt.Errorf("udf.MustRegisterGlobalUDSCreator: cannot register '%v': %v", typeName, err))
+	}
+}
+
 // CopyGlobalUDSCreatorRegistry creates a new independent copy of the global
 // UDSCreatorRegistry.
 func CopyGlobalUDSCreatorRegistry() (UDSCreatorRegistry, error) {

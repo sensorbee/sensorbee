@@ -66,12 +66,8 @@ func newDummyUpdatableUDS(ctx *core.Context, params data.Map) (core.SharedState,
 }
 
 func init() {
-	if err := udf.RegisterGlobalUDSCreator("dummy_uds", udf.UDSCreatorFunc(newDummyUDS)); err != nil {
-		panic(err)
-	}
-	if err := udf.RegisterGlobalUDSCreator("dummy_updatable_uds", udf.UDSCreatorFunc(newDummyUpdatableUDS)); err != nil {
-		panic(err)
-	}
+	udf.MustRegisterGlobalUDSCreator("dummy_uds", udf.UDSCreatorFunc(newDummyUDS))
+	udf.MustRegisterGlobalUDSCreator("dummy_updatable_uds", udf.UDSCreatorFunc(newDummyUpdatableUDS))
 }
 
 type duplicateUDSF struct {
@@ -112,7 +108,7 @@ func failingUDSFCreator(decl udf.UDSFDeclarer, stream string, dup int) (udf.UDSF
 }
 
 func init() {
-	udf.RegisterGlobalUDSFCreator("duplicate", udf.MustConvertToUDSFCreator(createDuplicateUDSF))
-	udf.RegisterGlobalUDSFCreator("no_input_duplicate", udf.MustConvertToUDSFCreator(noInputUDSFCreator))
-	udf.RegisterGlobalUDSFCreator("failing_duplicate", udf.MustConvertToUDSFCreator(failingUDSFCreator))
+	udf.MustRegisterGlobalUDSFCreator("duplicate", udf.MustConvertToUDSFCreator(createDuplicateUDSF))
+	udf.MustRegisterGlobalUDSFCreator("no_input_duplicate", udf.MustConvertToUDSFCreator(noInputUDSFCreator))
+	udf.MustRegisterGlobalUDSFCreator("failing_duplicate", udf.MustConvertToUDSFCreator(failingUDSFCreator))
 }
