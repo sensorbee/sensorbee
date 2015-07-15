@@ -135,7 +135,7 @@ func createSharedStateSink(ctx *core.Context, params data.Map) (core.Sink, error
 	// Get only name parameter from params
 	name, ok := params["name"]
 	if !ok {
-		return nil, fmt.Errorf("cannot find 'name' field")
+		return nil, fmt.Errorf("cannot find 'name' parameter")
 	}
 	nameStr, err := data.AsString(name)
 	if err != nil {
