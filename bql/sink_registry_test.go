@@ -140,7 +140,7 @@ func TestGlobalSinkCreatorRegistry(t *testing.T) {
 
 				Convey("And it should return error when parameter is empty", func() {
 					_, err := c.CreateSink(ctx, nil)
-					So(err.Error(), ShouldContainSubstring, "field")
+					So(err.Error(), ShouldContainSubstring, "parameter")
 				})
 
 				Convey("And it should return error because the specified parameter is invalid type", func() {
