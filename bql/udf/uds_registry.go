@@ -111,7 +111,7 @@ func RegisterGlobalUDSCreator(typeName string, c UDSCreator) error {
 }
 
 // MustRegisterGlobalUDSCreator is like RegisterGlobalUDSCreator
-// but panics if the type is already registered.
+// but panics if an error occurred.
 func MustRegisterGlobalUDSCreator(typeName string, c UDSCreator) {
 	if err := globalUDSCreatorRegistry.Register(typeName, c); err != nil {
 		panic(fmt.Errorf("udf.MustRegisterGlobalUDSCreator: cannot register '%v': %v", typeName, err))
