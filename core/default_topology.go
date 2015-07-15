@@ -146,7 +146,19 @@ func (t *defaultTopology) AddBox(name string, b Box, config *BoxConfig) (BoxNode
 	}
 
 	if sb, ok := b.(StatefulBox); ok {
-		if err := sb.Init(t.ctx); err != nil {
+		err := func() (err error) {
+			defer func() {
+				if e := recover(); e != nil {
+					if er, ok := e.(error); ok {
+						err = er
+					} else {
+						err = fmt.Errorf("the box cannot be initialized due to panic: %v", e)
+					}
+				}
+			}()
+			return sb.Init(t.ctx)
+		}()
+		if err != nil {
 			return nil, err
 		}
 	}
@@ -236,7 +248,7 @@ func (t *defaultTopology) Stop() error {
 				lastErr = err
 				src.dsts.Close(t.ctx)
 				t.ctx.ErrLog(err).WithFields(nodeLogFields(NTSource, name)).
-					Error("Cannot stop the source due to panic")
+					Error("Cannot stop the source")
 			}
 		}()
 	}
