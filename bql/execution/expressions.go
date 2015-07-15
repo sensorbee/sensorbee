@@ -126,7 +126,7 @@ func ParserExprToFlatExpr(e parser.Expression, reg udf.FunctionRegistry) (FlatEx
 			return nil, err
 		}
 		// fail if this is an aggregate function
-		if isAggregateFunc(function, len(obj.Expressions), reg) {
+		if isAggregateFunc(function, len(obj.Expressions)) {
 			err := fmt.Errorf("you cannot use aggregate function '%s' "+
 				"in a flat expression", obj.Function)
 			return nil, err
@@ -214,7 +214,7 @@ func ParserExprToMaybeAggregate(e parser.Expression, reg udf.FunctionRegistry) (
 		// compute child expressions
 		exprs := make([]FlatExpression, len(obj.Expressions))
 		returnAgg := map[string]FlatExpression{}
-		if isAggregateFunc(function, len(obj.Expressions), reg) {
+		if isAggregateFunc(function, len(obj.Expressions)) {
 			// we have a setting like
 			//  SELECT udaf(x+1, 'state', c) ... GROUP BY c
 			// where some parameters are aggregates, others aren't.

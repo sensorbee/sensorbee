@@ -76,7 +76,7 @@ func Analyze(s parser.CreateStreamAsSelectStmt, reg udf.FunctionRegistry) (*Logi
 // isAggregateFunc is a helper function to check if one of
 // the parameters of the given function is an aggregate
 // parameter.
-func isAggregateFunc(f udf.UDF, arity int, reg udf.FunctionRegistry) bool {
+func isAggregateFunc(f udf.UDF, arity int) bool {
 	agg := false
 	for k := 1; k <= arity; k++ {
 		if f.IsAggregationParameter(k) {
