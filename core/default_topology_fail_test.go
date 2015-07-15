@@ -139,6 +139,38 @@ func TestDefaultTopologyFailure(t *testing.T) {
 			})
 		})
 
+		Convey("When adding a new source with the duplicated name", func() {
+			_, err := t.AddSource("SOURCE", so, nil)
+
+			Convey("Then it should fail", func() {
+				So(err.Error(), ShouldContainSubstring, "already used")
+			})
+		})
+
+		Convey("When adding a new sink with the duplicated name", func() {
+			_, err := t.AddSink("SINK", sic, nil)
+
+			Convey("Then it should fail", func() {
+				So(err.Error(), ShouldContainSubstring, "already used")
+			})
+		})
+
+		Convey("When adding a new box with the duplicated name", func() {
+			_, err := t.AddBox("BOX1", tc1, nil)
+
+			Convey("Then it should fail", func() {
+				So(err.Error(), ShouldContainSubstring, "already used")
+			})
+		})
+
+		Convey("When adding a new input with the duplicated name", func() {
+			err := sin.Input("BOX1", nil)
+
+			Convey("Then it should fail", func() {
+				So(err.Error(), ShouldContainSubstring, "already")
+			})
+		})
+
 		// TODO: add more fail tests!!
 	})
 }
