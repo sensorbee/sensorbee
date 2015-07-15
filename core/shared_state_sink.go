@@ -35,9 +35,6 @@ func (s *sharedStateSink) Write(ctx *Context, t *Tuple) error {
 }
 
 func (s *sharedStateSink) Close(ctx *Context) error {
-	closer, ok := s.writer.(WriteCloser)
-	if !ok {
-		return nil
-	}
-	return closer.Close(ctx)
+	return nil
+}
 }
