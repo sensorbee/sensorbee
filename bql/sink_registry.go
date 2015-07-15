@@ -130,3 +130,25 @@ func CopyGlobalSinkCreatorRegistry() (SinkCreatorRegistry, error) {
 	}
 	return r, nil
 }
+
+func createSharedStateSink(ctx *core.Context, params data.Map) (core.Sink, error) {
+	// Get only name parameter from params
+	name, ok := params["name"]
+	if !ok {
+		return nil, fmt.Errorf("cannot find 'name' parameter")
+	}
+	nameStr, err := data.AsString(name)
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO: Support cascading delete. Because it isn't supported yet,
+	// the sink will be running even after the target state is dropped.
+	// Moreover, creating a state having the same name after dropping
+	// the previous state might result in a confusing behavior.
+	return core.NewSharedStateSink(ctx, nameStr)
+}
+
+func init() {
+	MustRegisterGlobalSinkCreator("uds", SinkCreatorFunc(createSharedStateSink))
+}
