@@ -76,9 +76,9 @@ func Analyze(s parser.CreateStreamAsSelectStmt, reg udf.FunctionRegistry) (*Logi
 // isAggregateFunc is a helper function to check if one of
 // the parameters of the given function is an aggregate
 // parameter.
-func isAggregateFunc(f udf.UDF, arity int, reg udf.FunctionRegistry) bool {
+func isAggregateFunc(f udf.UDF, arity int) bool {
 	agg := false
-	for k := 1; k <= arity; k++ {
+	for k := 0; k < arity; k++ {
 		if f.IsAggregationParameter(k) {
 			agg = true
 		}
@@ -95,9 +95,11 @@ func flattenExpressions(s *parser.CreateStreamAsSelectStmt, reg udf.FunctionRegi
 	groupingMode := false
 
 	flatProjExprs := make([]aliasedExpression, len(s.Projections))
+	numAggParams := 0
 	for i, expr := range s.Projections {
 		// convert the parser Expression to a FlatExpression
-		flatExpr, aggrs, err := ParserExprToMaybeAggregate(expr, reg)
+		flatExpr, aggrs, err := ParserExprToMaybeAggregate(expr, numAggParams, reg)
+		numAggParams += len(aggrs)
 		if err != nil {
 			return nil, err
 		}

@@ -126,7 +126,7 @@ func ParserExprToFlatExpr(e parser.Expression, reg udf.FunctionRegistry) (FlatEx
 			return nil, err
 		}
 		// fail if this is an aggregate function
-		if isAggregateFunc(function, len(obj.Expressions), reg) {
+		if isAggregateFunc(function, len(obj.Expressions)) {
 			err := fmt.Errorf("you cannot use aggregate function '%s' "+
 				"in a flat expression", obj.Function)
 			return nil, err
@@ -158,21 +158,21 @@ func ParserExprToFlatExpr(e parser.Expression, reg udf.FunctionRegistry) (FlatEx
 // ParserExprToMaybeAggregate converts an expression obtained by the BQL
 // parser into a data structure where the aggregate and the non-aggregate
 // parts are separated.
-func ParserExprToMaybeAggregate(e parser.Expression, reg udf.FunctionRegistry) (FlatExpression, map[string]FlatExpression, error) {
+func ParserExprToMaybeAggregate(e parser.Expression, aggIdx int, reg udf.FunctionRegistry) (FlatExpression, map[string]FlatExpression, error) {
 	switch obj := e.(type) {
 	default:
 		// elementary types
 		expr, err := ParserExprToFlatExpr(e, reg)
 		return expr, nil, err
 	case parser.AliasAST:
-		return ParserExprToMaybeAggregate(obj.Expr, reg)
+		return ParserExprToMaybeAggregate(obj.Expr, aggIdx, reg)
 	case parser.BinaryOpAST:
 		// recurse
-		left, leftAgg, err := ParserExprToMaybeAggregate(obj.Left, reg)
+		left, leftAgg, err := ParserExprToMaybeAggregate(obj.Left, aggIdx, reg)
 		if err != nil {
 			return nil, nil, err
 		}
-		right, rightAgg, err := ParserExprToMaybeAggregate(obj.Right, reg)
+		right, rightAgg, err := ParserExprToMaybeAggregate(obj.Right, aggIdx+len(leftAgg), reg)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -188,7 +188,7 @@ func ParserExprToMaybeAggregate(e parser.Expression, reg udf.FunctionRegistry) (
 		return BinaryOpAST{obj.Op, left, right}, returnAgg, nil
 	case parser.UnaryOpAST:
 		// recurse
-		expr, agg, err := ParserExprToMaybeAggregate(obj.Expr, reg)
+		expr, agg, err := ParserExprToMaybeAggregate(obj.Expr, aggIdx, reg)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -214,7 +214,7 @@ func ParserExprToMaybeAggregate(e parser.Expression, reg udf.FunctionRegistry) (
 		// compute child expressions
 		exprs := make([]FlatExpression, len(obj.Expressions))
 		returnAgg := map[string]FlatExpression{}
-		if isAggregateFunc(function, len(obj.Expressions), reg) {
+		if isAggregateFunc(function, len(obj.Expressions)) {
 			// we have a setting like
 			//  SELECT udaf(x+1, 'state', c) ... GROUP BY c
 			// where some parameters are aggregates, others aren't.
@@ -228,13 +228,23 @@ func ParserExprToMaybeAggregate(e parser.Expression, reg udf.FunctionRegistry) (
 					}
 					return nil, nil, err
 				}
-				isAggr := function.IsAggregationParameter(i + 1) // parameters count from 1
+				isAggr := function.IsAggregationParameter(i)
 				if isAggr {
 					// this is an aggregation parameter, we will replace
 					// it by a reference to the aggregated list of values
 					h := sha1.New()
 					h.Write([]byte(fmt.Sprintf("%s", expr.Repr())))
 					exprId := "_" + hex.EncodeToString(h.Sum(nil))[:8]
+					// For stable or immutable expressions, we compute a reference
+					// string that depends only on the expression's string
+					// representation so that we have to compute and store values
+					// only once per row (e.g., for `sum(a)/count(a)`).
+					// For volatile expressions (e.g., `sum(random())/avg(random())`)
+					// we add a numeric suffix that represents the index
+					// of this aggregate in the whole projection list.
+					if expr.Volatility() == Volatile {
+						exprId += fmt.Sprintf("_%d", aggIdx+len(returnAgg))
+					}
 					exprs[i] = AggInputRef{exprId}
 					returnAgg[exprId] = expr
 				} else {
@@ -244,7 +254,7 @@ func ParserExprToMaybeAggregate(e parser.Expression, reg udf.FunctionRegistry) (
 			}
 		} else {
 			for i, ast := range obj.Expressions {
-				expr, agg, err := ParserExprToMaybeAggregate(ast, reg)
+				expr, agg, err := ParserExprToMaybeAggregate(ast, aggIdx, reg)
 				if err != nil {
 					return nil, nil, err
 				}
@@ -275,6 +285,41 @@ type FlatExpression interface {
 
 	// Columns returns a list of RowValues used in this expression.
 	Columns() []RowValue
+
+	// Volatility returns the volatility type of an expression as
+	// per the PostgreSQL classification:
+	// - VOLATILE: can do anything, in particular return a different
+	//             result on every call
+	// - STABLE: returns the same result for the same input values
+	//           within a single statement execution
+	// - IMMUTABLE: returns the same result for the same input values
+	//              forever
+	// One good hint to distinguish between Stable and Immutable is
+	// that (in PostgreSQL) Immutable functions can be used in
+	// functional indexes, while Stable functions can't.
+	Volatility() VolatilityType
+}
+
+type VolatilityType int
+
+const (
+	UnknownVolatility = iota
+	Volatile
+	Stable
+	Immutable
+)
+
+func (v VolatilityType) String() string {
+	s := "UNKNOWN"
+	switch v {
+	case Volatile:
+		s = "VOLATILE"
+	case Stable:
+		s = "STABLE"
+	case Immutable:
+		s = "IMMUTABLE"
+	}
+	return s
 }
 
 type BinaryOpAST struct {
@@ -291,6 +336,17 @@ func (b BinaryOpAST) Columns() []RowValue {
 	return append(b.Left.Columns(), b.Right.Columns()...)
 }
 
+func (b BinaryOpAST) Volatility() VolatilityType {
+	// take the lower level of both sub-expressions
+	// (all of the operators have IMMUTABLE behavior)
+	l := b.Left.Volatility()
+	r := b.Right.Volatility()
+	if l < r {
+		return l
+	}
+	return r
+}
+
 type UnaryOpAST struct {
 	Op   parser.Operator
 	Expr FlatExpression
@@ -302,6 +358,10 @@ func (u UnaryOpAST) Repr() string {
 
 func (u UnaryOpAST) Columns() []RowValue {
 	return u.Expr.Columns()
+}
+
+func (u UnaryOpAST) Volatility() VolatilityType {
+	return u.Expr.Volatility()
 }
 
 type FuncAppAST struct {
@@ -325,6 +385,13 @@ func (f FuncAppAST) Columns() []RowValue {
 	return allColumns
 }
 
+func (f FuncAppAST) Volatility() VolatilityType {
+	// we can change this later, but for the moment we
+	// cannot assume that UDFs are stable or immutable
+	// in general
+	return Volatile
+}
+
 type WildcardAST struct {
 }
 
@@ -334,6 +401,13 @@ func (w WildcardAST) Repr() string {
 
 func (w WildcardAST) Columns() []RowValue {
 	return nil
+}
+
+func (w WildcardAST) Volatility() VolatilityType {
+	// this selects all elements of a tuple, which is
+	// a stable operation (maybe it is even immutable,
+	// but probably we will never evaluate this)
+	return Stable
 }
 
 type AggInputRef struct {
@@ -346,6 +420,12 @@ func (a AggInputRef) Repr() string {
 
 func (a AggInputRef) Columns() []RowValue {
 	return nil
+}
+
+func (a AggInputRef) Volatility() VolatilityType {
+	// TODO make this the same volatility level as the
+	//      aggregate function used
+	return Volatile
 }
 
 type RowValue struct {
@@ -361,6 +441,10 @@ func (rv RowValue) Columns() []RowValue {
 	return []RowValue{rv}
 }
 
+func (rv RowValue) Volatility() VolatilityType {
+	return Immutable
+}
+
 type RowMeta struct {
 	Relation string
 	MetaType parser.MetaInformation
@@ -372,6 +456,10 @@ func (rm RowMeta) Repr() string {
 
 func (rm RowMeta) Columns() []RowValue {
 	return nil
+}
+
+func (rm RowMeta) Volatility() VolatilityType {
+	return Immutable
 }
 
 type NumericLiteral struct {
@@ -386,6 +474,10 @@ func (l NumericLiteral) Columns() []RowValue {
 	return nil
 }
 
+func (l NumericLiteral) Volatility() VolatilityType {
+	return Immutable
+}
+
 type FloatLiteral struct {
 	Value float64
 }
@@ -398,6 +490,10 @@ func (l FloatLiteral) Columns() []RowValue {
 	return nil
 }
 
+func (l FloatLiteral) Volatility() VolatilityType {
+	return Immutable
+}
+
 type NullLiteral struct {
 }
 
@@ -407,6 +503,10 @@ func (l NullLiteral) Repr() string {
 
 func (l NullLiteral) Columns() []RowValue {
 	return nil
+}
+
+func (l NullLiteral) Volatility() VolatilityType {
+	return Immutable
 }
 
 type BoolLiteral struct {
@@ -421,6 +521,10 @@ func (l BoolLiteral) Columns() []RowValue {
 	return nil
 }
 
+func (l BoolLiteral) Volatility() VolatilityType {
+	return Immutable
+}
+
 type StringLiteral struct {
 	Value string
 }
@@ -431,6 +535,10 @@ func (l StringLiteral) Repr() string {
 
 func (l StringLiteral) Columns() []RowValue {
 	return nil
+}
+
+func (l StringLiteral) Volatility() VolatilityType {
+	return Immutable
 }
 
 type AggFuncAppAST struct {
