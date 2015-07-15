@@ -21,7 +21,7 @@ func NewSharedStateSink(ctx *Context, name string) (Sink, error) {
 	// It fails if the shared state cannot be written
 	writer, ok := state.(Writer)
 	if !ok {
-		return nil, fmt.Errorf("'%v' state cannot be written")
+		return nil, fmt.Errorf("'%v' state cannot be written", name)
 	}
 
 	s := &sharedStateSink{
