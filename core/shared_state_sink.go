@@ -4,6 +4,8 @@ import (
 	"fmt"
 )
 
+// writer points a shared state. sharedStateSink will point to the same shared state
+// even after the state is removed from the context.
 type sharedStateSink struct {
 	writer Writer
 }
