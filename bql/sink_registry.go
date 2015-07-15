@@ -142,6 +142,10 @@ func createSharedStateSink(ctx *core.Context, params data.Map) (core.Sink, error
 		return nil, err
 	}
 
+	// TODO: Support cascading delete. Because it isn't supported yet,
+	// the sink will be running even after the target state is dropped.
+	// Moreover, creating a state having the same name after dropping
+	// the previous state might result in a confusing behavior.
 	return core.NewSharedStateSink(ctx, nameStr)
 }
 
