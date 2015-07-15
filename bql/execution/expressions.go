@@ -158,21 +158,21 @@ func ParserExprToFlatExpr(e parser.Expression, reg udf.FunctionRegistry) (FlatEx
 // ParserExprToMaybeAggregate converts an expression obtained by the BQL
 // parser into a data structure where the aggregate and the non-aggregate
 // parts are separated.
-func ParserExprToMaybeAggregate(e parser.Expression, reg udf.FunctionRegistry) (FlatExpression, map[string]FlatExpression, error) {
+func ParserExprToMaybeAggregate(e parser.Expression, aggIdx int, reg udf.FunctionRegistry) (FlatExpression, map[string]FlatExpression, error) {
 	switch obj := e.(type) {
 	default:
 		// elementary types
 		expr, err := ParserExprToFlatExpr(e, reg)
 		return expr, nil, err
 	case parser.AliasAST:
-		return ParserExprToMaybeAggregate(obj.Expr, reg)
+		return ParserExprToMaybeAggregate(obj.Expr, aggIdx, reg)
 	case parser.BinaryOpAST:
 		// recurse
-		left, leftAgg, err := ParserExprToMaybeAggregate(obj.Left, reg)
+		left, leftAgg, err := ParserExprToMaybeAggregate(obj.Left, aggIdx, reg)
 		if err != nil {
 			return nil, nil, err
 		}
-		right, rightAgg, err := ParserExprToMaybeAggregate(obj.Right, reg)
+		right, rightAgg, err := ParserExprToMaybeAggregate(obj.Right, aggIdx+len(leftAgg), reg)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -188,7 +188,7 @@ func ParserExprToMaybeAggregate(e parser.Expression, reg udf.FunctionRegistry) (
 		return BinaryOpAST{obj.Op, left, right}, returnAgg, nil
 	case parser.UnaryOpAST:
 		// recurse
-		expr, agg, err := ParserExprToMaybeAggregate(obj.Expr, reg)
+		expr, agg, err := ParserExprToMaybeAggregate(obj.Expr, aggIdx, reg)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -235,6 +235,16 @@ func ParserExprToMaybeAggregate(e parser.Expression, reg udf.FunctionRegistry) (
 					h := sha1.New()
 					h.Write([]byte(fmt.Sprintf("%s", expr.Repr())))
 					exprId := "_" + hex.EncodeToString(h.Sum(nil))[:8]
+					// For stable or immutable expressions, we compute a reference
+					// string that depends only on the expression's string
+					// representation so that we have to compute and store values
+					// only once per row (e.g., for `sum(a)/count(a)`).
+					// For volatile expressions (e.g., `sum(random())/avg(random())`)
+					// we add a numeric suffix that represents the index
+					// of this aggregate in the whole projection list.
+					if expr.Volatility() == Volatile {
+						exprId += fmt.Sprintf("_%d", aggIdx+len(returnAgg))
+					}
 					exprs[i] = AggInputRef{exprId}
 					returnAgg[exprId] = expr
 				} else {
@@ -244,7 +254,7 @@ func ParserExprToMaybeAggregate(e parser.Expression, reg udf.FunctionRegistry) (
 			}
 		} else {
 			for i, ast := range obj.Expressions {
-				expr, agg, err := ParserExprToMaybeAggregate(ast, reg)
+				expr, agg, err := ParserExprToMaybeAggregate(ast, aggIdx, reg)
 				if err != nil {
 					return nil, nil, err
 				}

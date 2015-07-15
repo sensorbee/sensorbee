@@ -69,7 +69,7 @@ func TestFlatExpressionConverter(t *testing.T) {
 						selectStmt := result.(parser.SelectStmt)
 						So(len(selectStmt.Projections), ShouldBeGreaterThan, 0)
 						// convert it to FlatExpression
-						actual, _, err := ParserExprToMaybeAggregate(selectStmt.Projections[0], reg)
+						actual, _, err := ParserExprToMaybeAggregate(selectStmt.Projections[0], 0, reg)
 						So(err, ShouldBeNil)
 						// compare it against our expectation
 						So(actual, ShouldResemble, expected.e)

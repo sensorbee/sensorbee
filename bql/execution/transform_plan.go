@@ -95,9 +95,11 @@ func flattenExpressions(s *parser.CreateStreamAsSelectStmt, reg udf.FunctionRegi
 	groupingMode := false
 
 	flatProjExprs := make([]aliasedExpression, len(s.Projections))
+	numAggParams := 0
 	for i, expr := range s.Projections {
 		// convert the parser Expression to a FlatExpression
-		flatExpr, aggrs, err := ParserExprToMaybeAggregate(expr, reg)
+		flatExpr, aggrs, err := ParserExprToMaybeAggregate(expr, numAggParams, reg)
+		numAggParams += len(aggrs)
 		if err != nil {
 			return nil, err
 		}
