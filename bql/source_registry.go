@@ -7,17 +7,29 @@ import (
 	"sync"
 )
 
+// IOParams has parameters for IO plugins.
+type IOParams struct {
+	// TypeName is the name of the type registered to SensorBee.
+	TypeName string
+
+	// Name is the name of the instance specified in a CREATE statement.
+	Name string
+}
+
+// SourceCreator is an interface which creates instances of a Source.
 type SourceCreator interface {
-	CreateSource(ctx *core.Context, params data.Map) (core.Source, error)
+	// CreateSource creates a new Source instance using given parameters.
+	CreateSource(ctx *core.Context, ioParams *IOParams, params data.Map) (core.Source, error)
 }
 
-type sourceCreatorFunc func(*core.Context, data.Map) (core.Source, error)
+type sourceCreatorFunc func(*core.Context, *IOParams, data.Map) (core.Source, error)
 
-func (f sourceCreatorFunc) CreateSource(ctx *core.Context, params data.Map) (core.Source, error) {
-	return f(ctx, params)
+func (f sourceCreatorFunc) CreateSource(ctx *core.Context, ioParams *IOParams, params data.Map) (core.Source, error) {
+	return f(ctx, ioParams, params)
 }
 
-func SourceCreatorFunc(f func(*core.Context, data.Map) (core.Source, error)) SourceCreator {
+// SourceCreatorFunc creates a SourceCreator from a function.
+func SourceCreatorFunc(f func(*core.Context, *IOParams, data.Map) (core.Source, error)) SourceCreator {
 	return sourceCreatorFunc(f)
 }
 

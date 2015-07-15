@@ -7,17 +7,20 @@ import (
 	"sync"
 )
 
+// SinkCreator is an interface which creates instances of a Sink.
 type SinkCreator interface {
-	CreateSink(ctx *core.Context, params data.Map) (core.Sink, error)
+	// CreateSink creates a new Sink instance using given parameters.
+	CreateSink(ctx *core.Context, ioParams *IOParams, params data.Map) (core.Sink, error)
 }
 
-type sinkCreatorFunc func(*core.Context, data.Map) (core.Sink, error)
+type sinkCreatorFunc func(*core.Context, *IOParams, data.Map) (core.Sink, error)
 
-func (f sinkCreatorFunc) CreateSink(ctx *core.Context, params data.Map) (core.Sink, error) {
-	return f(ctx, params)
+func (f sinkCreatorFunc) CreateSink(ctx *core.Context, ioParams *IOParams, params data.Map) (core.Sink, error) {
+	return f(ctx, ioParams, params)
 }
 
-func SinkCreatorFunc(f func(*core.Context, data.Map) (core.Sink, error)) SinkCreator {
+// SinkCreatorFunc creates a SinkCreator from a function.
+func SinkCreatorFunc(f func(*core.Context, *IOParams, data.Map) (core.Sink, error)) SinkCreator {
 	return sinkCreatorFunc(f)
 }
 
@@ -131,7 +134,7 @@ func CopyGlobalSinkCreatorRegistry() (SinkCreatorRegistry, error) {
 	return r, nil
 }
 
-func createSharedStateSink(ctx *core.Context, params data.Map) (core.Sink, error) {
+func createSharedStateSink(ctx *core.Context, ioParams *IOParams, params data.Map) (core.Sink, error) {
 	// Get only name parameter from params
 	name, ok := params["name"]
 	if !ok {
