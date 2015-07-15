@@ -107,7 +107,7 @@ func RegisterGlobalSourceCreator(typeName string, c SourceCreator) error {
 }
 
 // MustRegisterGlobalSourceCreator is like RegisterGlobalSourceCreator but
-// panics if the typeName is already registered.
+// panics if an error occurred.
 func MustRegisterGlobalSourceCreator(typeName string, c SourceCreator) {
 	if err := globalSourceCreatorRegistry.Register(typeName, c); err != nil {
 		panic(fmt.Errorf("udf.MustRegisterGlobalSourceCreator: cannot register '%v': %v", typeName, err))

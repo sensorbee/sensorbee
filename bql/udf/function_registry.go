@@ -174,7 +174,7 @@ func RegisterGlobalUDF(name string, f UDF) error {
 }
 
 // MustRegisterGlobalUDF is like RegisterGlobalUDF but
-// panics if the name is already registered.
+// panics if an error occurred.
 func MustRegisterGlobalUDF(name string, f UDF) {
 	if err := globalUDFRegistry.Register(name, f); err != nil {
 		panic(fmt.Errorf("udf.MustRegisterGlobalUDF: cannot register '%v': %v", name, err))
