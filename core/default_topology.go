@@ -2,6 +2,7 @@ package core
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 )
 
@@ -90,7 +91,7 @@ func (t *defaultTopology) AddSource(name string, s Source, config *SourceConfig)
 		}
 		return nil, err
 	}
-	t.sources[name] = ds
+	t.sources[strings.ToLower(name)] = ds
 
 	go func() {
 		// TODO: Support lazy invocation
@@ -112,13 +113,14 @@ func (t *defaultTopology) AddSource(name string, s Source, config *SourceConfig)
 // This method doesn't acquire the lock and it's the caller's responsibility
 // to do it before calling this method.
 func (t *defaultTopology) checkNodeNameDuplication(name string) error {
-	if _, ok := t.sources[name]; ok {
+	lowerName := strings.ToLower(name)
+	if _, ok := t.sources[lowerName]; ok {
 		return fmt.Errorf("the name is already used by a source: %v", name)
 	}
-	if _, ok := t.boxes[name]; ok {
+	if _, ok := t.boxes[lowerName]; ok {
 		return fmt.Errorf("the name is already used by a box: %v", name)
 	}
-	if _, ok := t.sinks[name]; ok {
+	if _, ok := t.sinks[lowerName]; ok {
 		return fmt.Errorf("the name is already used by a sink: %v", name)
 	}
 	return nil
@@ -156,7 +158,7 @@ func (t *defaultTopology) AddBox(name string, b Box, config *BoxConfig) (BoxNode
 		dsts:        newDataDestinations(NTBox, name),
 	}
 	db.dsts.callback = db.dstCallback
-	t.boxes[name] = db
+	t.boxes[strings.ToLower(name)] = db
 
 	go func() {
 		if err := db.run(); err != nil {
@@ -192,7 +194,7 @@ func (t *defaultTopology) AddSink(name string, s Sink, config *SinkConfig) (Sink
 		srcs:        newDataSources(NTSink, name),
 		sink:        s,
 	}
-	t.sinks[name] = ds
+	t.sinks[strings.ToLower(name)] = ds
 
 	go func() {
 		if err := ds.run(); err != nil {
@@ -271,6 +273,7 @@ func (t *defaultTopology) State() TopologyStateHolder {
 }
 
 func (t *defaultTopology) Remove(name string) error {
+	lowerName := strings.ToLower(name)
 	n := func() Node {
 		t.nodeMutex.Lock()
 		defer t.nodeMutex.Unlock()
@@ -281,11 +284,11 @@ func (t *defaultTopology) Remove(name string) error {
 		}
 		switch n.Type() {
 		case NTSource:
-			delete(t.sources, name)
+			delete(t.sources, lowerName)
 		case NTBox:
-			delete(t.boxes, name)
+			delete(t.boxes, lowerName)
 		case NTSink:
-			delete(t.sinks, name)
+			delete(t.sinks, lowerName)
 		}
 		return n
 	}()
@@ -324,13 +327,14 @@ func (t *defaultTopology) Node(name string) (Node, error) {
 }
 
 func (t *defaultTopology) nodeWithoutLock(name string) (Node, error) {
-	if s, ok := t.sources[name]; ok {
+	lowerName := strings.ToLower(name)
+	if s, ok := t.sources[lowerName]; ok {
 		return s, nil
 	}
-	if b, ok := t.boxes[name]; ok {
+	if b, ok := t.boxes[lowerName]; ok {
 		return b, nil
 	}
-	if s, ok := t.sinks[name]; ok {
+	if s, ok := t.sinks[lowerName]; ok {
 		return s, nil
 	}
 	return nil, fmt.Errorf("node '%v' was not found", name)
@@ -356,7 +360,7 @@ func (t *defaultTopology) Nodes() map[string]Node {
 func (t *defaultTopology) Source(name string) (SourceNode, error) {
 	t.nodeMutex.RLock()
 	defer t.nodeMutex.RUnlock()
-	if s, ok := t.sources[name]; ok {
+	if s, ok := t.sources[strings.ToLower(name)]; ok {
 		return s, nil
 	}
 	return nil, fmt.Errorf("source '%v' was not found", name)
@@ -376,7 +380,7 @@ func (t *defaultTopology) Sources() map[string]SourceNode {
 func (t *defaultTopology) Box(name string) (BoxNode, error) {
 	t.nodeMutex.RLock()
 	defer t.nodeMutex.RUnlock()
-	if b, ok := t.boxes[name]; ok {
+	if b, ok := t.boxes[strings.ToLower(name)]; ok {
 		return b, nil
 	}
 	return nil, fmt.Errorf("box '%v' was not found", name)
@@ -396,7 +400,7 @@ func (t *defaultTopology) Boxes() map[string]BoxNode {
 func (t *defaultTopology) Sink(name string) (SinkNode, error) {
 	t.nodeMutex.RLock()
 	defer t.nodeMutex.RUnlock()
-	if s, ok := t.sinks[name]; ok {
+	if s, ok := t.sinks[strings.ToLower(name)]; ok {
 		return s, nil
 	}
 	return nil, fmt.Errorf("sink '%v' was not found", name)
@@ -422,10 +426,11 @@ func (t *defaultTopology) dataSource(nodeName string) (dataSource, error) {
 	t.nodeMutex.RLock()
 	defer t.nodeMutex.RUnlock()
 
-	if s, ok := t.sources[nodeName]; ok {
+	lowerNodeName := strings.ToLower(nodeName)
+	if s, ok := t.sources[lowerNodeName]; ok {
 		return s, nil
 	}
-	if b, ok := t.boxes[nodeName]; ok {
+	if b, ok := t.boxes[lowerNodeName]; ok {
 		return b, nil
 	}
 	return nil, fmt.Errorf("data source node %v was not found", nodeName)

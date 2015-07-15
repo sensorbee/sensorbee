@@ -142,13 +142,13 @@ func TestDefaultTopologySetup(t *testing.T) {
 			})
 
 			Convey("Then the topology should have it", func() {
-				n, err := t.Source("source1")
+				n, err := t.Source("SOURCE1")
 				So(err, ShouldBeNil)
 				So(n, ShouldPointTo, sn)
 			})
 
 			Convey("Then it can be obtained as a node", func() {
-				n, err := t.Node("source1")
+				n, err := t.Node("SOURCE1")
 				So(err, ShouldBeNil)
 				So(n, ShouldPointTo, sn)
 			})
@@ -228,13 +228,13 @@ func TestDefaultTopologySetup(t *testing.T) {
 			})
 
 			Convey("Then the topology should have it", func() {
-				n, err := t.Box("box1")
+				n, err := t.Box("BOX1")
 				So(err, ShouldBeNil)
 				So(n, ShouldPointTo, bn)
 			})
 
 			Convey("Then it can be obtained as a node", func() {
-				n, err := t.Node("box1")
+				n, err := t.Node("BOX1")
 				So(err, ShouldBeNil)
 				So(n, ShouldPointTo, bn)
 			})
@@ -252,13 +252,13 @@ func TestDefaultTopologySetup(t *testing.T) {
 			})
 
 			Convey("Then the topology should have it", func() {
-				n, err := t.Sink("sink1")
+				n, err := t.Sink("SINK1")
 				So(err, ShouldBeNil)
 				So(n, ShouldPointTo, sn)
 			})
 
 			Convey("Then it can be obtained as a node", func() {
-				n, err := t.Node("sink1")
+				n, err := t.Node("SINK1")
 				So(err, ShouldBeNil)
 				So(n, ShouldPointTo, sn)
 			})
@@ -315,19 +315,19 @@ func TestLinearDefaultTopology(t *testing.T) {
 		tc1 := newTerminateChecker(b1)
 		bn1, err := t.AddBox("box1", tc1, nil)
 		So(err, ShouldBeNil)
-		So(bn1.Input("source", nil), ShouldBeNil)
+		So(bn1.Input("SOURCE", nil), ShouldBeNil)
 
 		b2 := BoxFunc(forwardBox)
 		tc2 := newTerminateChecker(b2)
 		bn2, err := t.AddBox("box2", tc2, nil)
 		So(err, ShouldBeNil)
-		So(bn2.Input("box1", nil), ShouldBeNil)
+		So(bn2.Input("BOX1", nil), ShouldBeNil)
 
 		si := NewTupleCollectorSink()
 		sic := &sinkCloseChecker{s: si}
 		sin, err := t.AddSink("sink", sic, nil)
 		So(err, ShouldBeNil)
-		So(sin.Input("box2", nil), ShouldBeNil)
+		So(sin.Input("BOX2", nil), ShouldBeNil)
 
 		checkPostCond := func() {
 			Convey("Then the topology should be stopped", func() {
@@ -534,7 +534,7 @@ func TestLinearDefaultTopology(t *testing.T) {
 				t.Stop()
 			})
 			so.EmitTuples(2)
-			So(t.Remove("source"), ShouldBeNil)
+			So(t.Remove("SOURCE"), ShouldBeNil)
 
 			Convey("Then the source should be stopped", func() {
 				So(son.State().Get(), ShouldEqual, TSStopped)
@@ -557,7 +557,7 @@ func TestLinearDefaultTopology(t *testing.T) {
 			})
 			so.EmitTuples(2)
 			si.Wait(2)
-			So(t.Remove("box1"), ShouldBeNil)
+			So(t.Remove("BOX1"), ShouldBeNil)
 			so.EmitTuples(2)
 
 			Convey("Then the box should be stopped", func() {
@@ -604,7 +604,7 @@ func TestLinearDefaultTopology(t *testing.T) {
 			})
 			so.EmitTuples(2)
 			si.Wait(2)
-			So(t.Remove("sink"), ShouldBeNil)
+			So(t.Remove("SINK"), ShouldBeNil)
 			so.EmitTuples(2)
 
 			Convey("Then the sink should be stopped", func() {
