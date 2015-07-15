@@ -150,5 +150,5 @@ func createSharedStateSink(ctx *core.Context, params data.Map) (core.Sink, error
 }
 
 func init() {
-	RegisterGlobalSinkCreator("uds", SinkCreatorFunc(createSharedStateSink))
+	MustRegisterGlobalSinkCreator("uds", SinkCreatorFunc(createSharedStateSink))
 }
