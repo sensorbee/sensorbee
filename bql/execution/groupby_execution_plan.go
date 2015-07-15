@@ -92,6 +92,16 @@ func (ep *groupbyExecutionPlan) performQueryOnBuffer() error {
 		ep.prevResults = output
 	}
 
+	// collect a list of all aggregate parameter evaluators in all
+	// projections. this is necessary to avoid duplicate evaluation
+	// if the same parameter is used in multiple aggregation funcs.
+	allAggEvaluators := map[string]Evaluator{}
+	for _, proj := range ep.projections {
+		for key, agg := range proj.aggrEvals {
+			allAggEvaluators[key] = agg
+		}
+	}
+
 	// groups holds one item for every combination of values that
 	// appear in the GROUP BY clause
 	groups := []tmpGroupData{}
@@ -189,34 +199,26 @@ func (ep *groupbyExecutionPlan) performQueryOnBuffer() error {
 
 		// now compute all the input data for the aggregate functions,
 		// e.g. for `SELECT count(a) + max(b/2)`, compute `a` and `b/2`
-		for _, proj := range ep.projections {
-			if proj.hasAggregate {
-				// this column involves an aggregate function, but there
-				// may be multiple ones
-				for key, agg := range proj.aggrEvals {
-					value, err := agg.Eval(d)
-					if err != nil {
-						return err
-					}
-					// now we need to store this value in the output map
-					itemGroup.aggData[key] = append(itemGroup.aggData[key], value)
-				}
+		for key, agg := range allAggEvaluators {
+			value, err := agg.Eval(d)
+			if err != nil {
+				return err
 			}
+			// store this value in the output map
+			itemGroup.aggData[key] = append(itemGroup.aggData[key], value)
 		}
 		return nil
 	}
 
 	evalGroup := func(group *tmpGroupData) error {
 		result := data.Map(make(map[string]data.Value, len(ep.projections)))
+		// collect input for aggregate functions into an array
+		// within each group
+		for key, _ := range allAggEvaluators {
+			group.nonAggData[key] = data.Array(group.aggData[key])
+			delete(group.aggData, key)
+		}
 		for _, proj := range ep.projections {
-			// collect input for aggregate functions
-			if proj.hasAggregate {
-				for key := range proj.aggrEvals {
-					aggregateInputs := group.aggData[key]
-					group.nonAggData[key] = data.Array(aggregateInputs)
-					delete(group.aggData, key)
-				}
-			}
 			// now evaluate this projection on the flattened data
 			value, err := proj.evaluator.Eval(group.nonAggData)
 			if err != nil {
