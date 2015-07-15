@@ -17,8 +17,8 @@ func TestCountAggregate(t *testing.T) {
 		})
 
 		Convey("Then it should be an aggregate in the first argument", func() {
-			So(f.IsAggregationParameter(0), ShouldBeFalse)
-			So(f.IsAggregationParameter(1), ShouldBeTrue)
+			So(f.IsAggregationParameter(0), ShouldBeTrue)
+			So(f.IsAggregationParameter(1), ShouldBeFalse)
 			So(f.IsAggregationParameter(2), ShouldBeFalse)
 		})
 

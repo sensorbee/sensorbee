@@ -228,7 +228,7 @@ func ParserExprToMaybeAggregate(e parser.Expression, reg udf.FunctionRegistry) (
 					}
 					return nil, nil, err
 				}
-				isAggr := function.IsAggregationParameter(i + 1) // parameters count from 1
+				isAggr := function.IsAggregationParameter(i)
 				if isAggr {
 					// this is an aggregation parameter, we will replace
 					// it by a reference to the aggregated list of values
