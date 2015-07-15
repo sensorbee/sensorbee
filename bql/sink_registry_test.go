@@ -72,7 +72,7 @@ func TestDefaultSinkCreatorRegistry(t *testing.T) {
 				So(err, ShouldBeNil)
 
 				Convey("And it should have the expected type", func() {
-					s, err := c.CreateSink(ctx, nil)
+					s, err := c.CreateSink(ctx, &IOParams{}, nil)
 					So(err, ShouldBeNil)
 					So(s, ShouldHaveSameTypeAs, &tupleCollectorSink{})
 				})
@@ -144,17 +144,17 @@ func TestSharedStateSinkCreatorWithRegistry(t *testing.T) {
 				So(err, ShouldBeNil)
 
 				Convey("And it should return error when parameter is empty", func() {
-					_, err := c.CreateSink(ctx, nil)
+					_, err := c.CreateSink(ctx, &IOParams{}, nil)
 					So(err.Error(), ShouldContainSubstring, "parameter")
 				})
 
 				Convey("And it should return error because the specified parameter is invalid type", func() {
-					_, err := c.CreateSink(ctx, data.Map{"name": data.Int(100)})
+					_, err := c.CreateSink(ctx, &IOParams{}, data.Map{"name": data.Int(100)})
 					So(err.Error(), ShouldContainSubstring, "unsupported")
 				})
 
 				Convey("And it should return error because the specified shared state is missing", func() {
-					_, err := c.CreateSink(ctx, data.Map{"name": data.String("shared_state_not_found")})
+					_, err := c.CreateSink(ctx, &IOParams{}, data.Map{"name": data.String("shared_state_not_found")})
 					So(err.Error(), ShouldContainSubstring, "was not found")
 				})
 			})
