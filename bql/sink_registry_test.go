@@ -120,9 +120,6 @@ func TestGlobalSinkCreatorRegistry(t *testing.T) {
 		r, err := CopyGlobalSinkCreatorRegistry()
 		So(r, ShouldNotBeNil)
 		So(err, ShouldBeNil)
-		Reset(func() {
-			r, _ = CopyGlobalSinkCreatorRegistry()
-		})
 
 		Convey("When adding a new type having the registered type name", func() {
 			err := r.Register("uds", SinkCreatorFunc(createCollectorSink))
