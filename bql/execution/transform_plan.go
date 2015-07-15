@@ -78,7 +78,7 @@ func Analyze(s parser.CreateStreamAsSelectStmt, reg udf.FunctionRegistry) (*Logi
 // parameter.
 func isAggregateFunc(f udf.UDF, arity int) bool {
 	agg := false
-	for k := 1; k <= arity; k++ {
+	for k := 0; k < arity; k++ {
 		if f.IsAggregationParameter(k) {
 			agg = true
 		}

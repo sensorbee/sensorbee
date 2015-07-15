@@ -34,7 +34,7 @@ func (f *dummyAggregate) Accept(arity int) bool {
 }
 
 func (f *dummyAggregate) IsAggregationParameter(k int) bool {
-	return k == 1
+	return k == 0
 }
 
 type analyzeTest struct {

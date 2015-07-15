@@ -32,5 +32,5 @@ func (f *countAggregate) Accept(arity int) bool {
 }
 
 func (f *countAggregate) IsAggregationParameter(k int) bool {
-	return k == 1
+	return k == 0
 }
