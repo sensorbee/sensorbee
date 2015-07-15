@@ -96,7 +96,10 @@ func (tb *TopologyBuilder) AddStmt(stmt interface{}) (core.Node, error) {
 		}
 
 		// if so, try to create such a source
-		source, err := creator.CreateSource(tb.topology.Context(), paramsMap)
+		source, err := creator.CreateSource(tb.topology.Context(), &IOParams{
+			TypeName: string(stmt.Type),
+			Name:     string(stmt.Name),
+		}, paramsMap)
 		if err != nil {
 			return nil, err
 		}
@@ -118,7 +121,10 @@ func (tb *TopologyBuilder) AddStmt(stmt interface{}) (core.Node, error) {
 		}
 
 		// if so, try to create such a sink
-		sink, err := creator.CreateSink(tb.topology.Context(), paramsMap)
+		sink, err := creator.CreateSink(tb.topology.Context(), &IOParams{
+			TypeName: string(stmt.Type),
+			Name:     string(stmt.Name),
+		}, paramsMap)
 		if err != nil {
 			return nil, err
 		}
