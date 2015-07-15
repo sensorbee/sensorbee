@@ -93,6 +93,10 @@ type SourceConfig struct {
 	// after it is added to a topology.
 	PausedOnStartup bool
 
+	// RemoveOnStop is a flag which indicates the stop state of the
+	// topology. If it is true, the source is removed.
+	RemoveOnStop bool
+
 	// Meta contains meta information of the source. This field won't be used
 	// by core package and application can store any form of information
 	// related to the source.
@@ -103,6 +107,10 @@ type SourceConfig struct {
 type BoxConfig struct {
 	// TODO: parallelism
 
+	// RemoveOnStop is a flag which indicates the stop state of the
+	// topology. If it is true, the box is removed.
+	RemoveOnStop bool
+
 	// Meta contains meta information of the box. This field won't be used
 	// by core package and application can store any form of information
 	// related to the box.
@@ -111,6 +119,10 @@ type BoxConfig struct {
 
 // SinkConfig has configuration parameters of a Sink node.
 type SinkConfig struct {
+	// RemoveOnStop is a flag which indicates the stop state of the
+	// topology. If it is true, the sink is removed.
+	RemoveOnStop bool
+
 	// Meta contains meta information of the sink. This field won't be used
 	// by core package and application can store any form of information
 	// related to the sink.
