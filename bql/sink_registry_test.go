@@ -114,22 +114,30 @@ func TestDefaultSinkCreatorRegistry(t *testing.T) {
 }
 
 func TestGlobalSinkCreatorRegistry(t *testing.T) {
-	ctx := core.NewContext(nil)
-
-	Convey("Given an default Global Sink registry", t, func() {
+	Convey("Given a default Global Sink registry", t, func() {
 		r, err := CopyGlobalSinkCreatorRegistry()
 		So(r, ShouldNotBeNil)
 		So(err, ShouldBeNil)
 
-		Convey("When adding a new type having the registered type name", func() {
-			err := r.Register("uds", SinkCreatorFunc(createCollectorSink))
+		Convey("When looking up a predefined uds creator", func() {
+			_, err := r.Lookup("uds")
 
-			Convey("Then it should fail", func() {
-				So(err, ShouldNotBeNil)
+			Convey("Then it should succeed", func() {
+				So(err, ShouldBeNil)
 			})
 		})
+	})
+}
 
-		Convey("When looking up a creator", func() {
+func TestSharedStateSinkCreatorWithRegistry(t *testing.T) {
+	ctx := core.NewContext(nil)
+
+	Convey("Given a default Global Sink registry", t, func() {
+		r, err := CopyGlobalSinkCreatorRegistry()
+		So(r, ShouldNotBeNil)
+		So(err, ShouldBeNil)
+
+		Convey("When looking up an uds creator", func() {
 			c, err := r.Lookup("uds")
 
 			Convey("Then it should succeed", func() {
