@@ -165,8 +165,7 @@ func (b *bqlCmd) Input(input string) (cmdInputStatusType, error) {
 // Eval resolves input command to BQL statement
 func (b *bqlCmd) Eval() (client.Method, string, interface{}) {
 	// flush buffer and get complete statement
-	queries := strings.Replace(b.buffer, "\n", " ", -1)
-	queries = queries[:len(queries)-1]
+	queries := b.buffer
 	b.buffer = ""
 
 	fmt.Printf("BQL: %s\n", queries) // for debug, delete later
