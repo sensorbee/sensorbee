@@ -139,6 +139,10 @@ func TestDefaultTopologySetup(t *testing.T) {
 			Convey("Then it should be able to stop", func() {
 				So(sn.Stop(), ShouldBeNil)
 				So(sn.State().Get(), ShouldEqual, TSStopped)
+
+				Convey("And stopping it again shouldn't fail", func() {
+					So(sn.Stop(), ShouldBeNil)
+				})
 			})
 
 			Convey("Then the topology should have it", func() {
@@ -220,6 +224,11 @@ func TestDefaultTopologySetup(t *testing.T) {
 				Convey("And it should be terminated", func() {
 					So(b.terminateCnt, ShouldEqual, 1)
 				})
+
+				Convey("And stopping it again shouldn't fail", func() {
+					So(bn.Stop(), ShouldBeNil)
+					So(b.terminateCnt, ShouldEqual, 1)
+				})
 			})
 
 			Convey("Then Terminate should be called after stopping the topology", func() {
@@ -266,6 +275,10 @@ func TestDefaultTopologySetup(t *testing.T) {
 			Convey("Then it should be able to stop", func() {
 				So(sn.Stop(), ShouldBeNil)
 				So(sn.State().Get(), ShouldEqual, TSStopped)
+
+				Convey("And stopping it again shouldn't fail", func() {
+					So(sn.Stop(), ShouldBeNil)
+				})
 			})
 
 			dupNameTests("sink1")
@@ -526,6 +539,12 @@ func TestLinearDefaultTopology(t *testing.T) {
 
 			Convey("Then the sink should receive all tuples", func() {
 				So(len(si.Tuples), ShouldEqual, 8)
+			})
+		})
+
+		Convey("When removing a nonexistent node", func() {
+			Convey("Then it shouldn't fail", func() {
+				So(t.Remove("no_such_node"), ShouldBeNil)
 			})
 		})
 
