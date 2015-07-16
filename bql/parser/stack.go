@@ -759,10 +759,11 @@ func (ps *parseStack) EnsureKeywordPresent(begin int, end int) {
 
 /* Expressions */
 
-// AssembleBinaryOperation takes the three elements from the stack that
-// correspond to the input[begin:end] string and adds the given
-// binary operator in between. If there is just one element, push
-// it back unmodified.
+// AssembleBinaryOperation takes the (odd number of) elements from
+// the stack that correspond to the input[begin:end] string and adds
+// the given binary operator between each two of them. At the moment,
+// all operators are treated as left-associative (which is why the
+// parser only allows this for +,-,*,/)
 //
 //  Any
 //   =>
@@ -773,6 +774,14 @@ func (ps *parseStack) EnsureKeywordPresent(begin int, end int) {
 //  Any
 //   =>
 //  BinaryOpAST{Operator, Any, Any}
+// or
+//  Any
+//  Operator
+//  Any
+//  Operator
+//  Any
+//   =>
+//  BinaryOpAST{Operator, BinaryOpAST{Operator, Any, Any}, Any}
 func (ps *parseStack) AssembleBinaryOperation(begin int, end int) {
 	elems := ps.collectElements(begin, end)
 	if len(elems) == 1 {
@@ -782,6 +791,15 @@ func (ps *parseStack) AssembleBinaryOperation(begin int, end int) {
 		op := elems[1].(Operator)
 		// connect left and right with the given operator
 		ps.PushComponent(begin, end, BinaryOpAST{op, elems[0].(Expression), elems[2].(Expression)})
+	} else if len(elems) > 3 {
+		op := elems[1].(Operator)
+		// left-associativity: process three leftmost items,
+		// then nest them with the next item
+		leftmost := BinaryOpAST{op, elems[0].(Expression), elems[2].(Expression)}
+		for i := 4; i < len(elems); i += 2 {
+			leftmost = BinaryOpAST{elems[i-1].(Operator), leftmost, elems[i].(Expression)}
+		}
+		ps.PushComponent(begin, end, leftmost)
 	} else {
 		panic(fmt.Sprintf("cannot turn %+v into a binary operation", elems))
 	}
