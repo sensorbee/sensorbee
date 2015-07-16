@@ -183,6 +183,59 @@ func (b *panicBox) Process(ctx *Context, t *Tuple, w Writer) error {
 	return b.ProxyBox.Process(ctx, t, w)
 }
 
+type stubSink struct {
+	s Sink
+
+	m            sync.Mutex
+	writeFailAt  int
+	fatalError   bool
+	writePanicAt int
+	writeCnt     int
+
+	closeShouldPanic bool
+	closeShouldFail  bool
+	panicValue       interface{}
+}
+
+func newStubSink(s Sink) *stubSink {
+	return &stubSink{
+		s: s,
+	}
+}
+
+func (s *stubSink) Write(ctx *Context, t *Tuple) error {
+	s.m.Lock()
+	defer s.m.Unlock()
+	s.writeCnt++
+	if s.writeCnt == s.writePanicAt {
+		if s.panicValue != nil {
+			panic(s.panicValue)
+		}
+		panic(fmt.Errorf("test failure via panic"))
+	}
+	if s.writeCnt == s.writeFailAt {
+		err := fmt.Errorf("test failure")
+		if s.fatalError {
+			return FatalError(err)
+		}
+		return err
+	}
+	return s.s.Write(ctx, t)
+}
+
+func (s *stubSink) Close(ctx *Context) error {
+	if s.closeShouldPanic {
+		if s.panicValue != nil {
+			panic(s.panicValue)
+		}
+		panic(fmt.Errorf("failure panic"))
+	}
+	if s.closeShouldFail {
+		return fmt.Errorf("failure")
+	}
+	return s.s.Close(ctx)
+}
+
 func TestDefaultTopologySetupFailure(t *testing.T) {
 	Convey("Given a topology", t, func() {
 		t := NewDefaultTopology(NewContext(nil), "dt1")
@@ -371,7 +424,8 @@ func TestDefaultTopologyFailure(t *testing.T) {
 
 		si := NewTupleCollectorSink()
 		sic := &sinkCloseChecker{s: si}
-		sin, err := t.AddSink("sink", sic, nil)
+		stubSi := newStubSink(sic)
+		sin, err := t.AddSink("sink", stubSi, nil)
 		So(err, ShouldBeNil)
 		So(sin.Input("box1", nil), ShouldBeNil)
 
@@ -459,6 +513,13 @@ func TestDefaultTopologyFailure(t *testing.T) {
 			Convey("Then topology stop should fail", func() {
 				So(t.Stop(), ShouldNotBeNil)
 			})
+
+			Convey("Then remove should fail but the source should be removed", func() {
+				So(t.Remove("source"), ShouldNotBeNil)
+				So(son.State().Wait(TSStopped), ShouldEqual, TSStopped)
+				_, err := t.Source("source")
+				So(err, ShouldNotBeNil)
+			})
 		})
 
 		Convey("When a source panics on stop with non-error value", func() {
@@ -527,6 +588,11 @@ func TestDefaultTopologyFailure(t *testing.T) {
 
 			Convey("Then the box should be stopped", func() {
 				So(bn1.State().Wait(TSStopped), ShouldEqual, TSStopped)
+
+				Convey("And the box has an error in its status", func() {
+					_, ok := bn1.Status()["error"]
+					So(ok, ShouldBeTrue)
+				})
 			})
 
 			Convey("Then the sink should receive tuples sent before the fatal error", func() {
@@ -589,7 +655,97 @@ func TestDefaultTopologyFailure(t *testing.T) {
 			})
 		})
 
-		// TODO: Box terminate panic and handling
-		// TODO: Sink.Close panic
+		Convey("When a sink panics", func() {
+			stubSi.writePanicAt = 1
+			so.EmitTuples(5)
+
+			Convey("Then the sink should be stopped", func() {
+				So(sin.State().Wait(TSStopped), ShouldEqual, TSStopped)
+
+				Convey("And the sink should be closed", func() {
+					So(sic.closeCnt, ShouldEqual, 1)
+				})
+			})
+		})
+
+		Convey("When a sink fails with a regular error", func() {
+			stubSi.writeFailAt = 4
+			so.EmitTuples(8)
+
+			Convey("Then the sink shouldn't be stopped", func() {
+				So(sin.State().Get(), ShouldEqual, TSRunning)
+			})
+
+			Convey("Then a tuple should be lost", func() {
+				si.Wait(7)
+				So(len(si.Tuples), ShouldEqual, 7)
+			})
+		})
+
+		Convey("When a sink fails with a fatal error", func() {
+			stubSi.writeFailAt = 4
+			stubSi.fatalError = true
+			so.EmitTuples(8)
+
+			Convey("Then the sink should be stopped", func() {
+				So(sin.State().Wait(TSStopped), ShouldEqual, TSStopped)
+				So(sic.closeCnt, ShouldEqual, 1)
+
+				Convey("And the sink has an error in its status", func() {
+					_, ok := sin.Status()["error"]
+					So(ok, ShouldBeTrue)
+				})
+			})
+		})
+
+		Convey("When a sink panics on close", func() {
+			stubSi.closeShouldPanic = true
+
+			Convey("Then it should be stopped", func() {
+				So(sin.Stop(), ShouldBeNil)
+
+				Convey("And the sink has an error in its status", func() {
+					_, ok := sin.Status()["error"]
+					So(ok, ShouldBeTrue)
+				})
+			})
+
+			Convey("Then it should be stopped when a fatal write error occurs", func() {
+				stubSi.writeFailAt = 1
+				stubSi.fatalError = true
+				so.EmitTuples(8)
+				So(sin.State().Wait(TSStopped), ShouldEqual, TSStopped)
+
+				Convey("And the box has an error in its status", func() {
+					_, ok := sin.Status()["error"]
+					So(ok, ShouldBeTrue)
+				})
+			})
+		})
+
+		Convey("When a sink fails on close", func() {
+			stubSi.closeShouldFail = true
+
+			Convey("Then it should be stopped", func() {
+				So(sin.Stop(), ShouldBeNil)
+
+				Convey("And the sink has an error in its status", func() {
+					_, ok := sin.Status()["error"]
+					So(ok, ShouldBeTrue)
+				})
+			})
+
+			Convey("Then it should be stopped when a fatal write error occurs", func() {
+				stubSi.writeFailAt = 1
+				stubSi.fatalError = true
+				so.EmitTuples(8)
+				So(sin.State().Wait(TSStopped), ShouldEqual, TSStopped)
+
+				Convey("And the box has an error in its status", func() {
+					_, ok := sin.Status()["error"]
+					So(ok, ShouldBeTrue)
+				})
+			})
+		})
 	})
 }

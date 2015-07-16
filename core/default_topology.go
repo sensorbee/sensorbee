@@ -291,26 +291,14 @@ func (t *defaultTopology) Remove(name string) error {
 		return nil // already removed or doesn't exist
 	}
 
-	return func() (retErr error) {
-		defer func() {
-			if e := recover(); e != nil {
-				if err, ok := e.(error); ok {
-					retErr = err
-				} else {
-					retErr = FatalError(fmt.Errorf("%v '%v' failed to stop with panic: %v", n.Type(), name, e))
-				}
-			}
-
-			if retErr != nil && n.Type() == NTSource {
-				s := n.(*defaultSourceNode)
-				s.dsts.Close(t.ctx)
-			}
-		}()
-		if err := n.Stop(); err != nil {
-			retErr = err
+	if err := n.Stop(); err != nil { // stop never panics
+		if n.Type() == NTSource {
+			s := n.(*defaultSourceNode)
+			s.dsts.Close(t.ctx)
 		}
-		return
-	}()
+		return err
+	}
+	return nil
 }
 
 // TODO: Add method to clean up (possibly indirectly) stopped nodes
