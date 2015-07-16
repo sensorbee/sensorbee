@@ -7,21 +7,100 @@ import (
 	"testing"
 )
 
+type stubSource struct {
+	s Source
+
+	genStrmShouldPanic bool
+	genStrmShouldFail  bool
+	stopShouldPanic    bool
+	stopShouldFail     bool
+	pauseShouldPanic   bool
+	pauseShouldFail    bool
+	resumeShouldPanic  bool
+	resumeShouldFail   bool
+
+	panicValue interface{}
+}
+
+var (
+	_ Resumable = &stubSource{}
+)
+
+func newStubSource(s Source) *stubSource {
+	return &stubSource{
+		s: s,
+	}
+}
+
+func (s *stubSource) GenerateStream(ctx *Context, w Writer) error {
+	if s.genStrmShouldPanic {
+		if s.panicValue != nil {
+			panic(s.panicValue)
+		}
+		panic(fmt.Errorf("failure panic"))
+	}
+	if s.genStrmShouldFail {
+		return fmt.Errorf("failure")
+	}
+	return s.s.GenerateStream(ctx, w)
+}
+
+func (s *stubSource) Stop(ctx *Context) error {
+	s.s.Stop(ctx) // to avoid goroutine leaks
+
+	if s.stopShouldPanic {
+		if s.panicValue != nil {
+			panic(s.panicValue)
+		}
+		panic(fmt.Errorf("failure panic"))
+	}
+	if s.stopShouldFail {
+		return fmt.Errorf("failure")
+	}
+	return nil
+}
+
+func (s *stubSource) Pause(ctx *Context) error {
+	if s.pauseShouldPanic {
+		if s.panicValue != nil {
+			panic(s.panicValue)
+		}
+		panic(fmt.Errorf("failure panic"))
+	}
+	if s.pauseShouldFail {
+		return fmt.Errorf("failure")
+	}
+	return nil
+}
+
+func (s *stubSource) Resume(ctx *Context) error {
+	if s.resumeShouldPanic {
+		if s.panicValue != nil {
+			panic(s.panicValue)
+		}
+		panic(fmt.Errorf("failure panic"))
+	}
+	if s.resumeShouldFail {
+		return fmt.Errorf("failure")
+	}
+	return nil
+}
+
 type stubInitTerminateBox struct {
 	*terminateChecker
 
 	init struct {
 		cnt         int
-		shouldFail  bool
 		shouldPanic bool
+		shouldFail  bool
 		shouldBlock bool
 		failed      bool
 		wg          sync.WaitGroup
 	}
 
 	terminate struct {
-		shouldFail  bool
 		shouldPanic bool
+		shouldFail  bool
 	}
 
 	panicValue interface{}
@@ -128,9 +207,108 @@ func TestDefaultTopologySetupFailure(t *testing.T) {
 			})
 		})
 
-		// TODO: Add Source failure tests with a duplicated name or failing GenerateStream
-		//       1. Stop fails
-		//       2. Stop panics
+		Convey("When adding a source having a duplicated name", func() {
+			_, err := t.AddSource("source", &DoesNothingSource{}, nil)
+			So(err, ShouldBeNil)
+
+			Convey("Then a source whose stop panics shouldn't be added", func() {
+				s := newStubSource(&DoesNothingSource{})
+				s.stopShouldPanic = true
+				_, err := t.AddSource("source", s, nil)
+				So(err, ShouldNotBeNil)
+			})
+
+			Convey("Then a source whose stop fails shouldn't be added", func() {
+				s := newStubSource(&DoesNothingSource{})
+				s.stopShouldFail = true
+				_, err := t.AddSource("source", s, nil)
+				So(err, ShouldNotBeNil)
+			})
+		})
+
+		Convey("When adding a source whose GenerateStream panics", func() {
+			s := newStubSource(NewTupleIncrementalEmitterSource(freshTuples()))
+			s.genStrmShouldPanic = true
+			sn, err := t.AddSource("source", s, nil)
+			So(err, ShouldBeNil)
+
+			Convey("Then it should be stopped", func() {
+				So(sn.State().Wait(TSStopped), ShouldEqual, TSStopped)
+
+				Convey("And its status should have an error", func() {
+					_, ok := sn.Status()["error"]
+					So(ok, ShouldBeTrue)
+				})
+			})
+		})
+
+		Convey("When adding a source whose GenerateStream fails", func() {
+			s := newStubSource(NewTupleIncrementalEmitterSource(freshTuples()))
+			s.genStrmShouldFail = true
+			sn, err := t.AddSource("source", s, nil)
+			So(err, ShouldBeNil)
+
+			Convey("Then it should be stopped", func() {
+				So(sn.State().Wait(TSStopped), ShouldEqual, TSStopped)
+
+				Convey("And its status should have an error", func() {
+					_, ok := sn.Status()["error"]
+					So(ok, ShouldBeTrue)
+				})
+			})
+		})
+
+		Convey("When adding a source whose Pause panics", func() {
+			s := newStubSource(NewTupleIncrementalEmitterSource(freshTuples()))
+			s.pauseShouldPanic = true
+			sn, err := t.AddSource("source", s, &SourceConfig{
+				PausedOnStartup: true,
+			})
+			So(err, ShouldBeNil)
+
+			Convey("Then it should be stopped", func() {
+				So(sn.State().Wait(TSStopped), ShouldEqual, TSStopped)
+				Convey("And its status should have an error", func() {
+					_, ok := sn.Status()["error"]
+					So(ok, ShouldBeTrue)
+				})
+			})
+		})
+
+		Convey("When adding a source whose Pause panics with non-error value", func() {
+			s := newStubSource(NewTupleIncrementalEmitterSource(freshTuples()))
+			s.pauseShouldPanic = true
+			s.panicValue = 1
+			sn, err := t.AddSource("source", s, &SourceConfig{
+				PausedOnStartup: true,
+			})
+			So(err, ShouldBeNil)
+
+			Convey("Then it should be stopped", func() {
+				So(sn.State().Wait(TSStopped), ShouldEqual, TSStopped)
+				Convey("And its status should have an error", func() {
+					_, ok := sn.Status()["error"]
+					So(ok, ShouldBeTrue)
+				})
+			})
+		})
+
+		Convey("When adding a source whose Pause fails", func() {
+			s := newStubSource(NewTupleIncrementalEmitterSource(freshTuples()))
+			s.pauseShouldFail = true
+			sn, err := t.AddSource("source", s, &SourceConfig{
+				PausedOnStartup: true,
+			})
+			So(err, ShouldBeNil)
+
+			Convey("Then it should be stopped", func() {
+				So(sn.State().Wait(TSStopped), ShouldEqual, TSStopped)
+				Convey("And its status should have an error", func() {
+					_, ok := sn.Status()["error"]
+					So(ok, ShouldBeTrue)
+				})
+			})
+		})
 
 		Convey("When adding a box panicing in Init", func() {
 			Convey("Then it shouldn't be added", func() {
@@ -177,7 +355,8 @@ func TestDefaultTopologyFailure(t *testing.T) {
 		})
 
 		so := NewTupleIncrementalEmitterSource(freshTuples())
-		son, err := t.AddSource("source", so, nil)
+		stubSo := newStubSource(so)
+		son, err := t.AddSource("source", stubSo, nil)
 		So(err, ShouldBeNil)
 
 		sb := newStubInitTerminateBox(BoxFunc(forwardBox))
@@ -270,6 +449,43 @@ func TestDefaultTopologyFailure(t *testing.T) {
 			})
 		})
 
+		Convey("When a source panics on stop", func() {
+			stubSo.stopShouldPanic = true
+
+			Convey("Then its stop should fail", func() {
+				So(son.Stop(), ShouldNotBeNil)
+			})
+
+			Convey("Then topology stop should fail", func() {
+				So(t.Stop(), ShouldNotBeNil)
+			})
+		})
+
+		Convey("When a source panics on stop with non-error value", func() {
+			stubSo.stopShouldPanic = true
+			stubSo.panicValue = 1
+
+			Convey("Then its stop should fail", func() {
+				So(son.Stop(), ShouldNotBeNil)
+			})
+
+			Convey("Then topology stop should fail", func() {
+				So(t.Stop(), ShouldNotBeNil)
+			})
+		})
+
+		Convey("When a source fails on stop", func() {
+			stubSo.stopShouldFail = true
+
+			Convey("Then its stop should fail", func() {
+				So(son.Stop(), ShouldNotBeNil)
+			})
+
+			Convey("Then topology stop should fail", func() {
+				So(t.Stop(), ShouldNotBeNil)
+			})
+		})
+
 		Convey("When a box panics", func() {
 			b1.writePanicAt = 1
 			so.EmitTuples(5)
@@ -318,8 +534,6 @@ func TestDefaultTopologyFailure(t *testing.T) {
 				So(len(si.Tuples), ShouldEqual, 3)
 			})
 		})
-
-		// TODO: Source.Stop panic
 
 		Convey("When a box panics on terminate", func() {
 			sb.terminate.shouldPanic = true

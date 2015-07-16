@@ -85,10 +85,8 @@ func (t *defaultTopology) AddSource(name string, s Source, config *SourceConfig)
 		pausedOnStartup: config.PausedOnStartup,
 	}
 	if err := t.checkNodeNameDuplication(name); err != nil {
-		if err := ds.Stop(); err != nil { // The same variable name is intentionally used.
-			t.ctx.ErrLog(err).WithFields(nodeLogFields(NTSource, name)).
-				Error("Cannot stop the source")
-		}
+		// Because the source isn't started yet, it doesn't return an error.
+		ds.Stop()
 		return nil, err
 	}
 	t.sources[strings.ToLower(name)] = ds
@@ -230,27 +228,12 @@ func (t *defaultTopology) Stop() error {
 	var lastErr error
 	for name, src := range t.sources {
 		// TODO: this could be run concurrently
-		func() {
-			defer func() {
-				if e := recover(); e != nil {
-					if err, ok := e.(error); ok {
-						lastErr = err
-					} else {
-						lastErr = fmt.Errorf("source '%v' panicked while being stopped: %v", name, e)
-					}
-					src.dsts.Close(t.ctx)
-					t.ctx.ErrLog(lastErr).WithFields(nodeLogFields(NTSource, name)).
-						Error("Cannot stop the source due to panic")
-				}
-			}()
-
-			if err := src.Stop(); err != nil {
-				lastErr = err
-				src.dsts.Close(t.ctx)
-				t.ctx.ErrLog(err).WithFields(nodeLogFields(NTSource, name)).
-					Error("Cannot stop the source")
-			}
-		}()
+		if err := src.Stop(); err != nil { // Stop doesn't panic
+			lastErr = err
+			src.dsts.Close(t.ctx)
+			t.ctx.ErrLog(err).WithFields(nodeLogFields(NTSource, name)).
+				Error("Cannot stop the source")
+		}
 	}
 
 	var wg sync.WaitGroup
@@ -277,7 +260,7 @@ func (t *defaultTopology) Stop() error {
 	t.boxes = nil
 	t.sinks = nil
 	t.state.Set(TSStopped)
-	return nil
+	return lastErr
 }
 
 func (t *defaultTopology) State() TopologyStateHolder {
