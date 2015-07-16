@@ -97,6 +97,12 @@ func (t *defaultTopology) AddSource(name string, s Source, config *SourceConfig)
 			t.ctx.ErrLog(err).WithFields(nodeLogFields(NTSource, name)).
 				Error("Cannot generate a stream from the source")
 		}
+		if config.RemoveOnStop {
+			if err := t.Remove(name); err != nil {
+				t.ctx.ErrLog(err).WithFields(nodeLogFields(NTSource, name)).
+					Error("Cannot remove the source from topology")
+			}
+		}
 	}()
 
 	if config.PausedOnStartup {
@@ -175,6 +181,12 @@ func (t *defaultTopology) AddBox(name string, b Box, config *BoxConfig) (BoxNode
 			t.ctx.ErrLog(err).WithFields(nodeLogFields(NTBox, db.name)).
 				Error("The box failed")
 		}
+		if config.RemoveOnStop {
+			if err := t.Remove(name); err != nil {
+				t.ctx.ErrLog(err).WithFields(nodeLogFields(NTBox, db.name)).
+					Error("Cannot remove the box from topology")
+			}
+		}
 	}()
 	db.state.Wait(TSRunning)
 	return db, nil
@@ -210,6 +222,12 @@ func (t *defaultTopology) AddSink(name string, s Sink, config *SinkConfig) (Sink
 		if err := ds.run(); err != nil {
 			t.ctx.ErrLog(err).WithFields(nodeLogFields(NTSink, ds.name)).
 				Error("The sink failed")
+		}
+		if config.RemoveOnStop {
+			if err := t.Remove(name); err != nil {
+				t.ctx.ErrLog(err).WithFields(nodeLogFields(NTSink, ds.name)).
+					Error("Cannot remove the sink from topology")
+			}
 		}
 	}()
 	ds.state.Wait(TSRunning)

@@ -143,6 +143,11 @@ func TestDefaultTopologySetup(t *testing.T) {
 				Convey("And stopping it again shouldn't fail", func() {
 					So(sn.Stop(), ShouldBeNil)
 				})
+
+				Convey("And it shouldn't be removed", func() {
+					_, err := t.Node("source1")
+					So(err, ShouldBeNil)
+				})
 			})
 
 			Convey("Then the topology should have it", func() {
@@ -208,6 +213,33 @@ func TestDefaultTopologySetup(t *testing.T) {
 			})
 		})
 
+		Convey("When adding an auto remove source", func() {
+			s := NewTupleIncrementalEmitterSource(freshTuples())
+			sn, err := t.AddSource("source1", s, &SourceConfig{
+				RemoveOnStop: true,
+			})
+			So(err, ShouldBeNil)
+
+			Convey("Then it should automatically run", func() {
+				So(sn.State().Get(), ShouldEqual, TSRunning)
+			})
+
+			Convey("Then it should be able to stop", func() {
+				So(sn.Stop(), ShouldBeNil)
+				So(sn.State().Get(), ShouldEqual, TSStopped)
+
+				Convey("And it should be removed", func() {
+					for {
+						_, err := t.Node("source1")
+						if err != nil {
+							So(err, ShouldNotBeNil)
+							break
+						}
+					}
+				})
+			})
+		})
+
 		Convey("When adding a box", func() {
 			b := newTerminateChecker(&DoesNothingBox{})
 			bn, err := t.AddBox("box1", b, nil)
@@ -229,6 +261,11 @@ func TestDefaultTopologySetup(t *testing.T) {
 					So(bn.Stop(), ShouldBeNil)
 					So(b.terminateCnt, ShouldEqual, 1)
 				})
+
+				Convey("And it shouldn't be removed", func() {
+					_, err := t.Node("box1")
+					So(err, ShouldBeNil)
+				})
 			})
 
 			Convey("Then Terminate should be called after stopping the topology", func() {
@@ -249,6 +286,37 @@ func TestDefaultTopologySetup(t *testing.T) {
 			})
 
 			dupNameTests("box1")
+		})
+
+		Convey("When adding an auto remove box", func() {
+			b := newTerminateChecker(&DoesNothingBox{})
+			bn, err := t.AddBox("box1", b, &BoxConfig{
+				RemoveOnStop: true,
+			})
+			So(err, ShouldBeNil)
+
+			Convey("Then it should automatically run", func() {
+				So(bn.State().Get(), ShouldEqual, TSRunning)
+			})
+
+			Convey("Then it should be able to stop", func() {
+				So(bn.Stop(), ShouldBeNil)
+				So(bn.State().Get(), ShouldEqual, TSStopped)
+
+				Convey("And it should be terminated", func() {
+					So(b.terminateCnt, ShouldEqual, 1)
+				})
+
+				Convey("And it should be removed", func() {
+					for {
+						_, err := t.Node("box1")
+						if err != nil {
+							So(err, ShouldNotBeNil)
+							break
+						}
+					}
+				})
+			})
 		})
 
 		Convey("When adding a sink", func() {
@@ -279,9 +347,41 @@ func TestDefaultTopologySetup(t *testing.T) {
 				Convey("And stopping it again shouldn't fail", func() {
 					So(sn.Stop(), ShouldBeNil)
 				})
+
+				Convey("And it shouldn't be removed", func() {
+					_, err := t.Node("sink1")
+					So(err, ShouldBeNil)
+				})
 			})
 
 			dupNameTests("sink1")
+		})
+
+		Convey("When adding an auto remove sink", func() {
+			s := &DoesNothingSink{}
+			sn, err := t.AddSink("sink1", s, &SinkConfig{
+				RemoveOnStop: true,
+			})
+			So(err, ShouldBeNil)
+
+			Convey("Then it should automatically run", func() {
+				So(sn.State().Get(), ShouldEqual, TSRunning)
+			})
+
+			Convey("Then it should be able to stop", func() {
+				So(sn.Stop(), ShouldBeNil)
+				So(sn.State().Get(), ShouldEqual, TSStopped)
+
+				Convey("And it should be removed", func() {
+					for {
+						_, err := t.Node("sink1")
+						if err != nil {
+							So(err, ShouldNotBeNil)
+							break
+						}
+					}
+				})
+			})
 		})
 
 		Convey("When getting nonexistent node", func() {
