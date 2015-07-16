@@ -185,6 +185,12 @@ type SourceNode interface {
 	// Rewind returns an error if the Source doesn't support Rewind, or the
 	// node is already stopped.
 	Rewind() error
+
+	// StopOnDisconnect tells the Source that it may automatically stop when all
+	// outband connections (channels or pipes) are closed. After calling this
+	// method, the Source can automatically stop even if Stop method isn't
+	// explicitly called.
+	StopOnDisconnect()
 }
 
 // BoxNode is a Box registered to a topology.
