@@ -84,6 +84,7 @@ func (t *defaultTopology) AddSource(name string, s Source, config *SourceConfig)
 		dsts:            newDataDestinations(NTSource, name),
 		pausedOnStartup: config.PausedOnStartup,
 	}
+	ds.dsts.callback = ds.dstCallback
 	if err := t.checkNodeNameDuplication(name); err != nil {
 		// Because the source isn't started yet, it doesn't return an error.
 		ds.Stop()
@@ -243,17 +244,6 @@ func (t *defaultTopology) Stop() error {
 		return nil
 	}
 
-	var lastErr error
-	for name, src := range t.sources {
-		// TODO: this could be run concurrently
-		if err := src.Stop(); err != nil { // Stop doesn't panic
-			lastErr = err
-			src.dsts.Close(t.ctx)
-			t.ctx.ErrLog(err).WithFields(nodeLogFields(NTSource, name)).
-				Error("Cannot stop the source")
-		}
-	}
-
 	var wg sync.WaitGroup
 	for _, b := range t.boxes {
 		b.StopOnDisconnect(Inbound | Outbound)
@@ -272,13 +262,28 @@ func (t *defaultTopology) Stop() error {
 			s.state.Wait(TSStopped)
 		}()
 	}
+
+	for _, s := range t.sources {
+		s := s
+
+		s.StopOnDisconnect()
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			// Close all destinations
+			for n, _ := range s.dsts.dsts {
+				s.dsts.remove(n)
+			}
+			s.state.Wait(TSStopped)
+		}()
+	}
 	wg.Wait()
 
 	t.sources = nil
 	t.boxes = nil
 	t.sinks = nil
 	t.state.Set(TSStopped)
-	return lastErr
+	return nil
 }
 
 func (t *defaultTopology) State() TopologyStateHolder {
