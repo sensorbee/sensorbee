@@ -22,17 +22,22 @@ func (ds *defaultSourceNode) Source() Source {
 	return ds.source
 }
 
-func (ds *defaultSourceNode) run() error {
+func (ds *defaultSourceNode) run() (runErr error) {
 	if err := ds.checkAndPrepareForRunning("source"); err != nil {
 		return err
 	}
 
 	defer func() {
 		defer ds.state.Set(TSStopped)
+		if e := recover(); e != nil {
+			// ds.runErr is always nil here
+			ds.runErr = fmt.Errorf("the source failed to generate a stream due to panic: %v", e)
+		}
+		runErr = ds.runErr
 		ds.dsts.Close(ds.topology.ctx)
 	}()
 
-	err := func() error {
+	ds.runErr = func() error {
 		ds.stateMutex.Lock()
 		defer ds.stateMutex.Unlock()
 		if ds.pausedOnStartup {
@@ -45,12 +50,12 @@ func (ds *defaultSourceNode) run() error {
 		ds.state.setWithoutLock(TSRunning)
 		return nil
 	}()
-	if err != nil {
-		return err
+	if ds.runErr != nil {
+		return
 	}
 
 	ds.runErr = ds.source.GenerateStream(ds.topology.ctx, newTraceWriter(ds.dsts, ETOutput, ds.name))
-	return ds.runErr
+	return
 }
 
 func (ds *defaultSourceNode) Stop() error {
@@ -79,7 +84,19 @@ func (ds *defaultSourceNode) Stop() error {
 		}
 	}
 
-	if err := ds.source.Stop(ds.topology.ctx); err != nil {
+	err := func() (err error) {
+		defer func() {
+			if e := recover(); e != nil {
+				if er, ok := e.(error); ok {
+					err = er
+				} else {
+					err = fmt.Errorf("cannot stop the source due to panic: %v", e)
+				}
+			}
+		}()
+		return ds.source.Stop(ds.topology.ctx)
+	}()
+	if err != nil {
 		ds.dsts.Close(ds.topology.ctx) // never fails
 		return err
 	}
@@ -107,7 +124,19 @@ func (ds *defaultSourceNode) pause() error {
 	// pause doesn't acquire lock
 	if rn, ok := ds.source.(Resumable); ok {
 		// prefer the implementation of the source to the default one.
-		if err := rn.Pause(ds.topology.ctx); err != nil {
+		err := func() (err error) {
+			defer func() {
+				if e := recover(); e != nil {
+					if er, ok := e.(error); ok {
+						err = er
+					} else {
+						err = fmt.Errorf("the source couldn't stop due to panic: %v", e)
+					}
+				}
+			}()
+			return rn.Pause(ds.topology.ctx)
+		}()
+		if err != nil {
 			return err
 		}
 		ds.state.setWithoutLock(TSPaused)

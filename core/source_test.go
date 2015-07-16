@@ -108,5 +108,23 @@ func TestRewindableSource(t *testing.T) {
 				So(v, ShouldEqual, data.False)
 			})
 		})
+
+		Convey("When calling Rewind on non-rewindable source", func() {
+			so2 := NewTupleEmitterSource(freshTuples())
+			son2, err := t.AddSource("source2", so2, nil)
+			So(err, ShouldBeNil)
+
+			Convey("Then it should fail", func() {
+				So(son2.Rewind(), ShouldNotBeNil)
+			})
+		})
+
+		Convey("When calling Rewind on the stopped source", func() {
+			So(son.Stop(), ShouldBeNil)
+
+			Convey("Then it should fail", func() {
+				So(son.Rewind(), ShouldNotBeNil)
+			})
+		})
 	})
 }

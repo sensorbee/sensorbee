@@ -81,7 +81,11 @@ type Node interface {
 	// source actually stops generating tuples. When the node is a box a sink,
 	// it waits until the box or the sink is terminated.
 	//
-	// The node will not be removed from the topology after it stopped.
+	// The node will not be removed from the topology after it stopped by
+	// default. Use RemoveOnStop option to remove it from the topology when it
+	// stops.
+	//
+	// Stop never panics.
 	Stop() error
 
 	// Status returns the status of the node. Each node type returns different

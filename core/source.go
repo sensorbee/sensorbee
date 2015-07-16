@@ -24,6 +24,8 @@ type Source interface {
 	// Stop could be called after GenerateStream returns. However,
 	// it's guaranteed that Stop won't be called more than once by
 	// components in SensorBee's core package.
+	//
+	// Stop won't be called if GenerateStream wasn't called.
 	Stop(ctx *Context) error
 }
 
