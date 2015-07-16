@@ -111,13 +111,8 @@ type DropStateStmt struct {
 }
 
 type EmitterAST struct {
-	EmitterType   Emitter
-	EmitIntervals []StreamEmitIntervalAST
-}
-
-type StreamEmitIntervalAST struct {
-	IntervalAST
-	Stream
+	EmitterType Emitter
+	// here is space for some emit options later on
 }
 
 type ProjectionsAST struct {

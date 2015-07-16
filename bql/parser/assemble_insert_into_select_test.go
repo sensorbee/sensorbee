@@ -11,7 +11,7 @@ func TestAssembleInsertIntoSelect(t *testing.T) {
 		Convey("When the stack contains the correct SELECT items with a Interval specification", func() {
 			ps.PushComponent(4, 5, StreamIdentifier("x"))
 			ps.PushComponent(5, 6, Istream)
-			ps.AssembleEmitter(6, 6)
+			ps.AssembleEmitter()
 			ps.PushComponent(6, 7, RowValue{"", "a"})
 			ps.PushComponent(7, 8, RowValue{"", "b"})
 			ps.AssembleProjections(6, 8)
@@ -77,7 +77,7 @@ func TestAssembleInsertIntoSelect(t *testing.T) {
 		Convey("When the stack contains a wrong item", func() {
 			ps.PushComponent(4, 5, StreamIdentifier("x"))
 			ps.PushComponent(5, 6, Istream)
-			ps.AssembleEmitter(6, 6)
+			ps.AssembleEmitter()
 			ps.PushComponent(6, 7, RowValue{"", "a"})
 			ps.PushComponent(7, 8, RowValue{"", "b"})
 			ps.AssembleProjections(6, 8)
