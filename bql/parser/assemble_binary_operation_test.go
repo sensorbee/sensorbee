@@ -45,6 +45,54 @@ func TestAssembleBinaryOperation(t *testing.T) {
 			})
 		})
 
+		Convey("When there are five correct items in the given range", func() {
+			ps.PushComponent(0, 2, Raw{"PRE"})
+			ps.PushComponent(2, 3, RowValue{"", "a"})
+			ps.PushComponent(3, 4, Plus)
+			ps.PushComponent(4, 5, RowValue{"", "b"})
+			ps.PushComponent(5, 6, Minus)
+			ps.PushComponent(6, 7, RowValue{"", "c"})
+			ps.AssembleBinaryOperation(2, 7)
+
+			Convey("Then AssembleBinaryOperation adds the given operator", func() {
+				So(ps.Len(), ShouldEqual, 2)
+				top := ps.Peek()
+				So(top, ShouldNotBeNil)
+				So(top.begin, ShouldEqual, 2)
+				So(top.end, ShouldEqual, 7)
+				So(top.comp, ShouldResemble,
+					BinaryOpAST{Minus,
+						BinaryOpAST{Plus, RowValue{"", "a"}, RowValue{"", "b"}},
+						RowValue{"", "c"}})
+			})
+		})
+
+		Convey("When there are seven correct items in the given range", func() {
+			ps.PushComponent(0, 2, Raw{"PRE"})
+			ps.PushComponent(2, 3, RowValue{"", "a"})
+			ps.PushComponent(3, 4, Plus)
+			ps.PushComponent(4, 5, RowValue{"", "b"})
+			ps.PushComponent(5, 6, Minus)
+			ps.PushComponent(6, 7, RowValue{"", "c"})
+			ps.PushComponent(7, 8, Plus)
+			ps.PushComponent(8, 9, RowValue{"", "d"})
+			ps.AssembleBinaryOperation(2, 7)
+
+			Convey("Then AssembleBinaryOperation adds the given operator", func() {
+				So(ps.Len(), ShouldEqual, 2)
+				top := ps.Peek()
+				So(top, ShouldNotBeNil)
+				So(top.begin, ShouldEqual, 2)
+				So(top.end, ShouldEqual, 7)
+				So(top.comp, ShouldResemble,
+					BinaryOpAST{Plus,
+						BinaryOpAST{Minus,
+							BinaryOpAST{Plus, RowValue{"", "a"}, RowValue{"", "b"}},
+							RowValue{"", "c"}},
+						RowValue{"", "d"}})
+			})
+		})
+
 		Convey("When there are no items in the given range", func() {
 			ps.PushComponent(2, 3, RowValue{"", "a"})
 			f := func() {
@@ -74,20 +122,6 @@ func TestAssembleBinaryOperation(t *testing.T) {
 			ps.PushComponent(6, 7, RowValue{"", "c"})
 			f := func() {
 				ps.AssembleBinaryOperation(2, 7)
-			}
-
-			Convey("Then AssembleBinaryOperation panics", func() {
-				So(f, ShouldPanic)
-			})
-		})
-
-		Convey("When there are more than three items in the given range", func() {
-			ps.PushComponent(2, 3, RowValue{"", "a"})
-			ps.PushComponent(4, 5, RowValue{"", "b"})
-			ps.PushComponent(5, 6, Plus)
-			ps.PushComponent(7, 8, RowValue{"", "c"})
-			f := func() {
-				ps.AssembleBinaryOperation(2, 8)
 			}
 
 			Convey("Then AssembleBinaryOperation panics", func() {
