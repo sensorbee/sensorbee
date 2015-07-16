@@ -68,17 +68,17 @@ func TestBQLCommandWithVariousStatements(t *testing.T) {
 						So(err, ShouldBeNil)
 						So(status, ShouldEqual, preparedCMD)
 						So(cmd.buffer, ShouldEqual, "select\n;") // this statement is invalid
-					})
-					Convey("And when command eval", func() {
-						reqType, url, body := cmd.Eval()
-						Convey("Then command buffer should be flushed", func() {
-							So(cmd.buffer, ShouldEqual, "")
-							So(reqType, ShouldEqual, client.Post)
-							So(url, ShouldEqual, "/topologies//queries")
-							expected := &map[string]interface{}{
-								"queries": "select\n;",
-							}
-							So(body, ShouldResemble, expected)
+						Convey("And when command eval", func() {
+							reqType, url, body := cmd.Eval()
+							Convey("Then command buffer should be flushed", func() {
+								So(cmd.buffer, ShouldEqual, "")
+								So(reqType, ShouldEqual, client.Post)
+								So(url, ShouldEqual, "/topologies//queries")
+								expected := &map[string]interface{}{
+									"queries": "select\n;",
+								}
+								So(body, ShouldResemble, expected)
+							})
 						})
 					})
 				})
