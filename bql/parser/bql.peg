@@ -273,11 +273,11 @@ isExpr <- < termExpr sp (IsOp sp NullLiteral)? > {
         p.AssembleBinaryOperation(begin, end)
     }
 
-termExpr <- < productExpr sp (PlusMinusOp sp productExpr)? > {
+termExpr <- < productExpr sp (PlusMinusOp sp productExpr sp)* > {
         p.AssembleBinaryOperation(begin, end)
     }
 
-productExpr <- < minusExpr sp (MultDivOp sp minusExpr)? > {
+productExpr <- < minusExpr sp (MultDivOp sp minusExpr sp)* > {
         p.AssembleBinaryOperation(begin, end)
     }
 

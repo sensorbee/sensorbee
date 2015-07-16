@@ -6702,7 +6702,7 @@ func (p *bqlPeg) Init() {
 			position, tokenIndex, depth = position664, tokenIndex664, depth664
 			return false
 		},
-		/* 52 termExpr <- <(<(productExpr sp (PlusMinusOp sp productExpr)?)> Action39)> */
+		/* 52 termExpr <- <(<(productExpr sp (PlusMinusOp sp productExpr sp)*)> Action39)> */
 		func() bool {
 			position669, tokenIndex669, depth669 := position, tokenIndex, depth
 			{
@@ -6717,22 +6717,25 @@ func (p *bqlPeg) Init() {
 					if !_rules[rulesp]() {
 						goto l669
 					}
+				l672:
 					{
-						position672, tokenIndex672, depth672 := position, tokenIndex, depth
+						position673, tokenIndex673, depth673 := position, tokenIndex, depth
 						if !_rules[rulePlusMinusOp]() {
-							goto l672
+							goto l673
 						}
 						if !_rules[rulesp]() {
-							goto l672
+							goto l673
 						}
 						if !_rules[ruleproductExpr]() {
-							goto l672
+							goto l673
 						}
-						goto l673
-					l672:
-						position, tokenIndex, depth = position672, tokenIndex672, depth672
+						if !_rules[rulesp]() {
+							goto l673
+						}
+						goto l672
+					l673:
+						position, tokenIndex, depth = position673, tokenIndex673, depth673
 					}
-				l673:
 					depth--
 					add(rulePegText, position671)
 				}
@@ -6747,7 +6750,7 @@ func (p *bqlPeg) Init() {
 			position, tokenIndex, depth = position669, tokenIndex669, depth669
 			return false
 		},
-		/* 53 productExpr <- <(<(minusExpr sp (MultDivOp sp minusExpr)?)> Action40)> */
+		/* 53 productExpr <- <(<(minusExpr sp (MultDivOp sp minusExpr sp)*)> Action40)> */
 		func() bool {
 			position674, tokenIndex674, depth674 := position, tokenIndex, depth
 			{
@@ -6762,22 +6765,25 @@ func (p *bqlPeg) Init() {
 					if !_rules[rulesp]() {
 						goto l674
 					}
+				l677:
 					{
-						position677, tokenIndex677, depth677 := position, tokenIndex, depth
+						position678, tokenIndex678, depth678 := position, tokenIndex, depth
 						if !_rules[ruleMultDivOp]() {
-							goto l677
+							goto l678
 						}
 						if !_rules[rulesp]() {
-							goto l677
+							goto l678
 						}
 						if !_rules[ruleminusExpr]() {
-							goto l677
+							goto l678
 						}
-						goto l678
-					l677:
-						position, tokenIndex, depth = position677, tokenIndex677, depth677
+						if !_rules[rulesp]() {
+							goto l678
+						}
+						goto l677
+					l678:
+						position, tokenIndex, depth = position678, tokenIndex678, depth678
 					}
-				l678:
 					depth--
 					add(rulePegText, position676)
 				}
