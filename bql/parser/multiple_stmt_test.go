@@ -13,75 +13,75 @@ func TestMultipleStmtParser(t *testing.T) {
 		" ; ": nil,
 		// single statement
 		"SELECT ISTREAM a": []interface{}{
-			SelectStmt{EmitterAST: EmitterAST{Istream, nil},
+			SelectStmt{EmitterAST: EmitterAST{Istream},
 				ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "a"}}}},
 		},
 		// single statement, terminated with semicolon
 		"SELECT ISTREAM a;": []interface{}{
-			SelectStmt{EmitterAST: EmitterAST{Istream, nil},
+			SelectStmt{EmitterAST: EmitterAST{Istream},
 				ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "a"}}}},
 		},
 		// single statement, terminated with semicolon and some spaces
 		"SELECT ISTREAM a ; ": []interface{}{
-			SelectStmt{EmitterAST: EmitterAST{Istream, nil},
+			SelectStmt{EmitterAST: EmitterAST{Istream},
 				ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "a"}}}},
 		},
 		// single statement starting with a space
 		"  SELECT ISTREAM a ;": []interface{}{
-			SelectStmt{EmitterAST: EmitterAST{Istream, nil},
+			SelectStmt{EmitterAST: EmitterAST{Istream},
 				ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "a"}}}},
 		},
 		// two statements with various space separations
 		"SELECT ISTREAM a;SELECT ISTREAM b": []interface{}{
-			SelectStmt{EmitterAST: EmitterAST{Istream, nil},
+			SelectStmt{EmitterAST: EmitterAST{Istream},
 				ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "a"}}}},
-			SelectStmt{EmitterAST: EmitterAST{Istream, nil},
+			SelectStmt{EmitterAST: EmitterAST{Istream},
 				ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "b"}}}},
 		},
 		"SELECT ISTREAM a ;SELECT ISTREAM b": []interface{}{
-			SelectStmt{EmitterAST: EmitterAST{Istream, nil},
+			SelectStmt{EmitterAST: EmitterAST{Istream},
 				ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "a"}}}},
-			SelectStmt{EmitterAST: EmitterAST{Istream, nil},
+			SelectStmt{EmitterAST: EmitterAST{Istream},
 				ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "b"}}}},
 		},
 		"SELECT ISTREAM a; SELECT ISTREAM b": []interface{}{
-			SelectStmt{EmitterAST: EmitterAST{Istream, nil},
+			SelectStmt{EmitterAST: EmitterAST{Istream},
 				ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "a"}}}},
-			SelectStmt{EmitterAST: EmitterAST{Istream, nil},
+			SelectStmt{EmitterAST: EmitterAST{Istream},
 				ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "b"}}}},
 		},
 		"SELECT ISTREAM a ; SELECT ISTREAM b": []interface{}{
-			SelectStmt{EmitterAST: EmitterAST{Istream, nil},
+			SelectStmt{EmitterAST: EmitterAST{Istream},
 				ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "a"}}}},
-			SelectStmt{EmitterAST: EmitterAST{Istream, nil},
+			SelectStmt{EmitterAST: EmitterAST{Istream},
 				ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "b"}}}},
 		},
 		// three statements
 		"SELECT ISTREAM a ; SELECT ISTREAM b; SELECT ISTREAM c": []interface{}{
-			SelectStmt{EmitterAST: EmitterAST{Istream, nil},
+			SelectStmt{EmitterAST: EmitterAST{Istream},
 				ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "a"}}}},
-			SelectStmt{EmitterAST: EmitterAST{Istream, nil},
+			SelectStmt{EmitterAST: EmitterAST{Istream},
 				ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "b"}}}},
-			SelectStmt{EmitterAST: EmitterAST{Istream, nil},
+			SelectStmt{EmitterAST: EmitterAST{Istream},
 				ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "c"}}}},
 		},
 		// using semi-colons within the statements
 		"SELECT ISTREAM a ; SELECT ISTREAM b; SELECT ISTREAM c, ';'": []interface{}{
-			SelectStmt{EmitterAST: EmitterAST{Istream, nil},
+			SelectStmt{EmitterAST: EmitterAST{Istream},
 				ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "a"}}}},
-			SelectStmt{EmitterAST: EmitterAST{Istream, nil},
+			SelectStmt{EmitterAST: EmitterAST{Istream},
 				ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "b"}}}},
-			SelectStmt{EmitterAST: EmitterAST{Istream, nil},
+			SelectStmt{EmitterAST: EmitterAST{Istream},
 				ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "c"},
 					StringLiteral{";"}}}},
 		},
 		"SELECT ISTREAM a;SELECT ISTREAM c, ';';SELECT ISTREAM b;": []interface{}{
-			SelectStmt{EmitterAST: EmitterAST{Istream, nil},
+			SelectStmt{EmitterAST: EmitterAST{Istream},
 				ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "a"}}}},
-			SelectStmt{EmitterAST: EmitterAST{Istream, nil},
+			SelectStmt{EmitterAST: EmitterAST{Istream},
 				ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "c"},
 					StringLiteral{";"}}}},
-			SelectStmt{EmitterAST: EmitterAST{Istream, nil},
+			SelectStmt{EmitterAST: EmitterAST{Istream},
 				ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "b"}}}},
 		},
 	}
@@ -117,44 +117,44 @@ func TestComment(t *testing.T) {
 	testCases := map[string][]interface{}{
 		// single statement
 		"SELECT ISTREAM a": []interface{}{
-			SelectStmt{EmitterAST: EmitterAST{Istream, nil},
+			SelectStmt{EmitterAST: EmitterAST{Istream},
 				ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "a"}}}},
 		},
 		// single statement on two lines
 		"SELECT ISTREAM \na": []interface{}{
-			SelectStmt{EmitterAST: EmitterAST{Istream, nil},
+			SelectStmt{EmitterAST: EmitterAST{Istream},
 				ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "a"}}}},
 		},
 		// single statement with an empty comment on two lines
 		"SELECT ISTREAM --\na": []interface{}{
-			SelectStmt{EmitterAST: EmitterAST{Istream, nil},
+			SelectStmt{EmitterAST: EmitterAST{Istream},
 				ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "a"}}}},
 		},
 		// single statement with a space-only comment on two lines
 		"SELECT ISTREAM --   \na": []interface{}{
-			SelectStmt{EmitterAST: EmitterAST{Istream, nil},
+			SelectStmt{EmitterAST: EmitterAST{Istream},
 				ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "a"}}}},
 		},
 		// single statement with a normal comment on two lines
 		"SELECT ISTREAM -- comment here\na": []interface{}{
-			SelectStmt{EmitterAST: EmitterAST{Istream, nil},
+			SelectStmt{EmitterAST: EmitterAST{Istream},
 				ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "a"}}}},
 		},
 		// single statement with multiple comments
 		"SELECT ISTREAM -- comment\n  -- continues\n--even longer\na": []interface{}{
-			SelectStmt{EmitterAST: EmitterAST{Istream, nil},
+			SelectStmt{EmitterAST: EmitterAST{Istream},
 				ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "a"}}}},
 		},
 		// single statement introduced by comment
 		" -- comment\nSELECT ISTREAM a": []interface{}{
-			SelectStmt{EmitterAST: EmitterAST{Istream, nil},
+			SelectStmt{EmitterAST: EmitterAST{Istream},
 				ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "a"}}}},
 		},
 		// multiple statements separated by comment
 		"SELECT ISTREAM a;\n--comment\nSELECT ISTREAM b": []interface{}{
-			SelectStmt{EmitterAST: EmitterAST{Istream, nil},
+			SelectStmt{EmitterAST: EmitterAST{Istream},
 				ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "a"}}}},
-			SelectStmt{EmitterAST: EmitterAST{Istream, nil},
+			SelectStmt{EmitterAST: EmitterAST{Istream},
 				ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "b"}}}},
 		},
 	}
