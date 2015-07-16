@@ -1,6 +1,7 @@
 package core
 
 import (
+	"fmt"
 	"pfi/sensorbee/sensorbee/data"
 )
 
@@ -48,27 +49,40 @@ func (db *defaultBoxNode) Input(refname string, config *BoxInputConfig) error {
 	return nil
 }
 
-func (db *defaultBoxNode) run() error {
+func (db *defaultBoxNode) run() (runErr error) {
 	if err := db.checkAndPrepareForRunning("box"); err != nil {
 		return err
 	}
 
 	defer func() {
 		defer func() {
+			if e := recover(); e != nil {
+				if db.runErr == nil {
+					db.runErr = fmt.Errorf("the box couldn't be terminated due to panic: %v", e)
+				} else {
+					db.topology.ctx.ErrLog(fmt.Errorf("%v", e)).WithFields(nodeLogFields(NTBox, db.name)).
+						Error("Cannot terminate the box due to panic")
+				}
+			}
+			runErr = db.runErr
 			db.dsts.Close(db.topology.ctx)
 			db.state.Set(TSStopped)
 		}()
 		if sb, ok := db.box.(StatefulBox); ok {
 			if err := sb.Terminate(db.topology.ctx); err != nil {
-				db.topology.ctx.ErrLog(err).WithFields(nodeLogFields(NTBox, db.name)).
-					Error("Cannot terminate the box")
+				if db.runErr == nil {
+					db.runErr = err
+				} else {
+					db.topology.ctx.ErrLog(err).WithFields(nodeLogFields(NTBox, db.name)).
+						Error("Cannot terminate the box")
+				}
 			}
 		}
 	}()
 	db.state.Set(TSRunning)
 	w := newBoxWriterAdapter(db.box, db.name, db.dsts)
 	db.runErr = db.srcs.pour(db.topology.ctx, w, 1) // TODO: make parallelism configurable
-	return db.runErr
+	return
 }
 
 func (db *defaultBoxNode) Stop() error {

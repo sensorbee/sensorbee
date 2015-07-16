@@ -1,6 +1,7 @@
 package core
 
 import (
+	"fmt"
 	"pfi/sensorbee/sensorbee/data"
 )
 
@@ -51,20 +52,33 @@ func (ds *defaultSinkNode) Input(refname string, config *SinkInputConfig) error 
 	return nil
 }
 
-func (ds *defaultSinkNode) run() error {
+func (ds *defaultSinkNode) run() (runErr error) {
 	if err := ds.checkAndPrepareForRunning("sink"); err != nil {
 		return err
 	}
 
 	defer ds.state.Set(TSStopped)
 	defer func() {
+		defer func() {
+			if e := recover(); e != nil {
+				if ds.runErr == nil {
+					ds.runErr = fmt.Errorf("the box couldn't be terminated due to panic: %v", e)
+				} else {
+					ds.topology.ctx.ErrLog(fmt.Errorf("%v", e)).WithFields(nodeLogFields(NTBox, ds.name)).
+						Error("Cannot terminate the box due to panic")
+				}
+			}
+			runErr = ds.runErr
+		}()
 		if err := ds.sink.Close(ds.topology.ctx); err != nil {
+			ds.runErr = err
 			ds.topology.ctx.ErrLog(err).WithFields(nodeLogFields(NTSink, ds.name)).
 				Error("Cannot stop the sink")
 		}
 	}()
 	ds.state.Set(TSRunning)
-	return ds.srcs.pour(ds.topology.ctx, newTraceWriter(ds.sink, ETInput, ds.name), 1)
+	ds.runErr = ds.srcs.pour(ds.topology.ctx, newTraceWriter(ds.sink, ETInput, ds.name), 1)
+	return
 }
 
 func (ds *defaultSinkNode) Stop() error {

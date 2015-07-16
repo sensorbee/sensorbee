@@ -85,10 +85,8 @@ func (t *defaultTopology) AddSource(name string, s Source, config *SourceConfig)
 		pausedOnStartup: config.PausedOnStartup,
 	}
 	if err := t.checkNodeNameDuplication(name); err != nil {
-		if err := ds.Stop(); err != nil { // The same variable name is intentionally used.
-			t.ctx.ErrLog(err).WithFields(nodeLogFields(NTSource, name)).
-				Error("Cannot stop the source")
-		}
+		// Because the source isn't started yet, it doesn't return an error.
+		ds.Stop()
 		return nil, err
 	}
 	t.sources[strings.ToLower(name)] = ds
@@ -146,7 +144,19 @@ func (t *defaultTopology) AddBox(name string, b Box, config *BoxConfig) (BoxNode
 	}
 
 	if sb, ok := b.(StatefulBox); ok {
-		if err := sb.Init(t.ctx); err != nil {
+		err := func() (err error) {
+			defer func() {
+				if e := recover(); e != nil {
+					if er, ok := e.(error); ok {
+						err = er
+					} else {
+						err = fmt.Errorf("the box cannot be initialized due to panic: %v", e)
+					}
+				}
+			}()
+			return sb.Init(t.ctx)
+		}()
+		if err != nil {
 			return nil, err
 		}
 	}
@@ -218,27 +228,12 @@ func (t *defaultTopology) Stop() error {
 	var lastErr error
 	for name, src := range t.sources {
 		// TODO: this could be run concurrently
-		func() {
-			defer func() {
-				if e := recover(); e != nil {
-					if err, ok := e.(error); ok {
-						lastErr = err
-					} else {
-						lastErr = fmt.Errorf("source '%v' panicked while being stopped: %v", name, e)
-					}
-					src.dsts.Close(t.ctx)
-					t.ctx.ErrLog(lastErr).WithFields(nodeLogFields(NTSource, name)).
-						Error("Cannot stop the source due to panic")
-				}
-			}()
-
-			if err := src.Stop(); err != nil {
-				lastErr = err
-				src.dsts.Close(t.ctx)
-				t.ctx.ErrLog(err).WithFields(nodeLogFields(NTSource, name)).
-					Error("Cannot stop the source due to panic")
-			}
-		}()
+		if err := src.Stop(); err != nil { // Stop doesn't panic
+			lastErr = err
+			src.dsts.Close(t.ctx)
+			t.ctx.ErrLog(err).WithFields(nodeLogFields(NTSource, name)).
+				Error("Cannot stop the source")
+		}
 	}
 
 	var wg sync.WaitGroup
@@ -265,7 +260,7 @@ func (t *defaultTopology) Stop() error {
 	t.boxes = nil
 	t.sinks = nil
 	t.state.Set(TSStopped)
-	return nil
+	return lastErr
 }
 
 func (t *defaultTopology) State() TopologyStateHolder {
@@ -296,26 +291,14 @@ func (t *defaultTopology) Remove(name string) error {
 		return nil // already removed or doesn't exist
 	}
 
-	return func() (retErr error) {
-		defer func() {
-			if e := recover(); e != nil {
-				if err, ok := e.(error); ok {
-					retErr = err
-				} else {
-					retErr = FatalError(fmt.Errorf("%v '%v' failed to stop with panic: %v", n.Type(), name, e))
-				}
-			}
-
-			if retErr != nil && n.Type() == NTSource {
-				s := n.(*defaultSourceNode)
-				s.dsts.Close(t.ctx)
-			}
-		}()
-		if err := n.Stop(); err != nil {
-			retErr = err
+	if err := n.Stop(); err != nil { // stop never panics
+		if n.Type() == NTSource {
+			s := n.(*defaultSourceNode)
+			s.dsts.Close(t.ctx)
 		}
-		return
-	}()
+		return err
+	}
+	return nil
 }
 
 // TODO: Add method to clean up (possibly indirectly) stopped nodes
