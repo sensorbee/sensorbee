@@ -54,7 +54,7 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 	// Select constant
 	Convey("Given a SELECT clause with a constant", t, func() {
 		tuples := getTuples(4)
-		s := `CREATE STREAM box AS SELECT ISTREAM 2, null FROM src [RANGE 2 SECONDS]`
+		s := `CREATE STREAM box AS SELECT ISTREAM 3+4-6+1, 3.0*4/2+1=7, null FROM src [RANGE 2 SECONDS]`
 		plan, err := createDefaultSelectPlan(s, t)
 		So(err, ShouldBeNil)
 
@@ -67,7 +67,7 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 					if idx == 0 {
 						So(len(out), ShouldEqual, 1)
 						So(out[0], ShouldResemble,
-							data.Map{"col_1": data.Int(2), "col_2": data.Null{}})
+							data.Map{"col_1": data.Int(2), "col_2": data.Bool(true), "col_3": data.Null{}})
 					} else {
 						// nothing should be emitted because no new
 						// data appears

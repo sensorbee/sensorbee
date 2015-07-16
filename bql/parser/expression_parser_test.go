@@ -101,6 +101,16 @@ func TestExpressionParser(t *testing.T) {
 		"2 + a IS NOT NULL": {BinaryOpAST{IsNot,
 			BinaryOpAST{Plus, NumericLiteral{2}, RowValue{"", "a"}},
 			NullLiteral{}}},
+		/// Left-Associativity
+		"a - 2 - b": {BinaryOpAST{Minus,
+			BinaryOpAST{Minus, RowValue{"", "a"}, NumericLiteral{2}}, RowValue{"", "b"}}},
+		"a - 2 - b + 4": {BinaryOpAST{Plus,
+			BinaryOpAST{Minus,
+				BinaryOpAST{Minus, RowValue{"", "a"}, NumericLiteral{2}},
+				RowValue{"", "b"}},
+			NumericLiteral{4}}},
+		"a * 2 / b": {BinaryOpAST{Divide,
+			BinaryOpAST{Multiply, RowValue{"", "a"}, NumericLiteral{2}}, RowValue{"", "b"}}},
 		/// Overriding Operator Precedence
 		"a AND (b OR 2)": {BinaryOpAST{And,
 			RowValue{"", "a"},
