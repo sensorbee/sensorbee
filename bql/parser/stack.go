@@ -415,51 +415,19 @@ func (ps *parseStack) AssembleDropState() {
 
 // AssembleEmitter takes the topmost elements from the stack, assuming
 // they are components of a emitter clause, and replaces them by
-// a single EmitterAST element. The given begin/end parameters should
-// refer to the part of the input string that holds the StreamEmitIntervalAST
-// elements, not the Emitter element.
+// a single EmitterAST element.
 //
 //  Emitter
-//  StreamEmitIntervalAST
-//  StreamEmitIntervalAST
 //  ...
 //   =>
-//  EmitterAST{Emitter, {StreamEmitIntervalAST, StreamEmitIntervalAST, ...}}
-func (ps *parseStack) AssembleEmitter(begin int, end int) {
+//  EmitterAST{Emitter}
+func (ps *parseStack) AssembleEmitter() {
 	// pop the components from the stack in reverse order
-	elems := ps.collectElements(begin, end)
 	_emitter := ps.Pop()
 
-	// extract and convert the contained structure
-	// (if this fails, this is a fundamental parser bug => panic ok)
-	var intervals []StreamEmitIntervalAST
-	if len(elems) > 0 {
-		intervals = make([]StreamEmitIntervalAST, len(elems))
-	}
-	for i := range elems {
-		intervals[i] = elems[i].(StreamEmitIntervalAST)
-	}
 	emitter := _emitter.comp.(Emitter)
 
-	ps.PushComponent(_emitter.begin, end, EmitterAST{emitter, intervals})
-}
-
-// AssembleStreamEmitInterval takes the topmost elements from the stack, assuming
-// they are components of an EVERY clause, and replaces them by
-// a single StreamEmitIntervalAST element.
-//
-//  Stream
-//  IntervalAST
-//   =>
-//  StreamEmitIntervalAST{IntervalAST, Stream}
-func (ps *parseStack) AssembleStreamEmitInterval() {
-	// pop the components from the stack in reverse order
-	_stream, _interval := ps.pop2()
-
-	stream := _stream.comp.(Stream)
-	interval := _interval.comp.(IntervalAST)
-
-	ps.PushComponent(_interval.begin, _stream.end, StreamEmitIntervalAST{interval, stream})
+	ps.PushComponent(_emitter.begin, _emitter.end, EmitterAST{emitter})
 }
 
 // AssembleProjections takes the elements from the stack that

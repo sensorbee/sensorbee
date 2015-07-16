@@ -339,67 +339,10 @@ func TestRelationChecker(t *testing.T) {
 	emitterTestCases := []analyzeTest{
 		// SELECT ISTREAM                                      a FROM t -> OK
 		{&parser.SelectStmt{
-			EmitterAST:      parser.EmitterAST{parser.Istream, nil},
+			EmitterAST:      parser.EmitterAST{parser.Istream},
 			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{a}},
 			WindowedFromAST: singleFrom,
 		}, ""},
-		// SELECT ISTREAM [EVERY 2 SECONDS]                    a FROM t -> OK
-		{&parser.SelectStmt{
-			EmitterAST: parser.EmitterAST{parser.Istream, []parser.StreamEmitIntervalAST{
-				{parser.IntervalAST{parser.NumericLiteral{2}, parser.Seconds}, parser.Stream{parser.ActualStream, "*", nil}},
-			}},
-			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{a}},
-			WindowedFromAST: singleFrom,
-		}, ""},
-		// SELECT ISTREAM [EVERY 2 TUPLES]                     a FROM t -> OK
-		{&parser.SelectStmt{
-			EmitterAST: parser.EmitterAST{parser.Istream, []parser.StreamEmitIntervalAST{
-				{parser.IntervalAST{parser.NumericLiteral{2}, parser.Tuples}, parser.Stream{parser.ActualStream, "*", nil}},
-			}},
-			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{a}},
-			WindowedFromAST: singleFrom,
-		}, ""},
-		// SELECT ISTREAM [EVERY 2 TUPLES IN t]                a FROM t -> OK
-		{&parser.SelectStmt{
-			EmitterAST: parser.EmitterAST{parser.Istream, []parser.StreamEmitIntervalAST{
-				{parser.IntervalAST{parser.NumericLiteral{2}, parser.Tuples}, parser.Stream{parser.ActualStream, "t", nil}},
-			}},
-			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{a}},
-			WindowedFromAST: singleFrom,
-		}, ""},
-		// SELECT ISTREAM [EVERY 2 TUPLES IN x]                a FROM t -> NG
-		{&parser.SelectStmt{
-			EmitterAST: parser.EmitterAST{parser.Istream, []parser.StreamEmitIntervalAST{
-				{parser.IntervalAST{parser.NumericLiteral{2}, parser.Tuples}, parser.Stream{parser.ActualStream, "x", nil}},
-			}},
-			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{a}},
-			WindowedFromAST: singleFrom,
-		}, "the stream 'x' referenced in the ISTREAM clause is unknown"},
-		// SELECT ISTREAM [EVERY 2 TUPLES IN x]             FROM t AS x -> NG
-		{&parser.SelectStmt{
-			EmitterAST: parser.EmitterAST{parser.Istream, []parser.StreamEmitIntervalAST{
-				{parser.IntervalAST{parser.NumericLiteral{2}, parser.Tuples}, parser.Stream{parser.ActualStream, "x", nil}},
-			}},
-			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{a}},
-			WindowedFromAST: singleFrom,
-		}, "the stream 'x' referenced in the ISTREAM clause is unknown"},
-		// SELECT ISTREAM [EVERY 2 TUPLES IN t, 3 TUPLES in x] a FROM t -> NG
-		{&parser.SelectStmt{
-			EmitterAST: parser.EmitterAST{parser.Istream, []parser.StreamEmitIntervalAST{
-				{parser.IntervalAST{parser.NumericLiteral{2}, parser.Tuples}, parser.Stream{parser.ActualStream, "x", nil}},
-			}},
-			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{a}},
-			WindowedFromAST: singleFrom,
-		}, "the stream 'x' referenced in the ISTREAM clause is unknown"},
-		// SELECT ISTREAM [EVERY 2 TUPLES IN t, 3 TUPLES in t] a FROM t -> NG
-		{&parser.SelectStmt{
-			EmitterAST: parser.EmitterAST{parser.Istream, []parser.StreamEmitIntervalAST{
-				{parser.IntervalAST{parser.NumericLiteral{2}, parser.Tuples}, parser.Stream{parser.ActualStream, "t", nil}},
-				{parser.IntervalAST{parser.NumericLiteral{2}, parser.Tuples}, parser.Stream{parser.ActualStream, "t", nil}},
-			}},
-			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{a}},
-			WindowedFromAST: singleFrom,
-		}, "the stream 't' referenced in the ISTREAM clause is used more than once"},
 	}
 
 	allTestCases := append(emitterTestCases, testCases...)
@@ -409,7 +352,7 @@ func TestRelationChecker(t *testing.T) {
 		selectAst := testCase.input
 
 		Convey(fmt.Sprintf("Given the AST %+v", selectAst), t, func() {
-			emitter := parser.EmitterAST{parser.Istream, nil}
+			emitter := parser.EmitterAST{parser.Istream}
 			if selectAst.EmitterType != parser.UnspecifiedEmitter {
 				emitter = selectAst.EmitterAST
 			}
@@ -460,7 +403,7 @@ func TestRelationChecker(t *testing.T) {
 			}
 			ast := parser.CreateStreamAsSelectStmt{
 				Name:            parser.StreamIdentifier("x"),
-				EmitterAST:      parser.EmitterAST{parser.Istream, nil},
+				EmitterAST:      parser.EmitterAST{parser.Istream},
 				ProjectionsAST:  selectAst.ProjectionsAST,
 				WindowedFromAST: myFrom,
 				FilterAST:       selectAst.FilterAST,
@@ -560,7 +503,7 @@ func TestRelationAliasing(t *testing.T) {
 		Convey(fmt.Sprintf("Given the AST %+v", selectAst), t, func() {
 			ast := parser.CreateStreamAsSelectStmt{
 				Name:            parser.StreamIdentifier("x"),
-				EmitterAST:      parser.EmitterAST{parser.Istream, nil},
+				EmitterAST:      parser.EmitterAST{parser.Istream},
 				ProjectionsAST:  selectAst.ProjectionsAST,
 				WindowedFromAST: selectAst.WindowedFromAST,
 			}
