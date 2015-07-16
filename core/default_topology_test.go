@@ -229,8 +229,13 @@ func TestDefaultTopologySetup(t *testing.T) {
 				So(sn.State().Get(), ShouldEqual, TSStopped)
 
 				Convey("And it should be removed", func() {
-					_, err := t.Node("source1")
-					So(err, ShouldNotBeNil)
+					for {
+						_, err := t.Node("source1")
+						if err != nil {
+							So(err, ShouldNotBeNil)
+							break
+						}
+					}
 				})
 			})
 		})
@@ -303,8 +308,13 @@ func TestDefaultTopologySetup(t *testing.T) {
 				})
 
 				Convey("And it should be removed", func() {
-					_, err := t.Node("box1")
-					So(err, ShouldNotBeNil)
+					for {
+						_, err := t.Node("box1")
+						if err != nil {
+							So(err, ShouldNotBeNil)
+							break
+						}
+					}
 				})
 			})
 		})
@@ -363,8 +373,13 @@ func TestDefaultTopologySetup(t *testing.T) {
 				So(sn.State().Get(), ShouldEqual, TSStopped)
 
 				Convey("And it should be removed", func() {
-					_, err := t.Node("sink1")
-					So(err, ShouldNotBeNil)
+					for {
+						_, err := t.Node("sink1")
+						if err != nil {
+							So(err, ShouldNotBeNil)
+							break
+						}
+					}
 				})
 			})
 		})
