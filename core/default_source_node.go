@@ -8,10 +8,11 @@ import (
 
 type defaultSourceNode struct {
 	*defaultNode
-	source          Source
-	dsts            *dataDestinations
-	pausedOnStartup bool
-	runErr          error
+	source                  Source
+	dsts                    *dataDestinations
+	pausedOnStartup         bool
+	stopOnDisconnectEnabled bool
+	runErr                  error
 }
 
 func (ds *defaultSourceNode) Type() NodeType {
@@ -208,4 +209,27 @@ func (ds *defaultSourceNode) Status() data.Map {
 
 func (ds *defaultSourceNode) destinations() *dataDestinations {
 	return ds.dsts
+}
+
+func (ds *defaultSourceNode) StopOnDisconnect() {
+	ds.stateMutex.Lock()
+	ds.stopOnDisconnectEnabled = true
+	ds.stateMutex.Unlock()
+
+	if ds.dsts.len() == 0 {
+		ds.Stop()
+	}
+}
+
+func (ds *defaultSourceNode) dstCallback(e ddEvent) {
+	switch e {
+	case ddeDisconnect:
+		ds.stateMutex.Lock()
+		shouldStop := ds.stopOnDisconnectEnabled
+		ds.stateMutex.Unlock()
+
+		if shouldStop {
+			ds.Stop()
+		}
+	}
 }
