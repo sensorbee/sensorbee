@@ -82,34 +82,18 @@ func newStreamRelationStreamExecutionPlan(lp *LogicalPlan, reg udf.FunctionRegis
 			tuples, rangeValue, rangeUnit,
 		}
 	}
-	emitterRules := make(map[string]parser.IntervalAST, len(lp.EmitIntervals))
-	emitCounters := make(map[string]int64, len(lp.EmitIntervals))
-	if len(lp.EmitIntervals) == 0 {
-		// set the default if not `EVERY ...` was given
-		emitterRules["*"] = parser.IntervalAST{parser.NumericLiteral{1}, parser.Tuples}
-		emitCounters["*"] = 0
-	}
-	for _, emitRule := range lp.EmitIntervals {
-		// TODO implement time-based emitter as well
-		if emitRule.Unit == parser.Seconds {
-			return nil, fmt.Errorf("time-based emitter not implemented")
-		}
-		emitterRules[emitRule.Name] = emitRule.IntervalAST
-		emitCounters["*"] = 0
-	}
+
 	return &streamRelationStreamExecutionPlan{
 		commonExecutionPlan: commonExecutionPlan{
 			projections: projs,
 			groupList:   groupList,
 			filter:      filter,
 		},
-		relations:    lp.Relations,
-		buffers:      buffers,
-		emitterType:  lp.EmitterType,
-		emitterRules: emitterRules,
-		emitCounters: emitCounters,
-		curResults:   []data.Map{},
-		prevResults:  []data.Map{},
+		relations:   lp.Relations,
+		buffers:     buffers,
+		emitterType: lp.EmitterType,
+		curResults:  []data.Map{},
+		prevResults: []data.Map{},
 	}, nil
 }
 
@@ -203,38 +187,6 @@ func (ep *streamRelationStreamExecutionPlan) removeOutdatedTuplesFromBuffer(curT
 	return nil
 }
 
-// shouldEmitNow returns true if the input tuple should trigger
-// computation of output values.
-func (ep *streamRelationStreamExecutionPlan) shouldEmitNow(t *core.Tuple) bool {
-	// first check if we have a stream-independent rule
-	// (e.g., `RSTREAM` or `RSTREAM [EVERY 2 TUPLES]`)
-	if interval, ok := ep.emitterRules["*"]; ok {
-		counter := ep.emitCounters["*"]
-		nextCounter := counter + 1
-		if nextCounter%interval.Value == 0 {
-			ep.emitCounters["*"] = 0
-			return true
-		}
-		ep.emitCounters["*"] = nextCounter
-		return false
-	}
-	// if there was no such rule, check if there is a
-	// rule for the input stream the tuple came from
-	if interval, ok := ep.emitterRules[t.InputName]; ok {
-		counter := ep.emitCounters[t.InputName]
-		nextCounter := counter + 1
-		if nextCounter%interval.Value == 0 {
-			ep.emitCounters[t.InputName] = 0
-			return true
-		}
-		ep.emitCounters[t.InputName] = nextCounter
-		return false
-	}
-	// there is no general rule and no rule for the input
-	// stream of the tuple, so don't do anything
-	return false
-}
-
 // computeResultTuples compares the results of this run's query with
 // the results of the previous run's query and returns the data to
 // be emitted as per the Emitter specification (Rstream = new,
@@ -312,18 +264,17 @@ func (ep *streamRelationStreamExecutionPlan) process(input *core.Tuple, performQ
 		return nil, err
 	}
 
-	if ep.shouldEmitNow(input) {
-		// relation-to-relation:
-		// performs a SELECT query on buffer and writes result
-		// to temporary table
-		if err := performQueryOnBuffer(); err != nil {
-			return nil, err
-		}
-
-		// relation-to-stream:
-		// compute new/old/all result data and return it
-		return ep.computeResultTuples()
+	// relation-to-relation:
+	// performs a SELECT query on buffer and writes result
+	// to temporary table
+	if err := performQueryOnBuffer(); err != nil {
+		return nil, err
 	}
+
+	// relation-to-stream:
+	// compute new/old/all result data and return it
+	return ep.computeResultTuples()
+
 	return nil, nil
 }
 

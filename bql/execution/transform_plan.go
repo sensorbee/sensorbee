@@ -370,44 +370,6 @@ func validateReferences(s *parser.CreateStreamAsSelectStmt) error {
 		}
 	}
 
-	if s.EmitIntervals != nil {
-		emitStreams := map[string]bool{}
-
-		for _, emitSpec := range s.EmitIntervals {
-			// check that no stream is used twice in the emitter clause
-			if _, exists := emitStreams[emitSpec.Name]; exists {
-				err := fmt.Errorf("the stream '%s' referenced in the %s "+
-					"clause is used more than once", emitSpec.Name, s.EmitterType)
-				return err
-			}
-			emitStreams[emitSpec.Name] = true
-
-			// check that the emitter does not refer to any streams we don't know
-			found := false
-			for _, rel := range s.Relations {
-				if emitSpec.Name == "*" {
-					// just using `XSTREAM [EVERY k SECONDS/TUPLES]`
-					// without a FROM clause will insert a "*" as the
-					// stream name, which is always correct
-					found = true
-					break
-				} else if emitSpec.Name == rel.Name {
-					// when using `XSTREAM [EVERY k TUPLES FROM x]`
-					// we must make sure that "x" is an input stream
-					// we refer to (and *not* an alias, because that
-					// is naming a relation, not a stream!)
-					found = true
-					break
-				}
-			}
-			if !found {
-				err := fmt.Errorf("the stream '%s' referenced in the %s "+
-					"clause is unknown", emitSpec.Name, s.EmitterType)
-				return err
-			}
-		}
-	}
-
 	return nil
 }
 
