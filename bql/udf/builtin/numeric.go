@@ -3,6 +3,7 @@ package builtin
 import (
 	"fmt"
 	"math"
+	"math/rand"
 	"pfi/sensorbee/sensorbee/bql/udf"
 	"pfi/sensorbee/sensorbee/core"
 	"pfi/sensorbee/sensorbee/data"
@@ -614,3 +615,50 @@ func (f *widthBucketFuncTmpl) Call(ctx *core.Context, args ...data.Value) (val d
 //  Input: 3 * Int or Float, Int
 //  Return Type: Int
 var widthBucketFunc udf.UDF = &widthBucketFuncTmpl{}
+
+// randomFunc returns a random number in the range [0,1[.
+// See also: math/rand.Float64()
+//
+// It can be used in BQL as `random`.
+//
+//  Input: None
+//  Return Type: Float
+var randomFunc, _ = udf.ConvertGeneric(func() float64 { return rand.Float64() })
+
+type setseedFuncTmpl struct {
+	singleParamFunc
+}
+
+func (f *setseedFuncTmpl) Call(ctx *core.Context, args ...data.Value) (val data.Value, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("%v", r)
+		}
+	}()
+	if len(args) != 1 {
+		return nil, fmt.Errorf("function takes exactly one argument")
+	}
+	arg := args[0]
+	if arg.Type() == data.TypeNull {
+		return data.Null{}, nil
+	} else if arg.Type() == data.TypeFloat {
+		d, _ := data.AsFloat(arg)
+		if d < -1.0 || d > 1.0 {
+			return nil, fmt.Errorf("seed out of range [-1,1]")
+		}
+		s := int64(d * float64(math.MaxInt64))
+		rand.Seed(s)
+		return data.Null{}, nil
+	}
+	return nil, fmt.Errorf("cannot interpret %s as float", arg)
+}
+
+// setseed initializes the seed for subsequent randomFunc calls.
+// The argument must be a float in the range [-1,1].
+// See also: math/rand.Seed()
+//
+// It can be used in BQL as `setseed`.
+//
+//  Input: Float
+//  Return Type: Null
+var setseedFunc udf.UDF = &setseedFuncTmpl{}

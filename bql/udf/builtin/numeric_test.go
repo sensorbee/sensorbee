@@ -23,6 +23,20 @@ func TestNullaryNumericFuncs(t *testing.T) {
 		So(err, ShouldBeNil)
 		So(regFun, ShouldHaveSameTypeAs, piFunc)
 	})
+
+	Convey("random() should return a random number", t, func() {
+		f := randomFunc
+		val, err := f.Call(nil)
+		So(err, ShouldBeNil)
+		So(val, ShouldBeGreaterThanOrEqualTo, 0.0)
+		So(val, ShouldBeLessThan, 1.0)
+	})
+
+	Convey("random should equal the one the default registry", t, func() {
+		regFun, err := udf.CopyGlobalUDFRegistry(nil).Lookup("random", 0)
+		So(err, ShouldBeNil)
+		So(regFun, ShouldHaveSameTypeAs, randomFunc)
+	})
 }
 
 type udfUnaryTestCase struct {
@@ -127,6 +141,13 @@ func TestUnaryNumericFuncs(t *testing.T) {
 			{data.Int(-27), data.Int(-27)},
 			{data.Float(42.8), data.Float(42.0)},
 			{data.Float(-42.8), data.Float(-42.0)},
+		}},
+		{"setseed", setseedFunc, []udfUnaryTestCaseInput{
+			{data.Int(27), nil},
+			{data.Float(42.8), nil},
+			{data.Float(-1.0), data.Null{}},
+			{data.Float(0.5), data.Null{}},
+			{data.Float(1.0), data.Null{}},
 		}},
 	}
 
