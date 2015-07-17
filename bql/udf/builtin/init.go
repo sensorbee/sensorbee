@@ -24,4 +24,7 @@ func init() {
 	udf.RegisterGlobalUDF("sqrt", sqrtFunc)
 	udf.RegisterGlobalUDF("trunc", truncFunc)
 	udf.RegisterGlobalUDF("width_bucket", widthBucketFunc)
+	// random functions
+	udf.RegisterGlobalUDF("random", randomFunc)
+	udf.RegisterGlobalUDF("setseed", setseedFunc)
 }
