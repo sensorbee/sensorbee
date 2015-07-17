@@ -425,4 +425,56 @@ func TestIntGenericInt8Func(t *testing.T) {
 	})
 }
 
+// TODO: add test for int16, int32, int64, uint8, uint16, uint32, uint64 types.
+
+func TestBoolGenericBoolFunc(t *testing.T) {
+	ctx := &core.Context{} // not used in this test
+
+	Convey("Given a function receiving bool", t, func() {
+		f, err := ConvertGeneric(func(b bool) bool {
+			return !b
+		})
+		So(err, ShouldBeNil)
+
+		Convey("When passing a valid value", func() {
+			v, err := f.Call(ctx, data.Bool(true))
+			So(err, ShouldBeNil)
+
+			Convey("Then it should be false", func() {
+				b, err := data.ToBool(v)
+				So(err, ShouldBeNil)
+				So(b, ShouldBeFalse)
+			})
+		})
+
+		convertible := []struct {
+			typeName string
+			value    data.Value
+		}{
+			{"null", data.Null{}},
+			{"int", data.Int(0)},
+			{"float", data.Float(0.0)},
+			{"map", data.Map{}},
+			{"string", data.String("")},
+			{"byte", data.Blob([]byte(""))},
+			{"time", data.Timestamp(time.Time{})},
+			{"array", data.Array([]data.Value{})},
+		}
+		for _, i := range convertible {
+			t := i.typeName
+			v := i.value
+			Convey(fmt.Sprintf("When passing convertible value of %v", t), func() {
+				v, err := f.Call(ctx, v)
+				So(err, ShouldBeNil)
+
+				Convey("Then it should be true", func() {
+					b, err := data.ToBool(v)
+					So(err, ShouldBeNil)
+					So(b, ShouldBeTrue)
+				})
+			})
+		}
+	})
+}
+
 // TODO: add tests for all types.
