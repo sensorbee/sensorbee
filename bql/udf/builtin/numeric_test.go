@@ -149,6 +149,34 @@ func TestUnaryNumericFuncs(t *testing.T) {
 			{data.Float(0.5), data.Null{}},
 			{data.Float(1.0), data.Null{}},
 		}},
+		{"acos", acosFunc, []udfUnaryTestCaseInput{
+			{data.Int(1), data.Float(math.Acos(1))},
+			{data.Float(0.5), data.Float(math.Acos(0.5))},
+		}},
+		{"asin", asinFunc, []udfUnaryTestCaseInput{
+			{data.Int(1), data.Float(math.Asin(1))},
+			{data.Float(0.5), data.Float(math.Asin(0.5))},
+		}},
+		{"atan", atanFunc, []udfUnaryTestCaseInput{
+			{data.Int(1), data.Float(math.Atan(1))},
+			{data.Float(0.5), data.Float(math.Atan(0.5))},
+		}},
+		{"cos", cosFunc, []udfUnaryTestCaseInput{
+			{data.Int(1), data.Float(math.Cos(1))},
+			{data.Float(0.5), data.Float(math.Cos(0.5))},
+		}},
+		{"cot", cotFunc, []udfUnaryTestCaseInput{
+			{data.Int(1), data.Float(1. / math.Tan(1))},
+			{data.Float(0.5), data.Float(1. / math.Tan(0.5))},
+		}},
+		{"sin", sinFunc, []udfUnaryTestCaseInput{
+			{data.Int(1), data.Float(math.Sin(1))},
+			{data.Float(0.5), data.Float(math.Sin(0.5))},
+		}},
+		{"tan", tanFunc, []udfUnaryTestCaseInput{
+			{data.Int(1), data.Float(math.Tan(1))},
+			{data.Float(0.5), data.Float(math.Tan(0.5))},
+		}},
 	}
 
 	for _, testCase := range udfUnaryTestCases {

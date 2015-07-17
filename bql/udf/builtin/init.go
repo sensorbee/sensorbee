@@ -27,4 +27,12 @@ func init() {
 	// random functions
 	udf.RegisterGlobalUDF("random", randomFunc)
 	udf.RegisterGlobalUDF("setseed", setseedFunc)
+	// trigonometric functions
+	udf.RegisterGlobalUDF("acos", acosFunc)
+	udf.RegisterGlobalUDF("asin", asinFunc)
+	udf.RegisterGlobalUDF("atan", atanFunc)
+	udf.RegisterGlobalUDF("cos", cosFunc)
+	udf.RegisterGlobalUDF("cot", cotFunc)
+	udf.RegisterGlobalUDF("sin", sinFunc)
+	udf.RegisterGlobalUDF("tan", tanFunc)
 }
