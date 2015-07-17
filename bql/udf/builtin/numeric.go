@@ -662,3 +662,79 @@ func (f *setseedFuncTmpl) Call(ctx *core.Context, args ...data.Value) (val data.
 //  Input: Float
 //  Return Type: Null
 var setseedFunc udf.UDF = &setseedFuncTmpl{}
+
+// acosFunc computes the inverse cosine of a number.
+// See also: math.Acos
+//
+// It can be used in BQL as `acos`.
+//
+//  Input: Int or Float
+//  Return Type: Float
+var acosFunc udf.UDF = &floatValuedSingleParamNumericFunc{
+	floatFun: math.Acos,
+}
+
+// asinFunc computes the inverse sine of a number.
+// See also: math.Asin
+//
+// It can be used in BQL as `asin`.
+//
+//  Input: Int or Float
+//  Return Type: Float
+var asinFunc udf.UDF = &floatValuedSingleParamNumericFunc{
+	floatFun: math.Asin,
+}
+
+// atanFunc computes the inverse tangent of a number.
+// See also: math.Atan
+//
+// It can be used in BQL as `atan`.
+//
+//  Input: Int or Float
+//  Return Type: Float
+var atanFunc udf.UDF = &floatValuedSingleParamNumericFunc{
+	floatFun: math.Atan,
+}
+
+// cosFunc computes the cosine of a number.
+// See also: math.Cos
+//
+// It can be used in BQL as `cos`.
+//
+//  Input: Int or Float
+//  Return Type: Float
+var cosFunc udf.UDF = &floatValuedSingleParamNumericFunc{
+	floatFun: math.Cos,
+}
+
+// cotFunc computes the cotangent of a number.
+//
+// It can be used in BQL as `cot`.
+//
+//  Input: Int or Float
+//  Return Type: Float
+var cotFunc udf.UDF = &floatValuedSingleParamNumericFunc{
+	floatFun: func(x float64) float64 { return 1. / math.Tan(x) },
+}
+
+// sinFunc computes the sine of a number.
+// See also: math.Sin
+//
+// It can be used in BQL as `sin`.
+//
+//  Input: Int or Float
+//  Return Type: Float
+var sinFunc udf.UDF = &floatValuedSingleParamNumericFunc{
+	floatFun: math.Sin,
+}
+
+// tanFunc computes the tangent of a number.
+// See also: math.Tan
+//
+// It can be used in BQL as `tan`.
+//
+//  Input: Int or Float
+//  Return Type: Float
+var tanFunc udf.UDF = &floatValuedSingleParamNumericFunc{
+	floatFun: math.Tan,
+}
