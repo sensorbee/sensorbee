@@ -143,10 +143,12 @@ func TestBinaryNumericFuncs(t *testing.T) {
 		{"div", divFunc, []udfBinaryTestCaseInput{
 			{data.Int(9), data.Int(4), data.Int(2)},
 			{data.Int(9), data.Int(-4), data.Int(-2)},
+			{data.Int(9), data.Int(0), nil},
 			{data.Float(2.7), data.Float(1.3), data.Int(2)},
 			{data.Float(2.7), data.Float(-1.3), data.Int(-2)},
 			{data.Float(-2.7), data.Float(1.3), data.Int(-2)},
 			{data.Float(-2.7), data.Float(-1.3), data.Int(2)},
+			{data.Float(2.7), data.Float(0.0), nil},
 		}},
 	}
 

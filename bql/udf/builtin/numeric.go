@@ -44,7 +44,12 @@ type typePreservingSingleParamNumericFunc struct {
 	floatFun func(float64) float64
 }
 
-func (f *typePreservingSingleParamNumericFunc) Call(ctx *core.Context, args ...data.Value) (data.Value, error) {
+func (f *typePreservingSingleParamNumericFunc) Call(ctx *core.Context, args ...data.Value) (val data.Value, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("%v", r)
+		}
+	}()
 	if len(args) != 1 {
 		return nil, fmt.Errorf("function takes exactly one argument")
 	}
@@ -72,7 +77,12 @@ type floatValuedSingleParamNumericFunc struct {
 	floatFun func(float64) float64
 }
 
-func (f *floatValuedSingleParamNumericFunc) Call(ctx *core.Context, args ...data.Value) (data.Value, error) {
+func (f *floatValuedSingleParamNumericFunc) Call(ctx *core.Context, args ...data.Value) (val data.Value, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("%v", r)
+		}
+	}()
 	if len(args) != 1 {
 		return nil, fmt.Errorf("function takes exactly one argument")
 	}
@@ -97,7 +107,12 @@ type intValuedTwoParamNumericFunc struct {
 	floatFun func(float64, float64) int64
 }
 
-func (f *intValuedTwoParamNumericFunc) Call(ctx *core.Context, args ...data.Value) (data.Value, error) {
+func (f *intValuedTwoParamNumericFunc) Call(ctx *core.Context, args ...data.Value) (val data.Value, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("%v", r)
+		}
+	}()
 	if len(args) != 2 {
 		return nil, fmt.Errorf("function takes exactly two arguments")
 	}
@@ -171,8 +186,13 @@ var degreesFunc udf.UDF = &floatValuedSingleParamNumericFunc{
 //  Input: Int, Int
 //  Return Type: Int
 var divFunc udf.UDF = &intValuedTwoParamNumericFunc{
-	intFun:   func(a, b int64) int64 { return a / b },
-	floatFun: func(a, b float64) int64 { return int64(a / b) },
+	intFun: func(a, b int64) int64 { return a / b },
+	floatFun: func(a, b float64) int64 {
+		if b == 0 {
+			panic("division by zero")
+		}
+		return int64(a / b)
+	},
 }
 
 // expFunc computes the exponential of a number.
