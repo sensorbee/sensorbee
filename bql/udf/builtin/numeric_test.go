@@ -37,33 +37,33 @@ func TestNumericFuncs(t *testing.T) {
 	}
 
 	udfTestCases := []udfTestCase{
-		{"abs", AbsFunc(), []udfTestCaseInput{
+		{"abs", absFunc, []udfTestCaseInput{
 			{data.Int(7), data.Int(7)},
 			{data.Int(-7), data.Int(7)},
 			{data.Float(2.3), data.Float(2.3)},
 			{data.Float(-2.3), data.Float(2.3)},
 		}},
-		{"cbrt", CbrtFunc(), []udfTestCaseInput{
+		{"cbrt", cbrtFunc, []udfTestCaseInput{
 			{data.Int(27), data.Float(3.0)},
 			{data.Int(-27), data.Float(-3.0)},
 			{data.Float(27.0), data.Float(3.0)},
 			{data.Float(-27.0), data.Float(-3.0)},
 		}},
-		{"ceil", CeilFunc(), []udfTestCaseInput{
+		{"ceil", ceilFunc, []udfTestCaseInput{
 			{data.Int(27), data.Int(27)},
 			{data.Int(-27), data.Int(-27)},
 			{data.Float(42.8), data.Float(43.0)},
 			{data.Float(-42.8), data.Float(-42.0)},
 		}},
-		{"degrees", DegreesFunc(), []udfTestCaseInput{
+		{"degrees", degreesFunc, []udfTestCaseInput{
 			{data.Int(1), data.Float(57.29577951308232)},
 			{data.Float(0.5), data.Float(28.6478897565412)},
 		}},
-		{"exp", ExpFunc(), []udfTestCaseInput{
+		{"exp", expFunc, []udfTestCaseInput{
 			{data.Int(1), data.Float(math.E)},
 			{data.Float(math.Log(1.0)), data.Float(1.0)},
 		}},
-		{"floor", FloorFunc(), []udfTestCaseInput{
+		{"floor", floorFunc, []udfTestCaseInput{
 			{data.Int(27), data.Int(27)},
 			{data.Int(-27), data.Int(-27)},
 			{data.Float(42.8), data.Float(42.0)},
