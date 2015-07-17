@@ -7,6 +7,7 @@ import (
 	"pfi/sensorbee/sensorbee/data"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestGenericFunc(t *testing.T) {
@@ -381,7 +382,46 @@ func TestIntGenericInt8Func(t *testing.T) {
 			})
 		})
 
-		// TODO: add tests passing invalid values (out of range, inconvertible types)
+		Convey("When passing too big int should fail", func() {
+			_, err := f.Call(ctx, data.Int(256))
+
+			Convey("Then it should fail", func() {
+				So(err, ShouldNotBeNil)
+			})
+		})
+
+		Convey("When passing too small negative int should fail", func() {
+			_, err := f.Call(ctx, data.Int(-255))
+
+			Convey("Then it should fail", func() {
+				So(err, ShouldNotBeNil)
+			})
+		})
+
+		inconvertible := []struct {
+			typeName string
+			value    data.Value
+		}{
+			{"float", data.Float(256.0)},
+			{"negative float", data.Float(-255.0)},
+			{"null", data.Null{}},
+			{"string", data.String("str")},
+			{"blob", data.Blob([]byte("blob"))},
+			{"time", data.Timestamp(time.Date(2015, time.May, 1, 14, 27, 0, 0, time.UTC))},
+			{"array", data.Array([]data.Value{data.Int(10)})},
+			{"map", data.Map{"key": data.Int(10)}},
+		}
+		for _, i := range inconvertible {
+			t := i.typeName
+			v := i.value
+			Convey(fmt.Sprintf("When passing inconvertible value of %v", t), func() {
+				_, err := f.Call(ctx, v)
+
+				Convey("Then it should fail", func() {
+					So(err, ShouldNotBeNil)
+				})
+			})
+		}
 	})
 }
 
