@@ -1,8 +1,9 @@
-package udf
+package builtin
 
 import (
 	"fmt"
 	"math"
+	"pfi/sensorbee/sensorbee/bql/udf"
 	"pfi/sensorbee/sensorbee/core"
 	"pfi/sensorbee/sensorbee/data"
 )
@@ -82,7 +83,7 @@ func (f *floatValuedSingleParamNumericFunc) Call(ctx *core.Context, args ...data
 //
 //  Input: Int or Float
 //  Return Type: same as input
-func AbsFunc() UDF {
+func AbsFunc() udf.UDF {
 	return &typePreservingSingleParamNumericFunc{
 		floatFun: math.Abs,
 	}
@@ -95,7 +96,7 @@ func AbsFunc() UDF {
 //
 //  Input: Int or Float
 //  Return Type: Float
-func CbrtFunc() UDF {
+func CbrtFunc() udf.UDF {
 	return &floatValuedSingleParamNumericFunc{
 		floatFun: math.Cbrt,
 	}
@@ -108,7 +109,7 @@ func CbrtFunc() UDF {
 //
 //  Input: Int or Float
 //  Return Type: same as input
-func CeilFunc() UDF {
+func CeilFunc() udf.UDF {
 	return &typePreservingSingleParamNumericFunc{
 		floatFun: math.Ceil,
 	}
@@ -120,7 +121,7 @@ func CeilFunc() UDF {
 //
 //  Input: Int or Float
 //  Return Type: Float
-func DegreesFunc() UDF {
+func DegreesFunc() udf.UDF {
 	return &floatValuedSingleParamNumericFunc{
 		floatFun: func(f float64) float64 {
 			return f / math.Pi * 180
@@ -137,7 +138,7 @@ func DegreesFunc() UDF {
 //
 //  Input: Int or Float
 //  Return Type: Float
-func ExpFunc() UDF {
+func ExpFunc() udf.UDF {
 	return &floatValuedSingleParamNumericFunc{
 		floatFun: math.Exp,
 	}
@@ -150,7 +151,7 @@ func ExpFunc() UDF {
 //
 //  Input: Int or Float
 //  Return Type: same as input
-func FloorFunc() UDF {
+func FloorFunc() udf.UDF {
 	return &typePreservingSingleParamNumericFunc{
 		floatFun: math.Floor,
 	}
