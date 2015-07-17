@@ -79,7 +79,7 @@ func (f *floatValuedSingleParamNumericFunc) Call(ctx *core.Context, args ...data
 // absFunc computes the absolute value of a number.
 // See also: math.Abs.
 //
-// That UDF can be used in BQL as `abs`.
+// It can be used in BQL as `abs`.
 //
 //  Input: Int or Float
 //  Return Type: same as input
@@ -90,7 +90,7 @@ var absFunc udf.UDF = &typePreservingSingleParamNumericFunc{
 // cbrtFunc computes the cube root of a number.
 // See also: math.Cbrt.
 //
-// That UDF can be used in BQL as `cbrt`.
+// It can be used in BQL as `cbrt`.
 //
 //  Input: Int or Float
 //  Return Type: Float
@@ -101,21 +101,21 @@ var cbrtFunc udf.UDF = &floatValuedSingleParamNumericFunc{
 // ceilFunc computes the smallest integer not less than its argument.
 // See also: math.Ceil.
 //
-// That UDF can be used in BQL as `ceil`.
+// It can be used in BQL as `ceil`.
 //
 //  Input: Int or Float
 //  Return Type: same as input
-var ceilFunc = &typePreservingSingleParamNumericFunc{
+var ceilFunc udf.UDF = &typePreservingSingleParamNumericFunc{
 	floatFun: math.Ceil,
 }
 
 // degreesFunc converts radians to degrees.
 //
-// That UDF can be used in BQL as `degrees`.
+// It can be used in BQL as `degrees`.
 //
 //  Input: Int or Float
 //  Return Type: Float
-var degreesFunc = &floatValuedSingleParamNumericFunc{
+var degreesFunc udf.UDF = &floatValuedSingleParamNumericFunc{
 	floatFun: func(f float64) float64 {
 		return f / math.Pi * 180
 	},
@@ -126,21 +126,21 @@ var degreesFunc = &floatValuedSingleParamNumericFunc{
 // expFunc computes the exponential of a number.
 // See also: math.Exp.
 //
-// That UDF can be used in BQL as `exp`.
+// It can be used in BQL as `exp`.
 //
 //  Input: Int or Float
 //  Return Type: Float
-var expFunc = &floatValuedSingleParamNumericFunc{
+var expFunc udf.UDF = &floatValuedSingleParamNumericFunc{
 	floatFun: math.Exp,
 }
 
 // floorFunc computes the largest integer not greater than its argument.
 // See also: math.Floor.
 //
-// That UDF can be used in BQL as `floor`.
+// It can be used in BQL as `floor`.
 //
 //  Input: Int or Float
 //  Return Type: same as input
-var floorFunc = &typePreservingSingleParamNumericFunc{
+var floorFunc udf.UDF = &typePreservingSingleParamNumericFunc{
 	floatFun: math.Floor,
 }
