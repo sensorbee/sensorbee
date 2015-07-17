@@ -21,6 +21,19 @@ func (f *singleParamFunc) IsAggregationParameter(k int) bool {
 	return false
 }
 
+// twoParamFunc is a template for functions that
+// have exactly two parameters
+type twoParamFunc struct {
+}
+
+func (f *twoParamFunc) Accept(arity int) bool {
+	return arity == 2
+}
+
+func (f *twoParamFunc) IsAggregationParameter(k int) bool {
+	return false
+}
+
 // typePreservingSingleParamNumericFunc is a template for
 // numeric functions that have the same return type as
 // input type. If intFun is nil, then the result is computed
@@ -76,6 +89,36 @@ func (f *floatValuedSingleParamNumericFunc) Call(ctx *core.Context, args ...data
 	return nil, fmt.Errorf("cannot interpret %s as number", arg)
 }
 
+// intValuedTwoParamNumericFunc is a template for
+// numeric functions that have integers as output.
+type intValuedTwoParamNumericFunc struct {
+	twoParamFunc
+	intFun   func(int64, int64) int64
+	floatFun func(float64, float64) int64
+}
+
+func (f *intValuedTwoParamNumericFunc) Call(ctx *core.Context, args ...data.Value) (data.Value, error) {
+	if len(args) != 2 {
+		return nil, fmt.Errorf("function takes exactly two arguments")
+	}
+	arg1 := args[0]
+	arg2 := args[1]
+	if arg1.Type() == data.TypeNull || arg2.Type() == data.TypeNull {
+		return data.Null{}, nil
+	} else if arg1.Type() == data.TypeInt && arg2.Type() == data.TypeInt {
+		i1, _ := data.AsInt(arg1)
+		i2, _ := data.AsInt(arg2)
+		return data.Int(f.intFun(i1, i2)), nil
+	} else if arg1.Type() == data.TypeFloat && arg2.Type() == data.TypeFloat {
+		d1, _ := data.AsFloat(arg1)
+		d2, _ := data.AsFloat(arg2)
+		return data.Int(f.floatFun(d1, d2)), nil
+	} else if arg1.Type() != arg2.Type() {
+		return nil, fmt.Errorf("types %T and %T do not match", arg1, arg2)
+	}
+	return nil, fmt.Errorf("cannot interpret %s and/or %s as integer", arg1, arg2)
+}
+
 // absFunc computes the absolute value of a number.
 // See also: math.Abs.
 //
@@ -121,7 +164,16 @@ var degreesFunc udf.UDF = &floatValuedSingleParamNumericFunc{
 	},
 }
 
-// TODO DivFunc
+// divFunc computes the integer quotient of two numbers.
+//
+// It can be used in BQL as `div`.
+//
+//  Input: Int, Int
+//  Return Type: Int
+var divFunc udf.UDF = &intValuedTwoParamNumericFunc{
+	intFun:   func(a, b int64) int64 { return a / b },
+	floatFun: func(a, b float64) int64 { return int64(a / b) },
+}
 
 // expFunc computes the exponential of a number.
 // See also: math.Exp.
