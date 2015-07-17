@@ -214,11 +214,4 @@ func init() {
 	}
 	globalUDFRegistry.Register("str", UnaryFunc(toString))
 	globalUDFRegistry.Register("count", &countAggregate{})
-	// numeric functions
-	globalUDFRegistry.Register("abs", AbsFunc())
-	globalUDFRegistry.Register("cbrt", CbrtFunc())
-	globalUDFRegistry.Register("ceil", CeilFunc())
-	globalUDFRegistry.Register("degrees", DegreesFunc())
-	globalUDFRegistry.Register("exp", ExpFunc())
-	globalUDFRegistry.Register("floor", FloorFunc())
 }

@@ -1,9 +1,10 @@
-package udf
+package builtin
 
 import (
 	"fmt"
 	. "github.com/smartystreets/goconvey/convey"
 	"math"
+	"pfi/sensorbee/sensorbee/bql/udf"
 	"pfi/sensorbee/sensorbee/data"
 	"testing"
 	"time"
@@ -11,7 +12,7 @@ import (
 
 type udfTestCase struct {
 	name   string
-	udf    UDF
+	f      udf.UDF
 	inputs []udfTestCaseInput
 }
 
@@ -72,7 +73,7 @@ func TestNumericFuncs(t *testing.T) {
 
 	for _, udfTestCase := range udfTestCases {
 		udfTestCase := udfTestCase
-		udf := udfTestCase.udf
+		f := udfTestCase.f
 		testCases := append(udfTestCase.inputs, invalidInputs...)
 
 		Convey(fmt.Sprintf("Given the %s function", udfTestCase.name), t, func() {
@@ -80,7 +81,7 @@ func TestNumericFuncs(t *testing.T) {
 				tc := tc
 
 				Convey(fmt.Sprintf("When evaluating it on %s (%T)", tc.input, tc.input), func() {
-					val, err := udf.Call(nil, tc.input)
+					val, err := f.Call(nil, tc.input)
 
 					if tc.expected == nil {
 						Convey("Then evaluation should fail", func() {
@@ -100,9 +101,9 @@ func TestNumericFuncs(t *testing.T) {
 			}
 
 			Convey("Then it should equal in the default registry", func() {
-				regFun, err := globalUDFRegistry.Lookup(udfTestCase.name, 1)
+				regFun, err := udf.CopyGlobalUDFRegistry(nil).Lookup(udfTestCase.name, 1)
 				So(err, ShouldBeNil)
-				So(regFun, ShouldHaveSameTypeAs, udf)
+				So(regFun, ShouldHaveSameTypeAs, f)
 			})
 		})
 	}
