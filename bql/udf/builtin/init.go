@@ -10,6 +10,7 @@ func init() {
 	udf.RegisterGlobalUDF("cbrt", cbrtFunc)
 	udf.RegisterGlobalUDF("ceil", ceilFunc)
 	udf.RegisterGlobalUDF("degrees", degreesFunc)
+	udf.RegisterGlobalUDF("div", divFunc)
 	udf.RegisterGlobalUDF("exp", expFunc)
 	udf.RegisterGlobalUDF("floor", floorFunc)
 }
