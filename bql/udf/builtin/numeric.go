@@ -76,83 +76,71 @@ func (f *floatValuedSingleParamNumericFunc) Call(ctx *core.Context, args ...data
 	return nil, fmt.Errorf("cannot interpret %s as number", arg)
 }
 
-// AbsFunc returns a UDF to compute the absolute value of a number.
+// absFunc computes the absolute value of a number.
 // See also: math.Abs.
 //
 // That UDF can be used in BQL as `abs`.
 //
 //  Input: Int or Float
 //  Return Type: same as input
-func AbsFunc() udf.UDF {
-	return &typePreservingSingleParamNumericFunc{
-		floatFun: math.Abs,
-	}
+var absFunc udf.UDF = &typePreservingSingleParamNumericFunc{
+	floatFun: math.Abs,
 }
 
-// CbrtFunc returns a UDF to compute the cube root of a number.
+// cbrtFunc computes the cube root of a number.
 // See also: math.Cbrt.
 //
 // That UDF can be used in BQL as `cbrt`.
 //
 //  Input: Int or Float
 //  Return Type: Float
-func CbrtFunc() udf.UDF {
-	return &floatValuedSingleParamNumericFunc{
-		floatFun: math.Cbrt,
-	}
+var cbrtFunc udf.UDF = &floatValuedSingleParamNumericFunc{
+	floatFun: math.Cbrt,
 }
 
-// CeilFunc returns a UDF to compute the smallest integer not less
-// than its argument. See also: math.Ceil.
+// ceilFunc computes the smallest integer not less than its argument.
+// See also: math.Ceil.
 //
 // That UDF can be used in BQL as `ceil`.
 //
 //  Input: Int or Float
 //  Return Type: same as input
-func CeilFunc() udf.UDF {
-	return &typePreservingSingleParamNumericFunc{
-		floatFun: math.Ceil,
-	}
+var ceilFunc = &typePreservingSingleParamNumericFunc{
+	floatFun: math.Ceil,
 }
 
-// DegreesFunc returns a UDF to convert radians to degrees.
+// degreesFunc converts radians to degrees.
 //
 // That UDF can be used in BQL as `degrees`.
 //
 //  Input: Int or Float
 //  Return Type: Float
-func DegreesFunc() udf.UDF {
-	return &floatValuedSingleParamNumericFunc{
-		floatFun: func(f float64) float64 {
-			return f / math.Pi * 180
-		},
-	}
+var degreesFunc = &floatValuedSingleParamNumericFunc{
+	floatFun: func(f float64) float64 {
+		return f / math.Pi * 180
+	},
 }
 
 // TODO DivFunc
 
-// ExpFunc returns a UDF to compute the exponential of a number.
+// expFunc computes the exponential of a number.
 // See also: math.Exp.
 //
 // That UDF can be used in BQL as `exp`.
 //
 //  Input: Int or Float
 //  Return Type: Float
-func ExpFunc() udf.UDF {
-	return &floatValuedSingleParamNumericFunc{
-		floatFun: math.Exp,
-	}
+var expFunc = &floatValuedSingleParamNumericFunc{
+	floatFun: math.Exp,
 }
 
-// FloorFunc returns a UDF to compute the largest integer not greater
-// than its argument. See also: math.Floor.
+// floorFunc computes the largest integer not greater than its argument.
+// See also: math.Floor.
 //
-// That UDF can be used in BQL as `ceil`.
+// That UDF can be used in BQL as `floor`.
 //
 //  Input: Int or Float
 //  Return Type: same as input
-func FloorFunc() udf.UDF {
-	return &typePreservingSingleParamNumericFunc{
-		floatFun: math.Floor,
-	}
+var floorFunc = &typePreservingSingleParamNumericFunc{
+	floatFun: math.Floor,
 }
