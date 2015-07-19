@@ -204,6 +204,18 @@ func (t *defaultTopology) AddSink(name string, s Sink, config *SinkConfig) (Sink
 	t.nodeMutex.Lock()
 	defer t.nodeMutex.Unlock()
 	if t.state.Get() >= TSStopping {
+		func() {
+			defer func() {
+				if e := recover(); e != nil {
+					t.ctx.Log().WithFields(nodeLogFields(NTSink, name)).
+						Errorf("Cannot close the sink which hasn't been added to the topology due to its duplicated name: %v", e)
+				}
+			}()
+			if err := s.Close(t.ctx); err != nil {
+				t.ctx.ErrLog(err).WithFields(nodeLogFields(NTSink, name)).
+					Error("Cannot close the sink which hasn't been added to the topology due to its duplicated name")
+			}
+		}()
 		return nil, fmt.Errorf("the topology is already stopped")
 	}
 
