@@ -1,8 +1,10 @@
 package shell
 
 import (
+	"fmt"
 	"github.com/codegangsta/cli"
-	"strings"
+	"os"
+	"pfi/sensorbee/sensorbee/client"
 )
 
 func SetUp() cli.Command {
@@ -14,14 +16,15 @@ func SetUp() cli.Command {
 	}
 	cmd.Flags = []cli.Flag{
 		cli.StringFlag{
-			Name:  "uri",
-			Value: "http://localhost:8090/",
-			Usage: "target URI to launch",
+			Name:   "uri",
+			Value:  "http://localhost:8090/",
+			Usage:  "the address of the target SensorBee server",
+			EnvVar: "SENSORBEE_URI",
 		},
 		cli.StringFlag{
-			Name:  "version,v",
+			Name:  "api-version",
 			Value: "v1",
-			Usage: "SenserBee API version",
+			Usage: "target API version",
 		},
 	}
 	return cmd
@@ -29,12 +32,8 @@ func SetUp() cli.Command {
 
 // Launch SensorBee's command line client tool.
 func Launch(c *cli.Context) {
-	host := c.String("uri") // TODO: validate URI
-	if !strings.HasSuffix(host, "/") {
-		host += "/"
-	}
-	uri := host + "api/" + c.String("version")
-
+	defer panicHandler()
+	validateFlags(c)
 	cmds := []Command{}
 	for _, c := range NewTopologiesCommands() {
 		cmds = append(cmds, c)
@@ -43,5 +42,53 @@ func Launch(c *cli.Context) {
 		cmds = append(cmds, c)
 	}
 	app := SetUpCommands(cmds)
-	app.Run(uri)
+	app.Run(newRequester(c))
+}
+
+// TODO: merge following function implementations with lib/topology's
+var (
+	testMode     bool
+	testExitCode int
+)
+
+func panicHandler() {
+	// Because all tests uses this feature, they cannot be run in parallel.
+	// Commands use this dirty logic because there's no other ways to report
+	// errors due to cli library's limitation.
+	if e := recover(); e != nil {
+		ec, ok := e.(int)
+		if !ok {
+			panic(e)
+		}
+
+		if testMode {
+			testExitCode = ec
+		} else {
+			os.Exit(e.(int))
+		}
+
+	} else if testMode {
+		testExitCode = 0
+	}
+}
+
+func validateFlags(c *cli.Context) {
+	if err := client.ValidateURL(c.String("uri")); err != nil {
+		fmt.Fprintln(os.Stderr, "--uri flag has an invalid value: %v", err)
+		panic(1)
+	}
+	if err := client.ValidateAPIVersion(c.String("api-version")); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		panic(1)
+	}
+	// TODO: check other flags
+}
+
+func newRequester(c *cli.Context) *client.Requester {
+	r, err := client.NewRequester(c.String("uri"), c.String("api-version"))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Cannot create a API requester: %v\n", err)
+		panic(1)
+	}
+	return r
 }

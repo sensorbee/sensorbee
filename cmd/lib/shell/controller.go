@@ -13,7 +13,7 @@ import (
 type App struct {
 	historyFn            string
 	executeExternalFiles *string
-	uri                  string
+	requester            *client.Requester
 	commandMap           map[string]Command
 }
 
@@ -38,65 +38,58 @@ func SetUpCommands(commands []Command) App {
 }
 
 func (a *App) prompt(line *liner.State) {
-	input, err := line.Prompt(promptLineStart)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error reading line: %v", err)
-		return
-	}
-
-	if input != "" {
-		line.AppendHistory(input)
-
-		if strings.ToLower(input) == "exit" {
-			fmt.Fprintln(os.Stdout, "SensorBee is closed")
+	for {
+		input, err := line.Prompt(promptLineStart)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "error reading line: %v", err)
 			return
 		}
 
-		in := strings.ToLower(strings.Split(input, " ")[0])
-		if cmd, ok := a.commandMap[in]; ok {
+		if input != "" {
+			line.AppendHistory(input)
+
+			if strings.ToLower(input) == "exit" {
+				fmt.Fprintln(os.Stdout, "SensorBee is closed")
+				return
+			}
+
+			in := strings.ToLower(strings.Split(input, " ")[0])
+			if cmd, ok := a.commandMap[in]; ok {
+				a.processCommand(line, cmd, input)
+			} else {
+				fmt.Fprintln(os.Stderr, "undefined command: %v\n", in)
+			}
+		}
+	}
+}
+
+func (a *App) processCommand(line *liner.State, cmd Command, input string) {
+	for {
+		if input != "" {
+			line.AppendHistory(input)
 			status, err := cmd.Input(input)
 			switch status {
 			case invalidCMD:
 				fmt.Fprintf(os.Stderr, "input command is invalid: %v\n", err)
-			case continuousCMD:
-				a.continues(line, cmd)
+				return
 			case preparedCMD:
-				method, uri, bodyJSON := cmd.Eval()
-				client.Request(method, a.uri+uri, bodyJSON)
+				cmd.Eval(a.requester)
+				return
 			}
-		} else {
-			fmt.Fprintf(os.Stdout, "not found the command: %v\n", in)
 		}
-	}
-	a.prompt(line)
-}
 
-func (a *App) continues(line *liner.State, cmd Command) {
-	input, err := line.Prompt(promptLineContinue)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return
-	}
-
-	if input != "" {
-		line.AppendHistory(input)
-		status, err := cmd.Input(input)
-		switch status {
-		case invalidCMD:
-			fmt.Fprintf(os.Stderr, "input command is invalid: %v\n", err)
-			return
-		case preparedCMD:
-			method, uri, bodyJSON := cmd.Eval()
-			client.Request(method, a.uri+uri, bodyJSON)
+		var err error
+		input, err = line.Prompt(promptLineContinue)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
 			return
 		}
 	}
-	a.continues(line, cmd)
 }
 
 // Run begins SensorBee command line tool to management SensorBee
 // and execute BQL/UDF/UDTF statements.
-func (a *App) Run(uri string) {
+func (a *App) Run(requester *client.Requester) {
 	// set local value. For example, when stated with "-file=hoge.bql",
 	// `executeExternalFile` will set "hoge.bql"
 	flag.Parse()
@@ -115,7 +108,7 @@ func (a *App) Run(uri string) {
 	}
 
 	fmt.Fprintln(os.Stdout, appRunMsg)
-	a.uri = uri
+	a.requester = requester
 	a.prompt(line)
 
 	if f, err := os.Create(a.historyFn); err != nil {

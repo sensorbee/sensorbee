@@ -44,9 +44,13 @@ func (r *Response) Close() error {
 
 	if r.closeStream != nil {
 		close(r.closeStream)
+	}
+
+	r.closeErr = r.Raw.Body.Close()
+
+	if r.closeStream != nil {
 		<-r.streamClosed // wait until stream is closed
 	}
-	r.closeErr = r.Raw.Body.Close()
 	return r.closeErr
 }
 
@@ -179,17 +183,20 @@ func (r *Response) ReadStreamJSON() (<-chan interface{}, error) {
 				ch <- js
 				return nil
 			}()
+
+			select {
+			case <-r.closeStream:
+				// When the response is closed first, the error doesn't have
+				// to be set.
+				break multipartLoop
+			default:
+			}
+
 			if err != nil {
 				if err != io.EOF {
 					r.streamErr = err
 				}
 				return
-			}
-
-			select {
-			case <-r.closeStream:
-				break multipartLoop
-			default:
 			}
 		}
 	}()
