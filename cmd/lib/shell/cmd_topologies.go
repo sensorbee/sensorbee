@@ -1,6 +1,7 @@
 package shell
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/signal"
@@ -139,7 +140,12 @@ func showStreamResponses(res *client.Response) {
 			if !ok {
 				return
 			}
-			fmt.Println(js)
+			data, err := json.Marshal(js)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "cannot marshal a JSON: %v\n", err)
+				return
+			}
+			fmt.Printf("%s\n", data)
 
 		case <-sig:
 			return // The response is closed by the caller
