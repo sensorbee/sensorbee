@@ -1,21 +1,26 @@
 package server
 
 import (
-	"encoding/json"
+	"fmt"
+	"github.com/Sirupsen/logrus"
 	"github.com/gocraft/web"
-	"io/ioutil"
+	"io"
+	"mime/multipart"
 	"net/http"
+	"net/textproto"
 	"os"
 	"pfi/sensorbee/sensorbee/bql"
 	"pfi/sensorbee/sensorbee/bql/parser"
 	"pfi/sensorbee/sensorbee/core"
 	"pfi/sensorbee/sensorbee/data"
 	"pfi/sensorbee/sensorbee/server/response"
+	"strings"
 )
 
 type topologies struct {
 	*APIContext
 	topologyName string
+	topology     *bql.TopologyBuilder
 }
 
 func SetUpTopologiesRouter(prefix string, router *web.Router) {
@@ -34,6 +39,25 @@ func (tc *topologies) extractName(rw web.ResponseWriter, req *web.Request, next 
 		return
 	}
 	next(rw, req)
+}
+
+// fetchTopology returns the topology having tc.topologyName. When this method
+// returns nil, the caller can just return from the action.
+func (tc *topologies) fetchTopology() *bql.TopologyBuilder {
+	tb, err := tc.topologies.Lookup(tc.topologyName)
+	if err != nil {
+		l := tc.Log().WithField("topology", tc.topologyName)
+		if os.IsNotExist(err) {
+			l.Error("The topology is not registered")
+			tc.RenderErrorJSON(NewError(requestURLNotFoundErrorCode, "The topology doesn't exist",
+				http.StatusNotFound, err))
+			return nil
+		}
+		l.WithField("err", err).Error("Cannot lookup the topology")
+		tc.RenderErrorJSON(NewInternalServerError(err))
+		return nil
+	}
+	return tb
 }
 
 // Create creates a new topology.
@@ -144,17 +168,8 @@ func (tc *topologies) Index(rw web.ResponseWriter, req *web.Request) {
 
 // Show returns the information of topology
 func (tc *topologies) Show(rw web.ResponseWriter, req *web.Request) {
-	tb, err := tc.topologies.Lookup(tc.topologyName)
-	if err != nil {
-		l := tc.Log().WithField("topology", tc.topologyName)
-		if os.IsNotExist(err) {
-			l.Error("The topology is not registered")
-			tc.RenderErrorJSON(NewError(requestURLNotFoundErrorCode, "The topology doesn't exist",
-				http.StatusNotFound, err))
-			return
-		}
-		l.WithField("err", err).Error("Cannot lookup the topology")
-		tc.RenderErrorJSON(NewInternalServerError(err))
+	tb := tc.fetchTopology()
+	if tb == nil {
 		return
 	}
 	tc.RenderJSON(map[string]interface{}{
@@ -192,62 +207,180 @@ func (tc *topologies) Destroy(rw web.ResponseWriter, req *web.Request) {
 }
 
 func (tc *topologies) Queries(rw web.ResponseWriter, req *web.Request) {
-	tb, err := tc.topologies.Lookup(tc.topologyName)
-	if err != nil {
-		// TODO: log and render error json
+	tb := tc.fetchTopology()
+	if tb == nil {
 		return
 	}
 
-	// TODO should use ParseJSONFromRequestBoty (util.go)
-	b, err := ioutil.ReadAll(req.Body)
-	if err != nil {
-		tc.RenderJSON(map[string]interface{}{
-			"name":   tc.topologyName,
-			"status": err.Error(),
-		})
+	js, apiErr := ParseJSONFromRequestBody(tc.Context)
+	if apiErr != nil {
+		tc.ErrLog(apiErr.Err).WithField("topology", tc.topologyName).Error("Cannot parse the request json")
+		tc.RenderErrorJSON(apiErr)
 		return
 	}
-	m := map[string]interface{}{}
-	err = json.Unmarshal(b, &m)
+
+	// TODO: use mapstructure when parameters get too many
+	form, err := data.NewMap(js)
 	if err != nil {
-		tc.RenderJSON(map[string]interface{}{
-			"name":       tc.topologyName,
-			"query byte": string(b),
-			"status":     err.Error(),
-		})
+		tc.ErrLog(err).WithField("topology", tc.topologyName).WithField("body", js).
+			Error("The request json may contain invalid value")
+		tc.RenderErrorJSON(NewError(formValidationErrorCode, "The request json may contain invalid values.",
+			http.StatusBadRequest, err))
 		return
 	}
-	queries, ok := m["queries"].(string)
-	if !ok || queries == "" {
-		tc.RenderJSON(map[string]interface{}{
-			"name":   tc.topologyName,
-			"status": "not support to execute empty query",
-		})
+
+	var queries string
+	if v, ok := form["queries"]; !ok {
+		tc.Log().WithField("topology", tc.topologyName).Error("The request json doesn't have 'queries' field")
+		tc.RenderErrorJSON(NewError(formValidationErrorCode, "'queries' field is missing",
+			http.StatusBadRequest, nil))
 		return
+	} else if f, err := data.AsString(v); err != nil {
+		tc.ErrLog(err).WithField("topology", tc.topologyName).Error("'queries' must be a string")
+		tc.RenderErrorJSON(NewError(formValidationErrorCode, "'queries' field must be a string",
+			http.StatusBadRequest, err))
+		return
+	} else {
+		queries = f
 	}
 
 	bp := parser.NewBQLParser()
-	stmts, err := bp.ParseStmts(queries)
-	if err != nil {
-		tc.RenderJSON(map[string]interface{}{
-			"name":   tc.topologyName,
-			"status": err.Error(),
-		})
+	type stmtWithStr struct {
+		stmt    interface{}
+		stmtStr string // TODO: this should be stmt.String()
+	}
+	stmts := []*stmtWithStr{}
+	selectStmtIndex := -1
+	for queries != "" {
+		stmt, rest, err := bp.ParseStmt(queries)
+		if err != nil {
+			tc.Log().WithField("topology", tc.topologyName).WithField("parse_errors", err.Error()).
+				WithField("statement", queries).Error("Cannot parse a statement")
+			e := NewError(bqlStmtParseErrorCode, "Cannot parse a BQL statement", http.StatusBadRequest, err)
+			e.Meta["parse_errors"] = strings.Split(err.Error(), "\n") // FIXME: too ad hoc
+			e.Meta["statement"] = queries
+			tc.RenderErrorJSON(e)
+			return
+		}
+		if _, ok := stmt.(parser.SelectStmt); ok {
+			selectStmtIndex = len(stmts)
+		}
+
+		stmts = append(stmts, &stmtWithStr{stmt, queries[:len(queries)-len(rest)]})
+		queries = rest
+	}
+
+	if selectStmtIndex >= 0 {
+		if len(stmts) != 1 {
+			tc.Log().WithField("topology", tc.topologyName).Error("A SELECT statement cannot be issued with other statements")
+			e := NewError(bqlStmtProcessingErrorCode, "Cannot process a statement", http.StatusBadRequest, err)
+			e.Meta["error"] = "a SELECT statement cannot be issued with other statements"
+			e.Meta["statement"] = stmts[selectStmtIndex].stmtStr
+			tc.RenderErrorJSON(e)
+			return
+		}
+		tc.handleSelectStmt(rw, stmts[selectStmtIndex].stmt.(parser.SelectStmt), stmts[selectStmtIndex].stmtStr)
 		return
 	}
+
+	// TODO: handle this atomically
 	for _, stmt := range stmts {
-		_, err = tb.AddStmt(stmt) // TODO node identifier
+		// TODO: change the return value of AddStmt to support the new response format.
+		_, err = tb.AddStmt(stmt.stmt)
 		if err != nil {
-			tc.RenderJSON(map[string]interface{}{
-				"name":   tc.topologyName,
-				"status": err.Error(),
-			})
-			return // TODO return error detail
+			tc.ErrLog(err).WithField("topology", tc.topologyName).Error("Cannot process a statement")
+			e := NewError(bqlStmtProcessingErrorCode, "Cannot process a statement", http.StatusBadRequest, err)
+			e.Meta["error"] = err.Error()
+			e.Meta["statement"] = stmt.stmtStr
+			tc.RenderErrorJSON(e)
+			return
 		}
 	}
+
+	// TODO: support the new format
 	tc.RenderJSON(map[string]interface{}{
-		"name":    tc.topologyName,
-		"status":  "running",
-		"queries": queries,
+		"topology_name": tc.topologyName,
+		"status":        "running",
+		"queries":       queries,
 	})
+}
+
+func (tc *topologies) handleSelectStmt(rw web.ResponseWriter, stmt parser.SelectStmt, stmtStr string) {
+	tb := tc.fetchTopology()
+	if tb == nil { // just in case
+		return
+	}
+
+	sn, ch, err := tb.AddSelectStmt(&stmt)
+	if err != nil {
+		tc.ErrLog(err).WithField("topology", tc.topologyName).Error("Cannot process a statement")
+		e := NewError(bqlStmtProcessingErrorCode, "Cannot process a statement", http.StatusBadRequest, err)
+		e.Meta["error"] = err.Error()
+		e.Meta["statement"] = stmtStr
+		tc.RenderErrorJSON(e)
+		return
+	}
+	defer func() {
+		if err := sn.Stop(); err != nil {
+			tc.ErrLog(err).WithFields(logrus.Fields{
+				"topology":  tc.topologyName,
+				"node_type": core.NTSink,
+				"node_name": sn.Name(),
+			}).Error("Cannot stop the temporary sink")
+		}
+	}()
+
+	conn, bufrw, err := rw.Hijack()
+	if err != nil {
+		tc.ErrLog(err).WithField("topology", tc.topologyName).Error("Cannot hijack a connection")
+		tc.RenderErrorJSON(NewInternalServerError(err))
+		return
+	}
+	mw := multipart.NewWriter(bufrw)
+	defer func() {
+		if err := mw.Close(); err != nil {
+			tc.ErrLog(err).WithField("topology", tc.topologyName).Info("Cannot finish the multipart response")
+		}
+		bufrw.Flush()
+		conn.Close()
+
+		tc.Log().WithFields(logrus.Fields{
+			"topology":  tc.topologyName,
+			"statement": stmtStr,
+		}).Info("Streaming SELECT responses finished")
+	}()
+
+	res := []string{
+		"HTTP/1.1 200 OK",
+		fmt.Sprintf(`Content-Type: multipart/mixed; boundary="%v"`, mw.Boundary()),
+		"\r\n",
+	}
+	if _, err := bufrw.WriteString(strings.Join(res, "\r\n")); err != nil {
+		tc.ErrLog(err).WithField("topology", tc.topologyName).Error("Cannot write a header to the hijacked connection")
+		return
+	}
+	bufrw.Flush()
+
+	tc.Log().WithFields(logrus.Fields{
+		"topology":  tc.topologyName,
+		"statement": stmtStr,
+	}).Info("Start streaming SELECT responses")
+
+	// All error reporting logs after this is info level because they might be
+	// caused by the client closing the connection.
+	header := textproto.MIMEHeader{}
+	header.Add("Content-Type", "application/json")
+	for t := range ch {
+		w, err := mw.CreatePart(header)
+		if err != nil {
+			tc.ErrLog(err).WithField("topology", tc.topologyName).Info("Cannot write contents to the hijacked connection")
+			return
+		}
+
+		if _, err := io.WriteString(w, t.Data.String()); err != nil {
+			tc.ErrLog(err).WithField("topology", tc.topologyName).Info("Cannot write contents to the hijacked connection")
+			return
+		}
+		bufrw.Flush()
+	}
 }
