@@ -184,3 +184,63 @@ func TestTopologiesQueries(t *testing.T) {
 		})
 	})
 }
+
+func TestTopologiesQueriesSelectStmt(t *testing.T) {
+	// TODO: Becaues results from a SELECT stmt needs to be returned through
+	// hijacking, a real HTTP server is required. Support Hijack method in test
+	// ResponseWriter not to use a real HTTP server.
+	testutil.TestAPIWithRealHTTPServer = true
+
+	s := testutil.NewServer()
+	defer s.Close()
+	r := newTestRequester(s)
+
+	Convey("Given an API server with a topology having a paused source", t, func() {
+		res, _, err := do(r, Post, "/topologies", map[string]interface{}{
+			"name": "test_topology",
+		})
+		Reset(func() {
+			do(r, Delete, "/topologies/test_topology", nil)
+		})
+		So(err, ShouldBeNil)
+		So(res.Raw.StatusCode, ShouldEqual, http.StatusOK)
+
+		res, _, err = do(r, Post, "/topologies/test_topology/queries", map[string]interface{}{
+			"queries": `CREATE PAUSED SOURCE source TYPE dummy;`,
+		})
+		So(err, ShouldBeNil)
+		So(res.Raw.StatusCode, ShouldEqual, http.StatusOK)
+
+		Convey("When issueing a SELECT stmt", func() {
+			streamRes, err := r.Do(Post, "/topologies/test_topology/queries", map[string]interface{}{
+				"queries": `SELECT ISTREAM * FROM source [RANGE 1 TUPLES];`,
+			})
+			So(err, ShouldBeNil)
+			Reset(func() {
+				streamRes.Close()
+			})
+			So(res.Raw.StatusCode, ShouldEqual, http.StatusOK)
+
+			res, err := r.Do(Post, "/topologies/test_topology/queries", map[string]interface{}{
+				"queries": `RESUME SOURCE source;`,
+			})
+			So(err, ShouldBeNil)
+			So(res.Raw.StatusCode, ShouldEqual, http.StatusOK)
+
+			Convey("Then it should receive all tuples and stop", func() {
+				ch, err := streamRes.ReadStreamJSON()
+				So(err, ShouldBeNil)
+
+				for i := 0; i < 4; i++ {
+					js, ok := <-ch
+					So(ok, ShouldBeTrue)
+					So(jscan(js, "/int"), ShouldEqual, i)
+				}
+				_, ok := <-ch
+				So(ok, ShouldBeFalse)
+			})
+		})
+
+		// TODO: add invalid cases
+	})
+}

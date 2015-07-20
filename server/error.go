@@ -25,7 +25,7 @@ const (
 
 	// bqlStmtProcessingErrorCode is returned when a statement cannot be
 	// processed successfully. When this error happens, Error.Meta should have
-	// an error message in Meta["message"] and statement in Meta["statement"].
+	// an error message in Meta["error"] and statement in Meta["statement"].
 	bqlStmtProcessingErrorCode = "E0007"
 )
 

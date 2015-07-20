@@ -1,8 +1,13 @@
 package server
 
 import (
+	"fmt"
+	"github.com/Sirupsen/logrus"
 	"github.com/gocraft/web"
+	"io"
+	"mime/multipart"
 	"net/http"
+	"net/textproto"
 	"os"
 	"pfi/sensorbee/sensorbee/bql"
 	"pfi/sensorbee/sensorbee/bql/parser"
@@ -244,7 +249,8 @@ func (tc *topologies) Queries(rw web.ResponseWriter, req *web.Request) {
 		stmt    interface{}
 		stmtStr string // TODO: this should be stmt.String()
 	}
-	stmts := []stmtWithStr{}
+	stmts := []*stmtWithStr{}
+	selectStmtIndex := -1
 	for queries != "" {
 		stmt, rest, err := bp.ParseStmt(queries)
 		if err != nil {
@@ -256,9 +262,25 @@ func (tc *topologies) Queries(rw web.ResponseWriter, req *web.Request) {
 			tc.RenderErrorJSON(e)
 			return
 		}
+		if _, ok := stmt.(parser.SelectStmt); ok {
+			selectStmtIndex = len(stmts)
+		}
 
-		stmts = append(stmts, stmtWithStr{stmt, queries[:len(queries)-len(rest)]})
+		stmts = append(stmts, &stmtWithStr{stmt, queries[:len(queries)-len(rest)]})
 		queries = rest
+	}
+
+	if selectStmtIndex >= 0 {
+		if len(stmts) != 1 {
+			tc.Log().WithField("topology", tc.topologyName).Error("A SELECT statement cannot be issued with other statements")
+			e := NewError(bqlStmtProcessingErrorCode, "Cannot process a statement", http.StatusBadRequest, err)
+			e.Meta["error"] = "a SELECT statement cannot be issued with other statements"
+			e.Meta["statement"] = stmts[selectStmtIndex].stmtStr
+			tc.RenderErrorJSON(e)
+			return
+		}
+		tc.handleSelectStmt(rw, stmts[selectStmtIndex].stmt.(parser.SelectStmt), stmts[selectStmtIndex].stmtStr)
+		return
 	}
 
 	// TODO: handle this atomically
@@ -268,7 +290,7 @@ func (tc *topologies) Queries(rw web.ResponseWriter, req *web.Request) {
 		if err != nil {
 			tc.ErrLog(err).WithField("topology", tc.topologyName).Error("Cannot process a statement")
 			e := NewError(bqlStmtProcessingErrorCode, "Cannot process a statement", http.StatusBadRequest, err)
-			e.Meta["message"] = err.Error()
+			e.Meta["error"] = err.Error()
 			e.Meta["statement"] = stmt.stmtStr
 			tc.RenderErrorJSON(e)
 			return
@@ -281,4 +303,84 @@ func (tc *topologies) Queries(rw web.ResponseWriter, req *web.Request) {
 		"status":        "running",
 		"queries":       queries,
 	})
+}
+
+func (tc *topologies) handleSelectStmt(rw web.ResponseWriter, stmt parser.SelectStmt, stmtStr string) {
+	tb := tc.fetchTopology()
+	if tb == nil { // just in case
+		return
+	}
+
+	sn, ch, err := tb.AddSelectStmt(&stmt)
+	if err != nil {
+		tc.ErrLog(err).WithField("topology", tc.topologyName).Error("Cannot process a statement")
+		e := NewError(bqlStmtProcessingErrorCode, "Cannot process a statement", http.StatusBadRequest, err)
+		e.Meta["error"] = err.Error()
+		e.Meta["statement"] = stmtStr
+		tc.RenderErrorJSON(e)
+		return
+	}
+	defer func() {
+		if err := sn.Stop(); err != nil {
+			tc.ErrLog(err).WithFields(logrus.Fields{
+				"topology":  tc.topologyName,
+				"node_type": core.NTSink,
+				"node_name": sn.Name(),
+			}).Error("Cannot stop the temporary sink")
+		}
+	}()
+
+	conn, bufrw, err := rw.Hijack()
+	if err != nil {
+		tc.ErrLog(err).WithField("topology", tc.topologyName).Error("Cannot hijack a connection")
+		tc.RenderErrorJSON(NewInternalServerError(err))
+		return
+	}
+	mw := multipart.NewWriter(bufrw)
+	defer func() {
+		if err := mw.Close(); err != nil {
+			tc.ErrLog(err).WithField("topology", tc.topologyName).Info("Cannot finish the multipart response")
+		}
+		bufrw.Flush()
+		conn.Close()
+
+		tc.Log().WithFields(logrus.Fields{
+			"topology":  tc.topologyName,
+			"statement": stmtStr,
+		}).Info("Streaming SELECT responses finished")
+	}()
+
+	res := []string{
+		"HTTP/1.1 200 OK",
+		fmt.Sprintf(`Content-Type: multipart/mixed; boundary="%v"`, mw.Boundary()),
+		"\r\n",
+	}
+	if _, err := bufrw.WriteString(strings.Join(res, "\r\n")); err != nil {
+		tc.ErrLog(err).WithField("topology", tc.topologyName).Error("Cannot write a header to the hijacked connection")
+		return
+	}
+	bufrw.Flush()
+
+	tc.Log().WithFields(logrus.Fields{
+		"topology":  tc.topologyName,
+		"statement": stmtStr,
+	}).Info("Start streaming SELECT responses")
+
+	// All error reporting logs after this is info level because they might be
+	// caused by the client closing the connection.
+	header := textproto.MIMEHeader{}
+	header.Add("Content-Type", "application/json")
+	for t := range ch {
+		w, err := mw.CreatePart(header)
+		if err != nil {
+			tc.ErrLog(err).WithField("topology", tc.topologyName).Info("Cannot write contents to the hijacked connection")
+			return
+		}
+
+		if _, err := io.WriteString(w, t.Data.String()); err != nil {
+			tc.ErrLog(err).WithField("topology", tc.topologyName).Info("Cannot write contents to the hijacked connection")
+			return
+		}
+		bufrw.Flush()
+	}
 }
