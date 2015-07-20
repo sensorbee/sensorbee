@@ -34,23 +34,36 @@ func mkTuples(num int) []*core.Tuple {
 // the params map.
 func createDummySource(ctx *core.Context, ioParams *IOParams, params data.Map) (core.Source, error) {
 	numTuples := 4
+	resumable := true
+
 	// check the given source parameters
 	for key, value := range params {
-		if key == "num" {
+		switch key {
+		case "num":
 			numTuples64, err := data.AsInt(value)
 			if err != nil {
-				msg := "num: cannot convert value %s into integer"
-				return nil, fmt.Errorf(msg, value)
+				return nil, fmt.Errorf("num: cannot convert value %s into integer", value)
 			}
 			numTuples = int(numTuples64)
-		} else {
+
+		case "resumable":
+			r, err := data.AsBool(value)
+			if err != nil {
+				return nil, fmt.Errorf("resumable: cannot convert value %s into bool", value)
+			}
+			resumable = r
+
+		default:
 			return nil, fmt.Errorf("unknown source parameter: %s", key)
 		}
 	}
 
 	s := &tupleEmitterSource{Tuples: mkTuples(numTuples)}
 	s.c = sync.NewCond(&s.m)
-	return core.NewRewindableSource(s), nil
+	if resumable {
+		return core.NewRewindableSource(s), nil
+	}
+	return s, nil
 }
 
 // tupleEmitterSource is a source that emits all tuples in the given
