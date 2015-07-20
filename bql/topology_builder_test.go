@@ -2,6 +2,8 @@ package bql
 
 import (
 	. "github.com/smartystreets/goconvey/convey"
+	"pfi/sensorbee/sensorbee/bql/parser"
+	"pfi/sensorbee/sensorbee/core"
 	"testing"
 )
 
@@ -613,6 +615,45 @@ func TestUpdateSinkStmt(t *testing.T) {
 
 				Convey("There should be no error", func() {
 					So(err, ShouldBeNil)
+				})
+			})
+		})
+	})
+}
+
+func TestSelectStmt(t *testing.T) {
+	Convey("Given a BQL TopologyBuilder with a source", t, func() {
+		dt := newTestTopology()
+		Reset(func() {
+			dt.Stop()
+		})
+		tb, err := NewTopologyBuilder(dt)
+		So(err, ShouldBeNil)
+		So(addBQLToTopology(tb, `CREATE PAUSED SOURCE s TYPE dummy WITH num=4, resumable=false;`), ShouldBeNil)
+
+		Convey("When issuing a SELECT stmt", func() {
+			bp := parser.NewBQLParser()
+			istmt, _, err := bp.ParseStmt(`SELECT ISTREAM * FROM s [RANGE 1 TUPLES];`)
+			So(err, ShouldBeNil)
+			stmt := istmt.(parser.SelectStmt)
+			sn, ch, err := tb.AddSelectStmt(&stmt)
+			So(err, ShouldBeNil)
+			So(addBQLToTopology(tb, `RESUME SOURCE s;`), ShouldBeNil)
+
+			Convey("Then the chan should receive all tuples", func() {
+				cnt := 0
+				for _ = range ch {
+					cnt++
+				}
+				So(cnt, ShouldEqual, 4)
+
+				Convey("And the Sink should be stopped", func() {
+					So(sn.State().Wait(core.TSStopped), ShouldEqual, core.TSStopped)
+				})
+
+				Convey("And the Sink should be removed from the topology", func() {
+					_, err := dt.Sink(sn.Name())
+					So(err, ShouldNotBeNil)
 				})
 			})
 		})
