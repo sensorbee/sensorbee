@@ -1,7 +1,11 @@
 package client
 
 import (
+	"pfi/sensorbee/sensorbee/bql"
+	"pfi/sensorbee/sensorbee/core"
+	"pfi/sensorbee/sensorbee/data"
 	"pfi/sensorbee/sensorbee/server/testutil"
+	"time"
 )
 
 func newTestRequester(s *testutil.Server) *Requester {
@@ -22,4 +26,35 @@ func do(r *Requester, m Method, path string, body interface{}) (*Response, map[s
 		return nil, nil, err
 	}
 	return res, js, nil
+}
+
+type dummySource struct {
+}
+
+func (d *dummySource) GenerateStream(ctx *core.Context, w core.Writer) error {
+	// This is a dummy and implementation is very naive. It doesn't stop until
+	// it generates all tuples.
+	for i := 0; i < 4; i++ {
+		now := time.Now()
+		w.Write(ctx, &core.Tuple{
+			Data: data.Map{
+				"int": data.Int(i),
+			},
+			Timestamp:     now,
+			ProcTimestamp: now,
+		})
+	}
+	return nil
+}
+
+func (d *dummySource) Stop(ctx *core.Context) error {
+	return nil
+}
+
+func createDummySource(ctx *core.Context, ioParams *bql.IOParams, params data.Map) (core.Source, error) {
+	return &dummySource{}, nil
+}
+
+func init() {
+	bql.MustRegisterGlobalSourceCreator("dummy", bql.SourceCreatorFunc(createDummySource))
 }
