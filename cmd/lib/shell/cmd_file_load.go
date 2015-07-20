@@ -41,9 +41,6 @@ func (f *fileLoadCmd) Input(input string) (cmdInputStatusType, error) {
 	return preparedCMD, nil
 }
 
-func (f *fileLoadCmd) Eval() (client.Method, string, interface{}) {
-	uri := topologiesHeader + "/" + currentTopology.name + "/queries"
-	m := map[string]interface{}{}
-	m["queries"] = f.queries
-	return client.Post, uri, m
+func (f *fileLoadCmd) Eval(requester *client.Requester) {
+	sendBQLQueries(requester, f.queries)
 }

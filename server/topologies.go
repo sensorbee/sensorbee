@@ -330,6 +330,8 @@ func (tc *topologies) handleSelectStmt(rw web.ResponseWriter, stmt parser.Select
 		}
 	}()
 
+	// TODO: Set Write Timeout!!!!!!!!!!!!!!!!!!
+
 	conn, bufrw, err := rw.Hijack()
 	if err != nil {
 		tc.ErrLog(err).WithField("topology", tc.topologyName).Error("Cannot hijack a connection")
