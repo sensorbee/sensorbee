@@ -153,3 +153,34 @@ func TestTopologiesCreateInvalidValues(t *testing.T) {
 		})
 	})
 }
+
+func TestTopologiesQueries(t *testing.T) {
+	s := testutil.NewServer()
+	defer s.Close()
+	r := newTestRequester(s)
+
+	Convey("Given an API server with a topology", t, func() {
+		res, _, err := do(r, Post, "/topologies", map[string]interface{}{
+			"name": "test_topology",
+		})
+		Reset(func() {
+			do(r, Delete, "/topologies/test_topology", nil)
+		})
+		So(err, ShouldBeNil)
+		So(res.Raw.StatusCode, ShouldEqual, http.StatusOK)
+
+		// TODO: add more tests
+		Convey("When creating a sink", func() {
+			res, _, err := do(r, Post, "/topologies/test_topology/queries", map[string]interface{}{
+				"queries": `CREATE SINK stdout TYPE stdout;`,
+			})
+			So(err, ShouldBeNil)
+
+			Convey("Then it should succeed", func() {
+				So(res.Raw.StatusCode, ShouldEqual, http.StatusOK)
+			})
+
+			// TODO: check the response json
+		})
+	})
+}

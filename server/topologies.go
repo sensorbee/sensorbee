@@ -1,9 +1,7 @@
 package server
 
 import (
-	"encoding/json"
 	"github.com/gocraft/web"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"pfi/sensorbee/sensorbee/bql"
@@ -11,11 +9,13 @@ import (
 	"pfi/sensorbee/sensorbee/core"
 	"pfi/sensorbee/sensorbee/data"
 	"pfi/sensorbee/sensorbee/server/response"
+	"strings"
 )
 
 type topologies struct {
 	*APIContext
 	topologyName string
+	topology     *bql.TopologyBuilder
 }
 
 func SetUpTopologiesRouter(prefix string, router *web.Router) {
@@ -34,6 +34,25 @@ func (tc *topologies) extractName(rw web.ResponseWriter, req *web.Request, next 
 		return
 	}
 	next(rw, req)
+}
+
+// fetchTopology returns the topology having tc.topologyName. When this method
+// returns nil, the caller can just return from the action.
+func (tc *topologies) fetchTopology() *bql.TopologyBuilder {
+	tb, err := tc.topologies.Lookup(tc.topologyName)
+	if err != nil {
+		l := tc.Log().WithField("topology", tc.topologyName)
+		if os.IsNotExist(err) {
+			l.Error("The topology is not registered")
+			tc.RenderErrorJSON(NewError(requestURLNotFoundErrorCode, "The topology doesn't exist",
+				http.StatusNotFound, err))
+			return nil
+		}
+		l.WithField("err", err).Error("Cannot lookup the topology")
+		tc.RenderErrorJSON(NewInternalServerError(err))
+		return nil
+	}
+	return tb
 }
 
 // Create creates a new topology.
@@ -144,17 +163,8 @@ func (tc *topologies) Index(rw web.ResponseWriter, req *web.Request) {
 
 // Show returns the information of topology
 func (tc *topologies) Show(rw web.ResponseWriter, req *web.Request) {
-	tb, err := tc.topologies.Lookup(tc.topologyName)
-	if err != nil {
-		l := tc.Log().WithField("topology", tc.topologyName)
-		if os.IsNotExist(err) {
-			l.Error("The topology is not registered")
-			tc.RenderErrorJSON(NewError(requestURLNotFoundErrorCode, "The topology doesn't exist",
-				http.StatusNotFound, err))
-			return
-		}
-		l.WithField("err", err).Error("Cannot lookup the topology")
-		tc.RenderErrorJSON(NewInternalServerError(err))
+	tb := tc.fetchTopology()
+	if tb == nil {
 		return
 	}
 	tc.RenderJSON(map[string]interface{}{
@@ -192,62 +202,83 @@ func (tc *topologies) Destroy(rw web.ResponseWriter, req *web.Request) {
 }
 
 func (tc *topologies) Queries(rw web.ResponseWriter, req *web.Request) {
-	tb, err := tc.topologies.Lookup(tc.topologyName)
-	if err != nil {
-		// TODO: log and render error json
+	tb := tc.fetchTopology()
+	if tb == nil {
 		return
 	}
 
-	// TODO should use ParseJSONFromRequestBoty (util.go)
-	b, err := ioutil.ReadAll(req.Body)
-	if err != nil {
-		tc.RenderJSON(map[string]interface{}{
-			"name":   tc.topologyName,
-			"status": err.Error(),
-		})
+	js, apiErr := ParseJSONFromRequestBody(tc.Context)
+	if apiErr != nil {
+		tc.ErrLog(apiErr.Err).WithField("topology", tc.topologyName).Error("Cannot parse the request json")
+		tc.RenderErrorJSON(apiErr)
 		return
 	}
-	m := map[string]interface{}{}
-	err = json.Unmarshal(b, &m)
+
+	// TODO: use mapstructure when parameters get too many
+	form, err := data.NewMap(js)
 	if err != nil {
-		tc.RenderJSON(map[string]interface{}{
-			"name":       tc.topologyName,
-			"query byte": string(b),
-			"status":     err.Error(),
-		})
+		tc.ErrLog(err).WithField("topology", tc.topologyName).WithField("body", js).
+			Error("The request json may contain invalid value")
+		tc.RenderErrorJSON(NewError(formValidationErrorCode, "The request json may contain invalid values.",
+			http.StatusBadRequest, err))
 		return
 	}
-	queries, ok := m["queries"].(string)
-	if !ok || queries == "" {
-		tc.RenderJSON(map[string]interface{}{
-			"name":   tc.topologyName,
-			"status": "not support to execute empty query",
-		})
+
+	var queries string
+	if v, ok := form["queries"]; !ok {
+		tc.Log().WithField("topology", tc.topologyName).Error("The request json doesn't have 'queries' field")
+		tc.RenderErrorJSON(NewError(formValidationErrorCode, "'queries' field is missing",
+			http.StatusBadRequest, nil))
 		return
+	} else if f, err := data.AsString(v); err != nil {
+		tc.ErrLog(err).WithField("topology", tc.topologyName).Error("'queries' must be a string")
+		tc.RenderErrorJSON(NewError(formValidationErrorCode, "'queries' field must be a string",
+			http.StatusBadRequest, err))
+		return
+	} else {
+		queries = f
 	}
 
 	bp := parser.NewBQLParser()
-	stmts, err := bp.ParseStmts(queries)
-	if err != nil {
-		tc.RenderJSON(map[string]interface{}{
-			"name":   tc.topologyName,
-			"status": err.Error(),
-		})
-		return
+	type stmtWithStr struct {
+		stmt    interface{}
+		stmtStr string // TODO: this should be stmt.String()
 	}
-	for _, stmt := range stmts {
-		_, err = tb.AddStmt(stmt) // TODO node identifier
+	stmts := []stmtWithStr{}
+	for queries != "" {
+		stmt, rest, err := bp.ParseStmt(queries)
 		if err != nil {
-			tc.RenderJSON(map[string]interface{}{
-				"name":   tc.topologyName,
-				"status": err.Error(),
-			})
-			return // TODO return error detail
+			tc.Log().WithField("topology", tc.topologyName).WithField("parse_errors", err.Error()).
+				WithField("statement", queries).Error("Cannot parse a statement")
+			e := NewError(bqlStmtParseErrorCode, "Cannot parse a BQL statement", http.StatusBadRequest, err)
+			e.Meta["parse_errors"] = strings.Split(err.Error(), "\n") // FIXME: too ad hoc
+			e.Meta["statement"] = queries
+			tc.RenderErrorJSON(e)
+			return
+		}
+
+		stmts = append(stmts, stmtWithStr{stmt, queries[:len(queries)-len(rest)]})
+		queries = rest
+	}
+
+	// TODO: handle this atomically
+	for _, stmt := range stmts {
+		// TODO: change the return value of AddStmt to support the new response format.
+		_, err = tb.AddStmt(stmt.stmt)
+		if err != nil {
+			tc.ErrLog(err).WithField("topology", tc.topologyName).Error("Cannot process a statement")
+			e := NewError(bqlStmtProcessingErrorCode, "Cannot process a statement", http.StatusBadRequest, err)
+			e.Meta["message"] = err.Error()
+			e.Meta["statement"] = stmt.stmtStr
+			tc.RenderErrorJSON(e)
+			return
 		}
 	}
+
+	// TODO: support the new format
 	tc.RenderJSON(map[string]interface{}{
-		"name":    tc.topologyName,
-		"status":  "running",
-		"queries": queries,
+		"topology_name": tc.topologyName,
+		"status":        "running",
+		"queries":       queries,
 	})
 }
