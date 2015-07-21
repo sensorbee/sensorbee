@@ -611,29 +611,111 @@ func TestGenericFuncInconvertibleType(t *testing.T) {
 	})
 }
 
-func TestIntGenericInt8Func(t *testing.T) {
+func TestIntGenericIntFunc(t *testing.T) {
 	ctx := &core.Context{} // not used in this test
 
-	Convey("Given a function receiving int8", t, func() {
+	udfs := []UDF{}
+	{
 		f, err := ConvertGeneric(func(i int8) int8 {
 			return i * 2
 		})
-		So(err, ShouldBeNil)
+		if err != nil {
+			t.Fatal("Cannot ConverGeneric int8 func:", err)
+		}
+		udfs = append(udfs, f)
 
-		Convey("When passing a valid value", func() {
-			v, err := f.Call(ctx, data.Int(10))
-			So(err, ShouldBeNil)
-
-			Convey("Then it should be doubled", func() {
-				i, err := data.ToInt(v)
-				So(err, ShouldBeNil)
-				So(i, ShouldEqual, 20)
-			})
+		f, err = ConvertGeneric(func(i int16) int16 {
+			return i * 2
 		})
+		if err != nil {
+			t.Fatal("Cannot ConverGeneric int16 func:", err)
+		}
+		udfs = append(udfs, f)
+
+		f, err = ConvertGeneric(func(i int32) int32 {
+			return i * 2
+		})
+		if err != nil {
+			t.Fatal("Cannot ConverGeneric int32 func:", err)
+		}
+		udfs = append(udfs, f)
+
+		f, err = ConvertGeneric(func(i int64) int64 {
+			return i * 2
+		})
+		if err != nil {
+			t.Fatal("Cannot ConverGeneric int64 func:", err)
+		}
+		udfs = append(udfs, f)
+
+		f, err = ConvertGeneric(func(i uint8) uint8 {
+			return i * 2
+		})
+		if err != nil {
+			t.Fatal("Cannot ConverGeneric uint8 func:", err)
+		}
+		udfs = append(udfs, f)
+
+		f, err = ConvertGeneric(func(i uint16) uint16 {
+			return i * 2
+		})
+		if err != nil {
+			t.Fatal("Cannot ConverGeneric uint16 func:", err)
+		}
+		udfs = append(udfs, f)
+
+		f, err = ConvertGeneric(func(i uint32) uint32 {
+			return i * 2
+		})
+		if err != nil {
+			t.Fatal("Cannot ConverGeneric uint32 func:", err)
+		}
+		udfs = append(udfs, f)
+
+		f, err = ConvertGeneric(func(i uint64) uint64 {
+			return i * 2
+		})
+		if err != nil {
+			t.Fatal("Cannot ConverGeneric uint64 func:", err)
+		}
+		udfs = append(udfs, f)
+	}
+
+	funcTypes := []string{"int8", "int16", "int32", "int64", "uint8", "uint16", "uint32", "uint64"}
+	compu := []struct {
+		value  data.Value
+		result data.Value
+	}{
+		{data.Int(math.MinInt8 / 2), data.Int(math.MinInt8)},
+		{data.Int(math.MinInt16 / 2), data.Int(math.MinInt16)},
+		{data.Int(math.MinInt32 / 2), data.Int(math.MinInt32)},
+		{data.Int(math.MinInt64 / 2), data.Int(math.MinInt64)},
+		{data.Int(127), data.Int(254)},
+		{data.Int(16383), data.Int(32766)},
+		{data.Int(1073741823), data.Int(2147483646)},
+		{data.Int(4611686018427387903), data.Int(9223372036854775806)},
+	}
+
+	Convey("Given a function receiving integer", t, func() {
+		for i, f := range udfs {
+			f := f
+			i := i
+			c := compu[i]
+			input := c.value
+			r, _ := data.AsInt(c.result)
+			Convey(fmt.Sprintf("When passing a valid value for %v", funcTypes[i]), func() {
+				v, err := f.Call(ctx, input)
+				So(err, ShouldBeNil)
+
+				Convey("Then it should be doubled", func() {
+					i, err := data.ToInt(v)
+					So(err, ShouldBeNil)
+					So(i, ShouldEqual, r)
+				})
+			})
+		}
 	})
 }
-
-// TODO: add test for int16, int32, int64, uint8, uint16, uint32, uint64 types.
 
 func TestBoolGenericBoolFunc(t *testing.T) {
 	ctx := &core.Context{} // not used in this test
