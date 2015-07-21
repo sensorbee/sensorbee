@@ -330,18 +330,24 @@ func (tc *topologies) handleSelectStmt(rw web.ResponseWriter, stmt parser.Select
 		}
 	}()
 
-	// TODO: Set Write Timeout!!!!!!!!!!!!!!!!!!
-
 	conn, bufrw, err := rw.Hijack()
 	if err != nil {
 		tc.ErrLog(err).WithField("topology", tc.topologyName).Error("Cannot hijack a connection")
 		tc.RenderErrorJSON(NewInternalServerError(err))
 		return
 	}
+
+	var writeErr error
 	mw := multipart.NewWriter(bufrw)
 	defer func() {
+		if writeErr != nil {
+			tc.ErrLog(writeErr).WithField("topology", tc.topologyName).Info("Cannot write contents to the hijacked connection")
+		}
+
 		if err := mw.Close(); err != nil {
-			tc.ErrLog(err).WithField("topology", tc.topologyName).Info("Cannot finish the multipart response")
+			if writeErr == nil { // log it only when the write err hasn't happend
+				tc.ErrLog(err).WithField("topology", tc.topologyName).Info("Cannot finish the multipart response")
+			}
 		}
 		bufrw.Flush()
 		conn.Close()
@@ -373,16 +379,19 @@ func (tc *topologies) handleSelectStmt(rw web.ResponseWriter, stmt parser.Select
 	header := textproto.MIMEHeader{}
 	header.Add("Content-Type", "application/json")
 	for t := range ch {
+		// TODO: provide very efficient timeout detection
 		w, err := mw.CreatePart(header)
 		if err != nil {
-			tc.ErrLog(err).WithField("topology", tc.topologyName).Info("Cannot write contents to the hijacked connection")
+			writeErr = err
 			return
 		}
-
 		if _, err := io.WriteString(w, t.Data.String()); err != nil {
-			tc.ErrLog(err).WithField("topology", tc.topologyName).Info("Cannot write contents to the hijacked connection")
+			writeErr = err
 			return
 		}
-		bufrw.Flush()
+		if err := bufrw.Flush(); err != nil {
+			writeErr = err
+			return
+		}
 	}
 }
