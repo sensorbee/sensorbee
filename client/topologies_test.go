@@ -192,7 +192,10 @@ func TestTopologiesQueriesSelectStmt(t *testing.T) {
 	testutil.TestAPIWithRealHTTPServer = true
 
 	s := testutil.NewServer()
-	defer s.Close()
+	defer func() {
+		testutil.TestAPIWithRealHTTPServer = false
+		s.Close()
+	}()
 	r := newTestRequester(s)
 
 	Convey("Given an API server with a topology having a paused source", t, func() {
