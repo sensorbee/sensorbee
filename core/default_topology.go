@@ -84,6 +84,7 @@ func (t *defaultTopology) AddSource(name string, s Source, config *SourceConfig)
 		dsts:            newDataDestinations(NTSource, name),
 		pausedOnStartup: config.PausedOnStartup,
 	}
+	ds.dsts.callback = ds.dstCallback
 	if err := t.checkNodeNameDuplication(name); err != nil {
 		// Because the source isn't started yet, it doesn't return an error.
 		ds.Stop()
@@ -268,6 +269,8 @@ func (t *defaultTopology) Stop() error {
 
 	var wg sync.WaitGroup
 	for _, b := range t.boxes {
+		b := b
+
 		b.StopOnDisconnect(Inbound | Outbound)
 		wg.Add(1)
 		go func() {
@@ -277,6 +280,8 @@ func (t *defaultTopology) Stop() error {
 	}
 
 	for _, s := range t.sinks {
+		s := s
+
 		s.StopOnDisconnect()
 		wg.Add(1)
 		go func() {
