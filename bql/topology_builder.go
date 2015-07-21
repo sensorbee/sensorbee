@@ -188,6 +188,14 @@ func (tb *TopologyBuilder) AddStmt(stmt interface{}) (core.Node, error) {
 		}
 		return nil, u.Update(tb.mkParamsMap(stmt.Params))
 
+	case parser.DropSourceStmt:
+		_, err := tb.topology.Source(string(stmt.Source))
+		if err != nil {
+			return nil, err
+		}
+
+		return nil, tb.topology.Remove(string(stmt.Source))
+
 	case parser.InsertIntoSelectStmt:
 		// get the sink to add an input to
 		sink, err := tb.topology.Sink(string(stmt.Sink))
