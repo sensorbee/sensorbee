@@ -34,6 +34,7 @@ func SetUpTopologiesRouter(prefix string, router *web.Router) {
 	root.Post(`/:topologyName/queries`, (*topologies).Queries)
 
 	setUpSourcesRouter(prefix, root)
+	setUpStreamsRouter(prefix, root)
 }
 
 func (tc *topologies) Log() *logrus.Entry {
