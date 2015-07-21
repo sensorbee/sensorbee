@@ -726,3 +726,33 @@ func TestDropStreamStmt(t *testing.T) {
 		})
 	})
 }
+
+func TestDropSinkStmt(t *testing.T) {
+	Convey("Given a BQL TopologyBuilder", t, func() {
+		dt := newTestTopology()
+		Reset(func() {
+			dt.Stop()
+		})
+		tb, err := NewTopologyBuilder(dt)
+		So(err, ShouldBeNil)
+
+		Convey("When there is no sink", func() {
+			Convey("Then dropping should fail", func() {
+				So(addBQLToTopology(tb, `DROP SINK hoge;`), ShouldNotBeNil)
+			})
+		})
+
+		Convey("Given a sink", func() {
+			err = addBQLToTopology(tb, `CREATE SINK foo TYPE collector`)
+			So(err, ShouldBeNil)
+
+			Convey("When dropping it", func() {
+				err := addBQLToTopology(tb, `DROP SINK foo;`)
+
+				Convey("There should be no error", func() {
+					So(err, ShouldBeNil)
+				})
+			})
+		})
+	})
+}
