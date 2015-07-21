@@ -180,7 +180,13 @@ func (r *Response) ReadStreamJSON() (<-chan interface{}, error) {
 				if err := json.Unmarshal(body, &js); err != nil {
 					return fmt.Errorf("cannot parse JSON: %v", err)
 				}
-				ch <- js
+				select {
+				case <-r.closeStream:
+					// Because this is signaled by close, the same condition
+					// will be checked in the select below.
+
+				case ch <- js:
+				}
 				return nil
 			}()
 
