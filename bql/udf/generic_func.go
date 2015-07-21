@@ -85,9 +85,6 @@ func checkGenericFuncReturnTypes(t reflect.Type) (bool, error) {
 			}
 		}
 		if _, err := data.NewValue(reflect.Zero(t.Out(0)).Interface()); err != nil {
-			// TODO: this doesn't work for interfaces because they'll always be
-			// converted data.Null due to reflect.Zero. The only interface which
-			// can be returned should be data.Value.
 			return false, fmt.Errorf("the return value isn't convertible to data.Value")
 		}
 
