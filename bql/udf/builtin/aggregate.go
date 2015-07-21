@@ -1,15 +1,16 @@
-package udf
+package builtin
 
 import (
 	"fmt"
+	"pfi/sensorbee/sensorbee/bql/udf"
 	"pfi/sensorbee/sensorbee/core"
 	"pfi/sensorbee/sensorbee/data"
 )
 
-type countAggregate struct {
+type countFuncTmpl struct {
 }
 
-func (f *countAggregate) Call(ctx *core.Context, args ...data.Value) (data.Value, error) {
+func (f *countFuncTmpl) Call(ctx *core.Context, args ...data.Value) (data.Value, error) {
 	if len(args) != 1 {
 		return nil, fmt.Errorf("count takes exactly one argument")
 	}
@@ -27,10 +28,12 @@ func (f *countAggregate) Call(ctx *core.Context, args ...data.Value) (data.Value
 	return data.Int(c), nil
 }
 
-func (f *countAggregate) Accept(arity int) bool {
+func (f *countFuncTmpl) Accept(arity int) bool {
 	return arity == 1
 }
 
-func (f *countAggregate) IsAggregationParameter(k int) bool {
+func (f *countFuncTmpl) IsAggregationParameter(k int) bool {
 	return k == 0
 }
+
+var countFunc udf.UDF = &countFuncTmpl{}

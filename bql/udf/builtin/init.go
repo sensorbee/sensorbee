@@ -35,4 +35,6 @@ func init() {
 	udf.RegisterGlobalUDF("cot", cotFunc)
 	udf.RegisterGlobalUDF("sin", sinFunc)
 	udf.RegisterGlobalUDF("tan", tanFunc)
+	// aggregate functions
+	udf.RegisterGlobalUDF("count", countFunc)
 }
