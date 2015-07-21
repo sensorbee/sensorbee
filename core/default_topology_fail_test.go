@@ -510,6 +510,10 @@ func TestDefaultTopologyFailure(t *testing.T) {
 				So(son.Stop(), ShouldNotBeNil)
 			})
 
+			Convey("Then topology stop should fail", func() {
+				So(t.Stop(), ShouldNotBeNil)
+			})
+
 			Convey("Then remove should fail but the source should be removed", func() {
 				So(t.Remove("source"), ShouldNotBeNil)
 				So(son.State().Wait(TSStopped), ShouldEqual, TSStopped)
@@ -525,6 +529,10 @@ func TestDefaultTopologyFailure(t *testing.T) {
 			Convey("Then its stop should fail", func() {
 				So(son.Stop(), ShouldNotBeNil)
 			})
+
+			Convey("Then topology stop should fail", func() {
+				So(t.Stop(), ShouldNotBeNil)
+			})
 		})
 
 		Convey("When a source fails on stop", func() {
@@ -532,6 +540,10 @@ func TestDefaultTopologyFailure(t *testing.T) {
 
 			Convey("Then its stop should fail", func() {
 				So(son.Stop(), ShouldNotBeNil)
+			})
+
+			Convey("Then topology stop should fail", func() {
+				So(t.Stop(), ShouldNotBeNil)
 			})
 		})
 
