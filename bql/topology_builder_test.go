@@ -756,3 +756,32 @@ func TestDropSinkStmt(t *testing.T) {
 		})
 	})
 }
+
+func TestDropStateStmt(t *testing.T) {
+	Convey("Given a BQL TopologyBuilder", t, func() {
+		dt := newTestTopology()
+		Reset(func() {
+			dt.Stop()
+		})
+		tb, err := NewTopologyBuilder(dt)
+		So(err, ShouldBeNil)
+
+		Convey("When there is no UDS", func() {
+			Convey("Then dropping should fail", func() {
+				So(addBQLToTopology(tb, `DROP STATE hoge;`), ShouldNotBeNil)
+			})
+		})
+
+		Convey("Given an UDS", func() {
+			So(addBQLToTopology(tb, `CREATE STATE hoge TYPE dummy_uds WITH num=5;`), ShouldBeNil)
+
+			Convey("When dropping it", func() {
+				err := addBQLToTopology(tb, `DROP STATE hoge;`)
+
+				Convey("There should be no error", func() {
+					So(err, ShouldBeNil)
+				})
+			})
+		})
+	})
+}
