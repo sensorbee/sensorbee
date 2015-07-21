@@ -688,3 +688,41 @@ func TestDropSourceStmt(t *testing.T) {
 		})
 	})
 }
+
+func TestDropStreamStmt(t *testing.T) {
+	Convey("Given a BQL TopologyBuilder", t, func() {
+		dt := newTestTopology()
+		Reset(func() {
+			dt.Stop()
+		})
+		tb, err := NewTopologyBuilder(dt)
+		So(err, ShouldBeNil)
+		err = addBQLToTopology(tb, `CREATE PAUSED SOURCE s TYPE dummy`)
+		So(err, ShouldBeNil)
+
+		Convey("When there is no stream", func() {
+			Convey("Then dropping should fail", func() {
+				So(addBQLToTopology(tb, `DROP STREAM t;`), ShouldNotBeNil)
+			})
+		})
+
+		Convey("When running CREATE STREAM AS SELECT on an existing stream", func() {
+			err := addBQLToTopology(tb, `CREATE STREAM t AS SELECT ISTREAM int FROM
+                s [RANGE 2 SECONDS] WHERE int=2`)
+
+			Convey("Then there should be no error", func() {
+				So(err, ShouldBeNil)
+			})
+
+			Convey("Given a stream", func() {
+				Convey("When dropping it", func() {
+					err := addBQLToTopology(tb, `DROP STREAM t;`)
+
+					Convey("There should be no error", func() {
+						So(err, ShouldBeNil)
+					})
+				})
+			})
+		})
+	})
+}
