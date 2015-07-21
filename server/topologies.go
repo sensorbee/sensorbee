@@ -35,6 +35,7 @@ func SetUpTopologiesRouter(prefix string, router *web.Router) {
 
 	setUpSourcesRouter(prefix, root)
 	setUpStreamsRouter(prefix, root)
+	setUpSinksRouter(prefix, root)
 }
 
 func (tc *topologies) Log() *logrus.Entry {
