@@ -659,3 +659,32 @@ func TestSelectStmt(t *testing.T) {
 		})
 	})
 }
+
+func TestDropSourceStmt(t *testing.T) {
+	Convey("Given a BQL TopologyBuilder", t, func() {
+		dt := newTestTopology()
+		Reset(func() {
+			dt.Stop()
+		})
+		tb, err := NewTopologyBuilder(dt)
+		So(err, ShouldBeNil)
+
+		Convey("When there is no source", func() {
+			Convey("Then dropping should fail", func() {
+				So(addBQLToTopology(tb, `DROP SOURCE hoge;`), ShouldNotBeNil)
+			})
+		})
+
+		Convey("Given a source", func() {
+			So(addBQLToTopology(tb, `CREATE SOURCE hoge TYPE dummy`), ShouldBeNil)
+
+			Convey("When dropping it", func() {
+				err := addBQLToTopology(tb, `DROP SOURCE hoge;`)
+
+				Convey("There should be no error", func() {
+					So(err, ShouldBeNil)
+				})
+			})
+		})
+	})
+}
