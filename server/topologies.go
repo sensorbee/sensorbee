@@ -32,6 +32,24 @@ func SetUpTopologiesRouter(prefix string, router *web.Router) {
 	root.Get(`/:topologyName`, (*topologies).Show)
 	root.Delete(`/:topologyName`, (*topologies).Destroy)
 	root.Post(`/:topologyName/queries`, (*topologies).Queries)
+
+	setUpSourcesRouter(prefix, root)
+}
+
+func (tc *topologies) Log() *logrus.Entry {
+	e := tc.APIContext.Log()
+	if tc.topologyName == "" {
+		return e
+	}
+	return e.WithField("topology", tc.topologyName)
+}
+
+func (tc *topologies) ErrLog(err error) *logrus.Entry {
+	e := tc.APIContext.ErrLog(err)
+	if tc.topologyName == "" {
+		return e
+	}
+	return e.WithField("topology", tc.topologyName)
 }
 
 func (tc *topologies) extractName(rw web.ResponseWriter, req *web.Request, next web.NextMiddlewareFunc) {
@@ -46,17 +64,17 @@ func (tc *topologies) extractName(rw web.ResponseWriter, req *web.Request, next 
 func (tc *topologies) fetchTopology() *bql.TopologyBuilder {
 	tb, err := tc.topologies.Lookup(tc.topologyName)
 	if err != nil {
-		l := tc.Log().WithField("topology", tc.topologyName)
 		if os.IsNotExist(err) {
-			l.Error("The topology is not registered")
+			tc.Log().Error("The topology is not registered")
 			tc.RenderErrorJSON(NewError(requestURLNotFoundErrorCode, "The topology doesn't exist",
 				http.StatusNotFound, err))
 			return nil
 		}
-		l.WithField("err", err).Error("Cannot lookup the topology")
+		tc.ErrLog(err).WithField("err", err).Error("Cannot lookup the topology")
 		tc.RenderErrorJSON(NewInternalServerError(err))
 		return nil
 	}
+	tc.topology = tb
 	return tb
 }
 
@@ -128,16 +146,15 @@ func (tc *topologies) Create(rw web.ResponseWriter, req *web.Request) {
 			tc.ErrLog(err).Error("Cannot stop the created topology")
 		}
 
-		l := tc.Log().WithField("topology", name)
 		if os.IsExist(err) {
-			l.Error("the name is already registered")
+			tc.Log().Error("the name is already registered")
 			e := NewError(formValidationErrorCode, "The request body is invalid.",
 				http.StatusBadRequest, nil)
 			e.Meta["name"] = []string{"already taken"}
 			tc.RenderErrorJSON(e)
 			return
 		}
-		l.WithField("err", err).Error("Cannot register the topology")
+		tc.ErrLog(err).WithField("err", err).Error("Cannot register the topology")
 		tc.RenderJSON(NewInternalServerError(err))
 		return
 	}
@@ -182,7 +199,7 @@ func (tc *topologies) Show(rw web.ResponseWriter, req *web.Request) {
 func (tc *topologies) Destroy(rw web.ResponseWriter, req *web.Request) {
 	tb, err := tc.topologies.Unregister(tc.topologyName)
 	if err != nil {
-		tc.ErrLog(err).WithField("topology", tc.topologyName).Error("Cannot unregister the topology")
+		tc.ErrLog(err).Error("Cannot unregister the topology")
 		tc.RenderErrorJSON(NewInternalServerError(err))
 		return
 	}
@@ -190,7 +207,7 @@ func (tc *topologies) Destroy(rw web.ResponseWriter, req *web.Request) {
 	if tb != nil {
 		if err := tb.Topology().Stop(); err != nil {
 			stopped = false
-			tc.ErrLog(err).WithField("topology", tc.topologyName).Error("Cannot stop the topology")
+			tc.ErrLog(err).Error("Cannot stop the topology")
 		}
 	}
 
@@ -214,7 +231,7 @@ func (tc *topologies) Queries(rw web.ResponseWriter, req *web.Request) {
 
 	js, apiErr := ParseJSONFromRequestBody(tc.Context)
 	if apiErr != nil {
-		tc.ErrLog(apiErr.Err).WithField("topology", tc.topologyName).Error("Cannot parse the request json")
+		tc.ErrLog(apiErr.Err).Error("Cannot parse the request json")
 		tc.RenderErrorJSON(apiErr)
 		return
 	}
@@ -222,7 +239,7 @@ func (tc *topologies) Queries(rw web.ResponseWriter, req *web.Request) {
 	// TODO: use mapstructure when parameters get too many
 	form, err := data.NewMap(js)
 	if err != nil {
-		tc.ErrLog(err).WithField("topology", tc.topologyName).WithField("body", js).
+		tc.ErrLog(err).WithField("body", js).
 			Error("The request json may contain invalid value")
 		tc.RenderErrorJSON(NewError(formValidationErrorCode, "The request json may contain invalid values.",
 			http.StatusBadRequest, err))
@@ -231,12 +248,12 @@ func (tc *topologies) Queries(rw web.ResponseWriter, req *web.Request) {
 
 	var queries string
 	if v, ok := form["queries"]; !ok {
-		tc.Log().WithField("topology", tc.topologyName).Error("The request json doesn't have 'queries' field")
+		tc.Log().Error("The request json doesn't have 'queries' field")
 		tc.RenderErrorJSON(NewError(formValidationErrorCode, "'queries' field is missing",
 			http.StatusBadRequest, nil))
 		return
 	} else if f, err := data.AsString(v); err != nil {
-		tc.ErrLog(err).WithField("topology", tc.topologyName).Error("'queries' must be a string")
+		tc.ErrLog(err).Error("'queries' must be a string")
 		tc.RenderErrorJSON(NewError(formValidationErrorCode, "'queries' field must be a string",
 			http.StatusBadRequest, err))
 		return
@@ -254,7 +271,7 @@ func (tc *topologies) Queries(rw web.ResponseWriter, req *web.Request) {
 	for queries != "" {
 		stmt, rest, err := bp.ParseStmt(queries)
 		if err != nil {
-			tc.Log().WithField("topology", tc.topologyName).WithField("parse_errors", err.Error()).
+			tc.Log().WithField("parse_errors", err.Error()).
 				WithField("statement", queries).Error("Cannot parse a statement")
 			e := NewError(bqlStmtParseErrorCode, "Cannot parse a BQL statement", http.StatusBadRequest, err)
 			e.Meta["parse_errors"] = strings.Split(err.Error(), "\n") // FIXME: too ad hoc
@@ -272,7 +289,7 @@ func (tc *topologies) Queries(rw web.ResponseWriter, req *web.Request) {
 
 	if selectStmtIndex >= 0 {
 		if len(stmts) != 1 {
-			tc.Log().WithField("topology", tc.topologyName).Error("A SELECT statement cannot be issued with other statements")
+			tc.Log().Error("A SELECT statement cannot be issued with other statements")
 			e := NewError(bqlStmtProcessingErrorCode, "Cannot process a statement", http.StatusBadRequest, err)
 			e.Meta["error"] = "a SELECT statement cannot be issued with other statements"
 			e.Meta["statement"] = stmts[selectStmtIndex].stmtStr
@@ -288,7 +305,7 @@ func (tc *topologies) Queries(rw web.ResponseWriter, req *web.Request) {
 		// TODO: change the return value of AddStmt to support the new response format.
 		_, err = tb.AddStmt(stmt.stmt)
 		if err != nil {
-			tc.ErrLog(err).WithField("topology", tc.topologyName).Error("Cannot process a statement")
+			tc.ErrLog(err).Error("Cannot process a statement")
 			e := NewError(bqlStmtProcessingErrorCode, "Cannot process a statement", http.StatusBadRequest, err)
 			e.Meta["error"] = err.Error()
 			e.Meta["statement"] = stmt.stmtStr
@@ -313,7 +330,7 @@ func (tc *topologies) handleSelectStmt(rw web.ResponseWriter, stmt parser.Select
 
 	sn, ch, err := tb.AddSelectStmt(&stmt)
 	if err != nil {
-		tc.ErrLog(err).WithField("topology", tc.topologyName).Error("Cannot process a statement")
+		tc.ErrLog(err).Error("Cannot process a statement")
 		e := NewError(bqlStmtProcessingErrorCode, "Cannot process a statement", http.StatusBadRequest, err)
 		e.Meta["error"] = err.Error()
 		e.Meta["statement"] = stmtStr
@@ -323,7 +340,6 @@ func (tc *topologies) handleSelectStmt(rw web.ResponseWriter, stmt parser.Select
 	defer func() {
 		if err := sn.Stop(); err != nil {
 			tc.ErrLog(err).WithFields(logrus.Fields{
-				"topology":  tc.topologyName,
 				"node_type": core.NTSink,
 				"node_name": sn.Name(),
 			}).Error("Cannot stop the temporary sink")
@@ -332,7 +348,7 @@ func (tc *topologies) handleSelectStmt(rw web.ResponseWriter, stmt parser.Select
 
 	conn, bufrw, err := rw.Hijack()
 	if err != nil {
-		tc.ErrLog(err).WithField("topology", tc.topologyName).Error("Cannot hijack a connection")
+		tc.ErrLog(err).Error("Cannot hijack a connection")
 		tc.RenderErrorJSON(NewInternalServerError(err))
 		return
 	}
@@ -341,12 +357,12 @@ func (tc *topologies) handleSelectStmt(rw web.ResponseWriter, stmt parser.Select
 	mw := multipart.NewWriter(bufrw)
 	defer func() {
 		if writeErr != nil {
-			tc.ErrLog(writeErr).WithField("topology", tc.topologyName).Info("Cannot write contents to the hijacked connection")
+			tc.ErrLog(writeErr).Info("Cannot write contents to the hijacked connection")
 		}
 
 		if err := mw.Close(); err != nil {
 			if writeErr == nil { // log it only when the write err hasn't happend
-				tc.ErrLog(err).WithField("topology", tc.topologyName).Info("Cannot finish the multipart response")
+				tc.ErrLog(err).Info("Cannot finish the multipart response")
 			}
 		}
 		bufrw.Flush()
@@ -364,7 +380,7 @@ func (tc *topologies) handleSelectStmt(rw web.ResponseWriter, stmt parser.Select
 		"\r\n",
 	}
 	if _, err := bufrw.WriteString(strings.Join(res, "\r\n")); err != nil {
-		tc.ErrLog(err).WithField("topology", tc.topologyName).Error("Cannot write a header to the hijacked connection")
+		tc.ErrLog(err).Error("Cannot write a header to the hijacked connection")
 		return
 	}
 	bufrw.Flush()
