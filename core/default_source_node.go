@@ -196,6 +196,7 @@ func (ds *defaultSourceNode) Status() data.Map {
 	ds.stateMutex.Lock()
 	st := ds.state.getWithoutLock()
 	stopOnDisconnect := ds.stopOnDisconnectEnabled
+	removeOnStop := ds.config.RemoveOnStop
 	ds.stateMutex.Unlock()
 
 	m := data.Map{
@@ -203,6 +204,7 @@ func (ds *defaultSourceNode) Status() data.Map {
 		"output_stats": ds.dsts.status(),
 		"behaviors": data.Map{
 			"stop_on_disconnect": data.Bool(stopOnDisconnect),
+			"remove_on_stop":     data.Bool(removeOnStop),
 		},
 	}
 	if st == TSStopped && ds.runErr != nil {
