@@ -188,6 +188,40 @@ func (tb *TopologyBuilder) AddStmt(stmt interface{}) (core.Node, error) {
 		}
 		return nil, u.Update(tb.mkParamsMap(stmt.Params))
 
+	case parser.DropSourceStmt:
+		_, err := tb.topology.Source(string(stmt.Source))
+		if err != nil {
+			return nil, err
+		}
+
+		return nil, tb.topology.Remove(string(stmt.Source))
+
+	case parser.DropStreamStmt:
+		_, err := tb.topology.Box(string(stmt.Source))
+		if err != nil {
+			return nil, err
+		}
+
+		return nil, tb.topology.Remove(string(stmt.Source))
+
+	case parser.DropSinkStmt:
+		_, err := tb.topology.Sink(string(stmt.Source))
+		if err != nil {
+			return nil, err
+		}
+
+		return nil, tb.topology.Remove(string(stmt.Source))
+
+	case parser.DropStateStmt:
+		ctx := tb.topology.Context()
+		_, err := ctx.SharedStates.Get(string(stmt.Source))
+		if err != nil {
+			return nil, err
+		}
+
+		_, err = ctx.SharedStates.Remove(string(stmt.Source))
+		return nil, err
+
 	case parser.InsertIntoSelectStmt:
 		// get the sink to add an input to
 		sink, err := tb.topology.Sink(string(stmt.Sink))
