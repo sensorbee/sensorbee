@@ -101,6 +101,39 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 		})
 	})
 
+	Convey("Given a SELECT clause with a column and timestamp", t, func() {
+		tuples := getTuples(4)
+		s := `CREATE STREAM box AS SELECT ISTREAM int, now() FROM src [RANGE 2 TUPLES]`
+		plan, err := createDefaultSelectPlan(s, t)
+		So(err, ShouldBeNil)
+
+		Convey("When feeding it with tuples", func() {
+			for idx, inTup := range tuples {
+				out, err := plan.Process(inTup)
+				So(err, ShouldBeNil)
+
+				Convey(fmt.Sprintf("Then those values should appear in %v", idx), func() {
+					var prevTime data.Value = nil
+					if idx == 0 {
+						So(len(out), ShouldEqual, 1)
+						So(out[0]["int"], ShouldEqual, data.Int(1))
+						So(out[0]["now"], ShouldHaveSameTypeAs, data.Timestamp{})
+						prevTime = out[0]["now"]
+					} else if idx == 1 {
+						So(len(out), ShouldEqual, 2)
+						So(out[0]["int"], ShouldEqual, data.Int(1))
+						So(out[0]["now"], ShouldHaveSameTypeAs, data.Timestamp{})
+						So(out[1]["int"], ShouldEqual, data.Int(2))
+						So(out[1]["now"], ShouldHaveSameTypeAs, data.Timestamp{})
+						So(out[1]["now"], ShouldResemble, out[0]["now"])
+						So(out[1]["now"], ShouldNotResemble, prevTime)
+					}
+				})
+			}
+
+		})
+	})
+
 	Convey("Given a SELECT clause with only a column using the table name", t, func() {
 		tuples := getTuples(4)
 		s := `CREATE STREAM box AS SELECT ISTREAM src:int FROM src [RANGE 2 SECONDS]`

@@ -120,6 +120,10 @@ func ParserExprToFlatExpr(e parser.Expression, reg udf.FunctionRegistry) (FlatEx
 		}
 		return UnaryOpAST{obj.Op, expr}, nil
 	case parser.FuncAppAST:
+		// exception for now()
+		if string(obj.Function) == "now" && len(obj.Expressions) == 0 {
+			return StmtMeta{parser.NowMeta}, nil
+		}
 		// look up the function
 		function, err := reg.Lookup(string(obj.Function), len(obj.Expressions))
 		if err != nil {
@@ -194,6 +198,10 @@ func ParserExprToMaybeAggregate(e parser.Expression, aggIdx int, reg udf.Functio
 		}
 		return UnaryOpAST{obj.Op, expr}, agg, nil
 	case parser.FuncAppAST:
+		// exception for now()
+		if string(obj.Function) == "now" && len(obj.Expressions) == 0 {
+			return StmtMeta{parser.NowMeta}, nil, nil
+		}
 		// look up the function
 		function, err := reg.Lookup(string(obj.Function), len(obj.Expressions))
 		if err != nil {
@@ -443,6 +451,22 @@ func (rv RowValue) Columns() []RowValue {
 
 func (rv RowValue) Volatility() VolatilityType {
 	return Immutable
+}
+
+type StmtMeta struct {
+	MetaType parser.MetaInformation
+}
+
+func (sm StmtMeta) Repr() string {
+	return fmt.Sprintf("%#v", sm)
+}
+
+func (sm StmtMeta) Columns() []RowValue {
+	return nil
+}
+
+func (sm StmtMeta) Volatility() VolatilityType {
+	return Stable
 }
 
 type RowMeta struct {

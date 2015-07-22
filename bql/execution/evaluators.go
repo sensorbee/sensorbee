@@ -61,6 +61,12 @@ func ExpressionToEvaluator(ast FlatExpression, reg udf.FunctionRegistry) (Evalua
 		if obj.MetaType == parser.TimestampMeta {
 			return &timestampCast{&PathAccess{metaKey}}, nil
 		}
+	case StmtMeta:
+		// construct a key for reading as used in setMetadata() for writing
+		metaKey := fmt.Sprintf(":meta:%s", obj.MetaType)
+		if obj.MetaType == parser.NowMeta {
+			return &timestampCast{&PathAccess{metaKey}}, nil
+		}
 	case RowValue:
 		return &PathAccess{obj.Relation + "." + obj.Column}, nil
 	case AggInputRef:
