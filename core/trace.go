@@ -40,11 +40,11 @@ type TraceEvent struct {
 func (t EventType) String() string {
 	switch t {
 	case ETInput:
-		return "INPUT"
+		return "input"
 	case ETOutput:
-		return "OUTPUT"
+		return "output"
 	case ETOther:
-		return "OTHER"
+		return "other"
 	default:
 		return "unknown"
 	}
