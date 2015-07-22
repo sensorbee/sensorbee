@@ -33,6 +33,8 @@ func TestNodeStatus(t *testing.T) {
 		so.EmitTuples(3)
 		si.Wait(3)
 
+		son.StopOnDisconnect()
+
 		Convey("When getting status of the source while it's still running", func() {
 			st := son.Status()
 
@@ -75,6 +77,15 @@ func TestNodeStatus(t *testing.T) {
 				So(st["source"], ShouldNotBeNil)
 				v, _ := st.Get("source.test")
 				So(v, ShouldEqual, "test")
+			})
+
+			Convey("Then it should have its behavior descriptions", func() {
+				So(st["behaviors"], ShouldNotBeNil)
+				bs := st["behaviors"].(data.Map)
+
+				Convey("And stop_on_disconnect should be true", func() {
+					So(bs["stop_on_disconnect"], ShouldEqual, data.True)
+				})
 			})
 		})
 
@@ -305,7 +316,7 @@ func TestNodeStatus(t *testing.T) {
 				So(st["behaviors"], ShouldNotBeNil)
 				bs := st["behaviors"].(data.Map)
 
-				Convey("And stop_disconnect should be true", func() {
+				Convey("And stop_on_disconnect should be true", func() {
 					So(bs["stop_on_disconnect"], ShouldEqual, data.True)
 				})
 
