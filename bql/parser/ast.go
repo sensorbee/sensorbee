@@ -99,15 +99,15 @@ type DropSourceStmt struct {
 }
 
 type DropStreamStmt struct {
-	Source StreamIdentifier
+	Stream StreamIdentifier
 }
 
 type DropSinkStmt struct {
-	Source StreamIdentifier
+	Sink StreamIdentifier
 }
 
 type DropStateStmt struct {
-	Source StreamIdentifier
+	State StreamIdentifier
 }
 
 type EmitterAST struct {
