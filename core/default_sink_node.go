@@ -7,8 +7,9 @@ import (
 
 type defaultSinkNode struct {
 	*defaultNode
-	srcs *dataSources
-	sink Sink
+	config *SinkConfig
+	srcs   *dataSources
+	sink   Sink
 
 	gracefulStopEnabled     bool
 	stopOnDisconnectEnabled bool
@@ -131,4 +132,15 @@ func (ds *defaultSinkNode) Status() data.Map {
 		m["sink"] = s.Status()
 	}
 	return m
+}
+
+func (ds *defaultSinkNode) RemoveOnStop() {
+	ds.stateMutex.Lock()
+	ds.config.RemoveOnStop = true
+	st := ds.state.getWithoutLock()
+	ds.stateMutex.Unlock()
+
+	if st == TSStopped {
+		ds.topology.Remove(ds.name)
+	}
 }
