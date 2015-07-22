@@ -659,3 +659,111 @@ func TestSelectStmt(t *testing.T) {
 		})
 	})
 }
+
+func TestDropSourceStmt(t *testing.T) {
+	Convey("Given a BQL TopologyBuilder", t, func() {
+		dt := newTestTopology()
+		Reset(func() {
+			dt.Stop()
+		})
+		tb, err := NewTopologyBuilder(dt)
+		So(err, ShouldBeNil)
+
+		Convey("When there is no source", func() {
+			Convey("Then dropping should fail", func() {
+				So(addBQLToTopology(tb, `DROP SOURCE hoge;`), ShouldNotBeNil)
+			})
+		})
+
+		Convey("When adding a source", func() {
+			So(addBQLToTopology(tb, `CREATE SOURCE hoge TYPE dummy`), ShouldBeNil)
+
+			Convey("Then dropping it should succeed", func() {
+				So(addBQLToTopology(tb, `DROP SOURCE hoge;`), ShouldBeNil)
+			})
+		})
+	})
+}
+
+func TestDropStreamStmt(t *testing.T) {
+	Convey("Given a BQL TopologyBuilder", t, func() {
+		dt := newTestTopology()
+		Reset(func() {
+			dt.Stop()
+		})
+		tb, err := NewTopologyBuilder(dt)
+		So(err, ShouldBeNil)
+		err = addBQLToTopology(tb, `CREATE PAUSED SOURCE s TYPE dummy`)
+		So(err, ShouldBeNil)
+
+		Convey("When there is no stream", func() {
+			Convey("Then dropping should fail", func() {
+				So(addBQLToTopology(tb, `DROP STREAM t;`), ShouldNotBeNil)
+			})
+		})
+
+		Convey("When running CREATE STREAM AS SELECT on an existing stream", func() {
+			err := addBQLToTopology(tb, `CREATE STREAM t AS SELECT ISTREAM int FROM
+                s [RANGE 2 SECONDS] WHERE int=2`)
+
+			Convey("Then there should be no error", func() {
+				So(err, ShouldBeNil)
+			})
+
+			Convey("Then dropping it should succeed", func() {
+				So(addBQLToTopology(tb, `DROP STREAM t;`), ShouldBeNil)
+			})
+		})
+	})
+}
+
+func TestDropSinkStmt(t *testing.T) {
+	Convey("Given a BQL TopologyBuilder", t, func() {
+		dt := newTestTopology()
+		Reset(func() {
+			dt.Stop()
+		})
+		tb, err := NewTopologyBuilder(dt)
+		So(err, ShouldBeNil)
+
+		Convey("When there is no sink", func() {
+			Convey("Then dropping should fail", func() {
+				So(addBQLToTopology(tb, `DROP SINK hoge;`), ShouldNotBeNil)
+			})
+		})
+
+		Convey("When adding a sink", func() {
+			err = addBQLToTopology(tb, `CREATE SINK foo TYPE collector`)
+			So(err, ShouldBeNil)
+
+			Convey("Then dropping it should succeed", func() {
+				So(addBQLToTopology(tb, `DROP SINK foo;`), ShouldBeNil)
+			})
+		})
+	})
+}
+
+func TestDropStateStmt(t *testing.T) {
+	Convey("Given a BQL TopologyBuilder", t, func() {
+		dt := newTestTopology()
+		Reset(func() {
+			dt.Stop()
+		})
+		tb, err := NewTopologyBuilder(dt)
+		So(err, ShouldBeNil)
+
+		Convey("When there is no UDS", func() {
+			Convey("Then dropping should fail", func() {
+				So(addBQLToTopology(tb, `DROP STATE hoge;`), ShouldNotBeNil)
+			})
+		})
+
+		Convey("When adding an UDS", func() {
+			So(addBQLToTopology(tb, `CREATE STATE hoge TYPE dummy_uds WITH num=5;`), ShouldBeNil)
+
+			Convey("Then dropping it should succeed", func() {
+				So(addBQLToTopology(tb, `DROP STATE hoge;`), ShouldBeNil)
+			})
+		})
+	})
+}
