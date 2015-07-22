@@ -615,3 +615,250 @@ func TestGroupbyExecutionPlan(t *testing.T) {
 		So(err.Error(), ShouldEqual, `using metadata 'TS' in GROUP BY statements is not supported yet`)
 	})
 }
+
+func TestAggregateFunctions(t *testing.T) {
+	getExtTuples := func() []*core.Tuple {
+		tuples := getOtherTuples()
+		tuples[0].Data["bar"] = data.String("a")
+		tuples[1].Data["bar"] = data.String("b")
+		tuples[2].Data["bar"] = data.String("c")
+		tuples[3].Data["bar"] = data.String("d")
+		return tuples
+	}
+
+	Convey("Given a SELECT clause with array_agg", t, func() {
+		tuples := getExtTuples()
+
+		s := `CREATE STREAM box AS SELECT RSTREAM array_agg(int) AS result
+			FROM src [RANGE 3 TUPLES] WHERE int > 1`
+		plan, err := createGroupbyPlan(s, t)
+		So(err, ShouldBeNil)
+
+		Convey("When feeding it with tuples", func() {
+			for idx, inTup := range tuples {
+				out, err := plan.Process(inTup)
+				So(err, ShouldBeNil)
+
+				Convey(fmt.Sprintf("Then those values should appear in %v", idx), func() {
+					So(len(out), ShouldEqual, 1)
+
+					if idx == 0 {
+						So(out[0], ShouldResemble, data.Map{"result": data.Null{}})
+					} else if idx == 3 {
+						So(out[0], ShouldResemble, data.Map{"result": data.Array{
+							data.Int(2), data.Int(3), data.Int(4)}})
+					}
+				})
+			}
+		})
+	})
+
+	Convey("Given a SELECT clause with avg", t, func() {
+		tuples := getExtTuples()
+
+		s := `CREATE STREAM box AS SELECT RSTREAM avg(int) AS result
+			FROM src [RANGE 3 TUPLES] WHERE int > 1`
+		plan, err := createGroupbyPlan(s, t)
+		So(err, ShouldBeNil)
+
+		Convey("When feeding it with tuples", func() {
+			for idx, inTup := range tuples {
+				out, err := plan.Process(inTup)
+				So(err, ShouldBeNil)
+
+				Convey(fmt.Sprintf("Then those values should appear in %v", idx), func() {
+					So(len(out), ShouldEqual, 1)
+
+					if idx == 0 {
+						So(out[0], ShouldResemble, data.Map{"result": data.Null{}})
+					} else if idx == 3 {
+						So(out[0], ShouldResemble, data.Map{"result": data.Float(3.0)})
+					}
+				})
+			}
+		})
+	})
+
+	Convey("Given a SELECT clause with bool_and", t, func() {
+		tuples := getExtTuples()
+
+		s := `CREATE STREAM box AS SELECT RSTREAM bool_and(int = 2) AS result
+			FROM src [RANGE 3 TUPLES] WHERE int > 1`
+		plan, err := createGroupbyPlan(s, t)
+		So(err, ShouldBeNil)
+
+		Convey("When feeding it with tuples", func() {
+			for idx, inTup := range tuples {
+				out, err := plan.Process(inTup)
+				So(err, ShouldBeNil)
+
+				Convey(fmt.Sprintf("Then those values should appear in %v", idx), func() {
+					So(len(out), ShouldEqual, 1)
+
+					if idx == 0 {
+						So(out[0], ShouldResemble, data.Map{"result": data.Null{}})
+					} else if idx == 3 {
+						So(out[0], ShouldResemble, data.Map{"result": data.Bool(false)})
+					}
+				})
+			}
+		})
+	})
+
+	Convey("Given a SELECT clause with bool_or", t, func() {
+		tuples := getExtTuples()
+
+		s := `CREATE STREAM box AS SELECT RSTREAM bool_or(int = 2) AS result
+			FROM src [RANGE 3 TUPLES] WHERE int > 1`
+		plan, err := createGroupbyPlan(s, t)
+		So(err, ShouldBeNil)
+
+		Convey("When feeding it with tuples", func() {
+			for idx, inTup := range tuples {
+				out, err := plan.Process(inTup)
+				So(err, ShouldBeNil)
+
+				Convey(fmt.Sprintf("Then those values should appear in %v", idx), func() {
+					So(len(out), ShouldEqual, 1)
+
+					if idx == 0 {
+						So(out[0], ShouldResemble, data.Map{"result": data.Null{}})
+					} else if idx == 3 {
+						So(out[0], ShouldResemble, data.Map{"result": data.Bool(true)})
+					}
+				})
+			}
+		})
+	})
+
+	Convey("Given a SELECT clause with json_object_agg", t, func() {
+		tuples := getExtTuples()
+
+		s := `CREATE STREAM box AS SELECT RSTREAM json_object_agg(bar, int) AS result
+			FROM src [RANGE 3 TUPLES] WHERE int > 1`
+		plan, err := createGroupbyPlan(s, t)
+		So(err, ShouldBeNil)
+
+		Convey("When feeding it with tuples", func() {
+			for idx, inTup := range tuples {
+				out, err := plan.Process(inTup)
+				So(err, ShouldBeNil)
+
+				Convey(fmt.Sprintf("Then those values should appear in %v", idx), func() {
+					So(len(out), ShouldEqual, 1)
+
+					if idx == 0 {
+						So(out[0], ShouldResemble, data.Map{"result": data.Null{}})
+					} else if idx == 3 {
+						So(out[0], ShouldResemble, data.Map{"result": data.Map{
+							"b": data.Int(2), "c": data.Int(3), "d": data.Int(4)}})
+					}
+				})
+			}
+		})
+	})
+
+	Convey("Given a SELECT clause with max", t, func() {
+		tuples := getExtTuples()
+
+		s := `CREATE STREAM box AS SELECT RSTREAM max(int) AS result
+			FROM src [RANGE 3 TUPLES] WHERE int > 1`
+		plan, err := createGroupbyPlan(s, t)
+		So(err, ShouldBeNil)
+
+		Convey("When feeding it with tuples", func() {
+			for idx, inTup := range tuples {
+				out, err := plan.Process(inTup)
+				So(err, ShouldBeNil)
+
+				Convey(fmt.Sprintf("Then those values should appear in %v", idx), func() {
+					So(len(out), ShouldEqual, 1)
+
+					if idx == 0 {
+						So(out[0], ShouldResemble, data.Map{"result": data.Null{}})
+					} else if idx == 3 {
+						So(out[0], ShouldResemble, data.Map{"result": data.Int(4)})
+					}
+				})
+			}
+		})
+	})
+
+	Convey("Given a SELECT clause with min", t, func() {
+		tuples := getExtTuples()
+
+		s := `CREATE STREAM box AS SELECT RSTREAM min(int) AS result
+			FROM src [RANGE 3 TUPLES] WHERE int > 1`
+		plan, err := createGroupbyPlan(s, t)
+		So(err, ShouldBeNil)
+
+		Convey("When feeding it with tuples", func() {
+			for idx, inTup := range tuples {
+				out, err := plan.Process(inTup)
+				So(err, ShouldBeNil)
+
+				Convey(fmt.Sprintf("Then those values should appear in %v", idx), func() {
+					So(len(out), ShouldEqual, 1)
+
+					if idx == 0 {
+						So(out[0], ShouldResemble, data.Map{"result": data.Null{}})
+					} else if idx == 3 {
+						So(out[0], ShouldResemble, data.Map{"result": data.Int(2)})
+					}
+				})
+			}
+		})
+	})
+
+	Convey("Given a SELECT clause with string_agg", t, func() {
+		tuples := getExtTuples()
+
+		s := `CREATE STREAM box AS SELECT RSTREAM string_agg(bar, ', ') AS result
+			FROM src [RANGE 3 TUPLES] WHERE int > 1`
+		plan, err := createGroupbyPlan(s, t)
+		So(err, ShouldBeNil)
+
+		Convey("When feeding it with tuples", func() {
+			for idx, inTup := range tuples {
+				out, err := plan.Process(inTup)
+				So(err, ShouldBeNil)
+
+				Convey(fmt.Sprintf("Then those values should appear in %v", idx), func() {
+					So(len(out), ShouldEqual, 1)
+
+					if idx == 0 {
+						So(out[0], ShouldResemble, data.Map{"result": data.Null{}})
+					} else if idx == 3 {
+						So(out[0], ShouldResemble, data.Map{"result": data.String("b, c, d")})
+					}
+				})
+			}
+		})
+	})
+
+	Convey("Given a SELECT clause with sum", t, func() {
+		tuples := getExtTuples()
+
+		s := `CREATE STREAM box AS SELECT RSTREAM sum(int) AS result
+			FROM src [RANGE 3 TUPLES] WHERE int > 1`
+		plan, err := createGroupbyPlan(s, t)
+		So(err, ShouldBeNil)
+
+		Convey("When feeding it with tuples", func() {
+			for idx, inTup := range tuples {
+				out, err := plan.Process(inTup)
+				So(err, ShouldBeNil)
+
+				Convey(fmt.Sprintf("Then those values should appear in %v", idx), func() {
+					So(len(out), ShouldEqual, 1)
+
+					if idx == 0 {
+						So(out[0], ShouldResemble, data.Map{"result": data.Null{}})
+					} else if idx == 3 {
+						So(out[0], ShouldResemble, data.Map{"result": data.Int(9)})
+					}
+				})
+			}
+		})
+	})
+}
