@@ -82,7 +82,7 @@ func TestAssembleDropStream(t *testing.T) {
 
 					Convey("And it contains the previously pushed data", func() {
 						comp := top.comp.(DropStreamStmt)
-						So(comp.Source, ShouldEqual, "a")
+						So(comp.Stream, ShouldEqual, "a")
 					})
 				})
 			})
@@ -115,7 +115,7 @@ func TestAssembleDropStream(t *testing.T) {
 				So(top, ShouldHaveSameTypeAs, DropStreamStmt{})
 				comp := top.(DropStreamStmt)
 
-				So(comp.Source, ShouldEqual, "a_1")
+				So(comp.Stream, ShouldEqual, "a_1")
 			})
 		})
 	})
@@ -140,7 +140,7 @@ func TestAssembleDropSink(t *testing.T) {
 
 					Convey("And it contains the previously pushed data", func() {
 						comp := top.comp.(DropSinkStmt)
-						So(comp.Source, ShouldEqual, "a")
+						So(comp.Sink, ShouldEqual, "a")
 					})
 				})
 			})
@@ -173,7 +173,7 @@ func TestAssembleDropSink(t *testing.T) {
 				So(top, ShouldHaveSameTypeAs, DropSinkStmt{})
 				comp := top.(DropSinkStmt)
 
-				So(comp.Source, ShouldEqual, "a_1")
+				So(comp.Sink, ShouldEqual, "a_1")
 			})
 		})
 	})
@@ -198,7 +198,7 @@ func TestAssembleDropState(t *testing.T) {
 
 					Convey("And it contains the previously pushed data", func() {
 						comp := top.comp.(DropStateStmt)
-						So(comp.Source, ShouldEqual, "a")
+						So(comp.State, ShouldEqual, "a")
 					})
 				})
 			})
@@ -231,7 +231,7 @@ func TestAssembleDropState(t *testing.T) {
 				So(top, ShouldHaveSameTypeAs, DropStateStmt{})
 				comp := top.(DropStateStmt)
 
-				So(comp.Source, ShouldEqual, "a_1")
+				So(comp.State, ShouldEqual, "a_1")
 			})
 		})
 	})
