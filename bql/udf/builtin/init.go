@@ -35,6 +35,8 @@ func init() {
 	udf.RegisterGlobalUDF("cot", cotFunc)
 	udf.RegisterGlobalUDF("sin", sinFunc)
 	udf.RegisterGlobalUDF("tan", tanFunc)
+	// string functions
+	udf.RegisterGlobalUDF("bit_length", bitLengthFunc)
 	// time functions
 	udf.RegisterGlobalUDF("distance_us", diffUsFunc)
 	// aggregate functions
