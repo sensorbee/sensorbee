@@ -7,8 +7,9 @@ import (
 
 type defaultSinkNode struct {
 	*defaultNode
-	srcs *dataSources
-	sink Sink
+	config *SinkConfig
+	srcs   *dataSources
+	sink   Sink
 
 	gracefulStopEnabled     bool
 	stopOnDisconnectEnabled bool
