@@ -366,217 +366,109 @@ func TestGenericFuncInvalidCases(t *testing.T) {
 func TestGenericFuncInconvertibleType(t *testing.T) {
 	ctx := &core.Context{} // not used in this test
 
-	udfs := []UDF{}
-	{
-		f, err := ConvertGeneric(func(i int8) int8 {
+	udfs := []UDF{
+		MustConvertGeneric(func(i int8) int8 {
 			return i * 2
-		})
-		if err != nil {
-			t.Fatal("Cannot ConverGeneric int8 func:", err)
-		}
-		udfs = append(udfs, f)
-
-		f, err = ConvertGeneric(func(i int16) int16 {
+		}),
+		MustConvertGeneric(func(i int16) int16 {
 			return i * 2
-		})
-		if err != nil {
-			t.Fatal("Cannot ConverGeneric int16 func:", err)
-		}
-		udfs = append(udfs, f)
-
-		f, err = ConvertGeneric(func(i int32) int32 {
+		}),
+		MustConvertGeneric(func(i int32) int32 {
 			return i * 2
-		})
-		if err != nil {
-			t.Fatal("Cannot ConverGeneric int32 func:", err)
-		}
-		udfs = append(udfs, f)
-
-		f, err = ConvertGeneric(func(i int64) int64 {
+		}),
+		MustConvertGeneric(func(i int64) int64 {
 			return i * 2
-		})
-		if err != nil {
-			t.Fatal("Cannot ConverGeneric int64 func:", err)
-		}
-		udfs = append(udfs, f)
-
-		f, err = ConvertGeneric(func(i uint8) uint8 {
+		}),
+		MustConvertGeneric(func(i uint8) uint8 {
 			return i * 2
-		})
-		if err != nil {
-			t.Fatal("Cannot ConverGeneric uint8 func:", err)
-		}
-		udfs = append(udfs, f)
-
-		f, err = ConvertGeneric(func(i uint16) uint16 {
+		}),
+		MustConvertGeneric(func(i uint16) uint16 {
 			return i * 2
-		})
-		if err != nil {
-			t.Fatal("Cannot ConverGeneric uint16 func:", err)
-		}
-		udfs = append(udfs, f)
-
-		f, err = ConvertGeneric(func(i uint32) uint32 {
+		}),
+		MustConvertGeneric(func(i uint32) uint32 {
 			return i * 2
-		})
-		if err != nil {
-			t.Fatal("Cannot ConverGeneric uint32 func:", err)
-		}
-		udfs = append(udfs, f)
-
-		f, err = ConvertGeneric(func(i uint64) uint64 {
+		}),
+		MustConvertGeneric(func(i uint64) uint64 {
 			return i * 2
-		})
-		if err != nil {
-			t.Fatal("Cannot ConverGeneric uint64 func:", err)
-		}
-		udfs = append(udfs, f)
-
-		f, err = ConvertGeneric(func(i float32) float32 {
+		}),
+		MustConvertGeneric(func(i float32) float32 {
 			return i * 2
-		})
-		if err != nil {
-			t.Fatal("Cannot ConverGeneric float32 func:", err)
-		}
-		udfs = append(udfs, f)
-
-		f, err = ConvertGeneric(func(i float64) float64 {
+		}),
+		MustConvertGeneric(func(i float64) float64 {
 			return i * 2
-		})
-		if err != nil {
-			t.Fatal("Cannot ConverGeneric float64 func:", err)
-		}
-		udfs = append(udfs, f)
-
-		f, err = ConvertGeneric(func(b []byte) []byte {
+		}),
+		MustConvertGeneric(func(b []byte) []byte {
 			return b
-		})
-		if err != nil {
-			t.Fatal("Cannot ConverGeneric []byte func:", err)
-		}
-		udfs = append(udfs, f)
-
-		f, err = ConvertGeneric(func(t time.Time) time.Time {
+		}),
+		MustConvertGeneric(func(t time.Time) time.Time {
 			return t
-		})
-		if err != nil {
-			t.Fatal("Cannot ConverGeneric time.Time func:", err)
-		}
-		udfs = append(udfs, f)
+		}),
 	}
 	funcTypes := []string{"int8", "int16", "int32", "int64", "uint8", "uint16", "uint32", "uint64", "float32", "float64", "blob", "timestamp"}
 	if len(udfs) != 12 {
 		t.Fatal("len of udfs isn't 12 but", len(udfs))
 	}
 
-	inconvertible := [][]struct {
+	type InputType struct {
 		typeName string
 		value    data.Value
-	}{
+	}
+
+	inconvertible := [][]InputType{
 		{ // int8
 			{"int", data.Int(int(math.MaxInt8) + 1)},
 			{"negative int", data.Int(int(math.MinInt8) - 1)},
 			{"float", data.Float(float64(math.MaxInt8) + 1.0)},
 			{"negative float", data.Float(float64(math.MinInt8) - 1.0)},
-			{"null", data.Null{}},
-			{"string", data.String("str")},
-			{"blob", data.Blob([]byte("blob"))},
 			{"time", data.Timestamp(time.Date(2015, time.May, 1, 14, 27, 0, 0, time.UTC))},
-			{"array", data.Array([]data.Value{data.Int(10)})},
-			{"map", data.Map{"key": data.Int(10)}},
 		},
 		{ // int16
 			{"int", data.Int(int32(math.MaxInt16) + 1)},
 			{"negative int", data.Int(int32(math.MinInt16) - 1)},
 			{"float", data.Float(float64(math.MaxInt16) + 1.0)},
 			{"negative float", data.Float(float64(math.MinInt16) - 1.0)},
-			{"null", data.Null{}},
-			{"string", data.String("str")},
-			{"blob", data.Blob([]byte("blob"))},
 			{"time", data.Timestamp(time.Date(2015, time.May, 1, 14, 27, 0, 0, time.UTC))},
-			{"array", data.Array([]data.Value{data.Int(10)})},
-			{"map", data.Map{"key": data.Int(10)}},
 		},
 		{ // int32
 			{"int", data.Int(int64(math.MaxInt32) + 1)},
 			{"negative int", data.Int(int64(math.MinInt32) - 1)},
 			{"float", data.Float(float64(math.MaxInt32) + 1.0)},
 			{"negative float", data.Float(float64(math.MinInt32) - 1.0)},
-			{"null", data.Null{}},
-			{"string", data.String("str")},
-			{"blob", data.Blob([]byte("blob"))},
 			{"time", data.Timestamp(time.Date(2015, time.May, 1, 14, 27, 0, 0, time.UTC))},
-			{"array", data.Array([]data.Value{data.Int(10)})},
-			{"map", data.Map{"key": data.Int(10)}},
 		},
 		{ // int64
 			{"float", data.Float(float64(math.MaxUint64))},
 			{"negative float", data.Float(float64(math.MinInt64) * 2)},
-			{"null", data.Null{}},
-			{"string", data.String("str")},
-			{"blob", data.Blob([]byte("blob"))},
-			{"array", data.Array([]data.Value{data.Int(10)})},
-			{"map", data.Map{"key": data.Int(10)}},
 		},
 		{ // uint8
 			{"int", data.Int(int(math.MaxUint8) + 1)},
 			{"negative int", data.Int(-1)},
 			{"float", data.Float(float64(math.MaxUint8) + 1.0)},
 			{"negative float", data.Float(-1.0)},
-			{"null", data.Null{}},
-			{"string", data.String("str")},
-			{"blob", data.Blob([]byte("blob"))},
 			{"time", data.Timestamp(time.Date(2015, time.May, 1, 14, 27, 0, 0, time.UTC))},
-			{"array", data.Array([]data.Value{data.Int(10)})},
-			{"map", data.Map{"key": data.Int(10)}},
 		},
 		{ // uint16
 			{"int", data.Int(int32(math.MaxUint16) + 1)},
 			{"negative int", data.Int(-1)},
 			{"float", data.Float(float64(math.MaxUint16) + 1.0)},
 			{"negative float", data.Float(-1.0)},
-			{"null", data.Null{}},
-			{"string", data.String("str")},
-			{"blob", data.Blob([]byte("blob"))},
 			{"time", data.Timestamp(time.Date(2015, time.May, 1, 14, 27, 0, 0, time.UTC))},
-			{"array", data.Array([]data.Value{data.Int(10)})},
-			{"map", data.Map{"key": data.Int(10)}},
 		},
 		{ // uint32
 			{"int", data.Int(int64(math.MaxUint32) + 1)},
 			{"negative int", data.Int(-1)},
 			{"float", data.Float(float64(math.MaxUint32) + 1.0)},
 			{"negative float", data.Float(-1.0)},
-			{"null", data.Null{}},
-			{"string", data.String("str")},
-			{"blob", data.Blob([]byte("blob"))},
 			{"time", data.Timestamp(time.Date(2015, time.May, 1, 14, 27, 0, 0, time.UTC))},
-			{"array", data.Array([]data.Value{data.Int(10)})},
-			{"map", data.Map{"key": data.Int(10)}},
 		},
 		{ // uint64
 			{"negative int", data.Int(-1)},
 			{"float", data.Float(float64(math.MaxUint64))},
 			{"negative float", data.Float(-1.0)},
-			{"null", data.Null{}},
-			{"string", data.String("str")},
-			{"blob", data.Blob([]byte("blob"))},
-			{"array", data.Array([]data.Value{data.Int(10)})},
-			{"map", data.Map{"key": data.Int(10)}},
 		},
-		{ // float32
-			{"null", data.Null{}},
-			{"string", data.String("str")},
-			{"blob", data.Blob([]byte("blob"))},
-			{"array", data.Array([]data.Value{data.Int(10)})},
-			{"map", data.Map{"key": data.Int(10)}},
+		{ // float32 covered by common values
 		},
-		{ // float64
-			{"null", data.Null{}},
-			{"string", data.String("str")},
-			{"blob", data.Blob([]byte("blob"))},
-			{"array", data.Array([]data.Value{data.Int(10)})},
-			{"map", data.Map{"key": data.Int(10)}},
+		{ // float64 covered by common values
 		},
 		{ // blob
 			{"int", data.Int(1)},
@@ -591,6 +483,19 @@ func TestGenericFuncInconvertibleType(t *testing.T) {
 			{"array", data.Array([]data.Value{data.Int(10)})},
 			{"map", data.Map{"key": data.Int(10)}},
 		},
+	}
+
+	// common incovertible values for integer and float
+	numInconvertibleValues := []InputType{
+		{"null", data.Null{}},
+		{"string", data.String("str")},
+		{"blob", data.Blob([]byte("blob"))},
+		{"array", data.Array([]data.Value{data.Int(10)})},
+		{"map", data.Map{"key": data.Int(10)}},
+	}
+	// append common values for int8, int16, int32, int64/ uint8, uint16, uint32, uint64/ float32, float64 (4 + 4 + 2 patterns)
+	for i := 0; i < 10; i++ {
+		inconvertible[i] = append(inconvertible[i], numInconvertibleValues...)
 	}
 
 	Convey("Given UDFs and inconvertible values", t, func() {
@@ -614,71 +519,31 @@ func TestGenericFuncInconvertibleType(t *testing.T) {
 func TestIntGenericIntFunc(t *testing.T) {
 	ctx := &core.Context{} // not used in this test
 
-	udfs := []UDF{}
-	{
-		f, err := ConvertGeneric(func(i int8) int8 {
+	udfs := []UDF{
+		MustConvertGeneric(func(i int8) int8 {
 			return i * 2
-		})
-		if err != nil {
-			t.Fatal("Cannot ConverGeneric int8 func:", err)
-		}
-		udfs = append(udfs, f)
-
-		f, err = ConvertGeneric(func(i int16) int16 {
+		}),
+		MustConvertGeneric(func(i int16) int16 {
 			return i * 2
-		})
-		if err != nil {
-			t.Fatal("Cannot ConverGeneric int16 func:", err)
-		}
-		udfs = append(udfs, f)
-
-		f, err = ConvertGeneric(func(i int32) int32 {
+		}),
+		MustConvertGeneric(func(i int32) int32 {
 			return i * 2
-		})
-		if err != nil {
-			t.Fatal("Cannot ConverGeneric int32 func:", err)
-		}
-		udfs = append(udfs, f)
-
-		f, err = ConvertGeneric(func(i int64) int64 {
+		}),
+		MustConvertGeneric(func(i int64) int64 {
 			return i * 2
-		})
-		if err != nil {
-			t.Fatal("Cannot ConverGeneric int64 func:", err)
-		}
-		udfs = append(udfs, f)
-
-		f, err = ConvertGeneric(func(i uint8) uint8 {
+		}),
+		MustConvertGeneric(func(i uint8) uint8 {
 			return i * 2
-		})
-		if err != nil {
-			t.Fatal("Cannot ConverGeneric uint8 func:", err)
-		}
-		udfs = append(udfs, f)
-
-		f, err = ConvertGeneric(func(i uint16) uint16 {
+		}),
+		MustConvertGeneric(func(i uint16) uint16 {
 			return i * 2
-		})
-		if err != nil {
-			t.Fatal("Cannot ConverGeneric uint16 func:", err)
-		}
-		udfs = append(udfs, f)
-
-		f, err = ConvertGeneric(func(i uint32) uint32 {
+		}),
+		MustConvertGeneric(func(i uint32) uint32 {
 			return i * 2
-		})
-		if err != nil {
-			t.Fatal("Cannot ConverGeneric uint32 func:", err)
-		}
-		udfs = append(udfs, f)
-
-		f, err = ConvertGeneric(func(i uint64) uint64 {
+		}),
+		MustConvertGeneric(func(i uint64) uint64 {
 			return i * 2
-		})
-		if err != nil {
-			t.Fatal("Cannot ConverGeneric uint64 func:", err)
-		}
-		udfs = append(udfs, f)
+		}),
 	}
 
 	funcTypes := []string{"int8", "int16", "int32", "int64", "uint8", "uint16", "uint32", "uint64"}
