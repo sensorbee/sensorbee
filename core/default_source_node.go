@@ -8,6 +8,7 @@ import (
 
 type defaultSourceNode struct {
 	*defaultNode
+	config                  *SourceConfig
 	source                  Source
 	dsts                    *dataDestinations
 	pausedOnStartup         bool
@@ -237,5 +238,16 @@ func (ds *defaultSourceNode) dstCallback(e ddEvent) {
 		if shouldStop {
 			ds.Stop()
 		}
+	}
+}
+
+func (ds *defaultSourceNode) RemoveOnStop() {
+	ds.stateMutex.Lock()
+	ds.config.RemoveOnStop = true
+	st := ds.state.getWithoutLock()
+	ds.stateMutex.Unlock()
+
+	if st == TSStopped {
+		ds.topology.Remove(ds.name)
 	}
 }
