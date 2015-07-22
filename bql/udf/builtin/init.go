@@ -36,5 +36,14 @@ func init() {
 	udf.RegisterGlobalUDF("sin", sinFunc)
 	udf.RegisterGlobalUDF("tan", tanFunc)
 	// aggregate functions
+	udf.RegisterGlobalUDF("array_agg", arrayAggFunc)
+	udf.RegisterGlobalUDF("avg", avgFunc)
 	udf.RegisterGlobalUDF("count", countFunc)
+	udf.RegisterGlobalUDF("bool_and", boolAndFunc)
+	udf.RegisterGlobalUDF("bool_or", boolOrFunc)
+	udf.RegisterGlobalUDF("json_object_agg", jsonObjectAggFunc)
+	udf.RegisterGlobalUDF("max", maxFunc)
+	udf.RegisterGlobalUDF("min", minFunc)
+	udf.RegisterGlobalUDF("string_agg", stringAggFunc)
+	udf.RegisterGlobalUDF("sum", sumFunc)
 }
