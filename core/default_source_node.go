@@ -8,6 +8,7 @@ import (
 
 type defaultSourceNode struct {
 	*defaultNode
+	config                  *SourceConfig
 	source                  Source
 	dsts                    *dataDestinations
 	pausedOnStartup         bool

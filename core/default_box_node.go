@@ -7,9 +7,10 @@ import (
 
 type defaultBoxNode struct {
 	*defaultNode
-	srcs *dataSources
-	box  Box
-	dsts *dataDestinations
+	config *BoxConfig
+	srcs   *dataSources
+	box    Box
+	dsts   *dataDestinations
 
 	gracefulStopEnabled bool
 	stopOnDisconnectDir ConnDir
