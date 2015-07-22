@@ -133,3 +133,14 @@ func (ds *defaultSinkNode) Status() data.Map {
 	}
 	return m
 }
+
+func (ds *defaultSinkNode) RemoveOnStop() {
+	ds.stateMutex.Lock()
+	ds.config.RemoveOnStop = true
+	st := ds.state.getWithoutLock()
+	ds.stateMutex.Unlock()
+
+	if st == TSStopped {
+		ds.topology.Remove(ds.name)
+	}
+}
