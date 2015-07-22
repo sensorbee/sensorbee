@@ -232,6 +232,9 @@ var jsonObjectAggFunc udf.UDF = &twoParamAggFunc{
 			value := values[idx]
 			if key.Type() == data.TypeString {
 				s, _ := data.AsString(key)
+				if _, exists := result[s]; exists {
+					return nil, fmt.Errorf("key '%s' appears multiple times", s)
+				}
 				result[s] = value
 			} else if key.Type() == data.TypeNull && value.Type() == data.TypeNull {
 				continue
