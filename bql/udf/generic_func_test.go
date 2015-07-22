@@ -366,103 +366,43 @@ func TestGenericFuncInvalidCases(t *testing.T) {
 func TestGenericFuncInconvertibleType(t *testing.T) {
 	ctx := &core.Context{} // not used in this test
 
-	udfs := []UDF{}
-	{
-		f, err := ConvertGeneric(func(i int8) int8 {
+	udfs := []UDF{
+		MustConvertGeneric(func(i int8) int8 {
 			return i * 2
-		})
-		if err != nil {
-			t.Fatal("Cannot ConverGeneric int8 func:", err)
-		}
-		udfs = append(udfs, f)
-
-		f, err = ConvertGeneric(func(i int16) int16 {
+		}),
+		MustConvertGeneric(func(i int16) int16 {
 			return i * 2
-		})
-		if err != nil {
-			t.Fatal("Cannot ConverGeneric int16 func:", err)
-		}
-		udfs = append(udfs, f)
-
-		f, err = ConvertGeneric(func(i int32) int32 {
+		}),
+		MustConvertGeneric(func(i int32) int32 {
 			return i * 2
-		})
-		if err != nil {
-			t.Fatal("Cannot ConverGeneric int32 func:", err)
-		}
-		udfs = append(udfs, f)
-
-		f, err = ConvertGeneric(func(i int64) int64 {
+		}),
+		MustConvertGeneric(func(i int64) int64 {
 			return i * 2
-		})
-		if err != nil {
-			t.Fatal("Cannot ConverGeneric int64 func:", err)
-		}
-		udfs = append(udfs, f)
-
-		f, err = ConvertGeneric(func(i uint8) uint8 {
+		}),
+		MustConvertGeneric(func(i uint8) uint8 {
 			return i * 2
-		})
-		if err != nil {
-			t.Fatal("Cannot ConverGeneric uint8 func:", err)
-		}
-		udfs = append(udfs, f)
-
-		f, err = ConvertGeneric(func(i uint16) uint16 {
+		}),
+		MustConvertGeneric(func(i uint16) uint16 {
 			return i * 2
-		})
-		if err != nil {
-			t.Fatal("Cannot ConverGeneric uint16 func:", err)
-		}
-		udfs = append(udfs, f)
-
-		f, err = ConvertGeneric(func(i uint32) uint32 {
+		}),
+		MustConvertGeneric(func(i uint32) uint32 {
 			return i * 2
-		})
-		if err != nil {
-			t.Fatal("Cannot ConverGeneric uint32 func:", err)
-		}
-		udfs = append(udfs, f)
-
-		f, err = ConvertGeneric(func(i uint64) uint64 {
+		}),
+		MustConvertGeneric(func(i uint64) uint64 {
 			return i * 2
-		})
-		if err != nil {
-			t.Fatal("Cannot ConverGeneric uint64 func:", err)
-		}
-		udfs = append(udfs, f)
-
-		f, err = ConvertGeneric(func(i float32) float32 {
+		}),
+		MustConvertGeneric(func(i float32) float32 {
 			return i * 2
-		})
-		if err != nil {
-			t.Fatal("Cannot ConverGeneric float32 func:", err)
-		}
-		udfs = append(udfs, f)
-
-		f, err = ConvertGeneric(func(i float64) float64 {
+		}),
+		MustConvertGeneric(func(i float64) float64 {
 			return i * 2
-		})
-		if err != nil {
-			t.Fatal("Cannot ConverGeneric float64 func:", err)
-		}
-		udfs = append(udfs, f)
-
-		f, err = ConvertGeneric(func(b []byte) []byte {
+		}),
+		MustConvertGeneric(func(b []byte) []byte {
 			return b
-		})
-		if err != nil {
-			t.Fatal("Cannot ConverGeneric []byte func:", err)
-		}
-		udfs = append(udfs, f)
-
-		f, err = ConvertGeneric(func(t time.Time) time.Time {
+		}),
+		MustConvertGeneric(func(t time.Time) time.Time {
 			return t
-		})
-		if err != nil {
-			t.Fatal("Cannot ConverGeneric time.Time func:", err)
-		}
-		udfs = append(udfs, f)
+		}),
 	}
 	funcTypes := []string{"int8", "int16", "int32", "int64", "uint8", "uint16", "uint32", "uint64", "float32", "float64", "blob", "timestamp"}
 	if len(udfs) != 12 {
@@ -614,71 +554,31 @@ func TestGenericFuncInconvertibleType(t *testing.T) {
 func TestIntGenericIntFunc(t *testing.T) {
 	ctx := &core.Context{} // not used in this test
 
-	udfs := []UDF{}
-	{
-		f, err := ConvertGeneric(func(i int8) int8 {
+	udfs := []UDF{
+		MustConvertGeneric(func(i int8) int8 {
 			return i * 2
-		})
-		if err != nil {
-			t.Fatal("Cannot ConverGeneric int8 func:", err)
-		}
-		udfs = append(udfs, f)
-
-		f, err = ConvertGeneric(func(i int16) int16 {
+		}),
+		MustConvertGeneric(func(i int16) int16 {
 			return i * 2
-		})
-		if err != nil {
-			t.Fatal("Cannot ConverGeneric int16 func:", err)
-		}
-		udfs = append(udfs, f)
-
-		f, err = ConvertGeneric(func(i int32) int32 {
+		}),
+		MustConvertGeneric(func(i int32) int32 {
 			return i * 2
-		})
-		if err != nil {
-			t.Fatal("Cannot ConverGeneric int32 func:", err)
-		}
-		udfs = append(udfs, f)
-
-		f, err = ConvertGeneric(func(i int64) int64 {
+		}),
+		MustConvertGeneric(func(i int64) int64 {
 			return i * 2
-		})
-		if err != nil {
-			t.Fatal("Cannot ConverGeneric int64 func:", err)
-		}
-		udfs = append(udfs, f)
-
-		f, err = ConvertGeneric(func(i uint8) uint8 {
+		}),
+		MustConvertGeneric(func(i uint8) uint8 {
 			return i * 2
-		})
-		if err != nil {
-			t.Fatal("Cannot ConverGeneric uint8 func:", err)
-		}
-		udfs = append(udfs, f)
-
-		f, err = ConvertGeneric(func(i uint16) uint16 {
+		}),
+		MustConvertGeneric(func(i uint16) uint16 {
 			return i * 2
-		})
-		if err != nil {
-			t.Fatal("Cannot ConverGeneric uint16 func:", err)
-		}
-		udfs = append(udfs, f)
-
-		f, err = ConvertGeneric(func(i uint32) uint32 {
+		}),
+		MustConvertGeneric(func(i uint32) uint32 {
 			return i * 2
-		})
-		if err != nil {
-			t.Fatal("Cannot ConverGeneric uint32 func:", err)
-		}
-		udfs = append(udfs, f)
-
-		f, err = ConvertGeneric(func(i uint64) uint64 {
+		}),
+		MustConvertGeneric(func(i uint64) uint64 {
 			return i * 2
-		})
-		if err != nil {
-			t.Fatal("Cannot ConverGeneric uint64 func:", err)
-		}
-		udfs = append(udfs, f)
+		}),
 	}
 
 	funcTypes := []string{"int8", "int16", "int32", "int64", "uint8", "uint16", "uint32", "uint64"}
