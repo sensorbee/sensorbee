@@ -678,7 +678,7 @@ func TestDropSourceStmt(t *testing.T) {
 		Convey("When adding a source", func() {
 			So(addBQLToTopology(tb, `CREATE SOURCE hoge TYPE dummy`), ShouldBeNil)
 
-			Convey("When dropping it should succeed", func() {
+			Convey("Then dropping it should succeed", func() {
 				So(addBQLToTopology(tb, `DROP SOURCE hoge;`), ShouldBeNil)
 			})
 		})
@@ -710,7 +710,7 @@ func TestDropStreamStmt(t *testing.T) {
 				So(err, ShouldBeNil)
 			})
 
-			Convey("When dropping it should succeed", func() {
+			Convey("Then dropping it should succeed", func() {
 				So(addBQLToTopology(tb, `DROP STREAM t;`), ShouldBeNil)
 			})
 		})
@@ -736,7 +736,7 @@ func TestDropSinkStmt(t *testing.T) {
 			err = addBQLToTopology(tb, `CREATE SINK foo TYPE collector`)
 			So(err, ShouldBeNil)
 
-			Convey("When dropping it should succeed", func() {
+			Convey("Then dropping it should succeed", func() {
 				So(addBQLToTopology(tb, `DROP SINK foo;`), ShouldBeNil)
 			})
 		})
@@ -761,7 +761,7 @@ func TestDropStateStmt(t *testing.T) {
 		Convey("When adding an UDS", func() {
 			So(addBQLToTopology(tb, `CREATE STATE hoge TYPE dummy_uds WITH num=5;`), ShouldBeNil)
 
-			Convey("When dropping it should succeed", func() {
+			Convey("Then dropping it should succeed", func() {
 				So(addBQLToTopology(tb, `DROP STATE hoge;`), ShouldBeNil)
 			})
 		})
