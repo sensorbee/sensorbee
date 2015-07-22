@@ -50,6 +50,11 @@ func (ds *defaultSinkNode) Input(refname string, config *SinkInputConfig) error 
 		s.destinations().remove(ds.name)
 		return err
 	}
+
+	if !s.destinations().isDroppedTupleReportingEnabled() {
+		// disable dropped tuple reporting to avoid infinite reporting loop
+		ds.srcs.disableDroppedTupleReporting()
+	}
 	return nil
 }
 
