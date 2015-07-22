@@ -250,12 +250,10 @@ func TestBinaryAggregateFuncs(t *testing.T) {
 			{data.Array{data.String("foo"), data.Null{}, data.String("bar")},
 				data.Array{data.Int(7), data.Null{}, data.Null{}},
 				data.Map{"foo": data.Int(7), "bar": data.Null{}}},
-			// TODO should we rather fail if there is a key duplicate?
-			//      we assume some ordered processing in this test.
-			{data.Array{data.String("foo"), data.String("foo")},
-				data.Array{data.Int(7), data.Int(3)},
-				data.Map{"foo": data.Int(3)}},
 			/// fail cases
+			// duplicate keys
+			{data.Array{data.String("foo"), data.String("foo")},
+				data.Array{data.Int(7), data.Int(3)}, nil},
 			// different length
 			{data.Array{data.String("foo")},
 				data.Array{data.Int(7), data.Int(3)}, nil},
