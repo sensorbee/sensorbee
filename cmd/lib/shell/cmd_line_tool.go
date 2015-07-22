@@ -74,7 +74,7 @@ func panicHandler() {
 
 func validateFlags(c *cli.Context) {
 	if err := client.ValidateURL(c.String("uri")); err != nil {
-		fmt.Fprintln(os.Stderr, "--uri flag has an invalid value: %v", err)
+		fmt.Fprintf(os.Stderr, "--uri flag has an invalid value: %v\n", err)
 		panic(1)
 	}
 	if err := client.ValidateAPIVersion(c.String("api-version")); err != nil {

@@ -57,7 +57,7 @@ func (a *App) prompt(line *liner.State) {
 			if cmd, ok := a.commandMap[in]; ok {
 				a.processCommand(line, cmd, input)
 			} else {
-				fmt.Fprintln(os.Stderr, "undefined command: %v\n", in)
+				fmt.Fprintf(os.Stderr, "undefined command: %v\n", in)
 			}
 		}
 	}
