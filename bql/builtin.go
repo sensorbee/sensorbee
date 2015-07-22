@@ -101,3 +101,11 @@ func init() {
 	MustRegisterGlobalSinkCreator("stdout", SinkCreatorFunc(createStdouSink))
 	MustRegisterGlobalSinkCreator("file", SinkCreatorFunc(createFileSink))
 }
+
+func createDroppedTupleCollectorSource(ctx *core.Context, ioParams *IOParams, params data.Map) (core.Source, error) {
+	return core.NewDroppedTupleCollectorSource(), nil
+}
+
+func init() {
+	MustRegisterGlobalSourceCreator("dropped_tuples", SourceCreatorFunc(createDroppedTupleCollectorSource))
+}
