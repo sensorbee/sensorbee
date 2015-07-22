@@ -47,6 +47,12 @@ func (db *defaultBoxNode) Input(refname string, config *BoxInputConfig) error {
 		s.destinations().remove(db.name)
 		return err
 	}
+
+	if !s.destinations().isDroppedTupleReportingEnabled() {
+		// disable dropped tuple reporting to avoid infinite reporting loop
+		db.srcs.disableDroppedTupleReporting()
+		db.dsts.disableDroppedTupleReporting()
+	}
 	return nil
 }
 
