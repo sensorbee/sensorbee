@@ -240,6 +240,62 @@ func TestDefaultTopologySetup(t *testing.T) {
 			})
 		})
 
+		Convey("When adding a source and call RemoveOnStop before stop", func() {
+			s := NewTupleIncrementalEmitterSource(freshTuples())
+			sn, err := t.AddSource("source1", s, &SourceConfig{
+				RemoveOnStop: false,
+			})
+			So(err, ShouldBeNil)
+			sn.RemoveOnStop()
+
+			Convey("Then it should automatically run", func() {
+				So(sn.State().Get(), ShouldEqual, TSRunning)
+			})
+
+			Convey("Then it should be able to stop", func() {
+				So(sn.Stop(), ShouldBeNil)
+				So(sn.State().Get(), ShouldEqual, TSStopped)
+
+				Convey("And it should be removed", func() {
+					for {
+						_, err := t.Node("source1")
+						if err != nil {
+							So(err, ShouldNotBeNil)
+							break
+						}
+					}
+				})
+			})
+		})
+
+		Convey("When adding a source and call RemoveOnStop after stop", func() {
+			s := NewTupleIncrementalEmitterSource(freshTuples())
+			sn, err := t.AddSource("source1", s, &SourceConfig{
+				RemoveOnStop: false,
+			})
+			So(err, ShouldBeNil)
+
+			Convey("Then it should automatically run", func() {
+				So(sn.State().Get(), ShouldEqual, TSRunning)
+			})
+
+			Convey("Then it should be able to stop", func() {
+				So(sn.Stop(), ShouldBeNil)
+				So(sn.State().Get(), ShouldEqual, TSStopped)
+				sn.RemoveOnStop()
+
+				Convey("And it should be removed", func() {
+					for {
+						_, err := t.Node("source1")
+						if err != nil {
+							So(err, ShouldNotBeNil)
+							break
+						}
+					}
+				})
+			})
+		})
+
 		Convey("When adding a box", func() {
 			b := newTerminateChecker(&DoesNothingBox{})
 			bn, err := t.AddBox("box1", b, nil)
@@ -319,6 +375,70 @@ func TestDefaultTopologySetup(t *testing.T) {
 			})
 		})
 
+		Convey("When adding a box and call RemoveOnStop before stop", func() {
+			b := newTerminateChecker(&DoesNothingBox{})
+			bn, err := t.AddBox("box1", b, &BoxConfig{
+				RemoveOnStop: false,
+			})
+			So(err, ShouldBeNil)
+			bn.RemoveOnStop()
+
+			Convey("Then it should automatically run", func() {
+				So(bn.State().Get(), ShouldEqual, TSRunning)
+			})
+
+			Convey("Then it should be able to stop", func() {
+				So(bn.Stop(), ShouldBeNil)
+				So(bn.State().Get(), ShouldEqual, TSStopped)
+
+				Convey("And it should be terminated", func() {
+					So(b.terminateCnt, ShouldEqual, 1)
+				})
+
+				Convey("And it should be removed", func() {
+					for {
+						_, err := t.Node("box1")
+						if err != nil {
+							So(err, ShouldNotBeNil)
+							break
+						}
+					}
+				})
+			})
+		})
+
+		Convey("When adding a box and call RemoveOnStop after stop", func() {
+			b := newTerminateChecker(&DoesNothingBox{})
+			bn, err := t.AddBox("box1", b, &BoxConfig{
+				RemoveOnStop: false,
+			})
+			So(err, ShouldBeNil)
+
+			Convey("Then it should automatically run", func() {
+				So(bn.State().Get(), ShouldEqual, TSRunning)
+			})
+
+			Convey("Then it should be able to stop", func() {
+				So(bn.Stop(), ShouldBeNil)
+				So(bn.State().Get(), ShouldEqual, TSStopped)
+				bn.RemoveOnStop()
+
+				Convey("And it should be terminated", func() {
+					So(b.terminateCnt, ShouldEqual, 1)
+				})
+
+				Convey("And it should be removed", func() {
+					for {
+						_, err := t.Node("box1")
+						if err != nil {
+							So(err, ShouldNotBeNil)
+							break
+						}
+					}
+				})
+			})
+		})
+
 		Convey("When adding a sink", func() {
 			s := &DoesNothingSink{}
 			sn, err := t.AddSink("sink1", s, nil)
@@ -371,6 +491,62 @@ func TestDefaultTopologySetup(t *testing.T) {
 			Convey("Then it should be able to stop", func() {
 				So(sn.Stop(), ShouldBeNil)
 				So(sn.State().Get(), ShouldEqual, TSStopped)
+
+				Convey("And it should be removed", func() {
+					for {
+						_, err := t.Node("sink1")
+						if err != nil {
+							So(err, ShouldNotBeNil)
+							break
+						}
+					}
+				})
+			})
+		})
+
+		Convey("When adding a sink and call RemoveOnStop before stop", func() {
+			s := &DoesNothingSink{}
+			sn, err := t.AddSink("sink1", s, &SinkConfig{
+				RemoveOnStop: false,
+			})
+			So(err, ShouldBeNil)
+			sn.RemoveOnStop()
+
+			Convey("Then it should automatically run", func() {
+				So(sn.State().Get(), ShouldEqual, TSRunning)
+			})
+
+			Convey("Then it should be able to stop", func() {
+				So(sn.Stop(), ShouldBeNil)
+				So(sn.State().Get(), ShouldEqual, TSStopped)
+
+				Convey("And it should be removed", func() {
+					for {
+						_, err := t.Node("sink1")
+						if err != nil {
+							So(err, ShouldNotBeNil)
+							break
+						}
+					}
+				})
+			})
+		})
+
+		Convey("When adding a sink and call RemoveOnStop after stop", func() {
+			s := &DoesNothingSink{}
+			sn, err := t.AddSink("sink1", s, &SinkConfig{
+				RemoveOnStop: false,
+			})
+			So(err, ShouldBeNil)
+
+			Convey("Then it should automatically run", func() {
+				So(sn.State().Get(), ShouldEqual, TSRunning)
+			})
+
+			Convey("Then it should be able to stop", func() {
+				So(sn.Stop(), ShouldBeNil)
+				So(sn.State().Get(), ShouldEqual, TSStopped)
+				sn.RemoveOnStop()
 
 				Convey("And it should be removed", func() {
 					for {
