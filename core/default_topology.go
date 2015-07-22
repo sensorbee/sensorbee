@@ -92,6 +92,11 @@ func (t *defaultTopology) AddSource(name string, s Source, config *SourceConfig)
 		ds.Stop()
 		return nil, err
 	}
+	if _, ok := s.(*droppedTupleCollectorSource); ok {
+		// Tuples dropped by droppedTupleCollectorSource and nodes connected
+		// to it must not be reported again.
+		ds.dsts.disableDroppedTupleReporting()
+	}
 	t.sources[strings.ToLower(name)] = ds
 
 	go func() {

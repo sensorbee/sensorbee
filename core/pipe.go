@@ -145,7 +145,7 @@ type dataSources struct {
 	nodeName string
 
 	// m protects state, recvs, and msgChs.
-	m     sync.Mutex
+	m     sync.RWMutex
 	state *topologyStateHolder
 
 	recvs map[string]*pipeReceiver
@@ -156,13 +156,18 @@ type dataSources struct {
 
 	numReceived int64
 	numErrors   int64
+
+	// reportDroppedTuples is a flag (0,1) to control the behavior of dropped
+	// tuple logging. If this value is 0, dropped tuples won't be reported.
+	reportDroppedTuples int32
 }
 
 func newDataSources(nodeType NodeType, nodeName string) *dataSources {
 	s := &dataSources{
-		nodeType: nodeType,
-		nodeName: nodeName,
-		recvs:    map[string]*pipeReceiver{},
+		nodeType:            nodeType,
+		nodeName:            nodeName,
+		recvs:               map[string]*pipeReceiver{},
+		reportDroppedTuples: 1,
 	}
 	s.state = newTopologyStateHolder(&s.m)
 	return s
@@ -181,6 +186,10 @@ const (
 	ddscToggleGracefulStop
 	ddscStopOnDisconnect
 )
+
+func (s *dataSources) disableDroppedTupleReporting() {
+	atomic.StoreInt32(&s.reportDroppedTuples, 0)
+}
 
 func (s *dataSources) add(name string, r *pipeReceiver) error {
 	// Because dataSources is used internally and shouldn't return error
@@ -418,6 +427,13 @@ func (s *dataSources) pouringThread(ctx *Context, w Writer, cs []reflect.SelectC
 	gracefulStopEnabled := false
 	stopOnDisconnect := false
 
+	reportDT := func(t *Tuple, err error) {
+		if atomic.LoadInt32(&s.reportDroppedTuples) == 0 {
+			return
+		}
+		ctx.droppedTuple(t, s.nodeType, s.nodeName, ETInput, err)
+	}
+
 receiveLoop:
 	for {
 		if stopOnDisconnect && len(cs) == maxControlIndex+1 {
@@ -499,17 +515,17 @@ receiveLoop:
 				atomic.AddInt64(&s.numErrors, 1)
 				// logging is done by pour method
 				retErr = err
-				ctx.droppedTuple(t, s.nodeType, s.nodeName, ETOutput, err)
+				reportDT(t, err)
 				return
 
 			case IsTemporaryError(err):
 				atomic.AddInt64(&s.numErrors, 1)
 				// TODO: retry
-				ctx.droppedTuple(t, s.nodeType, s.nodeName, ETOutput, err) // TODO: don't write a tuple until retry fails
+				reportDT(t, err) // TODO: don't write a tuple until retry fails
 
 			default:
 				// Skip this tuple
-				ctx.droppedTuple(t, s.nodeType, s.nodeName, ETOutput, err)
+				reportDT(t, err)
 			}
 		}
 	}
@@ -625,6 +641,18 @@ func newDataDestinations(nodeType NodeType, nodeName string) *dataDestinations {
 	}
 	d.cond = sync.NewCond(&d.rwm)
 	return d
+}
+
+func (d *dataDestinations) disableDroppedTupleReporting() {
+	d.rwm.Lock()
+	defer d.rwm.Unlock()
+	d.reportDroppedTuples = false
+}
+
+func (d *dataDestinations) isDroppedTupleReportingEnabled() bool {
+	d.rwm.RLock()
+	defer d.rwm.RUnlock()
+	return d.reportDroppedTuples
 }
 
 func (d *dataDestinations) add(name string, s *pipeSender) error {
