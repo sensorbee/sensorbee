@@ -246,28 +246,44 @@ func (f *floatValuedTwoParamNumericFunc) Call(ctx *core.Context, args ...data.Va
 	return nil, fmt.Errorf("cannot interpret %s and/or %s as integer", arg1, arg2)
 }
 
-// unaryBinaryDispatcher supports the overloading of BQL functions
+// arityDispatcher supports the overloading of BQL functions
 // by forwarding a request to the correct sub-UDF.
-type unaryBinaryDispatcher struct {
-	unary  udf.UDF
-	binary udf.UDF
+type arityDispatcher struct {
+	unary      udf.UDF
+	binary     udf.UDF
+	ternary    udf.UDF
+	quaternary udf.UDF
 }
 
-func (f *unaryBinaryDispatcher) Accept(arity int) bool {
-	return arity == 1 || arity == 2
-}
-
-func (f *unaryBinaryDispatcher) IsAggregationParameter(k int) bool {
+func (f *arityDispatcher) Accept(arity int) bool {
+	switch arity {
+	case 1:
+		return f.unary != nil
+	case 2:
+		return f.binary != nil
+	case 3:
+		return f.ternary != nil
+	case 4:
+		return f.quaternary != nil
+	}
 	return false
 }
 
-func (f *unaryBinaryDispatcher) Call(ctx *core.Context, args ...data.Value) (data.Value, error) {
+func (f *arityDispatcher) IsAggregationParameter(k int) bool {
+	return false
+}
+
+func (f *arityDispatcher) Call(ctx *core.Context, args ...data.Value) (data.Value, error) {
 	if len(args) == 1 {
 		return f.unary.Call(ctx, args...)
 	} else if len(args) == 2 {
 		return f.binary.Call(ctx, args...)
+	} else if len(args) == 3 {
+		return f.ternary.Call(ctx, args...)
+	} else if len(args) == 4 {
+		return f.quaternary.Call(ctx, args...)
 	}
-	return nil, fmt.Errorf("function takes either one or two arguments")
+	return nil, fmt.Errorf("function does not support %d arguments", len(args))
 }
 
 var intId = func(a int64) int64 { return a }

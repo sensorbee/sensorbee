@@ -14,7 +14,8 @@ func init() {
 	udf.RegisterGlobalUDF("exp", expFunc)
 	udf.RegisterGlobalUDF("floor", floorFunc)
 	udf.RegisterGlobalUDF("ln", lnFunc)
-	udf.RegisterGlobalUDF("log", &unaryBinaryDispatcher{logFunc, logBaseFunc})
+	udf.RegisterGlobalUDF("log", &arityDispatcher{
+		unary: logFunc, binary: logBaseFunc})
 	udf.RegisterGlobalUDF("mod", modFunc)
 	udf.RegisterGlobalUDF("pi", piFunc)
 	udf.RegisterGlobalUDF("power", powFunc)
