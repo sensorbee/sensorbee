@@ -55,7 +55,6 @@ func NewContext(config *ContextConfig) *Context {
 		Flags:     config.Flags,
 		dtSources: map[int64]*droppedTupleCollectorSource{},
 	}
-	c.Flags.DroppedTupleSummarization = 1
 	c.SharedStates = NewDefaultSharedStateRegistry(c)
 	return c
 }

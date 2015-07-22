@@ -132,7 +132,8 @@ func (tc *topologies) Create(rw web.ResponseWriter, req *web.Request) {
 	ctx := core.NewContext(&core.ContextConfig{
 		Logger: tc.logger,
 		Flags: core.ContextFlags{
-			DroppedTupleLog: 1,
+			DroppedTupleLog:           0,
+			DroppedTupleSummarization: 1,
 		},
 	})
 	tp := core.NewDefaultTopology(ctx, name)
