@@ -192,11 +192,17 @@ func (ds *defaultSourceNode) Rewind() error {
 }
 
 func (ds *defaultSourceNode) Status() data.Map {
-	st := ds.state.Get()
+	ds.stateMutex.Lock()
+	st := ds.state.getWithoutLock()
+	stopOnDisconnect := ds.stopOnDisconnectEnabled
+	ds.stateMutex.Unlock()
 
 	m := data.Map{
 		"state":        data.String(st.String()),
 		"output_stats": ds.dsts.status(),
+		"behaviors": data.Map{
+			"stop_on_disconnect": data.Bool(stopOnDisconnect),
+		},
 	}
 	if st == TSStopped && ds.runErr != nil {
 		m["error"] = data.String(ds.runErr.Error())

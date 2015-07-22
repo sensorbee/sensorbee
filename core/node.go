@@ -96,6 +96,9 @@ type Node interface {
 	//	* state: the current state of the Source
 	//	* error: an error message of the Source if an error happened and it stopped the Source
 	//	* output_stats: statistical information of the Source's output
+	//	* behaviors:
+	//		* stop_on_disconnect: true if the Source stops when all outbound
+	//		                      connections are closed
 	//	* source: the status of the Source if it implements Statuser
 	//
 	// When the node is a Box, following information will be returned:
@@ -118,8 +121,8 @@ type Node interface {
 	//	* error: an error message of the Sink if an error happened and it stopped the Sink
 	//	* input_stats: statistical information of the Source's output
 	//	* behaviors:
-	//		* stop_on_disconnected: true if the Sink stops when all inbound
-	//		                        connections are closed
+	//		* stop_on_disconnect: true if the Sink stops when all inbound
+	//		                      connections are closed
 	//		* graceful_stop: true if the graceful_stop mode is enabled
 	//	* sink: the status of the Sink if it implements Statuser
 	//
