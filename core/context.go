@@ -5,8 +5,19 @@ import (
 	"path/filepath"
 	"pfi/sensorbee/sensorbee/data"
 	"runtime"
+	"sync"
 	"sync/atomic"
 )
+
+var (
+	temporaryIDCounter int64
+)
+
+// NewTemporaryID returns the new temporary 63bit ID. This can be used for
+// any purpose.
+func NewTemporaryID() int64 {
+	return atomic.AddInt64(&temporaryIDCounter, 1)
+}
 
 // Context holds a set of functionality that is made available to each Topology
 // at runtime. A context is created by the user before creating a Topology.
@@ -17,6 +28,9 @@ type Context struct {
 	topologyName string
 	Flags        ContextFlags
 	SharedStates SharedStateRegistry
+
+	dtMutex   sync.RWMutex
+	dtSources map[int64]*droppedTupleCollectorSource
 }
 
 // ContextConfig has configuration parameters of a Context.
@@ -37,10 +51,10 @@ func NewContext(config *ContextConfig) *Context {
 		logger = logrus.StandardLogger()
 	}
 	c := &Context{
-		logger: logger,
-		Flags:  config.Flags,
+		logger:    logger,
+		Flags:     config.Flags,
+		dtSources: map[int64]*droppedTupleCollectorSource{},
 	}
-	c.Flags.DroppedTupleSummarization = 1
 	c.SharedStates = NewDefaultSharedStateRegistry(c)
 	return c
 }
@@ -93,7 +107,48 @@ func (c *Context) droppedTuple(t *Tuple, nodeType NodeType, nodeName string, et 
 		l.Info("A tuple was dropped from the topology") // TODO: debug should be better?
 	}
 
-	// TODO: add listener here to notify events
+	c.dtMutex.RLock()
+	defer c.dtMutex.RUnlock()
+	if len(c.dtSources) == 0 {
+		return
+	}
+	// TODO: reduce copies
+	dt := t.Copy()
+	dt.Data = data.Map{
+		"node_type":  data.String(nodeType.String()),
+		"node_name":  data.String(nodeName),
+		"event_type": data.String(et.String()),
+		"data":       dt.Data,
+	}
+	if err != nil {
+		dt.Data["error"] = data.String(err.Error())
+	}
+	shouldCopy := len(c.dtSources) > 1
+	for _, s := range c.dtSources {
+		// TODO: reduce copies
+		copied := dt
+		if shouldCopy {
+			copied = dt.Copy()
+		}
+		s.w.Write(c, copied) // There isn't much meaning to report errors here.
+	}
+}
+
+// addDroppedTupleSource is a listener which receives dropped tuples. The
+// return value is the ID of the listener and it'll be required for
+// removeDroppedTupleListener.
+func (c *Context) addDroppedTupleSource(s *droppedTupleCollectorSource) int64 {
+	c.dtMutex.Lock()
+	defer c.dtMutex.Unlock()
+	id := NewTemporaryID()
+	c.dtSources[id] = s
+	return id
+}
+
+func (c *Context) removeDroppedTupleSource(id int64) {
+	c.dtMutex.Lock()
+	defer c.dtMutex.Unlock()
+	delete(c.dtSources, id)
 }
 
 // AtomicFlag is a boolean flag which can be read/written atomically.
@@ -132,4 +187,44 @@ type ContextFlags struct {
 	// be a little smaller than the originals. However, they might not be parsed
 	// as JSONs. If the flag is disabled, output JSONs can be parsed.
 	DroppedTupleSummarization AtomicFlag
+}
+
+type droppedTupleCollectorSource struct {
+	w  Writer
+	id int64
+	wg sync.WaitGroup
+}
+
+// NewDroppedTupleCollectorSource returns a source which generates a stream
+// containing tuples dropped by other nodes. Tuples generated from this source
+// won't be reported again even if they're dropped later on. So, when a sink
+// is connected to two boxes and one of them is connected to the source,
+// tuples dropped by the sink won't be reported even if those tuples are sent
+// from another box which isn't connected to the source. Therefore, it's safe
+// to have a DAG having the source and isolate it from the regular processing
+// flow.
+//
+// Tuples generated from this source has the following fields in Data:
+//
+//	- node_type: the type of the node which dropped the tuple
+//	- node_name: the name of the node which dropped the tuple
+//	- event_type: the type of the event indicating when the tuple was dropped
+//	- error(optional): the error information if any
+//	- data: the original content in which the dropped tuple had
+func NewDroppedTupleCollectorSource() Source {
+	return &droppedTupleCollectorSource{}
+}
+
+func (s *droppedTupleCollectorSource) GenerateStream(ctx *Context, w Writer) error {
+	s.w = w
+	s.id = ctx.addDroppedTupleSource(s)
+	s.wg.Add(1)
+	s.wg.Wait()
+	return nil
+}
+
+func (s *droppedTupleCollectorSource) Stop(ctx *Context) error {
+	ctx.removeDroppedTupleSource(s.id)
+	s.wg.Done()
+	return nil
 }
