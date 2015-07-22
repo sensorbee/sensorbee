@@ -165,6 +165,10 @@ type Node interface {
 	// updated by changing the return value. However, the meta information is
 	// not protected from concurrent writes and the caller has to care about it.
 	Meta() interface{}
+
+	// RemoveOnStop tells the Node that it may automatically remove from the
+	// topology when it stops.
+	RemoveOnStop()
 }
 
 // SourceNode is a Source registered to a topology.
