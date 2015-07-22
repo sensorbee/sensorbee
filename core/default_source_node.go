@@ -240,3 +240,14 @@ func (ds *defaultSourceNode) dstCallback(e ddEvent) {
 		}
 	}
 }
+
+func (ds *defaultSourceNode) RemoveOnStop() {
+	ds.stateMutex.Lock()
+	ds.config.RemoveOnStop = true
+	st := ds.state.getWithoutLock()
+	ds.stateMutex.Unlock()
+
+	if st == TSStopped {
+		ds.topology.Remove(ds.name)
+	}
+}

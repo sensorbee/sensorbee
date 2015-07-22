@@ -165,3 +165,14 @@ func (db *defaultBoxNode) dstCallback(e ddEvent) {
 		}
 	}
 }
+
+func (db *defaultBoxNode) RemoveOnStop() {
+	db.stateMutex.Lock()
+	db.config.RemoveOnStop = true
+	st := db.state.getWithoutLock()
+	db.stateMutex.Unlock()
+
+	if st == TSStopped {
+		db.topology.Remove(db.name)
+	}
+}

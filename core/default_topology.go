@@ -84,6 +84,8 @@ func (t *defaultTopology) AddSource(name string, s Source, config *SourceConfig)
 		dsts:            newDataDestinations(NTSource, name),
 		pausedOnStartup: config.PausedOnStartup,
 	}
+	ds.config = &SourceConfig{}
+	*ds.config = *config
 	ds.dsts.callback = ds.dstCallback
 	if err := t.checkNodeNameDuplication(name); err != nil {
 		// Because the source isn't started yet, it doesn't return an error.
@@ -98,7 +100,7 @@ func (t *defaultTopology) AddSource(name string, s Source, config *SourceConfig)
 			t.ctx.ErrLog(err).WithFields(nodeLogFields(NTSource, name)).
 				Error("Cannot generate a stream from the source")
 		}
-		if config.RemoveOnStop {
+		if ds.config.RemoveOnStop {
 			if err := t.Remove(name); err != nil {
 				t.ctx.ErrLog(err).WithFields(nodeLogFields(NTSource, name)).
 					Error("Cannot remove the source from topology")
@@ -174,6 +176,8 @@ func (t *defaultTopology) AddBox(name string, b Box, config *BoxConfig) (BoxNode
 		box:         b,
 		dsts:        newDataDestinations(NTBox, name),
 	}
+	db.config = &BoxConfig{}
+	*db.config = *config
 	db.dsts.callback = db.dstCallback
 	t.boxes[strings.ToLower(name)] = db
 
@@ -182,7 +186,7 @@ func (t *defaultTopology) AddBox(name string, b Box, config *BoxConfig) (BoxNode
 			t.ctx.ErrLog(err).WithFields(nodeLogFields(NTBox, db.name)).
 				Error("The box failed")
 		}
-		if config.RemoveOnStop {
+		if db.config.RemoveOnStop {
 			if err := t.Remove(name); err != nil {
 				t.ctx.ErrLog(err).WithFields(nodeLogFields(NTBox, db.name)).
 					Error("Cannot remove the box from topology")
@@ -229,6 +233,8 @@ func (t *defaultTopology) AddSink(name string, s Sink, config *SinkConfig) (Sink
 		srcs:        newDataSources(NTSink, name),
 		sink:        s,
 	}
+	ds.config = &SinkConfig{}
+	*ds.config = *config
 	t.sinks[strings.ToLower(name)] = ds
 
 	go func() {
@@ -236,7 +242,7 @@ func (t *defaultTopology) AddSink(name string, s Sink, config *SinkConfig) (Sink
 			t.ctx.ErrLog(err).WithFields(nodeLogFields(NTSink, ds.name)).
 				Error("The sink failed")
 		}
-		if config.RemoveOnStop {
+		if ds.config.RemoveOnStop {
 			if err := t.Remove(name); err != nil {
 				t.ctx.ErrLog(err).WithFields(nodeLogFields(NTSink, ds.name)).
 					Error("Cannot remove the sink from topology")
