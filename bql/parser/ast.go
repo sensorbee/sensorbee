@@ -243,6 +243,10 @@ func (f FuncAppAST) RenameReferencedRelation(from, to string) Expression {
 
 func (f FuncAppAST) Foldable() bool {
 	foldable := true
+	// now() is not evaluable outside of some execution context
+	if string(f.Function) == "now" && len(f.Expressions) == 0 {
+		return false
+	}
 	for _, expr := range f.Expressions {
 		if !expr.Foldable() {
 			foldable = false
@@ -549,6 +553,7 @@ type MetaInformation int
 const (
 	UnknownMeta MetaInformation = iota
 	TimestampMeta
+	NowMeta
 )
 
 func (m MetaInformation) String() string {
@@ -556,6 +561,8 @@ func (m MetaInformation) String() string {
 	switch m {
 	case TimestampMeta:
 		s = "TS"
+	case NowMeta:
+		s = "NOW"
 	}
 	return s
 }

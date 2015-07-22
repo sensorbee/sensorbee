@@ -18,6 +18,8 @@ func TestExpressionParser(t *testing.T) {
 		// Function Application
 		"f()": {FuncAppAST{FuncName("f"),
 			ExpressionsAST{[]Expression{}}}},
+		"now()": {FuncAppAST{FuncName("now"),
+			ExpressionsAST{[]Expression{}}}},
 		"f(a)": {FuncAppAST{FuncName("f"),
 			ExpressionsAST{[]Expression{RowValue{"", "a"}}}}},
 		"f(*)": {FuncAppAST{FuncName("f"),
