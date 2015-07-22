@@ -289,8 +289,8 @@ baseExpr <-
     ('(' sp Expression sp ')') /
     BooleanLiteral /
     NullLiteral /
-    FuncApp /
     RowMeta /
+    FuncApp /
     RowValue /
     Literal
 
@@ -298,7 +298,7 @@ FuncApp <- Function sp '(' sp FuncParams sp ')' {
         p.AssembleFuncApp()
     }
 
-FuncParams <- < Wildcard / (Expression sp (',' sp Expression)*) > {
+FuncParams <- < Wildcard / (Expression sp (',' sp Expression)*)? > {
         p.AssembleExpressions(begin, end)
     }
 

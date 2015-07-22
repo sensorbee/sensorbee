@@ -124,6 +124,9 @@ func TestFoldableExecution(t *testing.T) {
 			false, nil},
 		{parser.AliasAST{parser.NumericLiteral{7}, "hoge"},
 			true, data.Int(7)},
+		{parser.FuncAppAST{parser.FuncName("now"),
+			parser.ExpressionsAST{[]parser.Expression{}}},
+			false, nil},
 		{parser.FuncAppAST{parser.FuncName("plusone"),
 			parser.ExpressionsAST{[]parser.Expression{parser.RowValue{"", "a"}}}},
 			false, nil},
@@ -186,6 +189,19 @@ func TestFuncAppConversion(t *testing.T) {
 				// we cannot even get the flat expression in that case
 				_, err := ParserExprToFlatExpr(ast, reg)
 				So(err, ShouldNotBeNil)
+			})
+		})
+
+		Convey("When the now() function is used", func() {
+			ast := parser.FuncAppAST{parser.FuncName("now"),
+				parser.ExpressionsAST{[]parser.Expression{}}}
+
+			Convey("Then we obtain an evaluatable timestampCast", func() {
+				flatExpr, err := ParserExprToFlatExpr(ast, reg)
+				So(err, ShouldBeNil)
+				eval, err := ExpressionToEvaluator(flatExpr, reg)
+				So(err, ShouldBeNil)
+				So(eval, ShouldHaveSameTypeAs, &timestampCast{})
 			})
 		})
 	})
@@ -1242,6 +1258,21 @@ func getTestCases() []struct {
 				{data.Map{"a": data.Bool(false)}, nil},
 				// function panics
 				{data.Map{"a": data.Null{}}, nil},
+			},
+		},
+		// Using now() should find the timestamp at the
+		// correct position
+		{parser.FuncAppAST{parser.FuncName("now"),
+			parser.ExpressionsAST{[]parser.Expression{}}},
+			[]evalTest{
+				// not a map:
+				{data.Int(17), nil},
+				// key not present:
+				{data.Map{"x": data.Int(17)}, nil},
+				// key present, but wrong type
+				{data.Map{":meta:NOW": data.Int(17)}, nil},
+				// key present and correct type
+				{data.Map{":meta:NOW": data.Timestamp(now)}, data.Timestamp(now)},
 			},
 		},
 	}
