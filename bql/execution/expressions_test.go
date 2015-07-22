@@ -20,6 +20,7 @@ func TestFlatExpressionConverter(t *testing.T) {
 		"NULL":  {NullLiteral{}, Immutable},
 		"a":     {RowValue{"", "a"}, Immutable},
 		"ts()":  {RowMeta{"", parser.TimestampMeta}, Immutable},
+		"now()": {StmtMeta{parser.NowMeta}, Stable},
 		"2":     {NumericLiteral{2}, Immutable},
 		"1.2":   {FloatLiteral{1.2}, Immutable},
 		`'bql'`: {StringLiteral{"bql"}, Immutable},

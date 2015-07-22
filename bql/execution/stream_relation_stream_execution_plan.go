@@ -45,6 +45,9 @@ type streamRelationStreamExecutionPlan struct {
 	// prevResults holds results of a query over the buffer
 	// in the previous execution run.
 	prevResults []data.Map
+	// now holds the a time at the beginning of the execution of
+	// a statement
+	now time.Time
 }
 
 func newStreamRelationStreamExecutionPlan(lp *LogicalPlan, reg udf.FunctionRegistry) (*streamRelationStreamExecutionPlan, error) {
@@ -255,6 +258,8 @@ func (ep *streamRelationStreamExecutionPlan) computeResultTuples() ([]data.Map, 
 // to the results of the query represented by this execution plan. Note that the
 // order of items in the returned slice is undefined and cannot be relied on.
 func (ep *streamRelationStreamExecutionPlan) process(input *core.Tuple, performQueryOnBuffer func() error) ([]data.Map, error) {
+	ep.now = time.Now().In(time.UTC)
+
 	// stream-to-relation:
 	// updates the internal buffer with correct window data
 	if err := ep.addTupleToBuffer(input); err != nil {
@@ -298,6 +303,7 @@ func (ep *streamRelationStreamExecutionPlan) processCartesianProduct(dataHolder 
 	} else {
 		// all tuples have been visited and we should now have the data
 		// of one cartesian product item in dataHolder
+		dataHolder[":meta:NOW"] = data.Timestamp(ep.now)
 		if err := processItem(dataHolder); err != nil {
 			return err
 		}
