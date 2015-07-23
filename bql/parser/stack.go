@@ -831,6 +831,34 @@ func (ps *parseStack) AssembleUnaryPrefixOperation(begin int, end int) {
 	}
 }
 
+// AssembleTypeCast takes the two elements from the stack that
+// correspond to the input[begin:end] string and replaces them by
+// a single TypeCastAST element. If there is just one element, push
+// it back unmodified.
+//
+//  Any
+//   =>
+//  Any
+// or
+//  Any
+//  Type
+//   =>
+//  AssembleTypeCastAST{Any, Type}
+func (ps *parseStack) AssembleTypeCast(begin int, end int) {
+
+	elems := ps.collectElements(begin, end)
+	if len(elems) == 1 {
+		// there is no operation, push back the single element
+		ps.PushComponent(begin, end, elems[0])
+	} else if len(elems) == 2 {
+		target := elems[1].(Type)
+		// connect the expression with the given operator
+		ps.PushComponent(begin, end, TypeCastAST{elems[0].(Expression), target})
+	} else {
+		panic(fmt.Sprintf("cannot turn %+v into a type cast", elems))
+	}
+}
+
 // AssembleFuncApp takes the topmost elements from the stack, assuming
 // they are components of a function application clause, and replaces
 // them by a single FuncAppAST element.

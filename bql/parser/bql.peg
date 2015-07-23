@@ -285,8 +285,12 @@ productExpr <- < minusExpr sp (MultDivOp sp minusExpr sp)* > {
         p.AssembleBinaryOperation(begin, end)
     }
 
-minusExpr <- < (UnaryMinus sp)? baseExpr > {
+minusExpr <- < (UnaryMinus sp)? castExpr > {
         p.AssembleUnaryPrefixOperation(begin, end)
+    }
+
+castExpr <- < baseExpr (sp '::' sp Type sp)? > {
+        p.AssembleTypeCast(begin, end)
     }
 
 baseExpr <-
@@ -294,9 +298,14 @@ baseExpr <-
     BooleanLiteral /
     NullLiteral /
     RowMeta /
+    FuncTypeCast /
     FuncApp /
     RowValue /
     Literal
+
+FuncTypeCast <- < "CAST" sp '(' sp Expression sp "AS" sp Type sp ')' > {
+        p.AssembleTypeCast(begin, end)
+    }
 
 FuncApp <- Function sp '(' sp FuncParams sp ')' {
         p.AssembleFuncApp()
@@ -427,6 +436,40 @@ Paused <- < "PAUSED" > {
 
 Unpaused <- < "UNPAUSED" > {
         p.PushComponent(begin, end, No)
+    }
+
+Type <- Bool / Int / Float / String / Blob / Timestamp / Array / Map
+
+Bool <- < "bool" > {
+        p.PushComponent(begin, end, Bool)
+    }
+
+Int <- < "int" > {
+        p.PushComponent(begin, end, Int)
+    }
+
+Float <- < "float" > {
+        p.PushComponent(begin, end, Float)
+    }
+
+String <- < "string" > {
+        p.PushComponent(begin, end, String)
+    }
+
+Blob <- < "blob" > {
+        p.PushComponent(begin, end, Blob)
+    }
+
+Timestamp <- < "timestamp" > {
+        p.PushComponent(begin, end, Timestamp)
+    }
+
+Array <- < "array" > {
+        p.PushComponent(begin, end, Array)
+    }
+
+Map <- < "map" > {
+        p.PushComponent(begin, end, Map)
     }
 
 Or <- < "OR" > {
