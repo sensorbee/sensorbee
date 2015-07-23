@@ -253,7 +253,8 @@ func (tb *TopologyBuilder) AddStmt(stmt interface{}) (core.Node, error) {
 		if err != nil {
 			return nil, err
 		}
-		box.(core.BoxNode).StopOnDisconnect(core.Inbound | core.Outbound) // TODO: RemoveOnStop, too
+		box.(core.BoxNode).StopOnDisconnect(core.Inbound | core.Outbound)
+		box.(core.BoxNode).RemoveOnStop()
 
 		// now connect the sink to that box
 		if err := sink.Input(tmpName, nil); err != nil {

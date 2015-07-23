@@ -767,3 +767,36 @@ func TestDropStateStmt(t *testing.T) {
 		})
 	})
 }
+
+func TestSelectInsertIntoSelectStmtEnabledRemoveOnStop(t *testing.T) {
+	Convey("Given a BQL TopologyBuilder with a source", t, func() {
+		dt := newTestTopology()
+		Reset(func() {
+			dt.Stop()
+		})
+		tb, err := NewTopologyBuilder(dt)
+		So(err, ShouldBeNil)
+		So(addBQLToTopology(tb, `CREATE PAUSED SOURCE s TYPE dummy WITH num=4, resumable=false;`), ShouldBeNil)
+		So(addBQLToTopology(tb, `CREATE SINK foo TYPE collector`), ShouldBeNil)
+
+		Convey("When issuing a INSERT INTO stmt", func() {
+			bp := parser.NewBQLParser()
+			istmt, _, err := bp.ParseStmt(`INSERT INTO foo SELECT ISTREAM * FROM s [RANGE 1 TUPLES];`)
+			So(err, ShouldBeNil)
+			bn, err := tb.AddStmt(istmt)
+			So(err, ShouldBeNil)
+			So(addBQLToTopology(tb, `RESUME SOURCE s;`), ShouldBeNil)
+
+			Convey("And the Box should be stopped", func() {
+				So(bn.State().Wait(core.TSStopped), ShouldEqual, core.TSStopped)
+			})
+
+			Convey("And the Box should be removed from the topology", func() {
+				bn.State().Wait(core.TSStopped)
+
+				_, err := dt.Box(bn.Name())
+				So(err, ShouldNotBeNil)
+			})
+		})
+	})
+}
