@@ -356,9 +356,9 @@ func (f *stringAggFuncTmpl) Call(ctx *core.Context, args ...data.Value) (data.Va
 		return data.Null{}, nil
 	}
 	var buffer bytes.Buffer
-	for pos, item := range arr {
+	for _, item := range arr {
 		if item.Type() == data.TypeString {
-			if pos > 0 {
+			if buffer.Len() > 0 {
 				buffer.WriteString(delim)
 			}
 			s, _ := data.AsString(item)
