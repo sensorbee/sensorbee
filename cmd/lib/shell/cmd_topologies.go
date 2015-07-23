@@ -66,7 +66,7 @@ func (b *bqlCmd) Init() error {
 
 // Name returns BQL start words.
 func (b *bqlCmd) Name() []string {
-	return []string{"select", "create", "insert", "resume", "update"}
+	return []string{"select", "create", "insert", "resume", "update", "drop"}
 }
 
 func (b *bqlCmd) Input(input string) (cmdInputStatusType, error) {
