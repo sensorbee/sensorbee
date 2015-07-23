@@ -480,6 +480,7 @@ func (tb *TopologyBuilder) createStreamAsSelectStmt(stmt *parser.CreateStreamAsS
 				return nil, err
 			}
 			bn.StopOnDisconnect(core.Inbound | core.Outbound)
+			bn.RemoveOnStop()
 
 		default:
 			return nil, fmt.Errorf("input stream of type %s not implemented",
