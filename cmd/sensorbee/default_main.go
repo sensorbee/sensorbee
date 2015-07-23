@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/codegangsta/cli"
 	"os"
+	_ "pfi/sensorbee/sensorbee/bql/udf/builtin"
 	"pfi/sensorbee/sensorbee/cmd/lib/run"
 	"pfi/sensorbee/sensorbee/cmd/lib/shell"
 	"pfi/sensorbee/sensorbee/cmd/lib/topology"
