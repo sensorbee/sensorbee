@@ -47,6 +47,11 @@ func NewTopologyBuilder(t core.Topology) (*TopologyBuilder, error) {
 	if err != nil {
 		return nil, err
 	}
+	// node_statuses builtin source can only be registered here because it
+	// requires a topology.
+	if err := srcs.Register("node_statuses", createNodeStatusSourceCreator(t)); err != nil {
+		return nil, err
+	}
 
 	sinks, err := CopyGlobalSinkCreatorRegistry()
 	if err != nil {
