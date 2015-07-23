@@ -8,6 +8,7 @@ import (
 	"pfi/sensorbee/sensorbee/core"
 	"pfi/sensorbee/sensorbee/data"
 	"sync"
+	"time"
 )
 
 // TODO: create bql/builtin directory and move components in this file to there
@@ -108,4 +109,68 @@ func createDroppedTupleCollectorSource(ctx *core.Context, ioParams *IOParams, pa
 
 func init() {
 	MustRegisterGlobalSourceCreator("dropped_tuples", SourceCreatorFunc(createDroppedTupleCollectorSource))
+}
+
+type nodeStatusSource struct {
+	topology core.Topology
+	interval time.Duration
+	stopCh   chan struct{}
+}
+
+func (s *nodeStatusSource) GenerateStream(ctx *core.Context, w core.Writer) error {
+	next := time.Now().Add(s.interval)
+	for {
+		now := time.Now()
+		select {
+		case <-s.stopCh:
+			return nil
+		case <-time.After(next.Sub(now)):
+		}
+
+		for name, n := range s.topology.Nodes() {
+			t := &core.Tuple{
+				Timestamp:     now,
+				ProcTimestamp: now,
+				Data:          n.Status(),
+			}
+			t.Data["node_name"] = data.String(name)
+			t.Data["node_type"] = data.String(n.Type().String())
+			w.Write(ctx, t)
+		}
+
+		next = next.Add(s.interval)
+		if next.Before(now) {
+			// delayed too much and should be rescheduled.
+			next = now.Add(s.interval)
+		}
+	}
+}
+
+func (s *nodeStatusSource) Stop(ctx *core.Context) error {
+	close(s.stopCh)
+	return nil
+}
+
+// createNodeStatusSourceCreator creates a SourceCreator which creates
+// nodeStatusSource. Because it requires core.Topology, it cannot be registered
+// statically. It'll be registered in a function like NewTopologyBuilder.
+func createNodeStatusSourceCreator(t core.Topology) SourceCreator {
+	return SourceCreatorFunc(func(ctx *core.Context, ioParams *IOParams, params data.Map) (core.Source, error) {
+		interval := 1 * time.Second
+		if v, ok := params["interval"]; !ok {
+		} else if s, err := data.AsString(v); err != nil {
+			// TODO: support other data types like float.
+			return nil, errors.New("interval parameter must be a string having format like '1s', '100ms', etc.")
+		} else if d, err := time.ParseDuration(s); err != nil {
+			return nil, fmt.Errorf("cannot parse interval parameter: %v", err)
+		} else {
+			interval = d
+		}
+
+		return &nodeStatusSource{
+			topology: t,
+			interval: interval,
+			stopCh:   make(chan struct{}),
+		}, nil
+	})
 }
