@@ -45,6 +45,18 @@ type CreateSourceStmt struct {
 	SourceSinkSpecsAST
 }
 
+func (s CreateSourceStmt) String() string {
+	str := []string{"CREATE", "SOURCE", string(s.Name), "TYPE", string(s.Type)}
+	if s.Paused == Yes {
+		str = append(str[:1], append([]string{"PAUSED"}, str[1:]...)...)
+	}
+	specs := s.SourceSinkSpecsAST.string()
+	if specs != "" {
+		str = append(str, specs)
+	}
+	return strings.Join(str, " ")
+}
+
 type CreateSinkStmt struct {
 	Name StreamIdentifier
 	Type SourceSinkType
@@ -171,9 +183,28 @@ type SourceSinkSpecsAST struct {
 	Params []SourceSinkParamAST
 }
 
+func (a SourceSinkSpecsAST) string() string {
+	if len(a.Params) == 0 {
+		return ""
+	}
+	ps := make([]string, len(a.Params))
+	for i, p := range a.Params {
+		ps[i] = p.string()
+	}
+	return "WITH " + strings.Join(ps, ", ")
+}
+
 type SourceSinkParamAST struct {
 	Key   SourceSinkParamKey
 	Value data.Value
+}
+
+func (a SourceSinkParamAST) string() string {
+	s, _ := data.ToString(a.Value)
+	if a.Value.Type() == data.TypeString {
+		s = "'" + s + "'"
+	}
+	return string(a.Key) + "=" + s
 }
 
 type BinaryOpAST struct {
