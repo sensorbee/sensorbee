@@ -119,6 +119,10 @@ func TestFoldableExecution(t *testing.T) {
 			false, nil},
 		{parser.BinaryOpAST{parser.Modulo, parser.NumericLiteral{7}, parser.NumericLiteral{3}},
 			true, data.Int(1)},
+		{parser.BinaryOpAST{parser.Concat, parser.NumericLiteral{7}, parser.RowValue{"", "b"}},
+			false, nil},
+		{parser.BinaryOpAST{parser.Concat, parser.NumericLiteral{7}, parser.StringLiteral{"b"}},
+			true, data.String("7b")},
 		// Other
 		{parser.AliasAST{parser.RowValue{"", "a"}, "hoge"},
 			false, nil},
@@ -1044,6 +1048,51 @@ func getTestCases() []struct {
 					"b": data.Array{}}, data.Bool(true)},
 				{data.Map{"a": data.Int(1),
 					"b": data.Map{}}, data.Bool(true)},
+			}, nullOps...),
+		},
+		// Concatenation
+		{parser.BinaryOpAST{parser.Concat, parser.RowValue{"", "a"}, parser.RowValue{"", "b"}},
+			append([]evalTest{
+				// not a map:
+				{data.Int(17), nil},
+				// keys not present:
+				{data.Map{"x": data.Int(17)}, nil},
+				// only left present => error
+				{data.Map{"a": data.Bool(true)}, nil},
+				{data.Map{"a": data.Int(17)}, nil},
+				{data.Map{"a": data.Float(3.14)}, nil},
+				{data.Map{"a": data.String("日本語")}, nil},
+				{data.Map{"a": data.Blob("hoge")}, nil},
+				{data.Map{"a": data.Timestamp(now)}, nil},
+				{data.Map{"a": data.Array{data.Int(2)}}, nil},
+				{data.Map{"a": data.Map{"b": data.Int(3)}}, nil},
+				// only right present => error
+				{data.Map{"b": data.Bool(true)}, nil},
+				{data.Map{"b": data.Int(17)}, nil},
+				{data.Map{"b": data.Float(3.14)}, nil},
+				{data.Map{"b": data.String("日本語")}, nil},
+				{data.Map{"b": data.Blob("hoge")}, nil},
+				{data.Map{"b": data.Timestamp(now)}, nil},
+				{data.Map{"b": data.Array{data.Int(2)}}, nil},
+				{data.Map{"b": data.Map{"b": data.Int(3)}}, nil},
+				// left and right present
+				{data.Map{"a": data.Int(1),
+					"b": data.Bool(false)}, data.String("1false")},
+				{data.Map{"a": data.Int(1),
+					"b": data.Int(0)}, data.String("10")},
+				{data.Map{"a": data.Int(1),
+					"b": data.Float(0.0)}, data.String("10")},
+				{data.Map{"a": data.Int(1),
+					"b": data.String("")}, data.String("1")},
+				{data.Map{"a": data.Int(1),
+					"b": data.Blob("")}, data.String("1")},
+				{data.Map{"a": data.Int(1),
+					"b": data.Timestamp{}}, data.String("10001-01-01T00:00:00Z")},
+				// TODO this is not the best possible form...
+				{data.Map{"a": data.Int(1),
+					"b": data.Array{}}, data.String("1data.Array{}")},
+				{data.Map{"a": data.Int(1),
+					"b": data.Map{}}, data.String("1data.Map{}")},
 			}, nullOps...),
 		},
 		// IsNull
