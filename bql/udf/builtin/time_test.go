@@ -75,7 +75,7 @@ func TestBinaryDateFuncs(t *testing.T) {
 
 			Convey("Then it should equal the one in the default registry", func() {
 				regFun, err := udf.CopyGlobalUDFRegistry(nil).Lookup(testCase.name, 2)
-				if dispatcher, ok := regFun.(*unaryBinaryDispatcher); ok {
+				if dispatcher, ok := regFun.(*arityDispatcher); ok {
 					regFun = dispatcher.binary
 				}
 				So(err, ShouldBeNil)

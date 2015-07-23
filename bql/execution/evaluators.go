@@ -113,6 +113,8 @@ func ExpressionToEvaluator(ast FlatExpression, reg udf.FunctionRegistry) (Evalua
 			return GreaterOrEqual(bo), nil
 		case parser.NotEqual:
 			return Not(Equal(bo)), nil
+		case parser.Concat:
+			return &Concat{bo}, nil
 		case parser.Is:
 			// at the moment there is only NULL allowed after IS,
 			// but maybe we want to allow other types later on
@@ -670,6 +672,40 @@ func Modulo(bo binOp) Evaluator {
 		return math.Mod(a, b)
 	}
 	return &numBinOp{bo, "compute modulo for", intOp, floatOp}
+}
+
+/// Other Binary Operations
+
+type Concat struct {
+	binOp
+}
+
+func (nbo *Concat) Eval(input data.Value) (v data.Value, err error) {
+	defer func() {
+		// catch panic from (say) integer division by 0
+		if r := recover(); r != nil {
+			v = nil
+			err = fmt.Errorf("%s", r)
+		}
+	}()
+	// evalate both sides
+	leftVal, rightVal, err := nbo.evalLeftAndRight(input)
+	if err != nil {
+		return nil, err
+	}
+	// NULL propagation
+	if leftVal.Type() == data.TypeNull || rightVal.Type() == data.TypeNull {
+		return data.Null{}, nil
+	}
+	leftString, err := data.ToString(leftVal)
+	if err != nil {
+		return nil, err
+	}
+	rightString, err := data.ToString(rightVal)
+	if err != nil {
+		return nil, err
+	}
+	return data.String(leftString + rightString), nil
 }
 
 /// Function Evaluation
