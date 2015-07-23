@@ -120,6 +120,7 @@ func (ds *defaultSinkNode) Status() data.Map {
 	st := ds.state.getWithoutLock()
 	gstop := ds.gracefulStopEnabled
 	stopOnDisconnect := ds.stopOnDisconnectEnabled
+	removeOnStop := ds.config.RemoveOnStop
 	ds.stateMutex.Unlock()
 
 	m := data.Map{
@@ -128,6 +129,7 @@ func (ds *defaultSinkNode) Status() data.Map {
 		"behaviors": data.Map{
 			"stop_on_disconnect": data.Bool(stopOnDisconnect),
 			"graceful_stop":      data.Bool(gstop),
+			"remove_on_stop":     data.Bool(removeOnStop),
 		},
 	}
 	if st == TSStopped && ds.runErr != nil {

@@ -86,6 +86,17 @@ func TestNodeStatus(t *testing.T) {
 				Convey("And stop_on_disconnect should be true", func() {
 					So(bs["stop_on_disconnect"], ShouldEqual, data.True)
 				})
+
+				Convey("And remove_on_stop should be false", func() {
+					So(bs["remove_on_stop"], ShouldEqual, data.False)
+				})
+
+				Convey("And remove_on_stop should be true after enabling it", func() {
+					son.RemoveOnStop()
+					st := son.Status()
+					v, _ := st.Get("behaviors.remove_on_stop")
+					So(v, ShouldEqual, data.True)
+				})
 			})
 		})
 
@@ -215,6 +226,17 @@ func TestNodeStatus(t *testing.T) {
 					v, _ := st.Get("behaviors.graceful_stop")
 					So(v, ShouldEqual, data.True)
 				})
+
+				Convey("And remove_on_stop should be false", func() {
+					So(bs["remove_on_stop"], ShouldEqual, data.False)
+				})
+
+				Convey("And remove_on_stop should be true after enabling it", func() {
+					bn.RemoveOnStop()
+					st := bn.Status()
+					v, _ := st.Get("behaviors.remove_on_stop")
+					So(v, ShouldEqual, data.True)
+				})
 			})
 
 			// TODO: check st["box"]
@@ -328,6 +350,17 @@ func TestNodeStatus(t *testing.T) {
 					sin.EnableGracefulStop()
 					st := sin.Status()
 					v, _ := st.Get("behaviors.graceful_stop")
+					So(v, ShouldEqual, data.True)
+				})
+
+				Convey("And remove_on_stop should be false", func() {
+					So(bs["remove_on_stop"], ShouldEqual, data.False)
+				})
+
+				Convey("And remove_on_stop should be true after enabling it", func() {
+					sin.RemoveOnStop()
+					st := sin.Status()
+					v, _ := st.Get("behaviors.remove_on_stop")
 					So(v, ShouldEqual, data.True)
 				})
 			})

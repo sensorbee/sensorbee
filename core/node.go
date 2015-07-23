@@ -99,6 +99,8 @@ type Node interface {
 	//	* behaviors:
 	//		* stop_on_disconnect: true if the Source stops when all outbound
 	//		                      connections are closed
+	//		* remove_on_stop: true if the Source is removed from the topology
+	//		                  when it stops
 	//	* source: the status of the Source if it implements Statuser
 	//
 	// When the node is a Box, following information will be returned:
@@ -113,6 +115,8 @@ type Node interface {
 	//		* stop_on_outbound_disconnect: true if the Box stops when all
 	//		                               outbound connections are closed
 	//		* graceful_stop: true if the graceful_stop mode is enabled
+	//		* remove_on_stop: true if the Box is removed from the topology
+	//		                  when it stops
 	//	* box: the status of the Box if it implements Statuser
 	//
 	// When the node is a Sink, following information will be returned:
@@ -124,6 +128,8 @@ type Node interface {
 	//		* stop_on_disconnect: true if the Sink stops when all inbound
 	//		                      connections are closed
 	//		* graceful_stop: true if the graceful_stop mode is enabled
+	//		* remove_on_stop: true if the Sink is removed from the topology
+	//		                  when it stops
 	//	* sink: the status of the Sink if it implements Statuser
 	//
 	// "input_stats" contains statistical information of the node's input. It

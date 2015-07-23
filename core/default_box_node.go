@@ -134,6 +134,7 @@ func (db *defaultBoxNode) Status() data.Map {
 	st := db.state.getWithoutLock()
 	gstop := db.gracefulStopEnabled
 	connDir := db.stopOnDisconnectDir
+	removeOnStop := db.config.RemoveOnStop
 	db.stateMutex.Unlock()
 
 	m := data.Map{
@@ -144,6 +145,7 @@ func (db *defaultBoxNode) Status() data.Map {
 			"stop_on_inbound_disconnect":  data.Bool((connDir & Inbound) != 0),
 			"stop_on_outbound_disconnect": data.Bool((connDir & Outbound) != 0),
 			"graceful_stop":               data.Bool(gstop),
+			"remove_on_stop":              data.Bool(removeOnStop),
 		},
 	}
 	if st == TSStopped && db.runErr != nil {
