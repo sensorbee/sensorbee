@@ -275,6 +275,8 @@ func TestBinaryAggregateFuncs(t *testing.T) {
 				data.String("foo, bar")},
 			{data.Array{data.String("foo"), data.Null{}, data.String("bar")}, data.String(", "),
 				data.String("foo, bar")},
+			{data.Array{data.Null{}, data.String("foo"), data.String("bar")}, data.String(", "),
+				data.String("foo, bar")},
 			/// fail cases
 			// delimiter is null
 			{data.Array{data.String("foo"), data.String("bar")}, data.Null{}, nil},
