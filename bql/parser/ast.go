@@ -599,6 +599,7 @@ const (
 	Greater
 	GreaterOrEqual
 	NotEqual
+	Concat
 	Is
 	IsNot
 	Plus
@@ -630,6 +631,8 @@ func (o Operator) String() string {
 		s = ">="
 	case NotEqual:
 		s = "!="
+	case Concat:
+		s = "||"
 	case Is:
 		s = "IS"
 	case IsNot:

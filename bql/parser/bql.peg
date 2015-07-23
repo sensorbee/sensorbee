@@ -265,7 +265,11 @@ notExpr <- < (Not sp)? comparisonExpr > {
         p.AssembleUnaryPrefixOperation(begin, end)
     }
 
-comparisonExpr <- < isExpr sp (ComparisonOp sp isExpr)? > {
+comparisonExpr <- < otherOpExpr sp (ComparisonOp sp otherOpExpr)? > {
+        p.AssembleBinaryOperation(begin, end)
+    }
+
+otherOpExpr <- < isExpr sp (OtherOp sp isExpr sp)* > {
         p.AssembleBinaryOperation(begin, end)
     }
 
@@ -307,6 +311,8 @@ Literal <-
 
 ComparisonOp <- Equal / NotEqual / LessOrEqual / Less /
         GreaterOrEqual / Greater / NotEqual
+
+OtherOp <- Concat
 
 IsOp <- IsNot / Is
 
@@ -457,6 +463,10 @@ GreaterOrEqual <- < ">=" > {
 
 NotEqual <- < "!=" / "<>" > {
         p.PushComponent(begin, end, NotEqual)
+    }
+
+Concat <- < "||" > {
+        p.PushComponent(begin, end, Concat)
     }
 
 Is <- < "IS" > {
