@@ -78,6 +78,15 @@ type CreateStateStmt struct {
 	SourceSinkSpecsAST
 }
 
+func (s CreateStateStmt) String() string {
+	str := []string{"CREATE", "STATE", string(s.Name), "TYPE", string(s.Type)}
+	specs := s.SourceSinkSpecsAST.string()
+	if specs != "" {
+		str = append(str, specs)
+	}
+	return strings.Join(str, " ")
+}
+
 type UpdateStateStmt struct {
 	Name StreamIdentifier
 	SourceSinkSpecsAST

@@ -87,6 +87,10 @@ func TestAssembleCreateState(t *testing.T) {
 				So(comp.Params[0].Value, ShouldEqual, data.Int(27))
 				So(comp.Params[1].Key, ShouldEqual, "e_")
 				So(comp.Params[1].Value, ShouldEqual, data.String("f_1"))
+
+				Convey("And String() should return the original statement", func() {
+					So(comp.String(), ShouldEqual, p.Buffer)
+				})
 			})
 		})
 	})
