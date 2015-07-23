@@ -405,36 +405,25 @@ var btrimFunc udf.UDF = &twoParamStringFunc{
 	},
 }
 
-type variadicFunc struct{}
+type variadicFunc struct {
+	minParams int
+	varFun    func(args ...data.Value) (data.Value, error)
+}
 
 func (f *variadicFunc) Accept(arity int) bool {
-	return arity >= 1
+	return arity >= f.minParams
 }
 
 func (f *variadicFunc) IsAggregationParameter(k int) bool {
 	return false
 }
 
-type concatFuncTmpl struct {
-	variadicFunc
-}
-
-func (f *concatFuncTmpl) Call(ctx *core.Context, args ...data.Value) (val data.Value, err error) {
-	var buffer bytes.Buffer
-
-	for _, item := range args {
-		if item.Type() == data.TypeString {
-			s, _ := data.AsString(item)
-			buffer.WriteString(s)
-		} else if item.Type() == data.TypeNull {
-			continue
-		} else {
-			return nil, fmt.Errorf("cannot interpret %s (%T) as a string",
-				item, item)
-		}
+func (f *variadicFunc) Call(ctx *core.Context, args ...data.Value) (val data.Value, err error) {
+	if len(args) < f.minParams {
+		return nil, fmt.Errorf("function takes at least %d parameters", f.minParams)
 	}
+	return f.varFun(args...)
 
-	return data.String(buffer.String()), nil
 }
 
 // concatFunc concatenates all strings given as input arguments.
@@ -445,49 +434,25 @@ func (f *concatFuncTmpl) Call(ctx *core.Context, args ...data.Value) (val data.V
 //
 //  Input: n * String
 //  Return Type: String
-var concatFunc udf.UDF = &concatFuncTmpl{}
+var concatFunc udf.UDF = &variadicFunc{
+	minParams: 1,
+	varFun: func(args ...data.Value) (data.Value, error) {
+		var buffer bytes.Buffer
 
-type concatWsFuncTmpl struct {
-	variadicFunc
-}
-
-func (f *concatWsFuncTmpl) Accept(arity int) bool {
-	return arity >= 2
-}
-
-func (f *concatWsFuncTmpl) Call(ctx *core.Context, args ...data.Value) (val data.Value, err error) {
-	if len(args) < 2 {
-		return nil, fmt.Errorf("function needs at least two parameters")
-	}
-
-	delim := ""
-	if args[0].Type() == data.TypeNull {
-		return data.Null{}, nil
-	} else if args[0].Type() == data.TypeString {
-		delim, _ = data.AsString(args[0])
-	} else {
-		return nil, fmt.Errorf("cannot interpret %s (%T) as a string",
-			args[0], args[0])
-	}
-
-	var buffer bytes.Buffer
-
-	for _, item := range args[1:] {
-		if item.Type() == data.TypeString {
-			s, _ := data.AsString(item)
-			if buffer.Len() > 0 {
-				buffer.WriteString(delim)
+		for _, item := range args {
+			if item.Type() == data.TypeString {
+				s, _ := data.AsString(item)
+				buffer.WriteString(s)
+			} else if item.Type() == data.TypeNull {
+				continue
+			} else {
+				return nil, fmt.Errorf("cannot interpret %s (%T) as a string",
+					item, item)
 			}
-			buffer.WriteString(s)
-		} else if item.Type() == data.TypeNull {
-			continue
-		} else {
-			return nil, fmt.Errorf("cannot interpret %s (%T) as a string",
-				item, item)
 		}
-	}
 
-	return data.String(buffer.String()), nil
+		return data.String(buffer.String()), nil
+	},
 }
 
 // concatWsFunc concatenates all but the first strings given as input
@@ -498,50 +463,38 @@ func (f *concatWsFuncTmpl) Call(ctx *core.Context, args ...data.Value) (val data
 //
 //  Input: (1 + n) * String
 //  Return Type: String
-var concatWsFunc udf.UDF = &concatWsFuncTmpl{}
-
-type formatFuncTmpl struct {
-	variadicFunc
-}
-
-func (f *formatFuncTmpl) Accept(arity int) bool {
-	return arity >= 2
-}
-
-func (f *formatFuncTmpl) Call(ctx *core.Context, args ...data.Value) (val data.Value, err error) {
-	if len(args) < 2 {
-		return nil, fmt.Errorf("function needs at least two parameters")
-	}
-
-	fmtStr := ""
-	if args[0].Type() == data.TypeNull {
-		return data.Null{}, nil
-	} else if args[0].Type() == data.TypeString {
-		fmtStr, _ = data.AsString(args[0])
-	} else {
-		return nil, fmt.Errorf("cannot interpret %s (%T) as a string",
-			args[0], args[0])
-	}
-
-	fmtArgs := make([]interface{}, len(args)-1)
-	for pos, item := range args[1:] {
-		if item.Type() == data.TypeString {
-			// to get rid of the additional quotes added by String(),
-			// we have to use a native string, not data.String
-			s, _ := data.AsString(item)
-			fmtArgs[pos] = s
-		} else if item.Type() == data.TypeFloat {
-			// the user should decide on float formatting himself,
-			// not on our String() function (in particular because
-			// that one turns Inf/NaN to "null")
-			f, _ := data.AsFloat(item)
-			fmtArgs[pos] = f
+var concatWsFunc udf.UDF = &variadicFunc{
+	minParams: 2,
+	varFun: func(args ...data.Value) (data.Value, error) {
+		delim := ""
+		if args[0].Type() == data.TypeNull {
+			return data.Null{}, nil
+		} else if args[0].Type() == data.TypeString {
+			delim, _ = data.AsString(args[0])
 		} else {
-			fmtArgs[pos] = item
+			return nil, fmt.Errorf("cannot interpret %s (%T) as a string",
+				args[0], args[0])
 		}
-	}
 
-	return data.String(fmt.Sprintf(fmtStr, fmtArgs...)), nil
+		var buffer bytes.Buffer
+
+		for _, item := range args[1:] {
+			if item.Type() == data.TypeString {
+				s, _ := data.AsString(item)
+				if buffer.Len() > 0 {
+					buffer.WriteString(delim)
+				}
+				buffer.WriteString(s)
+			} else if item.Type() == data.TypeNull {
+				continue
+			} else {
+				return nil, fmt.Errorf("cannot interpret %s (%T) as a string",
+					item, item)
+			}
+		}
+
+		return data.String(buffer.String()), nil
+	},
 }
 
 // formatFunc formats all but the first argument according
@@ -552,7 +505,40 @@ func (f *formatFuncTmpl) Call(ctx *core.Context, args ...data.Value) (val data.V
 //
 //  Input: String, Any
 //  Return Type: String
-var formatFunc udf.UDF = &formatFuncTmpl{}
+var formatFunc udf.UDF = &variadicFunc{
+	minParams: 2,
+	varFun: func(args ...data.Value) (data.Value, error) {
+		fmtStr := ""
+		if args[0].Type() == data.TypeNull {
+			return data.Null{}, nil
+		} else if args[0].Type() == data.TypeString {
+			fmtStr, _ = data.AsString(args[0])
+		} else {
+			return nil, fmt.Errorf("cannot interpret %s (%T) as a string",
+				args[0], args[0])
+		}
+
+		fmtArgs := make([]interface{}, len(args)-1)
+		for pos, item := range args[1:] {
+			if item.Type() == data.TypeString {
+				// to get rid of the additional quotes added by String(),
+				// we have to use a native string, not data.String
+				s, _ := data.AsString(item)
+				fmtArgs[pos] = s
+			} else if item.Type() == data.TypeFloat {
+				// the user should decide on float formatting himself,
+				// not on our String() function (in particular because
+				// that one turns Inf/NaN to "null")
+				f, _ := data.AsFloat(item)
+				fmtArgs[pos] = f
+			} else {
+				fmtArgs[pos] = item
+			}
+		}
+
+		return data.String(fmt.Sprintf(fmtStr, fmtArgs...)), nil
+	},
+}
 
 // md5Func computes the MD5 checksum of a string in hexadecimal
 // format.
