@@ -213,7 +213,7 @@ func TestUnaryAggregateFuncs(t *testing.T) {
 
 			Convey("Then it should equal the one in the default registry", func() {
 				regFun, err := udf.CopyGlobalUDFRegistry(nil).Lookup(testCase.name, 1)
-				if dispatcher, ok := regFun.(*unaryBinaryDispatcher); ok {
+				if dispatcher, ok := regFun.(*arityDispatcher); ok {
 					regFun = dispatcher.unary
 				}
 				So(err, ShouldBeNil)
@@ -275,6 +275,8 @@ func TestBinaryAggregateFuncs(t *testing.T) {
 				data.String("foo, bar")},
 			{data.Array{data.String("foo"), data.Null{}, data.String("bar")}, data.String(", "),
 				data.String("foo, bar")},
+			{data.Array{data.Null{}, data.String("foo"), data.String("bar")}, data.String(", "),
+				data.String("foo, bar")},
 			/// fail cases
 			// delimiter is null
 			{data.Array{data.String("foo"), data.String("bar")}, data.Null{}, nil},
@@ -322,7 +324,7 @@ func TestBinaryAggregateFuncs(t *testing.T) {
 
 			Convey("Then it should equal the one in the default registry", func() {
 				regFun, err := udf.CopyGlobalUDFRegistry(nil).Lookup(testCase.name, 2)
-				if dispatcher, ok := regFun.(*unaryBinaryDispatcher); ok {
+				if dispatcher, ok := regFun.(*arityDispatcher); ok {
 					regFun = dispatcher.binary
 				}
 				So(err, ShouldBeNil)

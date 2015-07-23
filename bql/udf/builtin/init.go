@@ -14,7 +14,8 @@ func init() {
 	udf.RegisterGlobalUDF("exp", expFunc)
 	udf.RegisterGlobalUDF("floor", floorFunc)
 	udf.RegisterGlobalUDF("ln", lnFunc)
-	udf.RegisterGlobalUDF("log", &unaryBinaryDispatcher{logFunc, logBaseFunc})
+	udf.RegisterGlobalUDF("log", &arityDispatcher{
+		unary: logFunc, binary: logBaseFunc})
 	udf.RegisterGlobalUDF("mod", modFunc)
 	udf.RegisterGlobalUDF("pi", piFunc)
 	udf.RegisterGlobalUDF("power", powFunc)
@@ -35,6 +36,29 @@ func init() {
 	udf.RegisterGlobalUDF("cot", cotFunc)
 	udf.RegisterGlobalUDF("sin", sinFunc)
 	udf.RegisterGlobalUDF("tan", tanFunc)
+	// string functions
+	udf.RegisterGlobalUDF("bit_length", bitLengthFunc)
+	udf.RegisterGlobalUDF("btrim", &arityDispatcher{
+		unary: btrimSpaceFunc, binary: btrimFunc})
+	udf.RegisterGlobalUDF("char_length", charLengthFunc)
+	udf.RegisterGlobalUDF("concat", concatFunc)
+	udf.RegisterGlobalUDF("concat_ws", concatWsFunc)
+	udf.RegisterGlobalUDF("format", formatFunc)
+	udf.RegisterGlobalUDF("lower", lowerFunc)
+	udf.RegisterGlobalUDF("ltrim", &arityDispatcher{
+		unary: ltrimSpaceFunc, binary: ltrimFunc})
+	udf.RegisterGlobalUDF("md5", md5Func)
+	udf.RegisterGlobalUDF("octet_length", octetLengthFunc)
+	udf.RegisterGlobalUDF("overlay", &arityDispatcher{
+		ternary: overlayFunc, quaternary: overlayFunc})
+	udf.RegisterGlobalUDF("rtrim", &arityDispatcher{
+		unary: rtrimSpaceFunc, binary: rtrimFunc})
+	udf.RegisterGlobalUDF("sha1", sha1Func)
+	udf.RegisterGlobalUDF("sha256", sha256Func)
+	udf.RegisterGlobalUDF("strpos", strposFunc)
+	udf.RegisterGlobalUDF("substring", &arityDispatcher{
+		binary: substringFunc, ternary: substringFunc})
+	udf.RegisterGlobalUDF("upper", upperFunc)
 	// time functions
 	udf.RegisterGlobalUDF("distance_us", diffUsFunc)
 	// aggregate functions
@@ -48,4 +72,6 @@ func init() {
 	udf.RegisterGlobalUDF("min", minFunc)
 	udf.RegisterGlobalUDF("string_agg", stringAggFunc)
 	udf.RegisterGlobalUDF("sum", sumFunc)
+	// other functions
+	udf.RegisterGlobalUDF("coalesce", coalesceFunc)
 }

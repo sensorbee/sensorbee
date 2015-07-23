@@ -66,6 +66,8 @@ func TestExpressionParser(t *testing.T) {
 		"a >= 2": {BinaryOpAST{GreaterOrEqual, RowValue{"", "a"}, NumericLiteral{2}}},
 		"a != 2": {BinaryOpAST{NotEqual, RowValue{"", "a"}, NumericLiteral{2}}},
 		"a <> 2": {BinaryOpAST{NotEqual, RowValue{"", "a"}, NumericLiteral{2}}},
+		// Other operators
+		"a || 2": {BinaryOpAST{Concat, RowValue{"", "a"}, NumericLiteral{2}}},
 		// IS Expressions
 		"a IS NULL":     {BinaryOpAST{Is, RowValue{"", "a"}, NullLiteral{}}},
 		"a IS NOT NULL": {BinaryOpAST{IsNot, RowValue{"", "a"}, NullLiteral{}}},
@@ -105,7 +107,15 @@ func TestExpressionParser(t *testing.T) {
 		"2 + a IS NOT NULL": {BinaryOpAST{IsNot,
 			BinaryOpAST{Plus, NumericLiteral{2}, RowValue{"", "a"}},
 			NullLiteral{}}},
+		"2 || a IS NULL": {BinaryOpAST{Concat,
+			NumericLiteral{2},
+			BinaryOpAST{Is, RowValue{"", "a"}, NullLiteral{}}}},
+		"2 || a = 4": {BinaryOpAST{Equal,
+			BinaryOpAST{Concat, NumericLiteral{2}, RowValue{"", "a"}},
+			NumericLiteral{4}}},
 		/// Left-Associativity
+		"a || '2' || b": {BinaryOpAST{Concat,
+			BinaryOpAST{Concat, RowValue{"", "a"}, StringLiteral{"2"}}, RowValue{"", "b"}}},
 		"a - 2 - b": {BinaryOpAST{Minus,
 			BinaryOpAST{Minus, RowValue{"", "a"}, NumericLiteral{2}}, RowValue{"", "b"}}},
 		"a - 2 - b + 4": {BinaryOpAST{Plus,
