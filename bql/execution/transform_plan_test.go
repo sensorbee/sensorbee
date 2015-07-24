@@ -328,13 +328,19 @@ func TestRelationChecker(t *testing.T) {
 			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{t_a}},
 			WindowedFromAST: singleFrom,
 			HavingAST:       parser.HavingAST{b},
+		}, "cannot refer to relations"},
+		// SELECT t:a FROM t HAVING t:b   -> OK
+		{&parser.SelectStmt{
+			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{t_a}},
+			WindowedFromAST: singleFrom,
+			HavingAST:       parser.HavingAST{t_b},
 		}, ""},
 		// SELECT a   FROM t HAVING t:b -> NG
 		{&parser.SelectStmt{
 			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{a}},
 			WindowedFromAST: singleFrom,
 			HavingAST:       parser.HavingAST{t_b},
-		}, "cannot refer to input relation 't' from HAVING clause"},
+		}, "cannot refer to relations"},
 	}
 
 	emitterTestCases := []analyzeTest{
