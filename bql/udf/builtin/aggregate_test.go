@@ -28,6 +28,8 @@ func TestUnaryAggregateFuncs(t *testing.T) {
 		{"count", countFunc, []udfUnaryTestCaseInput{
 			// empty array: 0
 			{data.Array{}, data.Int(0)},
+			// array with only Null
+			{data.Array{data.Null{}}, data.Int(0)},
 			// normal inputs
 			{data.Array{data.Int(7)}, data.Int(1)},
 			{data.Array{data.Int(7), data.Int(3)}, data.Int(2)},
@@ -37,6 +39,8 @@ func TestUnaryAggregateFuncs(t *testing.T) {
 		{"array_agg", arrayAggFunc, []udfUnaryTestCaseInput{
 			// empty array: Null
 			{data.Array{}, data.Null{}},
+			// array with only Null
+			{data.Array{data.Null{}}, data.Array{data.Null{}}},
 			// normal inputs
 			{data.Array{data.Int(7), data.Int(3)},
 				data.Array{data.Int(7), data.Int(3)}},
@@ -46,6 +50,8 @@ func TestUnaryAggregateFuncs(t *testing.T) {
 		{"avg", avgFunc, []udfUnaryTestCaseInput{
 			// empty array: Null
 			{data.Array{}, data.Null{}},
+			// array with only Null
+			{data.Array{data.Null{}}, data.Null{}},
 			// normal inputs
 			{data.Array{data.Int(7), data.Int(3)}, data.Float(5.0)},
 			{data.Array{data.Int(7), data.Null{}, data.Float(3.0)}, data.Float(5.0)},
@@ -55,6 +61,8 @@ func TestUnaryAggregateFuncs(t *testing.T) {
 		{"bool_and", boolAndFunc, []udfUnaryTestCaseInput{
 			// empty array: Null
 			{data.Array{}, data.Null{}},
+			// array with only Null
+			{data.Array{data.Null{}}, data.Null{}},
 			// normal inputs
 			{data.Array{data.Bool(true), data.Bool(true)}, data.Bool(true)},
 			{data.Array{data.Bool(false), data.Bool(true)}, data.Bool(false)},
@@ -71,6 +79,8 @@ func TestUnaryAggregateFuncs(t *testing.T) {
 		{"bool_or", boolOrFunc, []udfUnaryTestCaseInput{
 			// empty array: Null
 			{data.Array{}, data.Null{}},
+			// array with only Null
+			{data.Array{data.Null{}}, data.Null{}},
 			// normal inputs
 			{data.Array{data.Bool(true), data.Bool(true)}, data.Bool(true)},
 			{data.Array{data.Bool(false), data.Bool(true)}, data.Bool(true)},
@@ -88,6 +98,8 @@ func TestUnaryAggregateFuncs(t *testing.T) {
 		{"max", maxFunc, []udfUnaryTestCaseInput{
 			// empty array: Null
 			{data.Array{}, data.Null{}},
+			// array with only Null
+			{data.Array{data.Null{}}, data.Null{}},
 			/// normal inputs
 			// single values
 			{data.Array{data.Float(2.3)}, data.Float(2.3)},
@@ -114,6 +126,8 @@ func TestUnaryAggregateFuncs(t *testing.T) {
 		{"min", minFunc, []udfUnaryTestCaseInput{
 			// empty array: Null
 			{data.Array{}, data.Null{}},
+			// array with only Null
+			{data.Array{data.Null{}}, data.Null{}},
 			/// normal inputs
 			// single values
 			{data.Array{data.Float(2.3)}, data.Float(2.3)},
@@ -140,6 +154,8 @@ func TestUnaryAggregateFuncs(t *testing.T) {
 		{"sum", sumFunc, []udfUnaryTestCaseInput{
 			// empty array: Null
 			{data.Array{}, data.Null{}},
+			// array with only Null
+			{data.Array{data.Null{}}, data.Null{}},
 			/// normal inputs
 			// single values
 			{data.Array{data.Float(2.3)}, data.Float(2.3)},
