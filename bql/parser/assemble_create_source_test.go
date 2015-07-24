@@ -69,7 +69,7 @@ func TestAssembleCreateSource(t *testing.T) {
 		p := &bqlPeg{}
 
 		Convey("When doing a full CREATE SOURCE", func() {
-			p.Buffer = "CREATE PAUSED SOURCE a_1 TYPE b_b WITH c=27, e_='f_1'"
+			p.Buffer = "CREATE PAUSED SOURCE a_1 TYPE b_b WITH c=27, e_='f_''1'"
 			p.Init()
 
 			Convey("Then the statement should be parsed correctly", func() {
@@ -90,7 +90,7 @@ func TestAssembleCreateSource(t *testing.T) {
 				So(comp.Params[0].Key, ShouldEqual, "c")
 				So(comp.Params[0].Value, ShouldEqual, data.Int(27))
 				So(comp.Params[1].Key, ShouldEqual, "e_")
-				So(comp.Params[1].Value, ShouldEqual, data.String("f_1"))
+				So(comp.Params[1].Value, ShouldEqual, data.String("f_'1"))
 
 				Convey("And String() should return the original statement", func() {
 					So(comp.String(), ShouldEqual, p.Buffer)

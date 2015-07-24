@@ -221,7 +221,7 @@ type SourceSinkParamAST struct {
 func (a SourceSinkParamAST) string() string {
 	s, _ := data.ToString(a.Value)
 	if a.Value.Type() == data.TypeString {
-		s = "'" + s + "'"
+		s = "'" + strings.Replace(s, "'", "''", -1) + "'"
 	}
 	return string(a.Key) + "=" + s
 }
