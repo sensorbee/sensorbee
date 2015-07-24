@@ -36,6 +36,10 @@ func TestExpressionParser(t *testing.T) {
 		"CAST(2.1 AS ARRAY)":   {TypeCastAST{FloatLiteral{2.1}, Array}},
 		"CAST('a' AS MAP)":     {TypeCastAST{StringLiteral{"a"}, Map}},
 		"2.1::INT":             {TypeCastAST{FloatLiteral{2.1}, Int}},
+		"int::STRING":          {TypeCastAST{RowValue{"", "int"}, String}},
+		"x:int::STRING":        {TypeCastAST{RowValue{"x", "int"}, String}},
+		"ts()::STRING":         {TypeCastAST{RowMeta{"", TimestampMeta}, String}},
+		"tab:ts()::STRING":     {TypeCastAST{RowMeta{"tab", TimestampMeta}, String}},
 		// RowValue
 		"a":         {RowValue{"", "a"}},
 		"-a":        {UnaryOpAST{UnaryMinus, RowValue{"", "a"}}},
