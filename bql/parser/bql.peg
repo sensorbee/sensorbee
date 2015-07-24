@@ -289,7 +289,7 @@ minusExpr <- < (UnaryMinus sp)? castExpr > {
         p.AssembleUnaryPrefixOperation(begin, end)
     }
 
-castExpr <- < baseExpr (sp '::' sp Type sp)? > {
+castExpr <- < baseExpr (sp '::' sp Type)? > {
         p.AssembleTypeCast(begin, end)
     }
 
@@ -352,7 +352,11 @@ RowTimestamp <- < (ident ':')? 'ts()' > {
         p.PushComponent(begin, end, NewRowMeta(substr, TimestampMeta))
     }
 
-RowValue <- < (ident ':')? jsonPath > {
+# NB. We need the negative lookahead (!':') to avoid problems
+# with a::int, which would otherwise lead to a parse error because
+# `a` would be read as the stream identifier, and `:int` is not a
+# valid JSON path.
+RowValue <- < (ident ':' !':')? jsonPath > {
         substr := string([]rune(buffer)[begin:end])
         p.PushComponent(begin, end, NewRowValue(substr))
     }
