@@ -544,9 +544,15 @@ func TestGenericIntAndFloatFunc(t *testing.T) {
 		MustConvertGeneric(func(i uint64) uint64 {
 			return i * 2
 		}),
+		MustConvertGeneric(func(i float32) float32 {
+			return i * 2
+		}),
+		MustConvertGeneric(func(i float64) float64 {
+			return i * 2
+		}),
 	}
 
-	funcTypes := []string{"int8", "int16", "int32", "int64", "uint8", "uint16", "uint32", "uint64"}
+	funcTypes := []string{"int8", "int16", "int32", "int64", "uint8", "uint16", "uint32", "uint64", "float32", "float64"}
 	Convey("Given a function receiving integer", t, func() {
 		for i, f := range udfs {
 			f := f
