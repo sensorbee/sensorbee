@@ -26,6 +26,20 @@ func TestExpressionParser(t *testing.T) {
 			ExpressionsAST{[]Expression{Wildcard{}}}}},
 		"f(2.1, 'a')": {FuncAppAST{FuncName("f"),
 			ExpressionsAST{[]Expression{FloatLiteral{2.1}, StringLiteral{"a"}}}}},
+		// Type Cast
+		"CAST(2.1 AS BOOL)":    {TypeCastAST{FloatLiteral{2.1}, Bool}},
+		"CAST(2.1 AS INT)":     {TypeCastAST{FloatLiteral{2.1}, Int}},
+		"CAST(a*2 AS FLOAT)":   {TypeCastAST{BinaryOpAST{Multiply, RowValue{"", "a"}, NumericLiteral{2}}, Float}},
+		"CAST(2.1 AS STRING)":  {TypeCastAST{FloatLiteral{2.1}, String}},
+		"CAST('hoge' AS BLOB)": {TypeCastAST{StringLiteral{"hoge"}, Blob}},
+		"CAST(0 AS TIMESTAMP)": {TypeCastAST{NumericLiteral{0}, Timestamp}},
+		"CAST(2.1 AS ARRAY)":   {TypeCastAST{FloatLiteral{2.1}, Array}},
+		"CAST('a' AS MAP)":     {TypeCastAST{StringLiteral{"a"}, Map}},
+		"2.1::INT":             {TypeCastAST{FloatLiteral{2.1}, Int}},
+		"int::STRING":          {TypeCastAST{RowValue{"", "int"}, String}},
+		"x:int::STRING":        {TypeCastAST{RowValue{"x", "int"}, String}},
+		"ts()::STRING":         {TypeCastAST{RowMeta{"", TimestampMeta}, String}},
+		"tab:ts()::STRING":     {TypeCastAST{RowMeta{"tab", TimestampMeta}, String}},
 		// RowValue
 		"a":         {RowValue{"", "a"}},
 		"-a":        {UnaryOpAST{UnaryMinus, RowValue{"", "a"}}},
@@ -113,6 +127,8 @@ func TestExpressionParser(t *testing.T) {
 		"2 || a = 4": {BinaryOpAST{Equal,
 			BinaryOpAST{Concat, NumericLiteral{2}, RowValue{"", "a"}},
 			NumericLiteral{4}}},
+		"-2.1::INT": {UnaryOpAST{UnaryMinus,
+			TypeCastAST{FloatLiteral{2.1}, Int}}},
 		/// Left-Associativity
 		"a || '2' || b": {BinaryOpAST{Concat,
 			BinaryOpAST{Concat, RowValue{"", "a"}, StringLiteral{"2"}}, RowValue{"", "b"}}},
@@ -140,6 +156,9 @@ func TestExpressionParser(t *testing.T) {
 		"(2 - a) * b": {BinaryOpAST{Multiply,
 			BinaryOpAST{Minus, NumericLiteral{2}, RowValue{"", "a"}},
 			RowValue{"", "b"}}},
+		"(2 - a)::STRING": {TypeCastAST{
+			BinaryOpAST{Minus, NumericLiteral{2}, RowValue{"", "a"}},
+			String}},
 		/// Operator Non-Precedence
 		// TODO using more than one "same-level" operator does not work
 		/*

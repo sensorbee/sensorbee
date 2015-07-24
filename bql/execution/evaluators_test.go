@@ -128,6 +128,10 @@ func TestFoldableExecution(t *testing.T) {
 			false, nil},
 		{parser.AliasAST{parser.NumericLiteral{7}, "hoge"},
 			true, data.Int(7)},
+		{parser.TypeCastAST{parser.RowValue{"", "a"}, parser.Float},
+			false, nil},
+		{parser.TypeCastAST{parser.NumericLiteral{7}, parser.Float},
+			true, data.Float(7.0)},
 		{parser.FuncAppAST{parser.FuncName("now"),
 			parser.ExpressionsAST{[]parser.Expression{}}},
 			false, nil},
@@ -1290,6 +1294,50 @@ func getTestCases() []struct {
 				{data.Map{"a": data.Map{"b": data.Int(3)}}, nil},
 				// null comparison
 				{data.Map{"a": data.Null{}}, data.Null{}},
+			},
+		},
+		// Type Cast
+		{parser.TypeCastAST{parser.RowValue{"", "a"}, parser.Int},
+			[]evalTest{
+				// not a map:
+				{data.Int(17), nil},
+				// keys not present:
+				{data.Map{"x": data.Int(17)}, nil},
+				// key present and convertable => ok
+				{data.Map{"a": data.Int(17)}, data.Int(17)},
+				{data.Map{"a": data.Float(3.14)}, data.Int(3)},
+				{data.Map{"a": data.Int(-17)}, data.Int(-17)},
+				{data.Map{"a": data.Float(-3.14)}, data.Int(-3)},
+				{data.Map{"a": data.Int(0)}, data.Int(0)},
+				{data.Map{"a": data.Float(0.0)}, data.Int(0)},
+				{data.Map{"a": data.Bool(false)}, data.Int(0)},
+				// key present and other data type => error
+				{data.Map{"a": data.String("日本語")}, nil},
+				{data.Map{"a": data.Blob("hoge")}, nil},
+				{data.Map{"a": data.Array{data.Int(2)}}, nil},
+				{data.Map{"a": data.Map{"b": data.Int(3)}}, nil},
+				{data.Map{"a": data.Null{}}, nil},
+			},
+		},
+		{parser.TypeCastAST{parser.RowValue{"", "a"}, parser.String},
+			[]evalTest{
+				// not a map:
+				{data.Int(17), nil},
+				// keys not present:
+				{data.Map{"x": data.Int(17)}, nil},
+				// key present and number-like => conversion
+				{data.Map{"a": data.Int(17)}, data.String("17")},
+				{data.Map{"a": data.Float(3.14)}, data.String("3.14")},
+				{data.Map{"a": data.Int(-17)}, data.String("-17")},
+				{data.Map{"a": data.Float(-3.14)}, data.String("-3.14")},
+				{data.Map{"a": data.Int(0)}, data.String("0")},
+				{data.Map{"a": data.Float(0.0)}, data.String("0")},
+				{data.Map{"a": data.Bool(false)}, data.String("false")},
+				{data.Map{"a": data.String("日本語")}, data.String("日本語")},
+				{data.Map{"a": data.Blob("hoge")}, data.String("hoge")},
+				{data.Map{"a": data.Array{data.Int(2)}}, data.String("data.Array{2}")},
+				{data.Map{"a": data.Map{"b": data.Int(3)}}, data.String("data.Map{\"b\":3}")},
+				{data.Map{"a": data.Null{}}, data.String("null")},
 			},
 		},
 		/// Function Application

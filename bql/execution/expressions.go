@@ -119,6 +119,13 @@ func ParserExprToFlatExpr(e parser.Expression, reg udf.FunctionRegistry) (FlatEx
 			return nil, err
 		}
 		return UnaryOpAST{obj.Op, expr}, nil
+	case parser.TypeCastAST:
+		// recurse
+		expr, err := ParserExprToFlatExpr(obj.Expr, reg)
+		if err != nil {
+			return nil, err
+		}
+		return TypeCastAST{expr, obj.Target}, nil
 	case parser.FuncAppAST:
 		// exception for now()
 		if string(obj.Function) == "now" && len(obj.Expressions) == 0 {
@@ -197,6 +204,13 @@ func ParserExprToMaybeAggregate(e parser.Expression, aggIdx int, reg udf.Functio
 			return nil, nil, err
 		}
 		return UnaryOpAST{obj.Op, expr}, agg, nil
+	case parser.TypeCastAST:
+		// recurse
+		expr, agg, err := ParserExprToMaybeAggregate(obj.Expr, aggIdx, reg)
+		if err != nil {
+			return nil, nil, err
+		}
+		return TypeCastAST{expr, obj.Target}, agg, nil
 	case parser.FuncAppAST:
 		// exception for now()
 		if string(obj.Function) == "now" && len(obj.Expressions) == 0 {
@@ -370,6 +384,23 @@ func (u UnaryOpAST) Columns() []RowValue {
 
 func (u UnaryOpAST) Volatility() VolatilityType {
 	return u.Expr.Volatility()
+}
+
+type TypeCastAST struct {
+	Expr   FlatExpression
+	Target parser.Type
+}
+
+func (t TypeCastAST) Repr() string {
+	return fmt.Sprintf("CAST(%s AS %s)", t.Expr.Repr(), t.Target)
+}
+
+func (t TypeCastAST) Columns() []RowValue {
+	return t.Expr.Columns()
+}
+
+func (t TypeCastAST) Volatility() VolatilityType {
+	return t.Expr.Volatility()
 }
 
 type FuncAppAST struct {

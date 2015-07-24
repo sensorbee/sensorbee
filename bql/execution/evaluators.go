@@ -156,6 +156,13 @@ func ExpressionToEvaluator(ast FlatExpression, reg udf.FunctionRegistry) (Evalua
 			bo := binOp{expr, &IntConstant{-1}}
 			return Multiply(bo), nil
 		}
+	case TypeCastAST:
+		// recurse
+		expr, err := ExpressionToEvaluator(obj.Expr, reg)
+		if err != nil {
+			return nil, err
+		}
+		return TypeCast(expr, obj.Target)
 	case FuncAppAST:
 		// lookup function in function registry
 		// (the registry will decide if the requested function
@@ -243,6 +250,79 @@ func (fa *PathAccess) Eval(input data.Value) (data.Value, error) {
 		return nil, err
 	}
 	return aMap.Get(fa.path)
+}
+
+type typeCast struct {
+	underlying Evaluator
+	converter  func(data.Value) (data.Value, error)
+}
+
+func (t *typeCast) Eval(input data.Value) (data.Value, error) {
+	val, err := t.underlying.Eval(input)
+	if err != nil {
+		return nil, err
+	}
+	return t.converter(val)
+}
+
+func TypeCast(e Evaluator, t parser.Type) (Evaluator, error) {
+	switch t {
+	case parser.Bool:
+		conv := func(v data.Value) (data.Value, error) {
+			x, err := data.ToBool(v)
+			if err != nil {
+				return nil, err
+			}
+			return data.Bool(x), nil
+		}
+		return &typeCast{e, conv}, nil
+	case parser.Int:
+		conv := func(v data.Value) (data.Value, error) {
+			x, err := data.ToInt(v)
+			if err != nil {
+				return nil, err
+			}
+			return data.Int(x), nil
+		}
+		return &typeCast{e, conv}, nil
+	case parser.Float:
+		conv := func(v data.Value) (data.Value, error) {
+			x, err := data.ToFloat(v)
+			if err != nil {
+				return nil, err
+			}
+			return data.Float(x), nil
+		}
+		return &typeCast{e, conv}, nil
+	case parser.String:
+		conv := func(v data.Value) (data.Value, error) {
+			x, err := data.ToString(v)
+			if err != nil {
+				return nil, err
+			}
+			return data.String(x), nil
+		}
+		return &typeCast{e, conv}, nil
+	case parser.Blob:
+		conv := func(v data.Value) (data.Value, error) {
+			x, err := data.ToBlob(v)
+			if err != nil {
+				return nil, err
+			}
+			return data.Blob(x), nil
+		}
+		return &typeCast{e, conv}, nil
+	case parser.Timestamp:
+		conv := func(v data.Value) (data.Value, error) {
+			x, err := data.ToTimestamp(v)
+			if err != nil {
+				return nil, err
+			}
+			return data.Timestamp(x), nil
+		}
+		return &typeCast{e, conv}, nil
+	}
+	return nil, fmt.Errorf("no converter for type %s known", t)
 }
 
 // TODO this should probably be a general cast
