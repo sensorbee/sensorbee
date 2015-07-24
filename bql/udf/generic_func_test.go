@@ -1,6 +1,7 @@
 package udf
 
 import (
+	"bytes"
 	"fmt"
 	. "github.com/smartystreets/goconvey/convey"
 	"math"
@@ -588,6 +589,36 @@ func TestGenericBoolFunc(t *testing.T) {
 				b, err := data.ToBool(v)
 				So(err, ShouldBeNil)
 				So(b, ShouldBeFalse)
+			})
+		})
+	})
+}
+
+func TestGenericBlobFunc(t *testing.T) {
+	ctx := &core.Context{} // not used in this test
+
+	Convey("Given a function receiving blob", t, func() {
+		f, err := ConvertGeneric(func(b []byte) []byte {
+			return bytes.ToLower(b)
+		})
+		So(err, ShouldBeNil)
+
+		Convey("When passing a valid value", func() {
+			v, err := f.Call(ctx, data.String("ABC"))
+			So(err, ShouldBeNil)
+
+			Convey("Then it should be lowered bytes", func() {
+				b, err := data.ToBlob(v)
+				So(err, ShouldBeNil)
+				So(b, ShouldResemble, []byte("abc"))
+			})
+		})
+	})
+}
+			Convey("Then it should be false", func() {
+				b, err := data.ToBlob(v)
+				So(err, ShouldBeNil)
+				So(b, ShouldResemble, []byte("abc"))
 			})
 		})
 	})
