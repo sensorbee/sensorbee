@@ -98,6 +98,10 @@ func TestAssembleGrouping(t *testing.T) {
 				So(top, ShouldHaveSameTypeAs, SelectStmt{})
 				s := top.(SelectStmt)
 				So(len(s.GroupList), ShouldEqual, 0)
+
+				Convey("And String() should return the original statement", func() {
+					So(s.String(), ShouldEqual, p.Buffer)
+				})
 			})
 		})
 
@@ -118,6 +122,10 @@ func TestAssembleGrouping(t *testing.T) {
 				So(len(s.GroupList), ShouldEqual, 2)
 				So(s.GroupList[0], ShouldResemble, RowValue{"", "c"})
 				So(s.GroupList[1], ShouldResemble, RowValue{"", "d"})
+
+				Convey("And String() should return the original statement", func() {
+					So(s.String(), ShouldEqual, p.Buffer)
+				})
 			})
 		})
 	})

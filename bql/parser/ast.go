@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"fmt"
 	"pfi/sensorbee/sensorbee/data"
 	"strconv"
 	"strings"
@@ -10,6 +11,7 @@ type Expression interface {
 	ReferencedRelations() map[string]bool
 	RenameReferencedRelation(string, string) Expression
 	Foldable() bool
+	string() string
 }
 
 // This file holds a set of structs that make up the Abstract
@@ -28,6 +30,23 @@ type SelectStmt struct {
 	HavingAST
 }
 
+func (s SelectStmt) String() string {
+	str := []string{"SELECT", s.EmitterAST.string()}
+	str = append(str, s.ProjectionsAST.string())
+	str = append(str, s.WindowedFromAST.string())
+	str = append(str, s.FilterAST.string())
+	str = append(str, s.GroupingAST.string())
+	str = append(str, s.HavingAST.string())
+
+	st := []string{}
+	for _, s := range str {
+		if s != "" {
+			st = append(st, s)
+		}
+	}
+	return strings.Join(st, " ")
+}
+
 type SelectUnionStmt struct {
 	Selects []SelectStmt
 }
@@ -35,6 +54,11 @@ type SelectUnionStmt struct {
 type CreateStreamAsSelectStmt struct {
 	Name   StreamIdentifier
 	Select SelectStmt
+}
+
+func (s CreateStreamAsSelectStmt) String() string {
+	str := []string{"CREATE", "STREAM", string(s.Name), "AS", s.Select.String()}
+	return strings.Join(str, " ")
 }
 
 type CreateStreamAsSelectUnionStmt struct {
@@ -150,8 +174,20 @@ type EmitterAST struct {
 	// here is space for some emit options later on
 }
 
+func (a EmitterAST) string() string {
+	return a.EmitterType.String()
+}
+
 type ProjectionsAST struct {
 	Projections []Expression
+}
+
+func (a ProjectionsAST) string() string {
+	prj := []string{}
+	for _, e := range a.Projections {
+		prj = append(prj, e.string())
+	}
+	return strings.Join(prj, ", ")
 }
 
 type AliasAST struct {
@@ -171,8 +207,24 @@ func (a AliasAST) Foldable() bool {
 	return a.Expr.Foldable()
 }
 
+func (a AliasAST) string() string {
+	return a.Expr.string() + " AS " + a.Alias
+}
+
 type WindowedFromAST struct {
 	Relations []AliasedStreamWindowAST
+}
+
+func (a WindowedFromAST) string() string {
+	if len(a.Relations) == 0 {
+		return ""
+	}
+
+	str := []string{}
+	for _, r := range a.Relations {
+		str = append(str, r.string())
+	}
+	return "FROM " + strings.Join(str, ", ")
 }
 
 type AliasedStreamWindowAST struct {
@@ -180,9 +232,35 @@ type AliasedStreamWindowAST struct {
 	Alias string
 }
 
+func (a AliasedStreamWindowAST) string() string {
+	str := a.StreamWindowAST.string()
+	if a.Alias != "" {
+		str = str + " AS " + a.Alias
+	}
+	return str
+}
+
 type StreamWindowAST struct {
 	Stream
 	IntervalAST
+}
+
+func (a StreamWindowAST) string() string {
+	interval := a.IntervalAST.string()
+
+	switch a.Stream.Type {
+	case ActualStream:
+		return a.Stream.Name + " " + interval
+
+	case UDSFStream:
+		ps := []string{}
+		for _, p := range a.Stream.Params {
+			ps = append(ps, p.string())
+		}
+		return a.Stream.Name + "(" + strings.Join(ps, ", ") + ") " + interval
+	}
+
+	return "UnknownStreamType"
 }
 
 type IntervalAST struct {
@@ -190,16 +268,46 @@ type IntervalAST struct {
 	Unit IntervalUnit
 }
 
+func (a IntervalAST) string() string {
+	return "[RANGE " + a.NumericLiteral.string() + " " + a.Unit.String() + "]"
+}
+
 type FilterAST struct {
 	Filter Expression
+}
+
+func (a FilterAST) string() string {
+	if a.Filter == nil {
+		return ""
+	}
+	return "WHERE " + a.Filter.string()
 }
 
 type GroupingAST struct {
 	GroupList []Expression
 }
 
+func (a GroupingAST) string() string {
+	if len(a.GroupList) == 0 {
+		return ""
+	}
+
+	str := []string{}
+	for _, e := range a.GroupList {
+		str = append(str, e.string())
+	}
+	return "GROUP BY " + strings.Join(str, ", ")
+}
+
 type HavingAST struct {
 	Having Expression
+}
+
+func (a HavingAST) string() string {
+	if a.Having == nil {
+		return ""
+	}
+	return "HAVING " + a.Having.string()
 }
 
 type SourceSinkSpecsAST struct {
@@ -257,6 +365,11 @@ func (b BinaryOpAST) Foldable() bool {
 	return b.Left.Foldable() && b.Right.Foldable()
 }
 
+func (b BinaryOpAST) string() string {
+	str := []string{b.Left.string(), b.Op.String(), b.Right.string()}
+	return strings.Join(str, " ")
+}
+
 type UnaryOpAST struct {
 	Op   Operator
 	Expr Expression
@@ -275,6 +388,14 @@ func (u UnaryOpAST) Foldable() bool {
 	return u.Expr.Foldable()
 }
 
+func (u UnaryOpAST) string() string {
+	op := u.Op.String()
+	if u.Op == UnaryMinus {
+		return op + u.Expr.string()
+	}
+	return op + " " + u.Expr.string()
+}
+
 type TypeCastAST struct {
 	Expr   Expression
 	Target Type
@@ -291,6 +412,14 @@ func (u TypeCastAST) RenameReferencedRelation(from, to string) Expression {
 
 func (u TypeCastAST) Foldable() bool {
 	return u.Expr.Foldable()
+}
+
+func (u TypeCastAST) string() string {
+	if rv, ok := u.Expr.(RowValue); ok {
+		return rv.string() + "::" + u.Target.String()
+	}
+
+	return "CAST(" + u.Expr.string() + " AS " + u.Target.String() + ")"
 }
 
 type FuncAppAST struct {
@@ -364,8 +493,20 @@ func (a ArrayAST) Foldable() bool {
 	return foldable
 }
 
+func (f FuncAppAST) string() string {
+	return string(f.Function) + "(" + f.ExpressionsAST.string() + ")"
+}
+
 type ExpressionsAST struct {
 	Expressions []Expression
+}
+
+func (a ExpressionsAST) string() string {
+	str := []string{}
+	for _, e := range a.Expressions {
+		str = append(str, e.string())
+	}
+	return strings.Join(str, ", ")
 }
 
 type MapAST struct {
@@ -404,9 +545,21 @@ func (m MapAST) Foldable() bool {
 	return foldable
 }
 
+func (m MapAST) string() string {
+	entries := []string{}
+	for _, pair := range m.Entries {
+		entries = append(entries, pair.string())
+	}
+	return "{" + strings.Join(entries, ", ") + "}"
+}
+
 type KeyValuePairAST struct {
 	Key   string
 	Value Expression
+}
+
+func (k KeyValuePairAST) string() string {
+	return `"` + k.Key + `":` + k.Value.string()
 }
 
 // Elementary Structures (all without *AST for now)
@@ -457,6 +610,13 @@ func NewWildcard(relation string) Wildcard {
 	return Wildcard{strings.TrimRight(relation, ":*")}
 }
 
+func (w Wildcard) string() string {
+	if w.Relation != "" {
+		return w.Relation + ":*"
+	}
+	return "*"
+}
+
 type RowValue struct {
 	Relation string
 	Column   string
@@ -475,6 +635,13 @@ func (rv RowValue) RenameReferencedRelation(from, to string) Expression {
 
 func (rv RowValue) Foldable() bool {
 	return false
+}
+
+func (rv RowValue) string() string {
+	if rv.Relation != "" {
+		return rv.Relation + ":" + rv.Column
+	}
+	return rv.Column
 }
 
 func NewRowValue(s string) RowValue {
@@ -515,6 +682,13 @@ func (rm RowMeta) Foldable() bool {
 	return false
 }
 
+func (rm RowMeta) string() string {
+	if rm.Relation != "" {
+		return rm.Relation + ":" + rm.MetaType.string()
+	}
+	return rm.MetaType.string()
+}
+
 func NewRowMeta(s string, t MetaInformation) RowMeta {
 	components := strings.SplitN(s, ":", 2)
 	if len(components) == 1 {
@@ -549,6 +723,10 @@ func (l NumericLiteral) Foldable() bool {
 	return true
 }
 
+func (l NumericLiteral) string() string {
+	return fmt.Sprintf("%v", l.Value)
+}
+
 func NewNumericLiteral(s string) NumericLiteral {
 	val, err := strconv.ParseInt(s, 10, 64)
 	if err != nil {
@@ -571,6 +749,10 @@ func (l FloatLiteral) RenameReferencedRelation(from, to string) Expression {
 
 func (l FloatLiteral) Foldable() bool {
 	return true
+}
+
+func (l FloatLiteral) string() string {
+	return fmt.Sprintf("%v", l.Value)
 }
 
 func NewFloatLiteral(s string) FloatLiteral {
@@ -596,6 +778,10 @@ func (l NullLiteral) Foldable() bool {
 	return true
 }
 
+func (l NullLiteral) string() string {
+	return "NULL"
+}
+
 func NewNullLiteral() NullLiteral {
 	return NullLiteral{}
 }
@@ -616,6 +802,13 @@ func (l BoolLiteral) Foldable() bool {
 	return true
 }
 
+func (l BoolLiteral) string() string {
+	if l.Value {
+		return "TRUE"
+	}
+	return "FALSE"
+}
+
 func NewBoolLiteral(b bool) BoolLiteral {
 	return BoolLiteral{b}
 }
@@ -634,6 +827,10 @@ func (l StringLiteral) RenameReferencedRelation(from, to string) Expression {
 
 func (l StringLiteral) Foldable() bool {
 	return true
+}
+
+func (l StringLiteral) string() string {
+	return "'" + strings.Replace(l.Value, "'", "''", -1) + "'"
 }
 
 func NewStringLiteral(s string) StringLiteral {
@@ -729,6 +926,17 @@ func (m MetaInformation) String() string {
 		s = "TS"
 	case NowMeta:
 		s = "NOW"
+	}
+	return s
+}
+
+func (m MetaInformation) string() string {
+	s := "UnknownMeta"
+	switch m {
+	case TimestampMeta:
+		s = "ts()"
+	case NowMeta:
+		s = "now()"
 	}
 	return s
 }
