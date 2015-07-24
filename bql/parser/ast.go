@@ -45,16 +45,47 @@ type CreateSourceStmt struct {
 	SourceSinkSpecsAST
 }
 
+func (s CreateSourceStmt) String() string {
+	str := []string{"CREATE", "SOURCE", string(s.Name), "TYPE", string(s.Type)}
+	paused := s.Paused.string("PAUSED", "UNPAUSED")
+	if paused != "" {
+		str = append(str[:1], append([]string{paused}, str[1:]...)...)
+	}
+	specs := s.SourceSinkSpecsAST.string()
+	if specs != "" {
+		str = append(str, specs)
+	}
+	return strings.Join(str, " ")
+}
+
 type CreateSinkStmt struct {
 	Name StreamIdentifier
 	Type SourceSinkType
 	SourceSinkSpecsAST
 }
 
+func (s CreateSinkStmt) String() string {
+	str := []string{"CREATE", "SINK", string(s.Name), "TYPE", string(s.Type)}
+	specs := s.SourceSinkSpecsAST.string()
+	if specs != "" {
+		str = append(str, specs)
+	}
+	return strings.Join(str, " ")
+}
+
 type CreateStateStmt struct {
 	Name StreamIdentifier
 	Type SourceSinkType
 	SourceSinkSpecsAST
+}
+
+func (s CreateStateStmt) String() string {
+	str := []string{"CREATE", "STATE", string(s.Name), "TYPE", string(s.Type)}
+	specs := s.SourceSinkSpecsAST.string()
+	if specs != "" {
+		str = append(str, specs)
+	}
+	return strings.Join(str, " ")
 }
 
 type UpdateStateStmt struct {
@@ -171,9 +202,28 @@ type SourceSinkSpecsAST struct {
 	Params []SourceSinkParamAST
 }
 
+func (a SourceSinkSpecsAST) string() string {
+	if len(a.Params) == 0 {
+		return ""
+	}
+	ps := make([]string, len(a.Params))
+	for i, p := range a.Params {
+		ps[i] = p.string()
+	}
+	return "WITH " + strings.Join(ps, ", ")
+}
+
 type SourceSinkParamAST struct {
 	Key   SourceSinkParamKey
 	Value data.Value
+}
+
+func (a SourceSinkParamAST) string() string {
+	s, _ := data.ToString(a.Value)
+	if a.Value.Type() == data.TypeString {
+		s = "'" + strings.Replace(s, "'", "''", -1) + "'"
+	}
+	return string(a.Key) + "=" + s
 }
 
 type BinaryOpAST struct {
@@ -602,6 +652,16 @@ func (k BinaryKeyword) String() string {
 		s = "No"
 	}
 	return s
+}
+
+func (k BinaryKeyword) string(yes, no string) string {
+	switch k {
+	case Yes:
+		return yes
+	case No:
+		return no
+	}
+	return ""
 }
 
 type Type int
