@@ -615,10 +615,24 @@ func TestGenericBlobFunc(t *testing.T) {
 		})
 	})
 }
-			Convey("Then it should be false", func() {
-				b, err := data.ToBlob(v)
+
+func TestGenericTimeFunc(t *testing.T) {
+	ctx := &core.Context{} // not used in this test
+
+	Convey("Given a function receiving time", t, func() {
+		f, err := ConvertGeneric(func(t time.Time) time.Time {
+			return t
+		})
+		So(err, ShouldBeNil)
+
+		Convey("When passing a valid value", func() {
+			v, err := f.Call(ctx, data.Int(0))
+			So(err, ShouldBeNil)
+
+			Convey("Then it should be time", func() {
+				t, err := data.ToTimestamp(v)
 				So(err, ShouldBeNil)
-				So(b, ShouldResemble, []byte("abc"))
+				So(t, ShouldResemble, time.Unix(0, 0))
 			})
 		})
 	})
