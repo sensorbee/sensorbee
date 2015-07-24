@@ -130,6 +130,10 @@ var avgFunc udf.UDF = &singleParamAggFunc{
 					item, item)
 			}
 		}
+		if count == 0 {
+			// only null inputs
+			return data.Null{}, nil
+		}
 		return data.Float(sum / float64(count)), nil
 	},
 }
@@ -150,6 +154,7 @@ var boolAndFunc udf.UDF = &singleParamAggFunc{
 			return data.Null{}, nil
 		}
 		result := true
+		onlyNulls := true
 		for _, item := range arr {
 			if item.Type() == data.TypeBool {
 				b, _ := data.AsBool(item)
@@ -161,12 +166,16 @@ var boolAndFunc udf.UDF = &singleParamAggFunc{
 					// of rows, which is not good. therefore we do
 					// not break here.
 				}
+				onlyNulls = false
 			} else if item.Type() == data.TypeNull {
 				continue
 			} else {
 				return nil, fmt.Errorf("cannot interpret %s (%T) as a bool",
 					item, item)
 			}
+		}
+		if onlyNulls {
+			return data.Null{}, nil
 		}
 		return data.Bool(result), nil
 	},
@@ -186,6 +195,7 @@ var boolOrFunc udf.UDF = &singleParamAggFunc{
 			return data.Null{}, nil
 		}
 		result := false
+		onlyNulls := true
 		for _, item := range arr {
 			if item.Type() == data.TypeBool {
 				b, _ := data.AsBool(item)
@@ -197,12 +207,16 @@ var boolOrFunc udf.UDF = &singleParamAggFunc{
 					// of rows, which is not good. therefore we do
 					// not break here.
 				}
+				onlyNulls = false
 			} else if item.Type() == data.TypeNull {
 				continue
 			} else {
 				return nil, fmt.Errorf("cannot interpret %s (%T) as a bool",
 					item, item)
 			}
+		}
+		if onlyNulls {
+			return data.Null{}, nil
 		}
 		return data.Bool(result), nil
 	},
@@ -264,23 +278,29 @@ var maxFunc udf.UDF = &singleParamAggFunc{
 		}
 		maxFloat := -float64(math.MaxFloat64)
 		maxInt := int64(math.MinInt64)
+		onlyNulls := true
 		for _, item := range arr {
 			if item.Type() == data.TypeInt {
 				i, _ := data.AsInt(item)
 				if i > maxInt {
 					maxInt = i
 				}
+				onlyNulls = false
 			} else if item.Type() == data.TypeFloat {
 				f, _ := data.AsFloat(item)
 				if f > maxFloat {
 					maxFloat = f
 				}
+				onlyNulls = false
 			} else if item.Type() == data.TypeNull {
 				continue
 			} else {
 				return nil, fmt.Errorf("cannot interpret %s (%T) as a number",
 					item, item)
 			}
+		}
+		if onlyNulls {
+			return data.Null{}, nil
 		}
 		if float64(maxInt) >= maxFloat {
 			return data.Int(maxInt), nil
@@ -304,23 +324,29 @@ var minFunc udf.UDF = &singleParamAggFunc{
 		}
 		minFloat := float64(math.MaxFloat64)
 		minInt := int64(math.MaxInt64)
+		onlyNulls := true
 		for _, item := range arr {
 			if item.Type() == data.TypeInt {
 				i, _ := data.AsInt(item)
 				if i < minInt {
 					minInt = i
 				}
+				onlyNulls = false
 			} else if item.Type() == data.TypeFloat {
 				f, _ := data.AsFloat(item)
 				if f < minFloat {
 					minFloat = f
 				}
+				onlyNulls = false
 			} else if item.Type() == data.TypeNull {
 				continue
 			} else {
 				return nil, fmt.Errorf("cannot interpret %s (%T) as a number",
 					item, item)
 			}
+		}
+		if onlyNulls {
+			return data.Null{}, nil
 		}
 		if float64(minInt) <= minFloat {
 			return data.Int(minInt), nil
@@ -396,6 +422,7 @@ var sumFunc udf.UDF = &singleParamAggFunc{
 		sum := float64(0.0)
 		intSum := int64(0)
 		hadFloat := false
+		onlyNulls := true
 		for _, item := range arr {
 			if item.Type() == data.TypeInt {
 				i, _ := data.AsInt(item)
@@ -406,16 +433,21 @@ var sumFunc udf.UDF = &singleParamAggFunc{
 				intSum += i
 				f := float64(i)
 				sum += f
+				onlyNulls = false
 			} else if item.Type() == data.TypeFloat {
 				f, _ := data.AsFloat(item)
 				sum += f
 				hadFloat = true
+				onlyNulls = false
 			} else if item.Type() == data.TypeNull {
 				continue
 			} else {
 				return nil, fmt.Errorf("cannot interpret %s (%T) as a number",
 					item, item)
 			}
+		}
+		if onlyNulls {
+			return data.Null{}, nil
 		}
 		if !hadFloat {
 			// if we had only integers, return the integer sum
