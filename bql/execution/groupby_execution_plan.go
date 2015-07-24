@@ -27,7 +27,7 @@ type tmpGroupData struct {
 // CanBuildGroupbyExecutionPlan checks whether the given statement
 // allows to use an groupbyExecutionPlan.
 func CanBuildGroupbyExecutionPlan(lp *LogicalPlan, reg udf.FunctionRegistry) bool {
-	return lp.GroupingStmt && lp.Having == nil
+	return lp.GroupingStmt
 }
 
 // groupbyExecutionPlan is a simple plan that follows the
@@ -218,7 +218,31 @@ func (ep *groupbyExecutionPlan) performQueryOnBuffer() error {
 			group.nonAggData[key] = data.Array(group.aggData[key])
 			delete(group.aggData, key)
 		}
+		// evaluate HAVING condition, if there is one
 		for _, proj := range ep.projections {
+			if proj.alias == ":having:" {
+				havingResult, err := proj.evaluator.Eval(group.nonAggData)
+				if err != nil {
+					return err
+				}
+				havingResultBool, err := data.ToBool(havingResult)
+				if err != nil {
+					return err
+				}
+				// if it evaluated to false, do not further process this group
+				// (ToBool also evalutes the NULL value to false, so we don't
+				// need to treat this specially)
+				if !havingResultBool {
+					return nil
+				}
+				break
+			}
+		}
+		// now evaluate all other projections
+		for _, proj := range ep.projections {
+			if proj.alias == ":having:" {
+				continue
+			}
 			// now evaluate this projection on the flattened data
 			value, err := proj.evaluator.Eval(group.nonAggData)
 			if err != nil {
