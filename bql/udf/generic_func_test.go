@@ -637,5 +637,3 @@ func TestGenericTimeFunc(t *testing.T) {
 		})
 	})
 }
-
-// TODO: add tests for all types.
