@@ -47,8 +47,9 @@ type CreateSourceStmt struct {
 
 func (s CreateSourceStmt) String() string {
 	str := []string{"CREATE", "SOURCE", string(s.Name), "TYPE", string(s.Type)}
-	if s.Paused == Yes {
-		str = append(str[:1], append([]string{"PAUSED"}, str[1:]...)...)
+	paused := s.Paused.string("PAUSED", "UNPAUSED")
+	if paused != "" {
+		str = append(str[:1], append([]string{paused}, str[1:]...)...)
 	}
 	specs := s.SourceSinkSpecsAST.string()
 	if specs != "" {
@@ -633,6 +634,16 @@ func (k BinaryKeyword) String() string {
 		s = "No"
 	}
 	return s
+}
+
+func (k BinaryKeyword) string(yes, no string) string {
+	switch k {
+	case Yes:
+		return yes
+	case No:
+		return no
+	}
+	return ""
 }
 
 type Operator int
