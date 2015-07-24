@@ -140,6 +140,20 @@ func flattenExpressions(s *parser.CreateStreamAsSelectStmt, reg udf.FunctionRegi
 		flatProjExprs[i] = aliasedExpression{colHeader, flatExpr, aggrs}
 	}
 
+	if s.Having != nil {
+		// convert the parser Expression to a FlatExpression
+		flatExpr, aggrs, err := ParserExprToMaybeAggregate(s.Having, numAggParams, reg)
+		if err != nil {
+			return nil, err
+		}
+		// use a special column name
+		colHeader := ":having:"
+		flatProjExprs = append(flatProjExprs,
+			aliasedExpression{colHeader, flatExpr, aggrs})
+		// we are definitely in grouping mode
+		groupingMode = true
+	}
+
 	var filterExpr FlatExpression
 	if s.Filter != nil {
 		filterFlatExpr, err := ParserExprToFlatExpr(s.Filter, reg)
@@ -275,6 +289,11 @@ func validateReferences(s *parser.CreateStreamAsSelectStmt) error {
 			refRels[rel] = true
 		}
 	}
+	if s.Having != nil {
+		for rel := range s.Having.ReferencedRelations() {
+			refRels[rel] = true
+		}
+	}
 
 	// do the correctness check for SELECT, WHERE, GROUP BY clauses
 	if len(s.Relations) == 0 {
@@ -311,6 +330,9 @@ func validateReferences(s *parser.CreateStreamAsSelectStmt) error {
 				newGroup[i] = group.RenameReferencedRelation("", inputRel)
 			}
 			s.GroupList = newGroup
+			if s.Having != nil {
+				s.Having = s.Having.RenameReferencedRelation("", inputRel)
+			}
 
 		} else if len(refRels) > 1 {
 			// Sample: SELECT a, b.a FROM b // SELECT b.a, x.a FROM b
@@ -351,23 +373,6 @@ func validateReferences(s *parser.CreateStreamAsSelectStmt) error {
 		}
 		// if we arrive here, all referenced relations exist in the
 		// FROM clause -> OK
-	}
-
-	// HAVING is fundamentally different in that it does refer to
-	// output columns, therefore must not contain references to input
-	// relations
-	havingRels := map[string]bool{}
-	if s.Having != nil {
-		for rel := range s.Having.ReferencedRelations() {
-			havingRels[rel] = true
-		}
-	}
-	for rel := range havingRels {
-		if rel != "" {
-			err := fmt.Errorf("cannot refer to input relation '%s' "+
-				"from HAVING clause", rel)
-			return err
-		}
 	}
 
 	return nil

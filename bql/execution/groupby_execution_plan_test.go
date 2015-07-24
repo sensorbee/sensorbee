@@ -81,6 +81,40 @@ func TestGroupbyExecutionPlan(t *testing.T) {
 			}
 		})
 	})
+	Convey("Given a SELECT clause with GROUP BY and HAVING but no aggregation", t, func() {
+		tuples := getOtherTuples()
+
+		s := `CREATE STREAM box AS SELECT RSTREAM foo FROM src [RANGE 3 TUPLES] GROUP BY foo HAVING foo=1`
+		plan, err := createGroupbyPlan(s, t)
+		So(err, ShouldBeNil)
+
+		Convey("When feeding it with tuples", func() {
+			for idx, inTup := range tuples {
+				out, err := plan.Process(inTup)
+				So(err, ShouldBeNil)
+
+				Convey(fmt.Sprintf("Then those values should appear in %v", idx), func() {
+					if idx == 0 {
+						So(len(out), ShouldEqual, 1)
+						So(out[0], ShouldResemble,
+							data.Map{"foo": data.Int(1)})
+					} else if idx == 1 {
+						So(len(out), ShouldEqual, 1)
+						So(out[0], ShouldResemble,
+							data.Map{"foo": data.Int(1)})
+					} else if idx == 2 {
+						So(len(out), ShouldEqual, 1)
+						So(out[0], ShouldResemble,
+							data.Map{"foo": data.Int(1)})
+					} else {
+						So(len(out), ShouldEqual, 1)
+						So(out[0], ShouldResemble,
+							data.Map{"foo": data.Int(1)})
+					}
+				})
+			}
+		})
+	})
 
 	Convey("Given a SELECT clause with aggregation but no GROUP BY", t, func() {
 		tuples := getOtherTuples()
@@ -98,6 +132,32 @@ func TestGroupbyExecutionPlan(t *testing.T) {
 					So(len(out), ShouldEqual, 1)
 					So(out[0], ShouldResemble,
 						data.Map{"count": data.Int(math.Min(float64(idx+1), 3))})
+				})
+			}
+		})
+	})
+
+	Convey("Given a SELECT clause with aggregation and HAVING but no GROUP BY", t, func() {
+		tuples := getOtherTuples()
+
+		s := `CREATE STREAM box AS SELECT RSTREAM count(foo) FROM src [RANGE 3 TUPLES] HAVING count(foo)%2=0`
+		plan, err := createGroupbyPlan(s, t)
+		So(err, ShouldBeNil)
+
+		Convey("When feeding it with tuples", func() {
+			for idx, inTup := range tuples {
+				out, err := plan.Process(inTup)
+				So(err, ShouldBeNil)
+
+				Convey(fmt.Sprintf("Then those values should appear in %v", idx), func() {
+					if idx == 1 {
+						// count(foo) is 2
+						So(len(out), ShouldEqual, 1)
+						So(out[0], ShouldResemble, data.Map{"count": data.Int(2)})
+					} else {
+						// count(foo) is 1 or 3
+						So(len(out), ShouldEqual, 0)
+					}
 				})
 			}
 		})
@@ -200,6 +260,39 @@ func TestGroupbyExecutionPlan(t *testing.T) {
 						So(out[1], ShouldResemble,
 							// the below is just 1 because NULL isn't counted
 							data.Map{"foo": data.Int(2), "count": data.Int(1)})
+					}
+				})
+			}
+		})
+	})
+
+	Convey("Given a SELECT clause with a simple aggregation and GROUP BY and HAVING", t, func() {
+		tuples := getOtherTuples()
+		tuples[2].Data["int"] = data.Null{}
+		s := `CREATE STREAM box AS SELECT RSTREAM foo, max(int) FROM src [RANGE 3 TUPLES] GROUP BY foo HAVING count(*)=1`
+		plan, err := createGroupbyPlan(s, t)
+		So(err, ShouldBeNil)
+
+		Convey("When feeding it with tuples", func() {
+			for idx, inTup := range tuples {
+				out, err := plan.Process(inTup)
+				So(err, ShouldBeNil)
+
+				Convey(fmt.Sprintf("Then those values should appear in %v", idx), func() {
+					if idx == 0 {
+						So(len(out), ShouldEqual, 1)
+						So(out[0], ShouldResemble,
+							data.Map{"foo": data.Int(1), "max": data.Int(1)})
+					} else if idx == 1 {
+						So(len(out), ShouldEqual, 0)
+					} else if idx == 2 {
+						So(len(out), ShouldEqual, 1)
+						So(out[0], ShouldResemble,
+							data.Map{"foo": data.Int(2), "max": data.Null{}})
+					} else {
+						So(len(out), ShouldEqual, 1)
+						So(out[0], ShouldResemble,
+							data.Map{"foo": data.Int(1), "max": data.Int(2)})
 					}
 				})
 			}
@@ -573,6 +666,22 @@ func TestGroupbyExecutionPlan(t *testing.T) {
 		So(err.Error(), ShouldEqual, `column "src:int" must appear in the GROUP BY clause or be used in an aggregate function`)
 	})
 
+	Convey("Given an SELECT statement with an invalid GROUP BY (3)", t, func() {
+		// not referencing the group-by column
+		s := `CREATE STREAM box AS SELECT RSTREAM foo FROM src [RANGE 3 TUPLES] HAVING foo`
+		_, err := createGroupbyPlan(s, t)
+		So(err, ShouldNotBeNil)
+		So(err.Error(), ShouldEqual, `column "src:foo" must appear in the GROUP BY clause or be used in an aggregate function`)
+	})
+
+	Convey("Given an SELECT statement with an invalid GROUP BY (4)", t, func() {
+		// not referencing the group-by column
+		s := `CREATE STREAM box AS SELECT RSTREAM foo, count(int) FROM src [RANGE 3 TUPLES] GROUP BY foo HAVING int=2`
+		_, err := createGroupbyPlan(s, t)
+		So(err, ShouldNotBeNil)
+		So(err.Error(), ShouldEqual, `column "src:int" must appear in the GROUP BY clause or be used in an aggregate function`)
+	})
+
 	// BQL limitations (less features than SQL)
 
 	Convey("Given an SELECT statement with an invalid GROUP BY (3)", t, func() {
@@ -589,14 +698,6 @@ func TestGroupbyExecutionPlan(t *testing.T) {
 		_, err := createGroupbyPlan(s, t)
 		So(err, ShouldNotBeNil)
 		So(err.Error(), ShouldEqual, `grouping by expressions is not supported yet`)
-	})
-
-	Convey("Given an SELECT statement with HAVING", t, func() {
-		// using HAVING
-		s := `CREATE STREAM box AS SELECT RSTREAM foo, count(int) FROM src [RANGE 3 TUPLES] GROUP BY foo HAVING count=2`
-		_, err := createGroupbyPlan(s, t)
-		So(err, ShouldNotBeNil)
-		So(err.Error(), ShouldStartWith, "groupByExecutionPlan cannot be used for statement")
 	})
 
 	Convey("Given an SELECT statement with an unknown UDAF", t, func() {
