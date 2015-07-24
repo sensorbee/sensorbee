@@ -390,10 +390,13 @@ func (u UnaryOpAST) Foldable() bool {
 
 func (u UnaryOpAST) string() string {
 	op := u.Op.String()
-	if u.Op == UnaryMinus {
-		return op + u.Expr.string()
+	expr := u.Expr.string()
+
+	// Unary minus operator such as "- - 2"
+	if u.Op != UnaryMinus || strings.HasPrefix(expr, "-") {
+		op = op + " "
 	}
-	return op + " " + u.Expr.string()
+	return op + expr
 }
 
 type TypeCastAST struct {
