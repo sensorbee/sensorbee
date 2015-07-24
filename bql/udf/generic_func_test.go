@@ -1,6 +1,7 @@
 package udf
 
 import (
+	"bytes"
 	"fmt"
 	. "github.com/smartystreets/goconvey/convey"
 	"math"
@@ -516,7 +517,7 @@ func TestGenericFuncInconvertibleType(t *testing.T) {
 	})
 }
 
-func TestIntGenericIntFunc(t *testing.T) {
+func TestGenericIntAndFloatFunc(t *testing.T) {
 	ctx := &core.Context{} // not used in this test
 
 	udfs := []UDF{
@@ -544,45 +545,34 @@ func TestIntGenericIntFunc(t *testing.T) {
 		MustConvertGeneric(func(i uint64) uint64 {
 			return i * 2
 		}),
+		MustConvertGeneric(func(i float32) float32 {
+			return i * 2
+		}),
+		MustConvertGeneric(func(i float64) float64 {
+			return i * 2
+		}),
 	}
 
-	funcTypes := []string{"int8", "int16", "int32", "int64", "uint8", "uint16", "uint32", "uint64"}
-	compu := []struct {
-		value  data.Value
-		result data.Value
-	}{
-		{data.Int(math.MinInt8 / 2), data.Int(math.MinInt8)},
-		{data.Int(math.MinInt16 / 2), data.Int(math.MinInt16)},
-		{data.Int(math.MinInt32 / 2), data.Int(math.MinInt32)},
-		{data.Int(math.MinInt64 / 2), data.Int(math.MinInt64)},
-		{data.Int(127), data.Int(254)},
-		{data.Int(16383), data.Int(32766)},
-		{data.Int(1073741823), data.Int(2147483646)},
-		{data.Int(4611686018427387903), data.Int(9223372036854775806)},
-	}
-
+	funcTypes := []string{"int8", "int16", "int32", "int64", "uint8", "uint16", "uint32", "uint64", "float32", "float64"}
 	Convey("Given a function receiving integer", t, func() {
 		for i, f := range udfs {
 			f := f
 			i := i
-			c := compu[i]
-			input := c.value
-			r, _ := data.AsInt(c.result)
 			Convey(fmt.Sprintf("When passing a valid value for %v", funcTypes[i]), func() {
-				v, err := f.Call(ctx, input)
+				v, err := f.Call(ctx, data.String("1"))
 				So(err, ShouldBeNil)
 
 				Convey("Then it should be doubled", func() {
 					i, err := data.ToInt(v)
 					So(err, ShouldBeNil)
-					So(i, ShouldEqual, r)
+					So(i, ShouldEqual, 2)
 				})
 			})
 		}
 	})
 }
 
-func TestBoolGenericBoolFunc(t *testing.T) {
+func TestGenericBoolFunc(t *testing.T) {
 	ctx := &core.Context{} // not used in this test
 
 	Convey("Given a function receiving bool", t, func() {
@@ -592,7 +582,7 @@ func TestBoolGenericBoolFunc(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		Convey("When passing a valid value", func() {
-			v, err := f.Call(ctx, data.Bool(true))
+			v, err := f.Call(ctx, data.Int(1))
 			So(err, ShouldBeNil)
 
 			Convey("Then it should be false", func() {
@@ -601,35 +591,49 @@ func TestBoolGenericBoolFunc(t *testing.T) {
 				So(b, ShouldBeFalse)
 			})
 		})
-
-		convertible := []struct {
-			typeName string
-			value    data.Value
-		}{
-			{"null", data.Null{}},
-			{"int", data.Int(0)},
-			{"float", data.Float(0.0)},
-			{"map", data.Map{}},
-			{"string", data.String("")},
-			{"byte", data.Blob([]byte(""))},
-			{"time", data.Timestamp(time.Time{})},
-			{"array", data.Array([]data.Value{})},
-		}
-		for _, i := range convertible {
-			t := i.typeName
-			v := i.value
-			Convey(fmt.Sprintf("When passing convertible value of %v", t), func() {
-				v, err := f.Call(ctx, v)
-				So(err, ShouldBeNil)
-
-				Convey("Then it should be true", func() {
-					b, err := data.ToBool(v)
-					So(err, ShouldBeNil)
-					So(b, ShouldBeTrue)
-				})
-			})
-		}
 	})
 }
 
-// TODO: add tests for all types.
+func TestGenericBlobFunc(t *testing.T) {
+	ctx := &core.Context{} // not used in this test
+
+	Convey("Given a function receiving blob", t, func() {
+		f, err := ConvertGeneric(func(b []byte) []byte {
+			return bytes.ToLower(b)
+		})
+		So(err, ShouldBeNil)
+
+		Convey("When passing a valid value", func() {
+			v, err := f.Call(ctx, data.String("ABC"))
+			So(err, ShouldBeNil)
+
+			Convey("Then it should be lowered bytes", func() {
+				b, err := data.ToBlob(v)
+				So(err, ShouldBeNil)
+				So(b, ShouldResemble, []byte("abc"))
+			})
+		})
+	})
+}
+
+func TestGenericTimeFunc(t *testing.T) {
+	ctx := &core.Context{} // not used in this test
+
+	Convey("Given a function receiving time", t, func() {
+		f, err := ConvertGeneric(func(t time.Time) time.Time {
+			return t
+		})
+		So(err, ShouldBeNil)
+
+		Convey("When passing a valid value", func() {
+			v, err := f.Call(ctx, data.Int(0))
+			So(err, ShouldBeNil)
+
+			Convey("Then it should be time", func() {
+				t, err := data.ToTimestamp(v)
+				So(err, ShouldBeNil)
+				So(t, ShouldResemble, time.Unix(0, 0))
+			})
+		})
+	})
+}
