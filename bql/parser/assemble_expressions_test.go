@@ -103,6 +103,10 @@ func TestAssembleExpressions(t *testing.T) {
 				So(len(fa.Expressions), ShouldEqual, 2)
 				So(fa.Expressions[0], ShouldResemble, RowValue{"", "a"})
 				So(fa.Expressions[1], ShouldResemble, RowValue{"", "b"})
+
+				Convey("And String() should return the original statement", func() {
+					So(s.String(), ShouldEqual, p.Buffer)
+				})
 			})
 		})
 	})

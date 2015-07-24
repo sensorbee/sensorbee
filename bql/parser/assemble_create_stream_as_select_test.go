@@ -99,7 +99,7 @@ func TestAssembleCreateStreamAsSelect(t *testing.T) {
 		p := &bqlPeg{}
 
 		Convey("When doing a full SELECT", func() {
-			p.Buffer = "CREATE STREAM x_2 AS SELECT ISTREAM '日本語', b AS y FROM c [RANGE 3 TUPLES], d [RANGE 2 SECONDS] AS x WHERE e GROUP BY f, g HAVING h"
+			p.Buffer = "CREATE STREAM x_2 AS SELECT ISTREAM '日本語', b AS y, 'ab''c' FROM c [RANGE 3 TUPLES], d [RANGE 2 SECONDS] AS x WHERE e GROUP BY f, g HAVING h"
 			p.Init()
 
 			Convey("Then the statement should be parsed correctly", func() {
@@ -116,9 +116,10 @@ func TestAssembleCreateStreamAsSelect(t *testing.T) {
 				So(cssComp.Name, ShouldEqual, "x_2")
 				comp := cssComp.Select
 				So(comp.EmitterType, ShouldEqual, Istream)
-				So(len(comp.Projections), ShouldEqual, 2)
+				So(len(comp.Projections), ShouldEqual, 3)
 				So(comp.Projections[0], ShouldResemble, StringLiteral{"日本語"})
 				So(comp.Projections[1], ShouldResemble, AliasAST{RowValue{"", "b"}, "y"})
+				So(comp.Projections[2], ShouldResemble, StringLiteral{"ab'c"})
 				So(len(comp.Relations), ShouldEqual, 2)
 				So(comp.Relations[0].Name, ShouldEqual, "c")
 				So(comp.Relations[0].Value, ShouldEqual, 3)
@@ -133,6 +134,10 @@ func TestAssembleCreateStreamAsSelect(t *testing.T) {
 				So(comp.GroupList[0], ShouldResemble, RowValue{"", "f"})
 				So(comp.GroupList[1], ShouldResemble, RowValue{"", "g"})
 				So(comp.Having, ShouldResemble, RowValue{"", "h"})
+
+				Convey("And String() should return the original statement", func() {
+					So(cssComp.String(), ShouldEqual, p.Buffer)
+				})
 			})
 		})
 	})

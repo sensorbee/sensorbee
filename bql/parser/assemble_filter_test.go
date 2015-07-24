@@ -84,6 +84,10 @@ func TestAssembleFilter(t *testing.T) {
 				So(top, ShouldHaveSameTypeAs, SelectStmt{})
 				s := top.(SelectStmt)
 				So(s.Filter, ShouldBeNil)
+
+				Convey("And String() should return the original statement", func() {
+					So(s.String(), ShouldEqual, p.Buffer)
+				})
 			})
 		})
 
@@ -103,6 +107,10 @@ func TestAssembleFilter(t *testing.T) {
 				s := top.(SelectStmt)
 				So(s.Filter, ShouldNotBeNil)
 				So(s.Filter, ShouldResemble, RowValue{"", "c"})
+
+				Convey("And String() should return the original statement", func() {
+					So(s.String(), ShouldEqual, p.Buffer)
+				})
 			})
 		})
 	})
