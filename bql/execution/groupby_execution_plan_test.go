@@ -573,6 +573,22 @@ func TestGroupbyExecutionPlan(t *testing.T) {
 		So(err.Error(), ShouldEqual, `column "src:int" must appear in the GROUP BY clause or be used in an aggregate function`)
 	})
 
+	Convey("Given an SELECT statement with an invalid GROUP BY (3)", t, func() {
+		// not referencing the group-by column
+		s := `CREATE STREAM box AS SELECT RSTREAM foo FROM src [RANGE 3 TUPLES] HAVING foo`
+		_, err := createGroupbyPlan(s, t)
+		So(err, ShouldNotBeNil)
+		So(err.Error(), ShouldEqual, `column "src:foo" must appear in the GROUP BY clause or be used in an aggregate function`)
+	})
+
+	Convey("Given an SELECT statement with an invalid GROUP BY (4)", t, func() {
+		// not referencing the group-by column
+		s := `CREATE STREAM box AS SELECT RSTREAM foo, count(int) FROM src [RANGE 3 TUPLES] GROUP BY foo HAVING int=2`
+		_, err := createGroupbyPlan(s, t)
+		So(err, ShouldNotBeNil)
+		So(err.Error(), ShouldEqual, `column "src:int" must appear in the GROUP BY clause or be used in an aggregate function`)
+	})
+
 	// BQL limitations (less features than SQL)
 
 	Convey("Given an SELECT statement with an invalid GROUP BY (3)", t, func() {
@@ -591,9 +607,17 @@ func TestGroupbyExecutionPlan(t *testing.T) {
 		So(err.Error(), ShouldEqual, `grouping by expressions is not supported yet`)
 	})
 
-	Convey("Given an SELECT statement with HAVING", t, func() {
+	Convey("Given an SELECT statement with HAVING (1)", t, func() {
 		// using HAVING
-		s := `CREATE STREAM box AS SELECT RSTREAM foo, count(int) FROM src [RANGE 3 TUPLES] GROUP BY foo HAVING count=2`
+		s := `CREATE STREAM box AS SELECT RSTREAM foo, count(int) FROM src [RANGE 3 TUPLES] GROUP BY foo HAVING foo=2`
+		_, err := createGroupbyPlan(s, t)
+		So(err, ShouldNotBeNil)
+		So(err.Error(), ShouldStartWith, "groupByExecutionPlan cannot be used for statement")
+	})
+
+	Convey("Given an SELECT statement with HAVING (2)", t, func() {
+		// using HAVING
+		s := `CREATE STREAM box AS SELECT RSTREAM foo, count(int) FROM src [RANGE 3 TUPLES] GROUP BY foo HAVING count(int)=2`
 		_, err := createGroupbyPlan(s, t)
 		So(err, ShouldNotBeNil)
 		So(err.Error(), ShouldStartWith, "groupByExecutionPlan cannot be used for statement")
