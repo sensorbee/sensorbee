@@ -218,6 +218,24 @@ func (u UnaryOpAST) Foldable() bool {
 	return u.Expr.Foldable()
 }
 
+type TypeCastAST struct {
+	Expr   Expression
+	Target Type
+}
+
+func (u TypeCastAST) ReferencedRelations() map[string]bool {
+	return u.Expr.ReferencedRelations()
+}
+
+func (u TypeCastAST) RenameReferencedRelation(from, to string) Expression {
+	return TypeCastAST{u.Expr.RenameReferencedRelation(from, to),
+		u.Target}
+}
+
+func (u TypeCastAST) Foldable() bool {
+	return u.Expr.Foldable()
+}
+
 type FuncAppAST struct {
 	Function FuncName
 	ExpressionsAST
@@ -582,6 +600,43 @@ func (k BinaryKeyword) String() string {
 		s = "Yes"
 	case No:
 		s = "No"
+	}
+	return s
+}
+
+type Type int
+
+const (
+	UnknownType Type = iota
+	Bool
+	Int
+	Float
+	String
+	Blob
+	Timestamp
+	Array
+	Map
+)
+
+func (t Type) String() string {
+	s := "UnknownType"
+	switch t {
+	case Bool:
+		s = "BOOL"
+	case Int:
+		s = "INT"
+	case Float:
+		s = "FLOAT"
+	case String:
+		s = "STRING"
+	case Blob:
+		s = "BLOB"
+	case Timestamp:
+		s = "TIMESTAMP"
+	case Array:
+		s = "ARRAY"
+	case Map:
+		s = "MAP"
 	}
 	return s
 }
