@@ -83,8 +83,13 @@ func TestNewMapDocMaps(t *testing.T) {
 				"map_a": "a",
 				"map_b": 2,
 			},
-			"byte": []byte("test byte"),
-			"null": nil,
+			"imap": map[interface{}]interface{}{
+				"map_a": "b",
+				"map_b": 3,
+			},
+			"byte":  []byte("test byte"),
+			"null":  nil,
+			"value": Array{Int(1), Float(2), String("hoge")},
 		}
 		var expected = Map{
 			"bool":   Bool(true),
@@ -100,8 +105,13 @@ func TestNewMapDocMaps(t *testing.T) {
 				"map_a": String("a"),
 				"map_b": Int(2),
 			},
-			"byte": Blob([]byte("test byte")),
-			"null": Null{},
+			"imap": Map{
+				"map_a": String("b"),
+				"map_b": Int(3),
+			},
+			"byte":  Blob([]byte("test byte")),
+			"null":  Null{},
+			"value": Array{Int(1), Float(2), String("hoge")},
 		}
 		Convey("When convert to Map object", func() {
 			actual, err := NewMap(m)
