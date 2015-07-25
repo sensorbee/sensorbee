@@ -168,76 +168,72 @@ func NewArray(a []interface{}) (Array, error) {
 
 // NewValue returns a Value object from interface{}.
 // Returns an error when value type is not supported in SensorBee.
-func NewValue(v interface{}) (result Value, err error) {
+func NewValue(v interface{}) (Value, error) {
 	switch vt := v.(type) {
 	case []interface{}:
-		a, err := NewArray(vt)
-		if err != nil {
-			return nil, err
-		}
-		result = a
+		return NewArray(vt)
 	case map[string]interface{}:
-		m, err := NewMap(vt)
-		if err != nil {
-			return nil, err
+		return NewMap(vt)
+	case map[interface{}]interface{}:
+		// This is mainly for goyaml, which unmarshals object to
+		// map[interface{}]interface{} instead of map[string]interface{} and
+		// there's no way to customize that behavior unlike ugorji's codec.
+		m := make(map[string]interface{}, len(vt))
+		for k, v := range vt {
+			s, ok := k.(string)
+			if !ok {
+				return nil, fmt.Errorf("a key of a map must be a string: %v", k)
+			}
+			m[s] = v
 		}
-		result = m
+		return NewMap(m)
 	case bool:
-		result = Bool(vt)
+		return Bool(vt), nil
 	case int:
-		result = Int(vt)
+		return Int(vt), nil
 	case int8:
-		result = Int(vt)
+		return Int(vt), nil
 	case int16:
-		result = Int(vt)
+		return Int(vt), nil
 	case int32:
-		result = Int(vt)
+		return Int(vt), nil
 	case int64:
-		result = Int(vt)
+		return Int(vt), nil
 	case uint:
 		if vt > math.MaxInt64 {
-			err = fmt.Errorf("an int value must be less than 2^63: %v", vt)
-			break
+			return nil, fmt.Errorf("an int value must be less than 2^63: %v", vt)
 		}
-		result = Int(vt)
+		return Int(vt), nil
 	case uint8:
-		result = Int(vt)
+		return Int(vt), nil
 	case uint16:
-		result = Int(vt)
+		return Int(vt), nil
 	case uint32:
-		result = Int(vt)
+		return Int(vt), nil
 	case uint64:
 		if vt > math.MaxInt64 {
-			err = fmt.Errorf("an int value must be less than 2^63: %v", vt)
-			break
+			return nil, fmt.Errorf("an int value must be less than 2^63: %v", vt)
 		}
-		result = Int(vt)
+		return Int(vt), nil
 	case float32:
-		result = Float(vt)
+		return Float(vt), nil
 	case float64:
-		result = Float(vt)
+		return Float(vt), nil
 	case time.Time:
-		result = Timestamp(vt)
+		return Timestamp(vt), nil
 	case string:
-		result = String(vt)
+		return String(vt), nil
 	case []byte:
-		result = Blob(vt)
+		return Blob(vt), nil
 	case nil:
-		result = Null{}
+		return Null{}, nil
 
 	// support some tuple types for convenience
-	case Array:
-		result = vt
-	case Map:
-		result = vt
-	case Blob:
-		result = vt
-	case Timestamp:
-		result = vt
+	case Value:
+		return vt, nil
 	default:
-		err = fmt.Errorf("unsupported type %T", v)
+		return nil, fmt.Errorf("unsupported type %T", v)
 	}
-	return result, err
 }
 
 // MarshalMsgpack returns a byte array encoded by msgpack serialization
