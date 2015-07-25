@@ -44,12 +44,12 @@ func TestNetwork(t *testing.T) {
 				})
 			}
 
-			for _, lv := range [][]interface{}{{"empty addr", ""},
-				{"no port", ":"},
-				{"no :", "localhost8090"},
+			for _, lv := range [][]interface{}{{"empty addr", `""`},
+				{"no port", `":"`},
+				{"no :", `"localhost8090"`},
 				{"invalid type", 1}} {
 				Convey(fmt.Sprintf("Then it should reject %v", lv[0]), func() {
-					_, err := NewNetwork(toMap(fmt.Sprintf(`{"listen_on":"%v"}`, lv[1])))
+					_, err := NewNetwork(toMap(fmt.Sprintf(`{"listen_on":%v}`, lv[1])))
 					So(err, ShouldNotBeNil)
 				})
 			}
