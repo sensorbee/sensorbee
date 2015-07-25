@@ -2,12 +2,13 @@ package testutil
 
 import (
 	"bytes"
-	"github.com/Sirupsen/logrus"
 	"github.com/mattn/go-scan"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"pfi/sensorbee/sensorbee/data"
 	"pfi/sensorbee/sensorbee/server"
+	"pfi/sensorbee/sensorbee/server/config"
 )
 
 var (
@@ -77,14 +78,18 @@ func (t *testTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 func NewServer() *Server {
 	s := &Server{}
 
-	logger := logrus.New()
-	logger.Level = logrus.DebugLevel
-	topologies := server.NewDefaultTopologyRegistry()
-
-	root := server.SetUpRouter("/", server.ContextGlobalVariables{
-		Logger:     logger,
-		Topologies: topologies,
-	})
+	c, err := config.New(data.Map{})
+	if err != nil {
+		panic(err)
+	}
+	gvars, err := server.SetUpContextGlobalVariables(c)
+	if err != nil {
+		panic(err)
+	}
+	root, err := server.SetUpContextAndRouter("/", gvars)
+	if err != nil {
+		panic(err)
+	}
 	server.SetUpAPIRouter("/", root, nil)
 
 	if TestAPIWithRealHTTPServer {

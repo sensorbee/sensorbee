@@ -4,12 +4,15 @@ package run
 
 import (
 	"fmt"
-	"github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
+	"gopkg.in/yaml.v2"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"os"
+	"pfi/sensorbee/sensorbee/data"
 	"pfi/sensorbee/sensorbee/server"
+	"pfi/sensorbee/sensorbee/server/config"
 )
 
 // SetUp sets up SensorBee's HTTP server. The URL or port ID is set with server
@@ -23,9 +26,10 @@ func SetUp() cli.Command {
 	}
 	cmd.Flags = []cli.Flag{
 		cli.StringFlag{
-			Name:  "listen-on, l",
-			Value: "0.0.0.0:8090",
-			Usage: "server port number",
+			Name:   "config, c",
+			Value:  "",
+			Usage:  "file path of a config file in YAML format",
+			EnvVar: "SENSORBEE_CONFIG",
 		},
 	}
 	return cmd
@@ -47,14 +51,57 @@ func Run(c *cli.Context) {
 		}
 	}()
 
-	logger := logrus.New()
-	// TODO: setup logger based on the config
-	topologies := server.NewDefaultTopologyRegistry()
+	var conf *config.Config
+	if c.IsSet("config") {
+		p := c.String("config")
+		in, err := ioutil.ReadFile(p)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Cannot read the config file %v: %v\n", p, err)
+			panic(1)
+		}
 
-	router := server.SetUpRouter("/", server.ContextGlobalVariables{
-		Logger:     logger,
-		Topologies: topologies,
-	})
+		var yml map[string]interface{}
+		if err := yaml.Unmarshal(in, &yml); err != nil {
+			fmt.Fprintf(os.Stderr, "Cannot parse the config file %v: %v\n", p, err)
+			panic(1)
+		}
+		m, err := data.NewMap(yml)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "The config file %v has invalid values: %v\n", p, err)
+			panic(1)
+		}
+		c, err := config.New(m)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Cannot apply the cnofig file %v: %v\n", p, err)
+			panic(1)
+		}
+		conf = c
+
+	} else {
+		// Currently there's no required parameters. However, when a required
+		// parameter is added to Config, remove this else block and add a
+		// default value like "/etc/sensorbee/config.yaml" to the config option.
+		c, err := config.New(data.Map{})
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Cannot apply the default config: %v\n", err)
+			panic(1)
+		}
+		conf = c
+	}
+
+	cgvars, err := server.SetUpContextGlobalVariables(conf)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Cannot set up the server context: %v\n", err)
+		panic(1)
+	}
+
+	cgvars.Logger.Info("Setting up the server context")
+
+	router, err := server.SetUpContextAndRouter("/", cgvars)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Cannot set up the server context: %v\n", err)
+		panic(1)
+	}
 	server.SetUpAPIRouter("/", router, nil)
 
 	bind := c.String("listen-on")
@@ -67,11 +114,13 @@ func Run(c *cli.Context) {
 	// TODO: support stopping the server
 	// TODO: support graceful shutdown
 	s := &http.Server{
-		Addr:    bind,
+		Addr:    conf.Network.ListenOn,
 		Handler: router,
 	}
+	cgvars.Logger.Infof("Starting the server on %v", conf.Network.ListenOn)
 	if err := s.ListenAndServe(); err != nil {
 		fmt.Fprintln(os.Stderr, "Cannot start the server:", err)
 		panic(1)
 	}
+	cgvars.Logger.Infof("The server stopped")
 }
