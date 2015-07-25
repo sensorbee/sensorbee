@@ -9,7 +9,7 @@ import (
 type Topology struct {
 	// Name is the name of the topology. This field isn't directly used
 	// in a config file.
-	Name string `json:"name" yaml:"name"`
+	Name string `json:"-" yaml:"-"`
 
 	// BQLFile is a file path to the BQL file executed on start up.
 	BQLFile string `json:"bql_file" yaml:"bql_file"`
@@ -18,12 +18,8 @@ type Topology struct {
 // Topologies is a set of configuration of topologies.
 type Topologies map[string]*Topology
 
-var topologiesSchema *gojsonschema.Schema
-
-func init() {
-	// TODO: need pattern validation on bql_file if possible
-	s, err := gojsonschema.NewSchema(gojsonschema.NewStringLoader(`
-{
+var (
+	topologiesSchemaString = `{
 	"type": "object",
 	"properties": {
 	},
@@ -33,13 +29,22 @@ func init() {
 			"properties": {
 				"bql_file": {
 					"type": "string",
-					"minLength": 1,
+					"minLength": 1
 				}
 			},
 			"additionalProperties": false
 		}
 	}
-}`))
+}`
+
+	// Because gojsonschema doesn't support partial schema validation, this
+	// has to be defined separately from
+	topologiesSchema *gojsonschema.Schema
+)
+
+func init() {
+	// TODO: need pattern validation on bql_file if possible
+	s, err := gojsonschema.NewSchema(gojsonschema.NewStringLoader(topologiesSchemaString))
 	if err != nil {
 		panic(err)
 	}
@@ -51,7 +56,10 @@ func NewTopologies(m data.Map) (Topologies, error) {
 	if err := validate(topologiesSchema, m); err != nil {
 		return nil, err
 	}
+	return newTopologies(m), nil
+}
 
+func newTopologies(m data.Map) Topologies {
 	ts := Topologies{}
 	for name, conf := range m {
 		t := &Topology{
@@ -60,5 +68,5 @@ func NewTopologies(m data.Map) (Topologies, error) {
 		}
 		ts[name] = t
 	}
-	return ts, nil
+	return ts
 }

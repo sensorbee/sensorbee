@@ -11,11 +11,8 @@ type Network struct {
 	ListenOn string `json:"listen_on" yaml:"listen_on"`
 }
 
-var networkSchema *gojsonschema.Schema
-
-func init() {
-	s, err := gojsonschema.NewSchema(gojsonschema.NewStringLoader(`
-{
+var (
+	networkSchemaString = `{
 	"type": "object",
 	"properties": {
 		"listen_on": {
@@ -24,8 +21,12 @@ func init() {
 		}
 	},
 	"additionalProperties": false
-}
-`))
+}`
+	networkSchema *gojsonschema.Schema
+)
+
+func init() {
+	s, err := gojsonschema.NewSchema(gojsonschema.NewStringLoader(networkSchemaString))
 	if err != nil {
 		panic(err)
 	}
@@ -37,8 +38,11 @@ func NewNetwork(m data.Map) (*Network, error) {
 	if err := validate(networkSchema, m); err != nil {
 		return nil, err
 	}
+	return newNetwork(m), nil
+}
 
+func newNetwork(m data.Map) *Network {
 	return &Network{
 		ListenOn: mustAsString(getWithDefault(m, "listen_on", data.String(":8090"))),
-	}, nil
+	}
 }

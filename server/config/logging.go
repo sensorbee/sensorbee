@@ -38,11 +38,8 @@ type Logging struct {
 	// TODO: add log formatting
 }
 
-var loggingSchema *gojsonschema.Schema
-
-func init() {
-	s, err := gojsonschema.NewSchema(gojsonschema.NewStringLoader(`
-{
+var (
+	loggingSchemaString = `{
 	"type": "object",
 	"properties": {
 		"target": {
@@ -59,7 +56,12 @@ func init() {
 		}
 	},
 	"additionalProperties": false
-}`))
+}`
+	loggingSchema *gojsonschema.Schema
+)
+
+func init() {
+	s, err := gojsonschema.NewSchema(gojsonschema.NewStringLoader(loggingSchemaString))
 	if err != nil {
 		panic(err)
 	}
@@ -71,13 +73,16 @@ func NewLogging(m data.Map) (*Logging, error) {
 	if err := validate(loggingSchema, m); err != nil {
 		return nil, err
 	}
+	return newLogging(m), nil
+}
 
+func newLogging(m data.Map) *Logging {
 	return &Logging{
 		Target:                 mustAsString(getWithDefault(m, "target", data.String("stderr"))),
 		MinLogLevel:            mustAsString(getWithDefault(m, "min_log_level", data.String("info"))),
 		LogDroppedTuples:       mustToBool(getWithDefault(m, "log_dropped_tuples", data.False)),
 		SummarizeDroppedTuples: mustToBool(getWithDefault(m, "summarize_dropped_tuples", data.False)),
-	}, nil
+	}
 }
 
 type nopCloser struct {

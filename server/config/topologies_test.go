@@ -51,6 +51,7 @@ func TestTopologies(t *testing.T) {
 				Convey(fmt.Sprintf("Then it should reject %v value", b[0]), func() {
 					_, err := NewTopologies(toMap(fmt.Sprintf(`{"test":{"bql_file":%v}}`, b[1])))
 					So(err, ShouldNotBeNil)
+					fmt.Println(err)
 				})
 			}
 		})
