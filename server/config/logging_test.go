@@ -22,11 +22,12 @@ func TestLogging(t *testing.T) {
 		})
 
 		Convey("When the config only has required parameters", func() {
-			l, err := NewLogging(toMap(`{"target":"stdout"}`))
+			// no required parameter at the moment
+			l, err := NewLogging(toMap(`{}`))
 			So(err, ShouldBeNil)
 
 			Convey("Then it should have given parameters and default values", func() {
-				So(l.Target, ShouldEqual, "stdout")
+				So(l.Target, ShouldEqual, "stderr")
 				So(l.MinLogLevel, ShouldEqual, "info")
 				So(l.LogDroppedTuples, ShouldBeFalse)
 				So(l.SummarizeDroppedTuples, ShouldBeFalse)

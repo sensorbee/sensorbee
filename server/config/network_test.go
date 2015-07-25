@@ -19,10 +19,11 @@ func TestNetwork(t *testing.T) {
 
 		Convey("When the config only has required parameters", func() {
 			// no required parameter at the moment
-			_, err := NewNetwork(toMap(`{}`))
+			n, err := NewNetwork(toMap(`{}`))
 
-			Convey("Then it should be accepted", func() {
+			Convey("Then it should have given parameters and default values", func() {
 				So(err, ShouldBeNil)
+				So(n.ListenOn, ShouldEqual, ":8090")
 			})
 		})
 
