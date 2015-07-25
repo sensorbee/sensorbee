@@ -32,6 +32,14 @@ func mustAsString(v data.Value) string {
 	return s
 }
 
+func mustAsMap(v data.Value) data.Map {
+	m, err := data.AsMap(v)
+	if err != nil {
+		panic(err)
+	}
+	return m
+}
+
 func mustToBool(v data.Value) bool {
 	b, err := data.ToBool(v)
 	if err != nil {

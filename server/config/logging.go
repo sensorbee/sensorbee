@@ -58,7 +58,6 @@ func init() {
 			"type": "boolean"
 		}
 	},
-	"required": ["target"],
 	"additionalProperties": false
 }`))
 	if err != nil {
@@ -74,7 +73,7 @@ func NewLogging(m data.Map) (*Logging, error) {
 	}
 
 	return &Logging{
-		Target:                 mustAsString(mustGet(m, "target")),
+		Target:                 mustAsString(getWithDefault(m, "target", data.String("stderr"))),
 		MinLogLevel:            mustAsString(getWithDefault(m, "min_log_level", data.String("info"))),
 		LogDroppedTuples:       mustToBool(getWithDefault(m, "log_dropped_tuples", data.False)),
 		SummarizeDroppedTuples: mustToBool(getWithDefault(m, "summarize_dropped_tuples", data.False)),
