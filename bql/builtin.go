@@ -120,12 +120,12 @@ type nodeStatusSource struct {
 func (s *nodeStatusSource) GenerateStream(ctx *core.Context, w core.Writer) error {
 	next := time.Now().Add(s.interval)
 	for {
-		now := time.Now()
 		select {
 		case <-s.stopCh:
 			return nil
-		case <-time.After(next.Sub(now)):
+		case <-time.After(next.Sub(time.Now())):
 		}
+		now := time.Now()
 
 		for name, n := range s.topology.Nodes() {
 			t := &core.Tuple{
