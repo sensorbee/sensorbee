@@ -10,6 +10,10 @@ import (
 	"io/ioutil"
 	"net/http"
 	"path/filepath"
+	"pfi/sensorbee/sensorbee/bql"
+	"pfi/sensorbee/sensorbee/bql/parser"
+	"pfi/sensorbee/sensorbee/core"
+	"pfi/sensorbee/sensorbee/server/config"
 	"runtime"
 	"sync/atomic"
 	"time"
@@ -28,6 +32,7 @@ type Context struct {
 
 	logger     *logrus.Logger
 	topologies TopologyRegistry
+	config     *config.Config
 }
 
 // SetLogger sets the logger to the context. Must be set before any action
@@ -193,20 +198,166 @@ type ContextGlobalVariables struct {
 	// Logger is used to write log messages.
 	Logger *logrus.Logger
 
+	// LogDestination is a writer to which logs are written.
+	LogDestination io.WriteCloser
+
 	// Topologies is a registry which manages topologies to support multi
 	// tenancy.
 	Topologies TopologyRegistry
+
+	// Config has configuration parameters.
+	Config *config.Config
 }
 
-// SetUpRouter creates a root router of the API server.
-func SetUpRouter(prefix string, gvars ContextGlobalVariables) *web.Router {
+// SetUpContextGlobalVariables create a new ContextGlobalVariables from a config.
+// DO NOT make any change on the config after calling this function. The caller
+// can change other members of ContextGlobalVariables.
+//
+// The caller must Close LogDestination.
+func SetUpContextGlobalVariables(conf *config.Config) (*ContextGlobalVariables, error) {
+	logger := logrus.New()
+	w, err := conf.Logging.CreateWriter()
+	if err != nil {
+		return nil, err
+	}
+	closeWriter := true
+	defer func() {
+		if closeWriter {
+			w.Close()
+		}
+	}()
+	logger.Out = w
+
+	closeWriter = false
+	return &ContextGlobalVariables{
+		Logger:         logger,
+		LogDestination: w,
+		Topologies:     NewDefaultTopologyRegistry(),
+		Config:         conf,
+	}, nil
+}
+
+// SetUpContextAndRouter creates a root router of the API server and its context.
+func SetUpContextAndRouter(prefix string, gvariables *ContextGlobalVariables) (*web.Router, error) {
+	gvars := *gvariables
+	if err := setUpTopologies(gvars.Logger, gvars.Topologies, gvars.Config); err != nil {
+		return nil, err
+	}
+
 	root := web.NewWithPrefix(Context{}, prefix)
 	root.NotFound((*Context).NotFoundHandler)
 	root.Middleware(func(c *Context, rw web.ResponseWriter, req *web.Request, next web.NextMiddlewareFunc) {
 		c.SetLogger(gvars.Logger)
 		c.topologies = gvars.Topologies
+		c.config = gvars.Config
 		next(rw, req)
 	})
 	root.Middleware((*Context).setUpContext)
-	return root
+	return root, nil
+}
+
+func setUpTopologies(logger *logrus.Logger, r TopologyRegistry, conf *config.Config) error {
+	stopAll := true
+	defer func() {
+		if stopAll {
+			ts, err := r.List()
+			if err != nil {
+				logger.WithField("err", err).Error("Cannot list topologies for clean up")
+				return
+			}
+
+			for name, t := range ts {
+				if err := t.Topology().Stop(); err != nil {
+					logger.WithFields(logrus.Fields{
+						"err":      err,
+						"topology": name,
+					}).Error("Cannot stop the topology")
+				}
+			}
+		}
+	}()
+
+	for name, _ := range conf.Topologies {
+		logger.WithField("topology", name).Info("Setting up the topology")
+		tb, err := setUpTopology(logger, name, conf)
+		if err != nil {
+			return err
+		}
+		if err := r.Register(name, tb); err != nil {
+			logger.WithFields(logrus.Fields{
+				"err":      err,
+				"topology": name,
+			}).Error("Cannot register the topology")
+			return err
+		}
+	}
+
+	stopAll = false
+	return nil
+}
+
+func setUpTopology(logger *logrus.Logger, name string, conf *config.Config) (*bql.TopologyBuilder, error) {
+	cc := &core.ContextConfig{
+		Logger: logger,
+	}
+	cc.Flags.DroppedTupleLog.Set(conf.Logging.LogDroppedTuples)
+	cc.Flags.DroppedTupleSummarization.Set(conf.Logging.SummarizeDroppedTuples)
+
+	tp := core.NewDefaultTopology(core.NewContext(cc), name)
+	tb, err := bql.NewTopologyBuilder(tp)
+	if err != nil {
+		logger.WithFields(logrus.Fields{
+			"err":      err,
+			"topology": name,
+		}).Error("Cannot create a topology builder")
+		return nil, err
+	}
+
+	bqlFilePath := conf.Topologies[name].BQLFile
+	if bqlFilePath == "" {
+		return tb, nil
+	}
+
+	shouldStop := true
+	defer func() {
+		if shouldStop {
+			if err := tp.Stop(); err != nil {
+				logger.WithFields(logrus.Fields{
+					"err":      err,
+					"topology": name,
+				}).Error("Cannot stop the topology")
+			}
+		}
+	}()
+
+	queries, err := ioutil.ReadFile(bqlFilePath)
+	if err != nil {
+		logger.WithFields(logrus.Fields{
+			"err":      err,
+			"topology": name,
+			// TODO: add stmt.String()
+		}).Error("Cannot add a statement to the topology")
+		return nil, err
+	}
+
+	// TODO: improve error handling
+	bp := parser.NewBQLParser()
+	stmts, err := bp.ParseStmts(string(queries))
+	if err != nil {
+		return nil, err
+	}
+
+	for _, stmt := range stmts {
+		if _, err := tb.AddStmt(stmt); err != nil {
+			logger.WithFields(logrus.Fields{
+				"err":      err,
+				"topology": name,
+				// TODO: add stmt.String()
+			}).Error("Cannot add a statement to the topology")
+			return nil, err
+		}
+	}
+
+	shouldStop = false
+	return tb, nil
 }

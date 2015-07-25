@@ -8,14 +8,6 @@ import (
 	"strings"
 )
 
-func mustGet(m data.Map, path string) data.Value {
-	v, err := m.Get(path)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
 func getWithDefault(m data.Map, path string, def data.Value) data.Value {
 	v, err := m.Get(path)
 	if err != nil {
