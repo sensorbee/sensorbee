@@ -25,14 +25,21 @@ var (
 	},
 	"patternProperties": {
 		".*": {
-			"type": "object",
-			"properties": {
-				"bql_file": {
-					"type": "string",
-					"minLength": 1
+			"anyOf": [
+				{
+					"type": "object",
+					"properties": {
+						"bql_file": {
+							"type": "string",
+							"minLength": 1
+						}
+					},
+					"additionalProperties": false
+				},
+				{
+					"type": "null"
 				}
-			},
-			"additionalProperties": false
+			]
 		}
 	}
 }`
@@ -62,6 +69,9 @@ func NewTopologies(m data.Map) (Topologies, error) {
 func newTopologies(m data.Map) Topologies {
 	ts := Topologies{}
 	for name, conf := range m {
+		if conf.Type() == data.TypeNull {
+			conf = data.Map{}
+		}
 		t := &Topology{
 			Name:    name,
 			BQLFile: mustAsString(getWithDefault(mustAsMap(conf), "bql_file", data.String(""))),

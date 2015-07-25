@@ -9,7 +9,7 @@ import (
 func TestTopologies(t *testing.T) {
 	Convey("Given a JSON config for logging section", t, func() {
 		Convey("When the config is valid", func() {
-			ts, err := NewTopologies(toMap(`{"test1":{},"test2":{"bql_file":"/path/to/hoge.bql"}}`))
+			ts, err := NewTopologies(toMap(`{"test1":{},"test2":{"bql_file":"/path/to/hoge.bql"},"test3":null}`))
 			So(err, ShouldBeNil)
 
 			Convey("Then it should have given parameters", func() {
@@ -17,6 +17,8 @@ func TestTopologies(t *testing.T) {
 				So(ts["test1"].BQLFile, ShouldEqual, "")
 				So(ts["test2"].Name, ShouldEqual, "test2")
 				So(ts["test2"].BQLFile, ShouldEqual, "/path/to/hoge.bql")
+				So(ts["test3"].Name, ShouldEqual, "test3")
+				So(ts["test3"].BQLFile, ShouldEqual, "")
 			})
 		})
 

@@ -129,14 +129,14 @@ func (tc *topologies) Create(rw web.ResponseWriter, req *web.Request) {
 
 	// TODO: support other parameters
 
-	ctx := core.NewContext(&core.ContextConfig{
+	cc := &core.ContextConfig{
 		Logger: tc.logger,
-		Flags: core.ContextFlags{
-			DroppedTupleLog:           0,
-			DroppedTupleSummarization: 1,
-		},
-	})
-	tp := core.NewDefaultTopology(ctx, name)
+	}
+	// TODO: Be careful of race conditions on these fields.
+	cc.Flags.DroppedTupleLog.Set(tc.config.Logging.LogDroppedTuples)
+	cc.Flags.DroppedTupleSummarization.Set(tc.config.Logging.SummarizeDroppedTuples)
+
+	tp := core.NewDefaultTopology(core.NewContext(cc), name)
 	tb, err := bql.NewTopologyBuilder(tp)
 	if err != nil {
 		tc.ErrLog(err).Error("Cannot create a new topology builder")
