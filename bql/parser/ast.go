@@ -422,6 +422,10 @@ func (u TypeCastAST) string() string {
 		return rv.string() + "::" + u.Target.String()
 	}
 
+	if rm, ok := u.Expr.(RowMeta); ok {
+		return rm.string() + "::" + u.Target.String()
+	}
+
 	return "CAST(" + u.Expr.string() + " AS " + u.Target.String() + ")"
 }
 
