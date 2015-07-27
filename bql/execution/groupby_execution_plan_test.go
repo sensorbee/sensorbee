@@ -20,7 +20,7 @@ func createGroupbyPlan(s string, t *testing.T) (ExecutionPlan, error) {
 		return nil, err
 	}
 	So(_stmt, ShouldHaveSameTypeAs, parser.CreateStreamAsSelectStmt{})
-	stmt := _stmt.(parser.CreateStreamAsSelectStmt)
+	stmt := _stmt.(parser.CreateStreamAsSelectStmt).Select
 	logicalPlan, err := Analyze(stmt, reg)
 	if err != nil {
 		return nil, err

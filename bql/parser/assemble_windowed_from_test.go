@@ -117,7 +117,7 @@ func TestAssembleWindowedFrom(t *testing.T) {
 				So(ps.Len(), ShouldEqual, 1)
 				top := ps.Peek().comp
 				So(top, ShouldHaveSameTypeAs, CreateStreamAsSelectStmt{})
-				s := top.(CreateStreamAsSelectStmt)
+				s := top.(CreateStreamAsSelectStmt).Select
 				So(s.WindowedFromAST, ShouldResemble, WindowedFromAST{})
 			})
 		})
@@ -135,7 +135,7 @@ func TestAssembleWindowedFrom(t *testing.T) {
 				So(ps.Len(), ShouldEqual, 1)
 				top := ps.Peek().comp
 				So(top, ShouldHaveSameTypeAs, CreateStreamAsSelectStmt{})
-				comp := top.(CreateStreamAsSelectStmt)
+				comp := top.(CreateStreamAsSelectStmt).Select
 				So(len(comp.Relations), ShouldEqual, 2)
 				So(len(comp.Relations), ShouldEqual, 2)
 				So(comp.Relations[0].Name, ShouldEqual, "c")

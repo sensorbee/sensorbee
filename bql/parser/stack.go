@@ -101,8 +101,7 @@ func (ps *parseStack) AssembleSelect() {
 //  SelectStmt
 //  StreamIdentifier
 //   =>
-//  CreateStreamAsSelectStmt{StreamIdentifier, EmitProjectionsAST, WindowedFromAST, FilterAST,
-//    GroupingAST, HavingAST}
+//  CreateStreamAsSelectStmt{StreamIdentifier, SelectStmt}
 func (ps *parseStack) AssembleCreateStreamAsSelect() {
 	// now pop the components from the stack in reverse order
 	_select, _name := ps.pop2()
@@ -113,8 +112,7 @@ func (ps *parseStack) AssembleCreateStreamAsSelect() {
 	name := _name.comp.(StreamIdentifier)
 
 	// assemble the SelectStmt and push it back
-	css := CreateStreamAsSelectStmt{name, s.EmitterAST, s.ProjectionsAST,
-		s.WindowedFromAST, s.FilterAST, s.GroupingAST, s.HavingAST}
+	css := CreateStreamAsSelectStmt{name, s}
 	se := ParsedComponent{_name.begin, _select.end, css}
 	ps.Push(&se)
 }
