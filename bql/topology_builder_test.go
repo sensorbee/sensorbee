@@ -236,6 +236,77 @@ func TestCreateStreamAsSelectStmt(t *testing.T) {
 	})
 }
 
+func TestCreateStreamAsSelectUnionStmt(t *testing.T) {
+	Convey("Given a BQL TopologyBuilder with source and stream", t, func() {
+		dt := newTestTopology()
+		Reset(func() {
+			dt.Stop()
+		})
+		tb, err := NewTopologyBuilder(dt)
+		So(err, ShouldBeNil)
+		err = addBQLToTopology(tb, `CREATE PAUSED SOURCE s TYPE dummy`)
+		So(err, ShouldBeNil)
+
+		Convey("When running CREATE STREAM AS SELECT on an existing stream", func() {
+			err := addBQLToTopology(tb, `CREATE STREAM t AS SELECT ISTREAM int FROM s [RANGE 2 SECONDS]
+				UNION ALL SELECT ISTREAM int+1 FROM s [RANGE 2 SECONDS]`)
+
+			Convey("Then there should be no error", func() {
+				So(err, ShouldBeNil)
+			})
+
+			Convey("And when unioning source and stream", func() {
+				err := addBQLToTopology(tb, `CREATE STREAM x AS SELECT ISTREAM int FROM s [RANGE 2 SECONDS]
+				UNION ALL SELECT DSTREAM int+1 FROM t [RANGE 2 SECONDS]`)
+
+				Convey("Then there should be no error", func() {
+					So(err, ShouldBeNil)
+				})
+
+				Convey("And when unioning with yet another stream", func() {
+					err := addBQLToTopology(tb, `CREATE STREAM u AS SELECT ISTREAM int FROM s [RANGE 2 SECONDS]
+						UNION ALL SELECT DSTREAM int+1 FROM t [RANGE 2 SECONDS]
+						UNION ALL SELECT DSTREAM int+2 FROM x [RANGE 2 SECONDS]`)
+
+					Convey("Then there should be no error", func() {
+						So(err, ShouldBeNil)
+					})
+				})
+			})
+
+			Convey("And when running another CREATE STREAM AS SELECT with the same name", func() {
+				err := addBQLToTopology(tb, `CREATE STREAM t AS SELECT ISTREAM int FROM s [RANGE 2 SECONDS]
+				UNION ALL SELECT DSTREAM int+1 FROM t [RANGE 2 SECONDS]`)
+
+				Convey("Then an error should be returned the second time", func() {
+					So(err, ShouldNotBeNil)
+					So(err.Error(), ShouldContainSubstring, "already")
+				})
+			})
+		})
+
+		Convey("When running CREATE STREAM AS SELECT on a non-existing stream (1)", func() {
+			err := addBQLToTopology(tb, `CREATE STREAM x AS SELECT ISTREAM int FROM bar [RANGE 2 SECONDS]
+				UNION ALL SELECT DSTREAM int+1 FROM t [RANGE 2 SECONDS]`)
+
+			Convey("Then an error should be returned", func() {
+				So(err, ShouldNotBeNil)
+				So(err.Error(), ShouldContainSubstring, "was not found")
+			})
+		})
+
+		Convey("When running CREATE STREAM AS SELECT on a non-existing stream (2)", func() {
+			err := addBQLToTopology(tb, `CREATE STREAM x AS SELECT ISTREAM int FROM s [RANGE 2 SECONDS]
+				UNION ALL SELECT DSTREAM int+1 FROM bar [RANGE 2 SECONDS]`)
+
+			Convey("Then an error should be returned", func() {
+				So(err, ShouldNotBeNil)
+				So(err.Error(), ShouldContainSubstring, "was not found")
+			})
+		})
+	})
+}
+
 func TestCreateSinkStmt(t *testing.T) {
 	Convey("Given a BQL TopologyBuilder", t, func() {
 		dt := newTestTopology()
