@@ -98,32 +98,24 @@ func (ps *parseStack) AssembleSelect() {
 // assuming they are components of a CREATE STREAM statement, and
 // replaces them by a single CreateStreamAsSelectStmt element.
 //
-//  HavingAST
-//  GroupingAST
-//  FilterAST
-//  WindowedFromAST
-//  EmitProjectionsAST
+//  SelectStmt
 //  StreamIdentifier
 //   =>
 //  CreateStreamAsSelectStmt{StreamIdentifier, EmitProjectionsAST, WindowedFromAST, FilterAST,
 //    GroupingAST, HavingAST}
 func (ps *parseStack) AssembleCreateStreamAsSelect() {
-	// pop the components from the stack in reverse order
-	_having, _grouping, _filter, _from, _projections, _emitter, _name := ps.pop7()
+	// now pop the components from the stack in reverse order
+	_select, _name := ps.pop2()
 
 	// extract and convert the contained structure
 	// (if this fails, this is a fundamental parser bug => panic ok)
-	having := _having.comp.(HavingAST)
-	grouping := _grouping.comp.(GroupingAST)
-	filter := _filter.comp.(FilterAST)
-	from := _from.comp.(WindowedFromAST)
-	projections := _projections.comp.(ProjectionsAST)
-	emitter := _emitter.comp.(EmitterAST)
+	s := _select.comp.(SelectStmt)
 	name := _name.comp.(StreamIdentifier)
 
 	// assemble the SelectStmt and push it back
-	s := CreateStreamAsSelectStmt{name, emitter, projections, from, filter, grouping, having}
-	se := ParsedComponent{_name.begin, _having.end, s}
+	css := CreateStreamAsSelectStmt{name, s.EmitterAST, s.ProjectionsAST,
+		s.WindowedFromAST, s.FilterAST, s.GroupingAST, s.HavingAST}
+	se := ParsedComponent{_name.begin, _select.end, css}
 	ps.Push(&se)
 }
 
