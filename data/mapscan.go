@@ -183,8 +183,8 @@ func scanMap(m Map, p string, v *Value) (err error) {
 			}
 			foundValue := tempMap[submatchStr[1]]
 			if foundValue == nil {
-				return errors.New(
-					"not found the key in map: " + submatchStr[1])
+				return fmt.Errorf("key '%s' was not found in map",
+					submatchStr[1])
 			}
 			tempValue = foundValue
 		}
