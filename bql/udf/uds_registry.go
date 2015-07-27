@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"pfi/sensorbee/sensorbee/core"
 	"pfi/sensorbee/sensorbee/data"
+	"strings"
 	"sync"
 )
 
@@ -64,17 +65,18 @@ func (r *defaultUDSCreatorRegistry) Register(typeName string, c UDSCreator) erro
 	r.m.Lock()
 	defer r.m.Unlock()
 
-	if _, ok := r.creators[typeName]; ok {
+	lowerName := strings.ToLower(typeName)
+	if _, ok := r.creators[lowerName]; ok {
 		return fmt.Errorf("UDS type '%v' is already registered", typeName)
 	}
-	r.creators[typeName] = c
+	r.creators[lowerName] = c
 	return nil
 }
 
 func (r *defaultUDSCreatorRegistry) Lookup(typeName string) (UDSCreator, error) {
 	r.m.RLock()
 	defer r.m.RUnlock()
-	if c, ok := r.creators[typeName]; ok {
+	if c, ok := r.creators[strings.ToLower(typeName)]; ok {
 		return c, nil
 	}
 	return nil, fmt.Errorf("UDS type '%v' is not found", typeName)
@@ -94,7 +96,7 @@ func (r *defaultUDSCreatorRegistry) List() (map[string]UDSCreator, error) {
 func (r *defaultUDSCreatorRegistry) Unregister(typeName string) error {
 	r.m.Lock()
 	defer r.m.Unlock()
-	delete(r.creators, typeName)
+	delete(r.creators, strings.ToLower(typeName))
 	return nil
 }
 
