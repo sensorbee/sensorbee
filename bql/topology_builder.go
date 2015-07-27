@@ -117,6 +117,46 @@ func (tb *TopologyBuilder) AddStmt(stmt interface{}) (core.Node, error) {
 	case parser.CreateStreamAsSelectStmt:
 		return tb.createStreamAsSelectStmt(&stmt)
 
+	case parser.CreateStreamAsSelectUnionStmt:
+		// idea: create an intermediate box for each SELECT substatement,
+		// then connect them with a simple forwarder box
+		names := make([]string, len(stmt.Selects))
+		for i, selStmt := range stmt.Selects {
+			// create a stream with a generated name and recurse
+			tmpName := fmt.Sprintf("sensorbee_tmp_%v", topologyBuilderNextTemporaryID())
+			names[i] = tmpName
+			tmpStmt := parser.CreateStreamAsSelectStmt{
+				parser.StreamIdentifier(tmpName),
+				selStmt,
+			}
+			box, err := tb.AddStmt(tmpStmt)
+			if err != nil {
+				return nil, err
+			}
+			box.(core.BoxNode).StopOnDisconnect(core.Inbound | core.Outbound)
+			box.(core.BoxNode).RemoveOnStop()
+		}
+		// simple forwarder box
+		forwardBox := core.BoxFunc(func(ctx *core.Context, t *core.Tuple, w core.Writer) error {
+			return w.Write(ctx, t)
+		})
+		node, err := tb.topology.AddBox(string(stmt.Name), forwardBox, nil)
+		if err != nil {
+			return nil, err
+		}
+		// TODO if we add
+		//   node.StopOnDisconnect(core.Inbound)
+		//   node.RemoveOnStop()
+		// here, then all the tests will fail. this should
+		// be investigated...?
+		// connect inputs
+		for _, name := range names {
+			if err := node.Input(name, nil); err != nil {
+				return nil, err
+			}
+		}
+		return node, nil
+
 	case parser.CreateSinkStmt:
 		// load params into map for faster access
 		paramsMap := tb.mkParamsMap(stmt.Params)
