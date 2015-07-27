@@ -231,6 +231,27 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 		})
 	})
 
+	Convey("Given a SELECT clause with an operation on a column", t, func() {
+		tuples := getTuples(4)
+		s := `CREATE STREAM box AS SELECT ISTREAM 0 - int FROM src [RANGE 2 SECONDS]`
+		plan, err := createDefaultSelectPlan(s, t)
+		So(err, ShouldBeNil)
+
+		Convey("When feeding it with tuples", func() {
+			for idx, inTup := range tuples {
+				out, err := plan.Process(inTup)
+				So(err, ShouldBeNil)
+
+				Convey(fmt.Sprintf("Then those values should appear in %v", idx), func() {
+					So(len(out), ShouldEqual, 1)
+					So(out[0], ShouldResemble,
+						data.Map{"col_1": data.Int(-(idx + 1))})
+				})
+			}
+
+		})
+	})
+
 	// Select constant and a column with changing values from aliased relation
 	Convey("Given a SELECT clause with a constant, a column, and a table alias", t, func() {
 		tuples := getTuples(4)
