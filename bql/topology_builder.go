@@ -242,12 +242,14 @@ func (tb *TopologyBuilder) AddStmt(stmt interface{}) (core.Node, error) {
 		tmpName := fmt.Sprintf("sensorbee_tmp_%v", topologyBuilderNextTemporaryID())
 		tmpStmt := parser.CreateStreamAsSelectStmt{
 			parser.StreamIdentifier(tmpName),
-			stmt.EmitterAST,
-			stmt.ProjectionsAST,
-			stmt.WindowedFromAST,
-			stmt.FilterAST,
-			stmt.GroupingAST,
-			stmt.HavingAST,
+			parser.SelectStmt{
+				stmt.EmitterAST,
+				stmt.ProjectionsAST,
+				stmt.WindowedFromAST,
+				stmt.FilterAST,
+				stmt.GroupingAST,
+				stmt.HavingAST,
+			},
 		}
 		box, err := tb.AddStmt(tmpStmt)
 		if err != nil {
@@ -338,7 +340,7 @@ func (b *udsfBox) Terminate(ctx *core.Context) error {
 func (tb *TopologyBuilder) createStreamAsSelectStmt(stmt *parser.CreateStreamAsSelectStmt) (core.Node, error) {
 	// insert a bqlBox that executes the SELECT statement
 	outName := string(stmt.Name)
-	box := NewBQLBox(stmt, tb.Reg)
+	box := NewBQLBox(&stmt.Select, tb.Reg)
 	// add all the referenced relations as named inputs
 	dbox, err := tb.topology.AddBox(outName, box, nil)
 	if err != nil {
@@ -359,7 +361,7 @@ func (tb *TopologyBuilder) createStreamAsSelectStmt(stmt *parser.CreateStreamAsS
 	}()
 
 	connected := map[string]bool{}
-	for _, rel := range stmt.Relations {
+	for _, rel := range stmt.Select.Relations {
 		switch rel.Type {
 		case parser.ActualStream:
 			if connected[rel.Name] {

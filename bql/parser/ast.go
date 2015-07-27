@@ -29,13 +29,8 @@ type SelectStmt struct {
 }
 
 type CreateStreamAsSelectStmt struct {
-	Name StreamIdentifier
-	EmitterAST
-	ProjectionsAST
-	WindowedFromAST
-	FilterAST
-	GroupingAST
-	HavingAST
+	Name   StreamIdentifier
+	Select SelectStmt
 }
 
 type CreateSourceStmt struct {

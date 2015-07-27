@@ -363,8 +363,7 @@ func TestRelationChecker(t *testing.T) {
 			if selectAst.EmitterType != parser.UnspecifiedEmitter {
 				emitter = selectAst.EmitterAST
 			}
-			ast := parser.CreateStreamAsSelectStmt{
-				Name:            parser.StreamIdentifier("x"),
+			ast := parser.SelectStmt{
 				EmitterAST:      emitter,
 				ProjectionsAST:  selectAst.ProjectionsAST,
 				WindowedFromAST: selectAst.WindowedFromAST,
@@ -408,8 +407,7 @@ func TestRelationChecker(t *testing.T) {
 			} else {
 				myFrom = selectAst.WindowedFromAST
 			}
-			ast := parser.CreateStreamAsSelectStmt{
-				Name:            parser.StreamIdentifier("x"),
+			ast := parser.SelectStmt{
 				EmitterAST:      parser.EmitterAST{parser.Istream},
 				ProjectionsAST:  selectAst.ProjectionsAST,
 				WindowedFromAST: myFrom,
@@ -508,8 +506,7 @@ func TestRelationAliasing(t *testing.T) {
 		selectAst := testCase.input
 
 		Convey(fmt.Sprintf("Given the AST %+v", selectAst), t, func() {
-			ast := parser.CreateStreamAsSelectStmt{
-				Name:            parser.StreamIdentifier("x"),
+			ast := parser.SelectStmt{
 				EmitterAST:      parser.EmitterAST{parser.Istream},
 				ProjectionsAST:  selectAst.ProjectionsAST,
 				WindowedFromAST: selectAst.WindowedFromAST,
@@ -699,7 +696,7 @@ func TestAggregateChecker(t *testing.T) {
 			ast_, _, err := p.ParseStmt(stmt)
 			So(err, ShouldBeNil)
 			So(ast_, ShouldHaveSameTypeAs, parser.CreateStreamAsSelectStmt{})
-			ast := ast_.(parser.CreateStreamAsSelectStmt)
+			ast := ast_.(parser.CreateStreamAsSelectStmt).Select
 
 			Convey("When we analyze it", func() {
 				logPlan, err := Analyze(ast, reg)
@@ -861,7 +858,7 @@ func TestVolatileAggregateChecker(t *testing.T) {
 			ast_, _, err := p.ParseStmt(stmt)
 			So(err, ShouldBeNil)
 			So(ast_, ShouldHaveSameTypeAs, parser.CreateStreamAsSelectStmt{})
-			ast := ast_.(parser.CreateStreamAsSelectStmt)
+			ast := ast_.(parser.CreateStreamAsSelectStmt).Select
 
 			Convey("When we analyze it", func() {
 				logPlan, err := Analyze(ast, reg)

@@ -51,8 +51,9 @@ func TestAssembleCreateStreamAsSelect(t *testing.T) {
 					So(top.comp, ShouldHaveSameTypeAs, CreateStreamAsSelectStmt{})
 
 					Convey("And it contains the previously pushed data", func() {
-						comp := top.comp.(CreateStreamAsSelectStmt)
-						So(comp.Name, ShouldEqual, "x")
+						cssComp := top.comp.(CreateStreamAsSelectStmt)
+						So(cssComp.Name, ShouldEqual, "x")
+						comp := cssComp.Select
 						So(comp.EmitterType, ShouldEqual, Istream)
 						So(len(comp.Projections), ShouldEqual, 2)
 						So(comp.Projections[0], ShouldResemble, RowValue{"", "a"})
@@ -110,9 +111,10 @@ func TestAssembleCreateStreamAsSelect(t *testing.T) {
 				So(ps.Len(), ShouldEqual, 1)
 				top := ps.Peek().comp
 				So(top, ShouldHaveSameTypeAs, CreateStreamAsSelectStmt{})
-				comp := top.(CreateStreamAsSelectStmt)
+				cssComp := top.(CreateStreamAsSelectStmt)
 
-				So(comp.Name, ShouldEqual, "x_2")
+				So(cssComp.Name, ShouldEqual, "x_2")
+				comp := cssComp.Select
 				So(comp.EmitterType, ShouldEqual, Istream)
 				So(len(comp.Projections), ShouldEqual, 2)
 				So(comp.Projections[0], ShouldResemble, StringLiteral{"日本語"})
