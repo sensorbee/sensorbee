@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"pfi/sensorbee/sensorbee/core"
 	"pfi/sensorbee/sensorbee/data"
+	"strings"
 	"sync"
 )
 
@@ -150,7 +151,7 @@ func (fr *defaultFunctionRegistry) Context() *core.Context {
 func (fr *defaultFunctionRegistry) Lookup(name string, arity int) (UDF, error) {
 	fr.m.RLock()
 	defer fr.m.RUnlock()
-	if f, exists := fr.funcs[name]; exists {
+	if f, exists := fr.funcs[strings.ToLower(name)]; exists {
 		if f.Accept(arity) {
 			return f, nil
 		}
@@ -162,10 +163,12 @@ func (fr *defaultFunctionRegistry) Lookup(name string, arity int) (UDF, error) {
 func (fr *defaultFunctionRegistry) Register(name string, f UDF) error {
 	fr.m.Lock()
 	defer fr.m.Unlock()
-	if _, exists := fr.funcs[name]; exists {
+
+	lowerName := strings.ToLower(name)
+	if _, exists := fr.funcs[lowerName]; exists {
 		return fmt.Errorf("there is already a function named '%s'", name)
 	}
-	fr.funcs[name] = f
+	fr.funcs[lowerName] = f
 	return nil
 }
 
