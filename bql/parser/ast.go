@@ -234,6 +234,9 @@ type BinaryOpAST struct {
 
 func (b BinaryOpAST) ReferencedRelations() map[string]bool {
 	rels := b.Left.ReferencedRelations()
+	if rels == nil {
+		return b.Right.ReferencedRelations()
+	}
 	for rel := range b.Right.ReferencedRelations() {
 		rels[rel] = true
 	}
