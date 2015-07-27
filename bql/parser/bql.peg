@@ -52,13 +52,8 @@ SelectStmt <- "SELECT" sp
 
 CreateStreamAsSelectStmt <- "CREATE" sp "STREAM" sp
                     StreamIdentifier sp
-                    "AS" sp "SELECT" sp
-                    Emitter sp
-                    Projections sp
-                    WindowedFrom sp
-                    Filter sp
-                    Grouping sp
-                    Having sp
+                    "AS" sp
+                    SelectStmt
                     {
         p.AssembleCreateStreamAsSelect()
     }

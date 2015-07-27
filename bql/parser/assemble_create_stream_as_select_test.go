@@ -37,6 +37,7 @@ func TestAssembleCreateStreamAsSelect(t *testing.T) {
 			ps.AssembleGrouping(21, 23)
 			ps.PushComponent(23, 24, RowValue{"", "h"})
 			ps.AssembleHaving(23, 24)
+			ps.AssembleSelect()
 			ps.AssembleCreateStreamAsSelect()
 
 			Convey("Then AssembleCreateStreamAsSelect transforms them into one item", func() {
@@ -85,33 +86,7 @@ func TestAssembleCreateStreamAsSelect(t *testing.T) {
 
 		Convey("When the stack contains a wrong item", func() {
 			ps.PushComponent(2, 4, StreamIdentifier("x"))
-			ps.PushComponent(4, 6, Istream)
-			ps.AssembleEmitter()
-			ps.PushComponent(6, 7, RowValue{"", "a"})
-			ps.PushComponent(7, 8, RowValue{"", "b"})
-			ps.PushComponent(8, 9, Identifier("y"))
-			ps.AssembleAlias()
-			ps.AssembleProjections(6, 9)
-			ps.PushComponent(12, 13, Stream{ActualStream, "c", nil})
-			ps.PushComponent(13, 14, IntervalAST{NumericLiteral{3}, Tuples})
-			ps.AssembleStreamWindow()
-			ps.EnsureAliasedStreamWindow()
-			ps.PushComponent(14, 15, Stream{ActualStream, "d", nil})
-			ps.PushComponent(16, 17, NumericLiteral{2})
-			ps.PushComponent(17, 18, Seconds)
-			ps.AssembleInterval()
-			ps.AssembleStreamWindow()
-			ps.PushComponent(18, 19, Identifier("x"))
-			ps.AssembleAliasedStreamWindow()
-			ps.EnsureAliasedStreamWindow()
-			ps.AssembleWindowedFrom(12, 20)
-			ps.PushComponent(20, 21, RowValue{"", "e"})
-			ps.AssembleFilter(20, 21)
-			ps.PushComponent(21, 22, RowValue{"", "f"})
-			ps.PushComponent(22, 23, RowValue{"", "g"})
-			ps.AssembleGrouping(21, 23)
-			ps.PushComponent(23, 24, RowValue{"", "h"})
-			ps.AssembleFilter(23, 24) // must be HAVING in correct stmt
+			ps.PushComponent(4, 6, Istream) // must be SELECT in correct stmt
 
 			Convey("Then AssembleCreateStreamAsSelect panics", func() {
 				So(ps.AssembleCreateStreamAsSelect, ShouldPanic)
