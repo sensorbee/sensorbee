@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"pfi/sensorbee/sensorbee/core"
 	"pfi/sensorbee/sensorbee/data"
+	"strings"
 	"sync"
 )
 
@@ -63,17 +64,18 @@ func (r *defaultSinkCreatorRegistry) Register(typeName string, c SinkCreator) er
 	r.m.Lock()
 	defer r.m.Unlock()
 
-	if _, ok := r.creators[typeName]; ok {
+	lowerName := strings.ToLower(typeName)
+	if _, ok := r.creators[lowerName]; ok {
 		return fmt.Errorf("sink type '%v' is already registered", typeName)
 	}
-	r.creators[typeName] = c
+	r.creators[lowerName] = c
 	return nil
 }
 
 func (r *defaultSinkCreatorRegistry) Lookup(typeName string) (SinkCreator, error) {
 	r.m.RLock()
 	defer r.m.RUnlock()
-	if c, ok := r.creators[typeName]; ok {
+	if c, ok := r.creators[strings.ToLower(typeName)]; ok {
 		return c, nil
 	}
 	return nil, fmt.Errorf("sink type '%v' is not registered", typeName)
@@ -93,7 +95,7 @@ func (r *defaultSinkCreatorRegistry) List() (map[string]SinkCreator, error) {
 func (r *defaultSinkCreatorRegistry) Unregister(typeName string) error {
 	r.m.Lock()
 	defer r.m.Unlock()
-	delete(r.creators, typeName)
+	delete(r.creators, strings.ToLower(typeName))
 	return nil
 }
 

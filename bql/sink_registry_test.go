@@ -54,11 +54,11 @@ func TestDefaultSinkCreatorRegistry(t *testing.T) {
 
 	Convey("Given an default Sink registry having two types", t, func() {
 		r := NewDefaultSinkCreatorRegistry()
-		So(r.Register("test_sink", SinkCreatorFunc(createCollectorSink)), ShouldBeNil)
-		So(r.Register("test_sink2", SinkCreatorFunc(createCollectorSink)), ShouldBeNil)
+		So(r.Register("TEST_sink", SinkCreatorFunc(createCollectorSink)), ShouldBeNil)
+		So(r.Register("TEST_sink2", SinkCreatorFunc(createCollectorSink)), ShouldBeNil)
 
 		Convey("When adding a new type having the registered type name", func() {
-			err := r.Register("test_sink", SinkCreatorFunc(createCollectorSink))
+			err := r.Register("TEST_SINK", SinkCreatorFunc(createCollectorSink))
 
 			Convey("Then it should fail", func() {
 				So(err, ShouldNotBeNil)
@@ -66,7 +66,7 @@ func TestDefaultSinkCreatorRegistry(t *testing.T) {
 		})
 
 		Convey("When looking up a creator", func() {
-			c, err := r.Lookup("test_sink2")
+			c, err := r.Lookup("TEST_SINK2")
 
 			Convey("Then it should succeed", func() {
 				So(err, ShouldBeNil)
@@ -94,7 +94,7 @@ func TestDefaultSinkCreatorRegistry(t *testing.T) {
 		})
 
 		Convey("When unregistering a creator", func() {
-			err := r.Unregister("test_sink")
+			err := r.Unregister("test_SINK")
 
 			Convey("Then it should succeed", func() {
 				So(err, ShouldBeNil)
@@ -120,7 +120,7 @@ func TestGlobalSinkCreatorRegistry(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		Convey("When looking up a predefined uds creator", func() {
-			_, err := r.Lookup("uds")
+			_, err := r.Lookup("UDS")
 
 			Convey("Then it should succeed", func() {
 				So(err, ShouldBeNil)
