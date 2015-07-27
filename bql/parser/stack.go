@@ -94,6 +94,25 @@ func (ps *parseStack) AssembleSelect() {
 	ps.Push(&se)
 }
 
+// AssembleSelectUnion takes the elements from the stack that
+// correspond to the input[begin:end] string and wraps a
+// SelectUnionStmt struct around them.
+//
+//  SelectStmt
+//  SelectStmt
+//  SelectStmt
+//   =>
+//  SelectUnionStmt{[SelectStmt, SelectStmt, SelectStmt]}
+func (ps *parseStack) AssembleSelectUnion(begin int, end int) {
+	elems := ps.collectElements(begin, end)
+	selects := make([]SelectStmt, len(elems))
+	for i := range elems {
+		selects[i] = elems[i].(SelectStmt)
+	}
+	// push the grouped list back
+	ps.PushComponent(begin, end, SelectUnionStmt{selects})
+}
+
 // AssembleCreateStreamAsSelect takes the topmost elements from the stack,
 // assuming they are components of a CREATE STREAM statement, and
 // replaces them by a single CreateStreamAsSelectStmt element.

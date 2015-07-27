@@ -27,7 +27,7 @@ type bqlPeg Peg {
 
 Statements <- sp ((Statement sp ';' .*) / Statement) !.
 
-Statement <- (SelectStmt / SourceStmt / SinkStmt / StateStmt / StreamStmt)
+Statement <- (SelectUnionStmt / SelectStmt / SourceStmt / SinkStmt / StateStmt / StreamStmt)
 
 SourceStmt <- CreateSourceStmt / UpdateSourceStmt / DropSourceStmt /
               PauseSourceStmt / ResumeSourceStmt / RewindSourceStmt
@@ -48,6 +48,10 @@ SelectStmt <- "SELECT" sp
               Having sp
               {
         p.AssembleSelect()
+    }
+
+SelectUnionStmt <- < SelectStmt ("UNION" sp "ALL" sp SelectStmt)+ > {
+        p.AssembleSelectUnion(begin, end)
     }
 
 CreateStreamAsSelectStmt <- "CREATE" sp "STREAM" sp
