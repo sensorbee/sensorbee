@@ -37,6 +37,11 @@ type CreateStreamAsSelectStmt struct {
 	Select SelectStmt
 }
 
+type CreateStreamAsSelectUnionStmt struct {
+	Name StreamIdentifier
+	SelectUnionStmt
+}
+
 type CreateSourceStmt struct {
 	Paused BinaryKeyword
 	Name   StreamIdentifier

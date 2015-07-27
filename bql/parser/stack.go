@@ -136,6 +136,29 @@ func (ps *parseStack) AssembleCreateStreamAsSelect() {
 	ps.Push(&se)
 }
 
+// AssembleCreateStreamAsSelectUnion takes the topmost elements from the
+// stack, assuming they are components of a CREATE STREAM statement, and
+// replaces them by a single CreateStreamAsSelectUnionStmt element.
+//
+//  SelectUnionStmt
+//  StreamIdentifier
+//   =>
+//  CreateStreamAsSelectUnionStmt{StreamIdentifier, SelectUnionStmt}
+func (ps *parseStack) AssembleCreateStreamAsSelectUnion() {
+	// now pop the components from the stack in reverse order
+	_selectUnion, _name := ps.pop2()
+
+	// extract and convert the contained structure
+	// (if this fails, this is a fundamental parser bug => panic ok)
+	selectUnion := _selectUnion.comp.(SelectUnionStmt)
+	name := _name.comp.(StreamIdentifier)
+
+	// assemble the SelectUnionStmt and push it back
+	css := CreateStreamAsSelectUnionStmt{name, selectUnion}
+	se := ParsedComponent{_name.begin, _selectUnion.end, css}
+	ps.Push(&se)
+}
+
 // AssembleCreateSource takes the topmost elements from the stack,
 // assuming they are components of a CREATE SOURCE statement, and
 // replaces them by a single CreateSourceStmt element.
