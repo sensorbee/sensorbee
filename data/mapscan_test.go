@@ -182,7 +182,7 @@ func TestScanMap(t *testing.T) {
 			err := scanMap(testData, "str", &v)
 			Convey("Then lookup should fail", func() {
 				So(err, ShouldNotBeNil)
-				So(err.Error(), ShouldEqual, "not found the key in map: str")
+				So(err.Error(), ShouldEqual, "key 'str' was not found in map")
 			})
 		})
 		Convey("When accessing an invalid index in array key", func() {
