@@ -54,8 +54,8 @@ func TestDefaultUDSFCreatorRegistry(t *testing.T) {
 
 	Convey("Given an default UDSF registry having two types", t, func() {
 		r := NewDefaultUDSFCreatorRegistry()
-		So(r.Register("duplicate", MustConvertToUDSFCreator(createDuplicateUDSF)), ShouldBeNil)
-		So(r.Register("duplicate2", MustConvertToUDSFCreator(createDuplicateUDSF)), ShouldBeNil)
+		So(r.Register("DUPLICATE", MustConvertToUDSFCreator(createDuplicateUDSF)), ShouldBeNil)
+		So(r.Register("DUPLICATE2", MustConvertToUDSFCreator(createDuplicateUDSF)), ShouldBeNil)
 
 		Convey("When adding a new type having the registered type name", func() {
 			err := r.Register("duplicate", MustConvertToUDSFCreator(createDuplicateUDSF))
@@ -66,7 +66,7 @@ func TestDefaultUDSFCreatorRegistry(t *testing.T) {
 		})
 
 		Convey("When looking up a creator", func() {
-			c, err := r.Lookup("duplicate2", 2)
+			c, err := r.Lookup("Duplicate2", 2)
 
 			Convey("Then it should succeed", func() {
 				So(err, ShouldBeNil)
@@ -102,7 +102,7 @@ func TestDefaultUDSFCreatorRegistry(t *testing.T) {
 		})
 
 		Convey("When unregistering a creator", func() {
-			err := r.Unregister("duplicate")
+			err := r.Unregister("Duplicate")
 
 			Convey("Then it should succeed", func() {
 				So(err, ShouldBeNil)
