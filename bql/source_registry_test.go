@@ -53,11 +53,11 @@ func TestDefaultSourceCreatorRegistry(t *testing.T) {
 
 	Convey("Given an default Source registry having two types", t, func() {
 		r := NewDefaultSourceCreatorRegistry()
-		So(r.Register("test_source", SourceCreatorFunc(createDummySource)), ShouldBeNil)
-		So(r.Register("test_source2", SourceCreatorFunc(createDummySource)), ShouldBeNil)
+		So(r.Register("TEST_source", SourceCreatorFunc(createDummySource)), ShouldBeNil)
+		So(r.Register("TEST_source2", SourceCreatorFunc(createDummySource)), ShouldBeNil)
 
 		Convey("When adding a new type having the registered type name", func() {
-			err := r.Register("test_source", SourceCreatorFunc(createDummySource))
+			err := r.Register("TEST_source", SourceCreatorFunc(createDummySource))
 
 			Convey("Then it should fail", func() {
 				So(err, ShouldNotBeNil)
@@ -65,7 +65,7 @@ func TestDefaultSourceCreatorRegistry(t *testing.T) {
 		})
 
 		Convey("When looking up a creator", func() {
-			c, err := r.Lookup("test_source2")
+			c, err := r.Lookup("test_SOURCE2")
 
 			Convey("Then it should succeed", func() {
 				So(err, ShouldBeNil)
@@ -93,7 +93,7 @@ func TestDefaultSourceCreatorRegistry(t *testing.T) {
 		})
 
 		Convey("When unregistering a creator", func() {
-			err := r.Unregister("test_source")
+			err := r.Unregister("test_SOURCE")
 
 			Convey("Then it should succeed", func() {
 				So(err, ShouldBeNil)

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"pfi/sensorbee/sensorbee/core"
 	"pfi/sensorbee/sensorbee/data"
+	"strings"
 	"sync"
 )
 
@@ -72,17 +73,18 @@ func (r *defaultSourceCreatorRegistry) Register(typeName string, c SourceCreator
 	r.m.Lock()
 	defer r.m.Unlock()
 
-	if _, ok := r.creators[typeName]; ok {
+	lowerName := strings.ToLower(typeName)
+	if _, ok := r.creators[lowerName]; ok {
 		return fmt.Errorf("source type '%v' is already registered", typeName)
 	}
-	r.creators[typeName] = c
+	r.creators[lowerName] = c
 	return nil
 }
 
 func (r *defaultSourceCreatorRegistry) Lookup(typeName string) (SourceCreator, error) {
 	r.m.RLock()
 	defer r.m.RUnlock()
-	if c, ok := r.creators[typeName]; ok {
+	if c, ok := r.creators[strings.ToLower(typeName)]; ok {
 		return c, nil
 	}
 	return nil, fmt.Errorf("source type '%v' is not registered", typeName)
@@ -102,7 +104,7 @@ func (r *defaultSourceCreatorRegistry) List() (map[string]SourceCreator, error) 
 func (r *defaultSourceCreatorRegistry) Unregister(typeName string) error {
 	r.m.Lock()
 	defer r.m.Unlock()
-	delete(r.creators, typeName)
+	delete(r.creators, strings.ToLower(typeName))
 	return nil
 }
 
