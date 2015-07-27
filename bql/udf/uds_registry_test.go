@@ -63,15 +63,15 @@ func TestDefaultUDSCreatorRegistry(t *testing.T) {
 
 	Convey("Given an default UDS registry having two types", t, func() {
 		r := NewDefaultUDSCreatorRegistry()
-		So(r.Register("test_state_func", UDSCreatorFunc(func(ctx *core.Context, params data.Map) (core.SharedState, error) {
+		So(r.Register("TEST_state_func", UDSCreatorFunc(func(ctx *core.Context, params data.Map) (core.SharedState, error) {
 			return &testSharedState{}, nil
 		})), ShouldBeNil)
-		So(r.Register("test_state_func2", UDSCreatorFunc(func(ctx *core.Context, params data.Map) (core.SharedState, error) {
+		So(r.Register("TEST_state_func2", UDSCreatorFunc(func(ctx *core.Context, params data.Map) (core.SharedState, error) {
 			return &testSharedState{}, nil
 		})), ShouldBeNil)
 
 		Convey("When adding a new type having the registered type name", func() {
-			err := r.Register("test_state_func", UDSCreatorFunc(func(ctx *core.Context, params data.Map) (core.SharedState, error) {
+			err := r.Register("test_STATE_FUNC", UDSCreatorFunc(func(ctx *core.Context, params data.Map) (core.SharedState, error) {
 				return &testSharedState{}, nil
 			}))
 
@@ -81,7 +81,7 @@ func TestDefaultUDSCreatorRegistry(t *testing.T) {
 		})
 
 		Convey("When looking up a creator", func() {
-			c, err := r.Lookup("test_state_func2")
+			c, err := r.Lookup("test_state_FUNC2")
 
 			Convey("Then it should succeed", func() {
 				So(err, ShouldBeNil)
@@ -109,7 +109,7 @@ func TestDefaultUDSCreatorRegistry(t *testing.T) {
 		})
 
 		Convey("When unregistering a creator", func() {
-			err := r.Unregister("test_state_func")
+			err := r.Unregister("TEST_STATE_FUNC")
 
 			Convey("Then it should succeed", func() {
 				So(err, ShouldBeNil)

@@ -22,10 +22,10 @@ func TestDefaultFunctionRegistry(t *testing.T) {
 			fun := func(ctx *core.Context, vs ...data.Value) (data.Value, error) {
 				return data.Bool(true), nil
 			}
-			fr.Register("test", Func(fun, 1))
+			fr.Register("Test", Func(fun, 1))
 
 			Convey("Then it can be looked up as unary", func() {
-				_, err := fr.Lookup("test", 1)
+				_, err := fr.Lookup("TEST", 1)
 				So(err, ShouldBeNil)
 			})
 

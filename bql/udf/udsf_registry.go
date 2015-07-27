@@ -2,6 +2,7 @@ package udf
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 )
 
@@ -44,17 +45,18 @@ func (r *defaultUDSFCreatorRegistry) Register(typeName string, c UDSFCreator) er
 	r.m.Lock()
 	defer r.m.Unlock()
 
-	if _, ok := r.creators[typeName]; ok {
+	lowerName := strings.ToLower(typeName)
+	if _, ok := r.creators[lowerName]; ok {
 		return fmt.Errorf("a UDSF type '%v' is already registered", typeName)
 	}
-	r.creators[typeName] = c
+	r.creators[lowerName] = c
 	return nil
 }
 
 func (r *defaultUDSFCreatorRegistry) Lookup(typeName string, arity int) (UDSFCreator, error) {
 	r.m.RLock()
 	defer r.m.RUnlock()
-	c, ok := r.creators[typeName]
+	c, ok := r.creators[strings.ToLower(typeName)]
 	if !ok {
 		return nil, fmt.Errorf("a UDSF type '%v' is not registered", typeName)
 	}
@@ -78,7 +80,7 @@ func (r *defaultUDSFCreatorRegistry) List() (map[string]UDSFCreator, error) {
 func (r *defaultUDSFCreatorRegistry) Unregister(typeName string) error {
 	r.m.Lock()
 	defer r.m.Unlock()
-	delete(r.creators, typeName)
+	delete(r.creators, strings.ToLower(typeName))
 	return nil
 }
 
