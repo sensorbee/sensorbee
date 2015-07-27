@@ -367,6 +367,35 @@ func (b BinaryOpAST) Foldable() bool {
 
 func (b BinaryOpAST) string() string {
 	str := []string{b.Left.string(), b.Op.String(), b.Right.string()}
+
+	// Enclose expression in parentheses for operator precedence
+	switch b.Op {
+	case Multiply, Divide, Modulo:
+		if left, ok := b.Left.(BinaryOpAST); ok {
+			switch left.Op {
+			case Plus, Minus:
+				str[0] = "(" + str[0] + ")"
+			}
+		}
+		if right, ok := b.Right.(BinaryOpAST); ok {
+			switch right.Op {
+			case Plus, Minus:
+				str[2] = "(" + str[2] + ")"
+			}
+		}
+	case And:
+		if left, ok := b.Left.(BinaryOpAST); ok {
+			if left.Op == Or {
+				str[0] = "(" + str[0] + ")"
+			}
+		}
+		if right, ok := b.Right.(BinaryOpAST); ok {
+			if right.Op == Or {
+				str[2] = "(" + str[2] + ")"
+			}
+		}
+	}
+
 	return strings.Join(str, " ")
 }
 
@@ -396,6 +425,12 @@ func (u UnaryOpAST) string() string {
 	if u.Op != UnaryMinus || strings.HasPrefix(expr, "-") {
 		op = op + " "
 	}
+
+	// Enclose expression in parentheses for "NOT (a AND B)" like case
+	if _, ok := u.Expr.(BinaryOpAST); ok {
+		expr = "(" + expr + ")"
+	}
+
 	return op + expr
 }
 
@@ -500,6 +535,10 @@ func (a ArrayAST) Foldable() bool {
 	return foldable
 }
 
+func (a ArrayAST) string() string {
+	return "[" + a.ExpressionsAST.string() + "]"
+}
+
 func (f FuncAppAST) string() string {
 	return string(f.Function) + "(" + f.ExpressionsAST.string() + ")"
 }
@@ -566,7 +605,7 @@ type KeyValuePairAST struct {
 }
 
 func (k KeyValuePairAST) string() string {
-	return `"` + k.Key + `":` + k.Value.string()
+	return `'` + k.Key + `':` + k.Value.string()
 }
 
 // Elementary Structures (all without *AST for now)
