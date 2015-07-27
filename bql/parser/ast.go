@@ -28,6 +28,10 @@ type SelectStmt struct {
 	HavingAST
 }
 
+type SelectUnionStmt struct {
+	Selects []SelectStmt
+}
+
 type CreateStreamAsSelectStmt struct {
 	Name   StreamIdentifier
 	Select SelectStmt
