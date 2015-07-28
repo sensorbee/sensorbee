@@ -241,6 +241,8 @@ func TestTopologiesQueriesSelectStmt(t *testing.T) {
 				}
 				_, ok := <-ch
 				So(ok, ShouldBeFalse)
+				So(streamRes.Close(), ShouldBeNil)
+				So(streamRes.StreamError(), ShouldBeNil)
 			})
 		})
 

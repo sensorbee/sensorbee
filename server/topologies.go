@@ -411,12 +411,17 @@ func (tc *topologies) handleSelectUnionStmt(rw web.ResponseWriter, stmt parser.S
 	header.Add("Content-Type", "application/json")
 	for t := range ch {
 		// TODO: provide very efficient timeout detection
+		js := t.Data.String()
+		// TODO: don't forget to convert \n to \r\n when returning
+		// pretty-printed JSON objects.
+		header.Set("Content-Length", fmt.Sprint(len(js)))
+
 		w, err := mw.CreatePart(header)
 		if err != nil {
 			writeErr = err
 			return
 		}
-		if _, err := io.WriteString(w, t.Data.String()); err != nil {
+		if _, err := io.WriteString(w, js); err != nil {
 			writeErr = err
 			return
 		}
