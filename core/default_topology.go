@@ -203,7 +203,15 @@ func (t *defaultTopology) AddBox(name string, b Box, config *BoxConfig) (BoxNode
 }
 
 func (t *defaultTopology) AddSink(name string, s Sink, config *SinkConfig) (SinkNode, error) {
-	if err := ValidateNodeName(name); err != nil {
+	var err error
+	defer func() {
+		// Sink must be closed when AddSink fails before creating a sink node
+		if err != nil {
+			s.Close(t.ctx)
+		}
+	}()
+
+	if err = ValidateNodeName(name); err != nil {
 		return nil, err
 	}
 
@@ -229,7 +237,7 @@ func (t *defaultTopology) AddSink(name string, s Sink, config *SinkConfig) (Sink
 		return nil, fmt.Errorf("the topology is already stopped")
 	}
 
-	if err := t.checkNodeNameDuplication(name); err != nil {
+	if err = t.checkNodeNameDuplication(name); err != nil {
 		return nil, err
 	}
 
