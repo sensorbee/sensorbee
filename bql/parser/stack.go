@@ -94,36 +94,68 @@ func (ps *parseStack) AssembleSelect() {
 	ps.Push(&se)
 }
 
+// AssembleSelectUnion takes the elements from the stack that
+// correspond to the input[begin:end] string and wraps a
+// SelectUnionStmt struct around them.
+//
+//  SelectStmt
+//  SelectStmt
+//  SelectStmt
+//   =>
+//  SelectUnionStmt{[SelectStmt, SelectStmt, SelectStmt]}
+func (ps *parseStack) AssembleSelectUnion(begin int, end int) {
+	elems := ps.collectElements(begin, end)
+	selects := make([]SelectStmt, len(elems))
+	for i := range elems {
+		selects[i] = elems[i].(SelectStmt)
+	}
+	// push the grouped list back
+	ps.PushComponent(begin, end, SelectUnionStmt{selects})
+}
+
 // AssembleCreateStreamAsSelect takes the topmost elements from the stack,
 // assuming they are components of a CREATE STREAM statement, and
 // replaces them by a single CreateStreamAsSelectStmt element.
 //
-//  HavingAST
-//  GroupingAST
-//  FilterAST
-//  WindowedFromAST
-//  EmitProjectionsAST
+//  SelectStmt
 //  StreamIdentifier
 //   =>
-//  CreateStreamAsSelectStmt{StreamIdentifier, EmitProjectionsAST, WindowedFromAST, FilterAST,
-//    GroupingAST, HavingAST}
+//  CreateStreamAsSelectStmt{StreamIdentifier, SelectStmt}
 func (ps *parseStack) AssembleCreateStreamAsSelect() {
-	// pop the components from the stack in reverse order
-	_having, _grouping, _filter, _from, _projections, _emitter, _name := ps.pop7()
+	// now pop the components from the stack in reverse order
+	_select, _name := ps.pop2()
 
 	// extract and convert the contained structure
 	// (if this fails, this is a fundamental parser bug => panic ok)
-	having := _having.comp.(HavingAST)
-	grouping := _grouping.comp.(GroupingAST)
-	filter := _filter.comp.(FilterAST)
-	from := _from.comp.(WindowedFromAST)
-	projections := _projections.comp.(ProjectionsAST)
-	emitter := _emitter.comp.(EmitterAST)
+	s := _select.comp.(SelectStmt)
 	name := _name.comp.(StreamIdentifier)
 
 	// assemble the SelectStmt and push it back
-	s := CreateStreamAsSelectStmt{name, emitter, projections, from, filter, grouping, having}
-	se := ParsedComponent{_name.begin, _having.end, s}
+	css := CreateStreamAsSelectStmt{name, s}
+	se := ParsedComponent{_name.begin, _select.end, css}
+	ps.Push(&se)
+}
+
+// AssembleCreateStreamAsSelectUnion takes the topmost elements from the
+// stack, assuming they are components of a CREATE STREAM statement, and
+// replaces them by a single CreateStreamAsSelectUnionStmt element.
+//
+//  SelectUnionStmt
+//  StreamIdentifier
+//   =>
+//  CreateStreamAsSelectUnionStmt{StreamIdentifier, SelectUnionStmt}
+func (ps *parseStack) AssembleCreateStreamAsSelectUnion() {
+	// now pop the components from the stack in reverse order
+	_selectUnion, _name := ps.pop2()
+
+	// extract and convert the contained structure
+	// (if this fails, this is a fundamental parser bug => panic ok)
+	selectUnion := _selectUnion.comp.(SelectUnionStmt)
+	name := _name.comp.(StreamIdentifier)
+
+	// assemble the SelectUnionStmt and push it back
+	css := CreateStreamAsSelectUnionStmt{name, selectUnion}
+	se := ParsedComponent{_name.begin, _selectUnion.end, css}
 	ps.Push(&se)
 }
 

@@ -28,14 +28,18 @@ type SelectStmt struct {
 	HavingAST
 }
 
+type SelectUnionStmt struct {
+	Selects []SelectStmt
+}
+
 type CreateStreamAsSelectStmt struct {
+	Name   StreamIdentifier
+	Select SelectStmt
+}
+
+type CreateStreamAsSelectUnionStmt struct {
 	Name StreamIdentifier
-	EmitterAST
-	ProjectionsAST
-	WindowedFromAST
-	FilterAST
-	GroupingAST
-	HavingAST
+	SelectUnionStmt
 }
 
 type CreateSourceStmt struct {
