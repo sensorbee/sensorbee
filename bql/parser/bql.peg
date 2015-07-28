@@ -178,7 +178,7 @@ WindowedFrom <- < ("FROM" sp Relations sp)? > {
 
 Interval <- TimeInterval / TuplesInterval
 
-TimeInterval <- NumericLiteral sp SECONDS {
+TimeInterval <- NumericLiteral sp (SECONDS / MILLISECONDS) {
         p.AssembleInterval()
     }
 
@@ -424,6 +424,10 @@ TUPLES <- < "TUPLES" > {
 
 SECONDS <- < "SECONDS" > {
         p.PushComponent(begin, end, Seconds)
+    }
+
+MILLISECONDS <- < "MILLISECONDS" > {
+        p.PushComponent(begin, end, Milliseconds)
     }
 
 StreamIdentifier <- < ident > {
