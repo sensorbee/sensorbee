@@ -99,8 +99,14 @@ func TestDefaultTopologySetup(t *testing.T) {
 			})
 
 			Convey("Then adding a sink having the same name should fail", func() {
-				_, err := t.AddSink(name, &DoesNothingSink{}, nil)
+				si := NewTupleCollectorSink()
+				sic := &sinkCloseChecker{s: si}
+				_, err := t.AddSink(name, sic, nil)
 				So(err, ShouldNotBeNil)
+
+				Convey("And the sink shoud be closed", func() {
+					So(sic.closeCnt, ShouldEqual, 1)
+				})
 			})
 		}
 
