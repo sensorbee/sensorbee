@@ -727,6 +727,69 @@ func TestDefaultSelectExecutionPlanEmitters(t *testing.T) {
 		})
 	})
 
+	Convey("Given an RSTREAM emitter selecting a column and a 2000 MILLISECONDS window", t, func() {
+		tuples := getTuples(4)
+		s := `CREATE STREAM box AS SELECT RSTREAM int AS a FROM src [RANGE 2000 MILLISECONDS]`
+		plan, err := createDefaultSelectPlan(s, t)
+		So(err, ShouldBeNil)
+
+		Convey("When feeding it with tuples", func() {
+			output := [][]data.Map{}
+			for _, inTup := range tuples {
+				out, err := plan.Process(inTup)
+				So(err, ShouldBeNil)
+				output = append(output, out)
+			}
+
+			Convey("Then the whole state should be emitted", func() {
+				So(len(output), ShouldEqual, 4)
+				So(len(output[0]), ShouldEqual, 1)
+				So(output[0][0], ShouldResemble, data.Map{"a": data.Int(1)})
+				So(len(output[1]), ShouldEqual, 2)
+				So(output[1][0], ShouldResemble, data.Map{"a": data.Int(1)})
+				So(output[1][1], ShouldResemble, data.Map{"a": data.Int(2)})
+				So(len(output[2]), ShouldEqual, 3)
+				So(output[2][0], ShouldResemble, data.Map{"a": data.Int(1)})
+				So(output[2][1], ShouldResemble, data.Map{"a": data.Int(2)})
+				So(output[2][2], ShouldResemble, data.Map{"a": data.Int(3)})
+				So(len(output[3]), ShouldEqual, 3)
+				So(output[3][0], ShouldResemble, data.Map{"a": data.Int(2)})
+				So(output[3][1], ShouldResemble, data.Map{"a": data.Int(3)})
+				So(output[3][2], ShouldResemble, data.Map{"a": data.Int(4)})
+			})
+
+		})
+	})
+
+	Convey("Given an RSTREAM emitter selecting a column and a 20 MILLISECONDS window", t, func() {
+		tuples := getTuples(4)
+		s := `CREATE STREAM box AS SELECT RSTREAM int AS a FROM src [RANGE 20 MILLISECONDS]`
+		plan, err := createDefaultSelectPlan(s, t)
+		So(err, ShouldBeNil)
+
+		Convey("When feeding it with tuples", func() {
+			output := [][]data.Map{}
+			for _, inTup := range tuples {
+				out, err := plan.Process(inTup)
+				So(err, ShouldBeNil)
+				output = append(output, out)
+			}
+
+			Convey("Then the whole state should be emitted", func() {
+				So(len(output), ShouldEqual, 4)
+				So(len(output[0]), ShouldEqual, 1)
+				So(output[0][0], ShouldResemble, data.Map{"a": data.Int(1)})
+				So(len(output[1]), ShouldEqual, 1)
+				So(output[1][0], ShouldResemble, data.Map{"a": data.Int(2)})
+				So(len(output[2]), ShouldEqual, 1)
+				So(output[2][0], ShouldResemble, data.Map{"a": data.Int(3)})
+				So(len(output[3]), ShouldEqual, 1)
+				So(output[3][0], ShouldResemble, data.Map{"a": data.Int(4)})
+			})
+
+		})
+	})
+
 	// RSTREAM/2 TUPLES window
 	Convey("Given an RSTREAM emitter selecting a constant and a 2 SECONDS window", t, func() {
 		tuples := getTuples(4)
