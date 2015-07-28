@@ -6,7 +6,6 @@ import (
 	"pfi/sensorbee/sensorbee/core"
 	"pfi/sensorbee/sensorbee/data"
 	"reflect"
-	"time"
 )
 
 type filterIstreamPlan struct {
