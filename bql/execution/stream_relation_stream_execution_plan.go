@@ -16,6 +16,11 @@ type inputBuffer struct {
 	windowType parser.IntervalUnit
 }
 
+func (i *inputBuffer) isTimeBased() bool {
+	return i.windowType == parser.Seconds ||
+		i.windowType == parser.Milliseconds
+}
+
 // streamRelationStreamExecutionPlan provides methods for
 // execution plans that follow the theoretical
 // "stream-to-relation", "relation-to-relation", "relation-to-stream"
@@ -171,13 +176,17 @@ func (ep *streamRelationStreamExecutionPlan) removeOutdatedTuplesFromBuffer(curT
 				buffer.tuples = buffer.tuples[curBufSize-buffer.windowSize : curBufSize]
 			}
 
-		} else if buffer.windowType == parser.Seconds { // time-based window
+		} else if buffer.isTimeBased() {
+			windowSizeSeconds := float64(buffer.windowSize)
+			if buffer.windowType == parser.Milliseconds {
+				windowSizeSeconds = windowSizeSeconds / 1000
+			}
 			// copy all "sufficiently new" tuples to new buffer
 			// TODO avoid the reallocation here
 			newBuf := make([]*core.Tuple, 0, curBufSize)
 			for _, tup := range buffer.tuples {
 				dur := curTupTime.Sub(tup.Timestamp)
-				if dur.Seconds() <= float64(buffer.windowSize) {
+				if dur.Seconds() <= windowSizeSeconds {
 					newBuf = append(newBuf, tup)
 				}
 			}
