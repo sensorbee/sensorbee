@@ -26,6 +26,34 @@ func TestTuple(t *testing.T) {
 		ProcTimestamp: time.Date(2015, time.April, 10, 10, 24, 0, 0, time.UTC),
 		BatchID:       7,
 	}
+	start := time.Now()
+
+	dataShouldBeTheSame := func(t *Tuple) {
+		simpleTypes := []string{"bool", "int", "float", "string",
+			"array[0]", "map.string"}
+		for _, typeName := range simpleTypes {
+			a, getErrA := t.Data.Get(typeName)
+			So(getErrA, ShouldBeNil)
+			b, getErrB := t.Data.Get(typeName)
+			So(getErrB, ShouldBeNil)
+			// objects should have the same value
+			So(a, ShouldEqual, b)
+			// pointers should not be the same
+			So(&a, ShouldNotPointTo, &b)
+		}
+
+		complexTypes := []string{"byte", "time"}
+		for _, typeName := range complexTypes {
+			a, getErrA := t.Data.Get(typeName)
+			So(getErrA, ShouldBeNil)
+			b, getErrB := t.Data.Get(typeName)
+			So(getErrB, ShouldBeNil)
+			// objects should have the same value
+			So(a, ShouldResemble, b)
+			// pointers should not be the same
+			So(&a, ShouldNotPointTo, &b)
+		}
+	}
 
 	Convey("Given a Tuple with values in it", t, func() {
 		Convey("When deep-copying the Tuple", func() {
@@ -43,30 +71,24 @@ func TestTuple(t *testing.T) {
 			})
 
 			Convey("Then all values should be the same", func() {
-				simpleTypes := []string{"bool", "int", "float", "string",
-					"array[0]", "map.string"}
-				for _, typeName := range simpleTypes {
-					a, getErrA := tup.Data.Get(typeName)
-					So(getErrA, ShouldBeNil)
-					b, getErrB := copy.Data.Get(typeName)
-					So(getErrB, ShouldBeNil)
-					// objects should have the same value
-					So(a, ShouldEqual, b)
-					// pointers should not be the same
-					So(&a, ShouldNotPointTo, &b)
-				}
+				dataShouldBeTheSame(copy)
+			})
+		})
 
-				complexTypes := []string{"byte", "time"}
-				for _, typeName := range complexTypes {
-					a, getErrA := tup.Data.Get(typeName)
-					So(getErrA, ShouldBeNil)
-					b, getErrB := copy.Data.Get(typeName)
-					So(getErrB, ShouldBeNil)
-					// objects should have the same value
-					So(a, ShouldResemble, b)
-					// pointers should not be the same
-					So(&a, ShouldNotPointTo, &b)
-				}
+		Convey("When creating a Tuple by NewTuple", func() {
+			t := NewTuple(testData)
+
+			Convey("Then tuple metadata should be initialized", func() {
+				So(t.Timestamp, ShouldHappenOnOrAfter, start)
+				So(t.ProcTimestamp, ShouldHappenOnOrAfter, start)
+
+				So(t.InputName, ShouldBeEmpty)
+				So(t.BatchID, ShouldEqual, 0)
+				So(t.Trace, ShouldBeEmpty)
+			})
+
+			Convey("Then all values should be the same", func() {
+				dataShouldBeTheSame(t)
 			})
 		})
 	})
