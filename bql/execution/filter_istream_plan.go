@@ -6,6 +6,7 @@ import (
 	"pfi/sensorbee/sensorbee/core"
 	"pfi/sensorbee/sensorbee/data"
 	"reflect"
+	"time"
 )
 
 type filterIstreamPlan struct {
@@ -23,6 +24,15 @@ func CanBuildFilterIstreamPlan(lp *LogicalPlan, reg udf.FunctionRegistry) bool {
 		return false
 	}
 	rangeUnit := lp.Relations[0].Unit
+	for _, proj := range lp.Projections {
+		// this implementation assumes that after we evaluated an
+		// expression on a row, its value will never change. this
+		// means that we cannot deal with volatile or stable
+		// functions in this plan.
+		if proj.expr.Volatility() != Immutable {
+			return false
+		}
+	}
 	return !lp.GroupingStmt &&
 		lp.EmitterType == parser.Istream &&
 		rangeUnit == parser.Tuples
