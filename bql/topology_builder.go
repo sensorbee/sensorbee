@@ -120,19 +120,25 @@ func (tb *TopologyBuilder) AddStmt(stmt interface{}) (core.Node, error) {
 	case parser.CreateStreamAsSelectUnionStmt:
 		// idea: create an intermediate box for each SELECT substatement,
 		// then connect them with a simple forwarder box
-		names := make([]string, len(stmt.Selects))
-		for i, selStmt := range stmt.Selects {
+		names := make([]string, 0, len(stmt.Selects))
+		removeTmpNodes := func() {
+			for _, name := range names {
+				tb.topology.Remove(name)
+			}
+		}
+		for _, selStmt := range stmt.Selects {
 			// create a stream with a generated name and recurse
 			tmpName := fmt.Sprintf("sensorbee_tmp_%v", topologyBuilderNextTemporaryID())
-			names[i] = tmpName
 			tmpStmt := parser.CreateStreamAsSelectStmt{
 				parser.StreamIdentifier(tmpName),
 				selStmt,
 			}
 			box, err := tb.AddStmt(tmpStmt)
 			if err != nil {
+				removeTmpNodes()
 				return nil, err
 			}
+			names = append(names, tmpName)
 			box.(core.BoxNode).StopOnDisconnect(core.Inbound | core.Outbound)
 			box.(core.BoxNode).RemoveOnStop()
 		}
@@ -142,6 +148,7 @@ func (tb *TopologyBuilder) AddStmt(stmt interface{}) (core.Node, error) {
 		})
 		node, err := tb.topology.AddBox(string(stmt.Name), forwardBox, nil)
 		if err != nil {
+			removeTmpNodes()
 			return nil, err
 		}
 		// TODO if we add
@@ -152,6 +159,7 @@ func (tb *TopologyBuilder) AddStmt(stmt interface{}) (core.Node, error) {
 		// connect inputs
 		for _, name := range names {
 			if err := node.Input(name, nil); err != nil {
+				removeTmpNodes()
 				return nil, err
 			}
 		}
@@ -609,18 +617,24 @@ func (tb *TopologyBuilder) AddSelectUnionStmt(stmts *parser.SelectUnionStmt) (co
 		return nil, nil, err
 	}
 
+	names := make([]string, 0, len(stmts.Selects))
 	for _, stmt := range stmts.Selects {
-		_, err = tb.AddStmt(parser.InsertIntoSelectStmt{
+		node, err := tb.AddStmt(parser.InsertIntoSelectStmt{
 			Sink:       parser.StreamIdentifier(temporaryName),
 			SelectStmt: stmt,
 		})
 		if err != nil {
+			// clean up the already created nodes
+			for _, name := range names {
+				tb.topology.Remove(name)
+			}
 			if err := sn.Stop(); err != nil {
 				tb.topology.Context().ErrLog(err).WithField("node_type", core.NTSink).
 					WithField("node_name", temporaryName).Error("Cannot stop the temporary sink")
 			}
 			return nil, nil, err
 		}
+		names = append(names, node.Name())
 	}
 	sn.StopOnDisconnect()
 	return sn, ch, nil
