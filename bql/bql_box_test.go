@@ -86,6 +86,152 @@ func TestBasicBQLBoxConnectivity(t *testing.T) {
 	})
 }
 
+func TestBasicBQLBoxUnionCapability(t *testing.T) {
+	Convey("Given a UNION over two identical streams in BQL", t, func() {
+		s := "CREATE STREAM box AS " +
+			"SELECT ISTREAM int FROM source [RANGE 1 TUPLES] WHERE int % 2 = 0 " +
+			"UNION ALL SELECT ISTREAM int FROM source [RANGE 1 TUPLES] WHERE int % 2 = 0"
+		tb, err := setupTopology(s)
+		So(err, ShouldBeNil)
+		dt := tb.Topology()
+		Reset(func() {
+			dt.Stop()
+		})
+
+		sin, err := dt.Sink("snk")
+		So(err, ShouldBeNil)
+		si := sin.Sink().(*tupleCollectorSink)
+
+		Convey("When 4 tuples are emitted by the source", func() {
+			Convey("Then the sink receives 4 tuples", func() {
+				si.Wait(4)
+				So(si.Tuples, ShouldNotBeNil)
+				So(len(si.Tuples), ShouldEqual, 4)
+
+				Convey("And they are the union of two filtered streams", func() {
+					found := map[int64]bool{}
+					for _, t := range si.Tuples {
+						v := t.Data["int"]
+						i, _ := data.AsInt(v)
+						found[i] = true
+					}
+					So(found, ShouldResemble, map[int64]bool{
+						2: true, 4: true,
+					})
+				})
+			})
+		})
+
+		Convey("When rewinding the source", func() {
+			si.Wait(2)
+			So(addBQLToTopology(tb, `REWIND SOURCE source;`), ShouldBeNil)
+
+			Convey("Then the sinkreceives tuples again", func() {
+				si.Wait(8)
+				So(len(si.Tuples), ShouldEqual, 8)
+			})
+		})
+	})
+
+	Convey("Given a UNION over two disjoint streams in BQL", t, func() {
+		s := "CREATE STREAM box AS " +
+			"SELECT ISTREAM int FROM source [RANGE 1 TUPLES] WHERE int % 2 = 0 " +
+			"UNION ALL SELECT ISTREAM int FROM source [RANGE 1 TUPLES] WHERE int % 2 = 1"
+		tb, err := setupTopology(s)
+		So(err, ShouldBeNil)
+		dt := tb.Topology()
+		Reset(func() {
+			dt.Stop()
+		})
+
+		sin, err := dt.Sink("snk")
+		So(err, ShouldBeNil)
+		si := sin.Sink().(*tupleCollectorSink)
+
+		Convey("When 4 tuples are emitted by the source", func() {
+			Convey("Then the sink receives 4 tuples", func() {
+				si.Wait(4)
+				So(si.Tuples, ShouldNotBeNil)
+				So(len(si.Tuples), ShouldEqual, 4)
+
+				Convey("And they are the union of two filtered streams", func() {
+					found := map[int64]bool{}
+					for _, t := range si.Tuples {
+						v := t.Data["int"]
+						i, _ := data.AsInt(v)
+						found[i] = true
+					}
+					So(found, ShouldResemble, map[int64]bool{
+						1: true, 2: true, 3: true, 4: true,
+					})
+				})
+			})
+		})
+
+		Convey("When rewinding the source", func() {
+			si.Wait(2)
+			So(addBQLToTopology(tb, `REWIND SOURCE source;`), ShouldBeNil)
+
+			Convey("Then the sinkreceives tuples again", func() {
+				si.Wait(8)
+				So(len(si.Tuples), ShouldEqual, 8)
+			})
+		})
+	})
+
+	Convey("Given a UNION over three disjoint streams in BQL", t, func() {
+		s := "CREATE STREAM box AS " +
+			"SELECT ISTREAM int, 'a' AS x FROM source [RANGE 1 TUPLES] WHERE int = 0 " +
+			"UNION ALL SELECT ISTREAM int, 'b' AS y FROM source [RANGE 1 TUPLES] WHERE int = 1" +
+			"UNION ALL SELECT ISTREAM int, 'c' AS z FROM source [RANGE 1 TUPLES] WHERE int >= 2"
+		tb, err := setupTopology(s)
+		So(err, ShouldBeNil)
+		dt := tb.Topology()
+		Reset(func() {
+			dt.Stop()
+		})
+
+		sin, err := dt.Sink("snk")
+		So(err, ShouldBeNil)
+		si := sin.Sink().(*tupleCollectorSink)
+
+		Convey("When 4 tuples are emitted by the source", func() {
+			Convey("Then the sink receives 4 tuples", func() {
+				si.Wait(4)
+				So(si.Tuples, ShouldNotBeNil)
+				So(len(si.Tuples), ShouldEqual, 4)
+
+				Convey("And they are the union of three filtered streams", func() {
+					for _, t := range si.Tuples {
+						v := t.Data["int"]
+						i, _ := data.AsInt(v)
+						if i == 0 {
+							So(len(t.Data), ShouldEqual, 2)
+							So(t.Data["x"], ShouldResemble, data.String("a"))
+						} else if i == 1 {
+							So(len(t.Data), ShouldEqual, 2)
+							So(t.Data["y"], ShouldResemble, data.String("b"))
+						} else {
+							So(len(t.Data), ShouldEqual, 2)
+							So(t.Data["z"], ShouldResemble, data.String("c"))
+						}
+					}
+				})
+			})
+		})
+
+		Convey("When rewinding the source", func() {
+			si.Wait(2)
+			So(addBQLToTopology(tb, `REWIND SOURCE source;`), ShouldBeNil)
+
+			Convey("Then the sinkreceives tuples again", func() {
+				si.Wait(8)
+				So(len(si.Tuples), ShouldEqual, 8)
+			})
+		})
+	})
+}
+
 func TestBQLBoxJoinCapability(t *testing.T) {
 	tuples := mkTuples(4)
 

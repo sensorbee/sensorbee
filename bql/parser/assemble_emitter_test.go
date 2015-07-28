@@ -62,7 +62,7 @@ func TestAssembleEmitter(t *testing.T) {
 				comp := top.(CreateStreamAsSelectStmt)
 
 				So(comp.Name, ShouldEqual, "x")
-				So(comp.EmitterType, ShouldEqual, Istream)
+				So(comp.Select.EmitterType, ShouldEqual, Istream)
 			})
 		})
 	})

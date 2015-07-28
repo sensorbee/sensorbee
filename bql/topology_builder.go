@@ -117,6 +117,55 @@ func (tb *TopologyBuilder) AddStmt(stmt interface{}) (core.Node, error) {
 	case parser.CreateStreamAsSelectStmt:
 		return tb.createStreamAsSelectStmt(&stmt)
 
+	case parser.CreateStreamAsSelectUnionStmt:
+		// idea: create an intermediate box for each SELECT substatement,
+		// then connect them with a simple forwarder box
+		names := make([]string, 0, len(stmt.Selects))
+		nodes := make([]core.BoxNode, 0, len(stmt.Selects))
+		removeTmpNodes := func() {
+			for _, name := range names {
+				tb.topology.Remove(name)
+			}
+		}
+		for _, selStmt := range stmt.Selects {
+			// create a stream with a generated name and recurse
+			tmpName := fmt.Sprintf("sensorbee_tmp_%v", topologyBuilderNextTemporaryID())
+			tmpStmt := parser.CreateStreamAsSelectStmt{
+				parser.StreamIdentifier(tmpName),
+				selStmt,
+			}
+			box, err := tb.AddStmt(tmpStmt)
+			if err != nil {
+				removeTmpNodes()
+				return nil, err
+			}
+			names = append(names, tmpName)
+			nodes = append(nodes, box.(core.BoxNode))
+		}
+		// simple forwarder box
+		forwardBox := core.BoxFunc(func(ctx *core.Context, t *core.Tuple, w core.Writer) error {
+			return w.Write(ctx, t)
+		})
+		node, err := tb.topology.AddBox(string(stmt.Name), forwardBox, nil)
+		if err != nil {
+			removeTmpNodes()
+			return nil, err
+		}
+		// connect inputs
+		for _, name := range names {
+			if err := node.Input(name, nil); err != nil {
+				removeTmpNodes()
+				return nil, err
+			}
+		}
+		for _, node := range nodes {
+			node.StopOnDisconnect(core.Inbound | core.Outbound)
+			node.RemoveOnStop()
+		}
+		node.StopOnDisconnect(core.Inbound)
+		node.RemoveOnStop()
+		return node, nil
+
 	case parser.CreateSinkStmt:
 		// load params into map for faster access
 		paramsMap := tb.mkParamsMap(stmt.Params)
@@ -242,12 +291,14 @@ func (tb *TopologyBuilder) AddStmt(stmt interface{}) (core.Node, error) {
 		tmpName := fmt.Sprintf("sensorbee_tmp_%v", topologyBuilderNextTemporaryID())
 		tmpStmt := parser.CreateStreamAsSelectStmt{
 			parser.StreamIdentifier(tmpName),
-			stmt.EmitterAST,
-			stmt.ProjectionsAST,
-			stmt.WindowedFromAST,
-			stmt.FilterAST,
-			stmt.GroupingAST,
-			stmt.HavingAST,
+			parser.SelectStmt{
+				stmt.EmitterAST,
+				stmt.ProjectionsAST,
+				stmt.WindowedFromAST,
+				stmt.FilterAST,
+				stmt.GroupingAST,
+				stmt.HavingAST,
+			},
 		}
 		box, err := tb.AddStmt(tmpStmt)
 		if err != nil {
@@ -338,7 +389,7 @@ func (b *udsfBox) Terminate(ctx *core.Context) error {
 func (tb *TopologyBuilder) createStreamAsSelectStmt(stmt *parser.CreateStreamAsSelectStmt) (core.Node, error) {
 	// insert a bqlBox that executes the SELECT statement
 	outName := string(stmt.Name)
-	box := NewBQLBox(stmt, tb.Reg)
+	box := NewBQLBox(&stmt.Select, tb.Reg)
 	// add all the referenced relations as named inputs
 	dbox, err := tb.topology.AddBox(outName, box, nil)
 	if err != nil {
@@ -359,7 +410,7 @@ func (tb *TopologyBuilder) createStreamAsSelectStmt(stmt *parser.CreateStreamAsS
 	}()
 
 	connected := map[string]bool{}
-	for _, rel := range stmt.Relations {
+	for _, rel := range stmt.Select.Relations {
 		switch rel.Type {
 		case parser.ActualStream:
 			if connected[rel.Name] {
@@ -547,6 +598,16 @@ func (s *chanSink) Close(ctx *core.Context) error {
 // tuples from the Sink, and an error if happens. The caller must stop the
 // Sink node once it get unnecessary.
 func (tb *TopologyBuilder) AddSelectStmt(stmt *parser.SelectStmt) (core.SinkNode, <-chan *core.Tuple, error) {
+	// wrap this in a UNION statement
+	tmpStmt := parser.SelectUnionStmt{[]parser.SelectStmt{*stmt}}
+	return tb.AddSelectUnionStmt(&tmpStmt)
+}
+
+// AddSelectUnionStmt creates nodes handling a SELECT ... UNION ALL statement
+// in the topology. It returns the Sink node and the channel tied to it, the
+// chan receiving tuples from the Sink, and an error if happens. The caller must
+// stop the Sink node once it get unnecessary.
+func (tb *TopologyBuilder) AddSelectUnionStmt(stmts *parser.SelectUnionStmt) (core.SinkNode, <-chan *core.Tuple, error) {
 	sink, ch := newChanSink()
 	temporaryName := fmt.Sprintf("sensorbee_tmp_select_sink_%v", topologyBuilderNextTemporaryID())
 	sn, err := tb.topology.AddSink(temporaryName, sink, &core.SinkConfig{
@@ -557,16 +618,24 @@ func (tb *TopologyBuilder) AddSelectStmt(stmt *parser.SelectStmt) (core.SinkNode
 		return nil, nil, err
 	}
 
-	_, err = tb.AddStmt(parser.InsertIntoSelectStmt{
-		Sink:       parser.StreamIdentifier(temporaryName),
-		SelectStmt: *stmt,
-	})
-	if err != nil {
-		if err := sn.Stop(); err != nil {
-			tb.topology.Context().ErrLog(err).WithField("node_type", core.NTSink).
-				WithField("node_name", temporaryName).Error("Cannot stop the temporary sink")
+	names := make([]string, 0, len(stmts.Selects))
+	for _, stmt := range stmts.Selects {
+		node, err := tb.AddStmt(parser.InsertIntoSelectStmt{
+			Sink:       parser.StreamIdentifier(temporaryName),
+			SelectStmt: stmt,
+		})
+		if err != nil {
+			// clean up the already created nodes
+			for _, name := range names {
+				tb.topology.Remove(name)
+			}
+			if err := sn.Stop(); err != nil {
+				tb.topology.Context().ErrLog(err).WithField("node_type", core.NTSink).
+					WithField("node_name", temporaryName).Error("Cannot stop the temporary sink")
+			}
+			return nil, nil, err
 		}
-		return nil, nil, err
+		names = append(names, node.Name())
 	}
 	sn.StopOnDisconnect()
 	return sn, ch, nil

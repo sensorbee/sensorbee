@@ -284,6 +284,8 @@ func (tc *topologies) Queries(rw web.ResponseWriter, req *web.Request) {
 		}
 		if _, ok := stmt.(parser.SelectStmt); ok {
 			selectStmtIndex = len(stmts)
+		} else if _, ok := stmt.(parser.SelectUnionStmt); ok {
+			selectStmtIndex = len(stmts)
 		}
 
 		stmts = append(stmts, &stmtWithStr{stmt, queries[:len(queries)-len(rest)]})
@@ -299,7 +301,12 @@ func (tc *topologies) Queries(rw web.ResponseWriter, req *web.Request) {
 			tc.RenderErrorJSON(e)
 			return
 		}
-		tc.handleSelectStmt(rw, stmts[selectStmtIndex].stmt.(parser.SelectStmt), stmts[selectStmtIndex].stmtStr)
+		stmtStruct := stmts[selectStmtIndex]
+		if stmt, ok := stmtStruct.stmt.(parser.SelectStmt); ok {
+			tc.handleSelectStmt(rw, stmt, stmtStruct.stmtStr)
+		} else if stmt, ok := stmtStruct.stmt.(parser.SelectUnionStmt); ok {
+			tc.handleSelectUnionStmt(rw, stmt, stmtStruct.stmtStr)
+		}
 		return
 	}
 
@@ -326,12 +333,17 @@ func (tc *topologies) Queries(rw web.ResponseWriter, req *web.Request) {
 }
 
 func (tc *topologies) handleSelectStmt(rw web.ResponseWriter, stmt parser.SelectStmt, stmtStr string) {
+	tmpStmt := parser.SelectUnionStmt{[]parser.SelectStmt{stmt}}
+	tc.handleSelectUnionStmt(rw, tmpStmt, stmtStr)
+}
+
+func (tc *topologies) handleSelectUnionStmt(rw web.ResponseWriter, stmt parser.SelectUnionStmt, stmtStr string) {
 	tb := tc.fetchTopology()
 	if tb == nil { // just in case
 		return
 	}
 
-	sn, ch, err := tb.AddSelectStmt(&stmt)
+	sn, ch, err := tb.AddSelectUnionStmt(&stmt)
 	if err != nil {
 		tc.ErrLog(err).Error("Cannot process a statement")
 		e := NewError(bqlStmtProcessingErrorCode, "Cannot process a statement", http.StatusBadRequest, err)

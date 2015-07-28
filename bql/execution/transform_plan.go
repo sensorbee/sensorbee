@@ -46,7 +46,7 @@ type ExecutionPlan interface {
 	Process(input *core.Tuple) ([]data.Map, error)
 }
 
-func Analyze(s parser.CreateStreamAsSelectStmt, reg udf.FunctionRegistry) (*LogicalPlan, error) {
+func Analyze(s parser.SelectStmt, reg udf.FunctionRegistry) (*LogicalPlan, error) {
 	/*
 	   In Spark, this does the following:
 
@@ -89,7 +89,7 @@ func isAggregateFunc(f udf.UDF, arity int) bool {
 // flattenExpressions separates the aggregate and non-aggregate
 // part in a statement and returns with an error if there are
 // aggregates in structures that may not have some
-func flattenExpressions(s *parser.CreateStreamAsSelectStmt, reg udf.FunctionRegistry) (*LogicalPlan, error) {
+func flattenExpressions(s *parser.SelectStmt, reg udf.FunctionRegistry) (*LogicalPlan, error) {
 	// groupingMode is active when aggregate functions or the
 	// GROUP BY clause are used
 	groupingMode := false
@@ -234,7 +234,7 @@ func flattenExpressions(s *parser.CreateStreamAsSelectStmt, reg udf.FunctionRegi
 // makeRelationAliases will assign an internal alias to every relation
 // does not yet have one (given by the user). It will also detect if
 // there is a conflict between aliases.
-func makeRelationAliases(s *parser.CreateStreamAsSelectStmt) error {
+func makeRelationAliases(s *parser.SelectStmt) error {
 	relNames := make(map[string]parser.AliasedStreamWindowAST, len(s.Relations))
 	newRels := make([]parser.AliasedStreamWindowAST, len(s.Relations))
 	for i, aliasedRel := range s.Relations {
@@ -260,7 +260,7 @@ func makeRelationAliases(s *parser.CreateStreamAsSelectStmt) error {
 // in SELECT, WHERE, GROUP BY and HAVING clauses of the given
 // statement are matching the relations mentioned in the FROM
 // clause.
-func validateReferences(s *parser.CreateStreamAsSelectStmt) error {
+func validateReferences(s *parser.SelectStmt) error {
 
 	/* We want to check if we can access all relations properly.
 	   If there is just one input relation, we ask that none of the

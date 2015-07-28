@@ -236,6 +236,83 @@ func TestCreateStreamAsSelectStmt(t *testing.T) {
 	})
 }
 
+func TestCreateStreamAsSelectUnionStmt(t *testing.T) {
+	Convey("Given a BQL TopologyBuilder with source and stream", t, func() {
+		dt := newTestTopology()
+		Reset(func() {
+			dt.Stop()
+		})
+		tb, err := NewTopologyBuilder(dt)
+		So(err, ShouldBeNil)
+		err = addBQLToTopology(tb, `CREATE PAUSED SOURCE s TYPE dummy`)
+		So(err, ShouldBeNil)
+
+		Convey("When running CREATE STREAM AS SELECT on an existing stream", func() {
+			err := addBQLToTopology(tb, `CREATE STREAM t AS SELECT ISTREAM int FROM s [RANGE 2 SECONDS]
+				UNION ALL SELECT ISTREAM int+1 FROM s [RANGE 2 SECONDS]`)
+
+			Convey("Then there should be no error", func() {
+				So(err, ShouldBeNil)
+			})
+
+			Convey("And when unioning source and stream", func() {
+				err := addBQLToTopology(tb, `CREATE STREAM x AS SELECT ISTREAM int FROM s [RANGE 2 SECONDS]
+				UNION ALL SELECT DSTREAM int+1 FROM t [RANGE 2 SECONDS]`)
+
+				Convey("Then there should be no error", func() {
+					So(err, ShouldBeNil)
+				})
+
+				Convey("And when unioning with yet another stream", func() {
+					err := addBQLToTopology(tb, `CREATE STREAM u AS SELECT ISTREAM int FROM s [RANGE 2 SECONDS]
+						UNION ALL SELECT DSTREAM int+1 FROM t [RANGE 2 SECONDS]
+						UNION ALL SELECT DSTREAM int+2 FROM x [RANGE 2 SECONDS]`)
+
+					Convey("Then there should be no error", func() {
+						So(err, ShouldBeNil)
+					})
+				})
+			})
+
+			Convey("And when running another CREATE STREAM AS SELECT with the same name", func() {
+				prevNodes := len(tb.topology.Nodes())
+				err := addBQLToTopology(tb, `CREATE STREAM t AS SELECT ISTREAM int FROM s [RANGE 2 SECONDS]
+				UNION ALL SELECT DSTREAM int+1 FROM t [RANGE 2 SECONDS]`)
+
+				Convey("Then an error should be returned the second time", func() {
+					So(err, ShouldNotBeNil)
+					So(err.Error(), ShouldContainSubstring, "already")
+					So(len(tb.topology.Nodes()), ShouldEqual, prevNodes)
+				})
+			})
+		})
+
+		Convey("When running CREATE STREAM AS SELECT on a non-existing stream (1)", func() {
+			prevNodes := len(tb.topology.Nodes())
+			err := addBQLToTopology(tb, `CREATE STREAM x AS SELECT ISTREAM int FROM bar [RANGE 2 SECONDS]
+				UNION ALL SELECT DSTREAM int+1 FROM t [RANGE 2 SECONDS]`)
+
+			Convey("Then an error should be returned", func() {
+				So(err, ShouldNotBeNil)
+				So(err.Error(), ShouldContainSubstring, "was not found")
+				So(len(tb.topology.Nodes()), ShouldEqual, prevNodes)
+			})
+		})
+
+		Convey("When running CREATE STREAM AS SELECT on a non-existing stream (2)", func() {
+			prevNodes := len(tb.topology.Nodes())
+			err := addBQLToTopology(tb, `CREATE STREAM x AS SELECT ISTREAM int FROM s [RANGE 2 SECONDS]
+				UNION ALL SELECT DSTREAM int+1 FROM bar [RANGE 2 SECONDS]`)
+
+			Convey("Then an error should be returned", func() {
+				So(err, ShouldNotBeNil)
+				So(err.Error(), ShouldContainSubstring, "was not found")
+				So(len(tb.topology.Nodes()), ShouldEqual, prevNodes)
+			})
+		})
+	})
+}
+
 func TestCreateSinkStmt(t *testing.T) {
 	Convey("Given a BQL TopologyBuilder", t, func() {
 		dt := newTestTopology()
@@ -656,6 +733,81 @@ func TestSelectStmt(t *testing.T) {
 					So(err, ShouldNotBeNil)
 				})
 			})
+		})
+
+		Convey("When issuing a SELECT stmt referencing an unknown source", func() {
+			bp := parser.NewBQLParser()
+			numNodes := len(tb.topology.Nodes())
+			istmt, _, err := bp.ParseStmt(`SELECT ISTREAM * FROM hoge [RANGE 1 TUPLES];`)
+			So(err, ShouldBeNil)
+			stmt := istmt.(parser.SelectStmt)
+			_, _, err = tb.AddSelectStmt(&stmt)
+			So(err, ShouldNotBeNil) // unknown data source
+			So(len(tb.topology.Nodes()), ShouldEqual, numNodes)
+		})
+	})
+}
+
+func TestSelectUnionStmt(t *testing.T) {
+	Convey("Given a BQL TopologyBuilder with a source", t, func() {
+		dt := newTestTopology()
+		Reset(func() {
+			dt.Stop()
+		})
+		tb, err := NewTopologyBuilder(dt)
+		So(err, ShouldBeNil)
+		So(addBQLToTopology(tb, `CREATE PAUSED SOURCE s TYPE dummy WITH num=4, resumable=false;`), ShouldBeNil)
+
+		Convey("When issuing a SELECT stmt", func() {
+			bp := parser.NewBQLParser()
+			istmt, _, err := bp.ParseStmt(`SELECT ISTREAM * FROM s [RANGE 1 TUPLES] WHERE int%2=0
+				UNION ALL SELECT ISTREAM * FROM s [RANGE 1 TUPLES] WHERE int%2=1`)
+			So(err, ShouldBeNil)
+			stmt := istmt.(parser.SelectUnionStmt)
+			sn, ch, err := tb.AddSelectUnionStmt(&stmt)
+			So(err, ShouldBeNil)
+			So(addBQLToTopology(tb, `RESUME SOURCE s;`), ShouldBeNil)
+
+			Convey("Then the chan should receive all tuples", func() {
+				cnt := 0
+				for _ = range ch {
+					cnt++
+				}
+				So(cnt, ShouldEqual, 4)
+
+				Convey("And the Sink should be stopped", func() {
+					So(sn.State().Wait(core.TSStopped), ShouldEqual, core.TSStopped)
+				})
+
+				Convey("And the Sink should be removed from the topology", func() {
+					_, err := dt.Sink(sn.Name())
+					So(err, ShouldNotBeNil)
+				})
+			})
+		})
+
+		Convey("When issuing a SELECT stmt referencing an unknown source (1)", func() {
+			bp := parser.NewBQLParser()
+			numNodes := len(tb.topology.Nodes())
+			istmt, _, err := bp.ParseStmt(`SELECT ISTREAM * FROM hoge [RANGE 1 TUPLES] WHERE int%2=0
+				UNION ALL SELECT ISTREAM * FROM s [RANGE 1 TUPLES] WHERE int%2=1`)
+			So(err, ShouldBeNil)
+			stmt := istmt.(parser.SelectUnionStmt)
+			_, _, err = tb.AddSelectUnionStmt(&stmt)
+			So(err, ShouldNotBeNil) // unknown data source
+			So(len(tb.topology.Nodes()), ShouldEqual, numNodes)
+		})
+
+		Convey("When issuing a SELECT stmt referencing an unknown source (2)", func() {
+			bp := parser.NewBQLParser()
+			numNodes := len(tb.topology.Nodes())
+			istmt, _, err := bp.ParseStmt(`SELECT ISTREAM * FROM s [RANGE 1 TUPLES] WHERE int%2=0
+				UNION ALL SELECT ISTREAM * FROM hoge [RANGE 1 TUPLES] WHERE int%2=1`)
+			So(err, ShouldBeNil)
+			stmt := istmt.(parser.SelectUnionStmt)
+			_, _, err = tb.AddSelectUnionStmt(&stmt)
+			So(err, ShouldNotBeNil) // unknown data source
+			So(len(tb.topology.Nodes()), ShouldEqual, numNodes)
 		})
 	})
 }

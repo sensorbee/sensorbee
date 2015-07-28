@@ -10,7 +10,7 @@ import (
 
 type bqlBox struct {
 	// stmt is the BQL statement executed by this box
-	stmt *parser.CreateStreamAsSelectStmt
+	stmt *parser.SelectStmt
 	// reg holds functions that can be used in this box
 	reg udf.FunctionRegistry
 	// plan is the execution plan for the SELECT statement in there
@@ -19,7 +19,7 @@ type bqlBox struct {
 	mutex sync.Mutex
 }
 
-func NewBQLBox(stmt *parser.CreateStreamAsSelectStmt, reg udf.FunctionRegistry) *bqlBox {
+func NewBQLBox(stmt *parser.SelectStmt, reg udf.FunctionRegistry) *bqlBox {
 	return &bqlBox{stmt: stmt, reg: reg}
 }
 

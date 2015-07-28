@@ -27,7 +27,7 @@ type bqlPeg Peg {
 
 Statements <- sp ((Statement sp ';' .*) / Statement) !.
 
-Statement <- (SelectStmt / SourceStmt / SinkStmt / StateStmt / StreamStmt)
+Statement <- (SelectUnionStmt / SelectStmt / SourceStmt / SinkStmt / StateStmt / StreamStmt)
 
 SourceStmt <- CreateSourceStmt / UpdateSourceStmt / DropSourceStmt /
               PauseSourceStmt / ResumeSourceStmt / RewindSourceStmt
@@ -36,7 +36,7 @@ SinkStmt <-   CreateSinkStmt / UpdateSinkStmt / DropSinkStmt
 
 StateStmt <-  CreateStateStmt / UpdateStateStmt / DropStateStmt
 
-StreamStmt <- CreateStreamAsSelectStmt / DropStreamStmt /
+StreamStmt <- CreateStreamAsSelectUnionStmt / CreateStreamAsSelectStmt / DropStreamStmt /
               InsertIntoSelectStmt / InsertIntoFromStmt
 
 SelectStmt <- "SELECT" sp
@@ -50,17 +50,24 @@ SelectStmt <- "SELECT" sp
         p.AssembleSelect()
     }
 
+SelectUnionStmt <- < SelectStmt ("UNION" sp "ALL" sp SelectStmt)+ > {
+        p.AssembleSelectUnion(begin, end)
+    }
+
 CreateStreamAsSelectStmt <- "CREATE" sp "STREAM" sp
                     StreamIdentifier sp
-                    "AS" sp "SELECT" sp
-                    Emitter sp
-                    Projections sp
-                    WindowedFrom sp
-                    Filter sp
-                    Grouping sp
-                    Having sp
+                    "AS" sp
+                    SelectStmt
                     {
         p.AssembleCreateStreamAsSelect()
+    }
+
+CreateStreamAsSelectUnionStmt <- "CREATE" sp "STREAM" sp
+                    StreamIdentifier sp
+                    "AS" sp
+                    SelectUnionStmt
+                    {
+        p.AssembleCreateStreamAsSelectUnion()
     }
 
 CreateSourceStmt <- "CREATE" sp PausedOpt sp "SOURCE" sp
