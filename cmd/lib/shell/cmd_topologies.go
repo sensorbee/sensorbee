@@ -42,9 +42,14 @@ func (ct *changeTopologyCmd) Name() []string {
 }
 
 func (ct *changeTopologyCmd) Input(input string) (cmdInputStatusType, error) {
+	input = strings.Trim(input, " ")
 	inputs := strings.Split(input, " ")
-	if len(inputs) != 2 {
-		return invalidCMD, fmt.Errorf("cannot support empty named topology")
+	if len(inputs) == 1 {
+		return invalidCMD, fmt.Errorf("empty name is not supported")
+	}
+	if len(inputs) >= 3 {
+		return invalidCMD, fmt.Errorf("name included spaces is not supported: %v",
+			strings.Join(inputs[1:], " "))
 	}
 
 	ct.name = inputs[1]
