@@ -731,6 +731,46 @@ func TestSelectStmt(t *testing.T) {
 	})
 }
 
+func TestSelectUnionStmt(t *testing.T) {
+	Convey("Given a BQL TopologyBuilder with a source", t, func() {
+		dt := newTestTopology()
+		Reset(func() {
+			dt.Stop()
+		})
+		tb, err := NewTopologyBuilder(dt)
+		So(err, ShouldBeNil)
+		So(addBQLToTopology(tb, `CREATE PAUSED SOURCE s TYPE dummy WITH num=4, resumable=false;`), ShouldBeNil)
+
+		Convey("When issuing a SELECT stmt", func() {
+			bp := parser.NewBQLParser()
+			istmt, _, err := bp.ParseStmt(`SELECT ISTREAM * FROM s [RANGE 1 TUPLES] WHERE int%2=0
+				UNION ALL SELECT ISTREAM * FROM s [RANGE 1 TUPLES] WHERE int%2=1`)
+			So(err, ShouldBeNil)
+			stmt := istmt.(parser.SelectUnionStmt)
+			sn, ch, err := tb.AddSelectUnionStmt(&stmt)
+			So(err, ShouldBeNil)
+			So(addBQLToTopology(tb, `RESUME SOURCE s;`), ShouldBeNil)
+
+			Convey("Then the chan should receive all tuples", func() {
+				cnt := 0
+				for _ = range ch {
+					cnt++
+				}
+				So(cnt, ShouldEqual, 4)
+
+				Convey("And the Sink should be stopped", func() {
+					So(sn.State().Wait(core.TSStopped), ShouldEqual, core.TSStopped)
+				})
+
+				Convey("And the Sink should be removed from the topology", func() {
+					_, err := dt.Sink(sn.Name())
+					So(err, ShouldNotBeNil)
+				})
+			})
+		})
+	})
+}
+
 func TestDropSourceStmt(t *testing.T) {
 	Convey("Given a BQL TopologyBuilder", t, func() {
 		dt := newTestTopology()
