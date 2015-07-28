@@ -110,7 +110,6 @@ func (ds *defaultSinkNode) stop() {
 	if stopped, err := ds.checkAndPrepareForStopping("sink"); stopped || err != nil {
 		return
 	}
-	ds.state.Set(TSStopping)
 	ds.srcs.stop(ds.topology.ctx)
 	ds.state.Wait(TSStopped)
 }
