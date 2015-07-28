@@ -203,15 +203,26 @@ func (t *defaultTopology) AddBox(name string, b Box, config *BoxConfig) (BoxNode
 }
 
 func (t *defaultTopology) AddSink(name string, s Sink, config *SinkConfig) (SinkNode, error) {
-	var err error
+	// Sink must be closed when AddSink fails before creating a sink node
+	closeSinkFlag := false
 	defer func() {
-		// Sink must be closed when AddSink fails before creating a sink node
-		if err != nil {
-			s.Close(t.ctx)
+		if !closeSinkFlag {
+			return
+		}
+		defer func() {
+			if e := recover(); e != nil {
+				t.ctx.Log().WithFields(nodeLogFields(NTSink, name)).
+					Errorf("Cannot close the sink which hasn't been added to the topology: %v", e)
+			}
+		}()
+		if err := s.Close(t.ctx); err != nil {
+			t.ctx.ErrLog(err).WithFields(nodeLogFields(NTSink, name)).
+				Error("Cannot close the sink which hasn't been added to the topology")
 		}
 	}()
 
-	if err = ValidateNodeName(name); err != nil {
+	if err := ValidateNodeName(name); err != nil {
+		closeSinkFlag = true
 		return nil, err
 	}
 
@@ -222,22 +233,12 @@ func (t *defaultTopology) AddSink(name string, s Sink, config *SinkConfig) (Sink
 	t.nodeMutex.Lock()
 	defer t.nodeMutex.Unlock()
 	if t.state.Get() >= TSStopping {
-		func() {
-			defer func() {
-				if e := recover(); e != nil {
-					t.ctx.Log().WithFields(nodeLogFields(NTSink, name)).
-						Errorf("Cannot close the sink which hasn't been added to the topology due to its duplicated name: %v", e)
-				}
-			}()
-			if err := s.Close(t.ctx); err != nil {
-				t.ctx.ErrLog(err).WithFields(nodeLogFields(NTSink, name)).
-					Error("Cannot close the sink which hasn't been added to the topology due to its duplicated name")
-			}
-		}()
+		closeSinkFlag = true
 		return nil, fmt.Errorf("the topology is already stopped")
 	}
 
-	if err = t.checkNodeNameDuplication(name); err != nil {
+	if err := t.checkNodeNameDuplication(name); err != nil {
+		closeSinkFlag = true
 		return nil, err
 	}
 
