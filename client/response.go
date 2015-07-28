@@ -1,15 +1,17 @@
 package client
 
 import (
+	"bufio"
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"mime"
-	"mime/multipart"
 	"net/http"
 	"pfi/sensorbee/sensorbee/server/response"
+	"strconv"
 	"strings"
 )
 
@@ -152,59 +154,161 @@ func (r *Response) ReadStreamJSON() (<-chan interface{}, error) {
 	r.closeStream = make(chan struct{})
 	r.streamClosed = make(chan struct{})
 
+	// TODO: refactor this dirty long goroutine.
 	go func() {
 		defer func() {
 			close(ch)
 			close(r.streamClosed)
 		}()
 
-		mr := multipart.NewReader(r.Raw.Body, r.mimeParams["boundary"])
-	multipartLoop:
-		for {
-			err := func() error {
-				part, err := mr.NextPart()
-				if err != nil {
-					return err
-				}
-				defer part.Close()
-				if ct := part.Header.Get("Content-Type"); !strings.Contains(ct, "application/json") {
-					return errors.New("the stream contains non-JSON contents")
-				}
-
-				body, err := ioutil.ReadAll(part)
-				if err != nil {
-					return err
-				}
-
-				var js interface{}
-				if err := json.Unmarshal(body, &js); err != nil {
-					return fmt.Errorf("cannot parse JSON: %v", err)
-				}
-				select {
-				case <-r.closeStream:
-					// Because this is signaled by close, the same condition
-					// will be checked in the select below.
-
-				case ch <- js:
-				}
-				return nil
-			}()
-
-			select {
-			case <-r.closeStream:
-				// When the response is closed first, the error doesn't have
-				// to be set.
-				break multipartLoop
-			default:
-			}
-
+		reader := bufio.NewReader(r.Raw.Body)
+		nextLine := func() ([]byte, []byte, error) {
+			line, err := reader.ReadBytes('\n')
 			if err != nil {
-				if err != io.EOF {
+				return nil, nil, err
+			}
+			nl := line
+			line = line[:len(line)-1] // remove '\n'
+			if l := len(line); l > 0 && line[l-1] == '\r' {
+				line = line[:l-1]
+				nl = nl[len(nl)-2:]
+			} else {
+				nl = nl[len(nl)-1:]
+			}
+			return line, nl, nil
+		}
+		boundary := append([]byte("--"), []byte(r.mimeParams["boundary"])...)
+		isBoundaryLine := func(line []byte) (bool, bool) {
+			if !bytes.HasPrefix(line, boundary) {
+				return false, false
+			}
+			line = line[len(boundary):]
+			isFinal := false
+			if bytes.HasPrefix(line, []byte("--")) {
+				isFinal = true
+				line = line[2:]
+			}
+			for len(line) > 0 && (line[0] == ' ' || line[0] == '\t') {
+				line = line[1:]
+			}
+			return len(line) == 0, isFinal
+		}
+
+		for { // find first boundary
+			if line, _, err := nextLine(); err != nil {
+				if err == io.EOF {
+					r.streamErr = io.ErrUnexpectedEOF
+				} else {
 					r.streamErr = err
 				}
+				return
+
+			} else if b, final := isBoundaryLine(line); b {
+				if final {
+					return
+				}
+				break
+			}
+		}
+
+		body := make([]byte, 0, 4096)
+		for { // read each part
+			body = body[:0]
+			header := http.Header{}
+			for { // read header
+				line, _, err := nextLine()
+				if err != nil {
+					if err != io.EOF {
+						r.streamErr = err
+					}
+					return
+				}
+				if len(line) == 0 {
+					break
+				}
+				l := string(line)
+				i := strings.Index(l, ": ")
+				if i < 0 {
+					continue
+				}
+				header.Set(l[:i], l[i+2:])
+			}
+
+			if ct := header.Get("Content-Type"); !strings.Contains(ct, "application/json") {
+				r.streamErr = errors.New("the stream contains non-JSON contents")
+				return
+			}
+
+			var contentLength int
+			clStr := header.Get("Content-Length")
+			if clStr != "" {
+				cl, err := strconv.Atoi(clStr)
+				if err != nil {
+					r.streamErr = err
+					return
+				}
+				contentLength = cl
+			}
+
+			boundaryFound := false
+			finalPart := false
+			for {
+				line, nl, err := nextLine()
+				if err != nil {
+					if err != io.EOF {
+						r.streamErr = err
+					}
+					return
+				}
+				if boundaryFound, finalPart = isBoundaryLine(line); boundaryFound {
+					break
+				}
+
+				if len(body) != 0 {
+					body = append(body, nl...)
+				}
+				body = append(body, line...)
+				if contentLength != 0 && len(body) >= contentLength {
+					break
+				}
+			}
+
+			var js interface{}
+			if err := json.Unmarshal(body, &js); err != nil {
+				r.streamErr = fmt.Errorf("cannot parse JSON: %v", err)
+				return
+			}
+			select {
+			case <-r.closeStream:
+				return
+			case ch <- js:
+			}
+
+			if !boundaryFound {
+				for {
+					line, _, err := nextLine()
+					if err != nil {
+						if err != io.EOF {
+							r.streamErr = err
+						}
+						return
+					}
+					if boundaryFound, finalPart = isBoundaryLine(line); boundaryFound {
+						break
+					}
+				}
+			}
+			if finalPart {
 				return
 			}
 		}
 	}()
 	return ch, nil
+}
+
+// StreamError returns an error which occurred in a goroutine spawned from
+// ReadStreamJSON method. Don't call this method before the channel returned
+// from ReadStreamJSON is closed.
+func (r *Response) StreamError() error {
+	return r.streamErr
 }
