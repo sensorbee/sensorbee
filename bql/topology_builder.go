@@ -589,6 +589,16 @@ func (s *chanSink) Close(ctx *core.Context) error {
 // tuples from the Sink, and an error if happens. The caller must stop the
 // Sink node once it get unnecessary.
 func (tb *TopologyBuilder) AddSelectStmt(stmt *parser.SelectStmt) (core.SinkNode, <-chan *core.Tuple, error) {
+	// wrap this in a UNION statement
+	tmpStmt := parser.SelectUnionStmt{[]parser.SelectStmt{*stmt}}
+	return tb.AddSelectUnionStmt(&tmpStmt)
+}
+
+// AddSelectUnionStmt creates nodes handling a SELECT ... UNION ALL statement
+// in the topology. It returns the Sink node and the channel tied to it, the
+// chan receiving tuples from the Sink, and an error if happens. The caller must
+// stop the Sink node once it get unnecessary.
+func (tb *TopologyBuilder) AddSelectUnionStmt(stmts *parser.SelectUnionStmt) (core.SinkNode, <-chan *core.Tuple, error) {
 	sink, ch := newChanSink()
 	temporaryName := fmt.Sprintf("sensorbee_tmp_select_sink_%v", topologyBuilderNextTemporaryID())
 	sn, err := tb.topology.AddSink(temporaryName, sink, &core.SinkConfig{
@@ -599,16 +609,18 @@ func (tb *TopologyBuilder) AddSelectStmt(stmt *parser.SelectStmt) (core.SinkNode
 		return nil, nil, err
 	}
 
-	_, err = tb.AddStmt(parser.InsertIntoSelectStmt{
-		Sink:       parser.StreamIdentifier(temporaryName),
-		SelectStmt: *stmt,
-	})
-	if err != nil {
-		if err := sn.Stop(); err != nil {
-			tb.topology.Context().ErrLog(err).WithField("node_type", core.NTSink).
-				WithField("node_name", temporaryName).Error("Cannot stop the temporary sink")
+	for _, stmt := range stmts.Selects {
+		_, err = tb.AddStmt(parser.InsertIntoSelectStmt{
+			Sink:       parser.StreamIdentifier(temporaryName),
+			SelectStmt: stmt,
+		})
+		if err != nil {
+			if err := sn.Stop(); err != nil {
+				tb.topology.Context().ErrLog(err).WithField("node_type", core.NTSink).
+					WithField("node_name", temporaryName).Error("Cannot stop the temporary sink")
+			}
+			return nil, nil, err
 		}
-		return nil, nil, err
 	}
 	sn.StopOnDisconnect()
 	return sn, ch, nil
