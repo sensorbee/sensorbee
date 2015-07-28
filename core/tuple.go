@@ -64,8 +64,8 @@ func (t *Tuple) Copy() *Tuple {
 }
 
 // NewTuple creates and initializes a Tuple with default
-// value by golang. And it copied Data by argument. Timestamp
-// and ProcTimestamp fields will be set time.Now() value.
+// values. And it copied Data by argument. Timestamp and
+// ProcTimestamp fields will be set time.Now() value.
 func NewTuple(d data.Map) *Tuple {
 	now := time.Now()
 	return &Tuple{
