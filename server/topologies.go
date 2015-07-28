@@ -353,6 +353,11 @@ func (tc *topologies) handleSelectUnionStmt(rw web.ResponseWriter, stmt parser.S
 		return
 	}
 	defer func() {
+		go func() {
+			// vacuum all tuples to avoid blocking the sink.
+			for _ = range ch {
+			}
+		}()
 		if err := sn.Stop(); err != nil {
 			tc.ErrLog(err).WithFields(logrus.Fields{
 				"node_type": core.NTSink,
