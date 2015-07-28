@@ -26,6 +26,7 @@ func TestTuple(t *testing.T) {
 		ProcTimestamp: time.Date(2015, time.April, 10, 10, 24, 0, 0, time.UTC),
 		BatchID:       7,
 	}
+	start := time.Now()
 
 	dataShouldBeTheSame := func(t *Tuple) {
 		simpleTypes := []string{"bool", "int", "float", "string",
@@ -78,8 +79,8 @@ func TestTuple(t *testing.T) {
 			t := NewTuple(testData)
 
 			Convey("Then tuple metadata should be initialized", func() {
-				So(t.Timestamp, ShouldNotEqual, time.Time{})
-				So(t.ProcTimestamp, ShouldNotEqual, time.Time{})
+				So(t.Timestamp, ShouldHappenOnOrAfter, start)
+				So(t.ProcTimestamp, ShouldHappenOnOrAfter, start)
 
 				So(t.InputName, ShouldBeEmpty)
 				So(t.BatchID, ShouldEqual, 0)
