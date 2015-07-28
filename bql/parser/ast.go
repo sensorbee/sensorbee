@@ -610,6 +610,7 @@ const (
 	UnspecifiedIntervalUnit IntervalUnit = iota
 	Tuples
 	Seconds
+	Milliseconds
 )
 
 func (i IntervalUnit) String() string {
@@ -619,6 +620,8 @@ func (i IntervalUnit) String() string {
 		s = "TUPLES"
 	case Seconds:
 		s = "SECONDS"
+	case Milliseconds:
+		s = "MILLISECONDS"
 	}
 	return s
 }
