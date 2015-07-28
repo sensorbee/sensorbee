@@ -121,6 +121,7 @@ func (tb *TopologyBuilder) AddStmt(stmt interface{}) (core.Node, error) {
 		// idea: create an intermediate box for each SELECT substatement,
 		// then connect them with a simple forwarder box
 		names := make([]string, 0, len(stmt.Selects))
+		nodes := make([]core.BoxNode, 0, len(stmt.Selects))
 		removeTmpNodes := func() {
 			for _, name := range names {
 				tb.topology.Remove(name)
@@ -139,8 +140,7 @@ func (tb *TopologyBuilder) AddStmt(stmt interface{}) (core.Node, error) {
 				return nil, err
 			}
 			names = append(names, tmpName)
-			box.(core.BoxNode).StopOnDisconnect(core.Inbound | core.Outbound)
-			box.(core.BoxNode).RemoveOnStop()
+			nodes = append(nodes, box.(core.BoxNode))
 		}
 		// simple forwarder box
 		forwardBox := core.BoxFunc(func(ctx *core.Context, t *core.Tuple, w core.Writer) error {
@@ -151,11 +151,6 @@ func (tb *TopologyBuilder) AddStmt(stmt interface{}) (core.Node, error) {
 			removeTmpNodes()
 			return nil, err
 		}
-		// TODO if we add
-		//   node.StopOnDisconnect(core.Inbound)
-		//   node.RemoveOnStop()
-		// here, then all the tests will fail. this should
-		// be investigated...?
 		// connect inputs
 		for _, name := range names {
 			if err := node.Input(name, nil); err != nil {
@@ -163,6 +158,12 @@ func (tb *TopologyBuilder) AddStmt(stmt interface{}) (core.Node, error) {
 				return nil, err
 			}
 		}
+		for _, node := range nodes {
+			node.StopOnDisconnect(core.Inbound | core.Outbound)
+			node.RemoveOnStop()
+		}
+		node.StopOnDisconnect(core.Inbound)
+		node.RemoveOnStop()
 		return node, nil
 
 	case parser.CreateSinkStmt:
