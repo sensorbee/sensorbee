@@ -280,6 +280,7 @@ func (r *Response) ReadStreamJSON() (<-chan interface{}, error) {
 			}
 			select {
 			case <-r.closeStream:
+				return
 			case ch <- js:
 			}
 
