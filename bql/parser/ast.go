@@ -359,7 +359,9 @@ type Wildcard struct {
 }
 
 func (w Wildcard) ReferencedRelations() map[string]bool {
-	return map[string]bool{"": true}
+	// the wildcard does not reference any relation
+	// (this is different to referencing the "" relation)
+	return nil
 }
 
 func (w Wildcard) RenameReferencedRelation(from, to string) Expression {
