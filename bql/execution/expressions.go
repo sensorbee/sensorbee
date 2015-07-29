@@ -159,6 +159,17 @@ func ParserExprToFlatExpr(e parser.Expression, reg udf.FunctionRegistry) (FlatEx
 			exprs[i] = expr
 		}
 		return FuncAppAST{obj.Function, exprs}, nil
+	case parser.ArrayAST:
+		// compute child expressions
+		exprs := make([]FlatExpression, len(obj.Expressions))
+		for i, ast := range obj.Expressions {
+			expr, err := ParserExprToFlatExpr(ast, reg)
+			if err != nil {
+				return nil, err
+			}
+			exprs[i] = expr
+		}
+		return ArrayAST{exprs}, nil
 	case parser.Wildcard:
 		return WildcardAST{obj.Relation}, nil
 	}
@@ -290,6 +301,26 @@ func ParserExprToMaybeAggregate(e parser.Expression, aggIdx int, reg udf.Functio
 			}
 		}
 		return FuncAppAST{obj.Function, exprs}, returnAgg, nil
+	case parser.ArrayAST:
+		// compute child expressions
+		exprs := make([]FlatExpression, len(obj.Expressions))
+		returnAgg := map[string]FlatExpression{}
+		for i, ast := range obj.Expressions {
+			// compute the correct aggIdx
+			newAggIdx := aggIdx + len(returnAgg)
+			expr, agg, err := ParserExprToMaybeAggregate(ast, newAggIdx, reg)
+			if err != nil {
+				return nil, nil, err
+			}
+			for key, val := range agg {
+				returnAgg[key] = val
+			}
+			exprs[i] = expr
+		}
+		if len(returnAgg) == 0 {
+			returnAgg = nil
+		}
+		return ArrayAST{exprs}, returnAgg, nil
 	}
 	err := fmt.Errorf("don't know how to convert type %#v", e)
 	return nil, nil, err
@@ -429,6 +460,37 @@ func (f FuncAppAST) Volatility() VolatilityType {
 	// cannot assume that UDFs are stable or immutable
 	// in general
 	return Volatile
+}
+
+type ArrayAST struct {
+	Expressions []FlatExpression
+}
+
+func (a ArrayAST) Repr() string {
+	reprs := make([]string, len(a.Expressions))
+	for i, e := range a.Expressions {
+		reprs[i] = e.Repr()
+	}
+	return fmt.Sprintf("[%s]", strings.Join(reprs, ", "))
+}
+
+func (a ArrayAST) Columns() []RowValue {
+	var allColumns []RowValue
+	for _, e := range a.Expressions {
+		allColumns = append(allColumns, e.Columns()...)
+	}
+	return allColumns
+}
+
+func (a ArrayAST) Volatility() VolatilityType {
+	lv := VolatilityType(Immutable)
+	for _, e := range a.Expressions {
+		v := e.Volatility()
+		if v < lv {
+			lv = v
+		}
+	}
+	return lv
 }
 
 type WildcardAST struct {

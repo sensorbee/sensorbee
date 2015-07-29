@@ -675,6 +675,22 @@ func TestAggregateChecker(t *testing.T) {
 				"_f12cd6bc": RowValue{"x", "a"},
 			}},
 
+		{"[udaf(a + 1), 3, g(count(a))] FROM x [RANGE 1 TUPLES]", "",
+			ArrayAST{[]FlatExpression{
+				FuncAppAST{"udaf", []FlatExpression{AggInputRef{"_2d5e5764"}}},
+				NumericLiteral{3},
+				FuncAppAST{"g", []FlatExpression{
+					FuncAppAST{"count", []FlatExpression{AggInputRef{"_f12cd6bc"}}},
+				}},
+			}},
+			map[string]FlatExpression{
+				"_2d5e5764": BinaryOpAST{parser.Plus,
+					RowValue{"x", "a"},
+					NumericLiteral{1},
+				},
+				"_f12cd6bc": RowValue{"x", "a"},
+			}},
+
 		// there are two aggregate calls, but they use the same value,
 		// so the `aggrs` list contains only one entry
 		{"count(a) + g(count(a)) FROM x [RANGE 1 TUPLES]", "",
@@ -875,6 +891,25 @@ func TestVolatileAggregateChecker(t *testing.T) {
 				BinaryOpAST{parser.Plus,
 					FuncAppAST{"count", []FlatExpression{AggInputRef{"_2523c3a2_2"}}},
 					FuncAppAST{"udaf", []FlatExpression{AggInputRef{"_2523c3a2_3"}}}},
+			},
+			[]map[string]FlatExpression{
+				{
+					"_2523c3a2_0": FuncAppAST{"f", []FlatExpression{RowValue{"x", "a"}}},
+					"_2523c3a2_1": FuncAppAST{"f", []FlatExpression{RowValue{"x", "a"}}},
+				},
+				{
+					"_2523c3a2_2": FuncAppAST{"f", []FlatExpression{RowValue{"x", "a"}}},
+					"_2523c3a2_3": FuncAppAST{"f", []FlatExpression{RowValue{"x", "a"}}},
+				}}},
+
+		{"udaf(f(a), a, f(a)), [count(f(a)), udaf(f(a))] FROM x [RANGE 1 TUPLES] GROUP BY a", "",
+			[]FlatExpression{
+				FuncAppAST{"udaf", []FlatExpression{AggInputRef{"_2523c3a2_0"},
+					RowValue{"x", "a"}, AggInputRef{"_2523c3a2_1"}}},
+				ArrayAST{[]FlatExpression{
+					FuncAppAST{"count", []FlatExpression{AggInputRef{"_2523c3a2_2"}}},
+					FuncAppAST{"udaf", []FlatExpression{AggInputRef{"_2523c3a2_3"}}},
+				}},
 			},
 			[]map[string]FlatExpression{
 				{
