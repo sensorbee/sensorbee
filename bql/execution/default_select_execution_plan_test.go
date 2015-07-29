@@ -410,9 +410,51 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 		})
 	})
 
+	Convey("Given a SELECT clause with a wildcard using stream prefix", t, func() {
+		tuples := getTuples(4)
+		s := `CREATE STREAM box AS SELECT ISTREAM src:* FROM src [RANGE 2 SECONDS]`
+		plan, err := createDefaultSelectPlan(s, t)
+		So(err, ShouldBeNil)
+
+		Convey("When feeding it with tuples", func() {
+			for idx, inTup := range tuples {
+				out, err := plan.Process(inTup)
+				So(err, ShouldBeNil)
+
+				Convey(fmt.Sprintf("Then those values should appear in %v", idx), func() {
+					So(len(out), ShouldEqual, 1)
+					So(out[0], ShouldResemble,
+						data.Map{"int": data.Int(idx + 1)})
+				})
+			}
+
+		})
+	})
+
 	Convey("Given a SELECT clause with a wildcard and an overriding column", t, func() {
 		tuples := getTuples(4)
 		s := `CREATE STREAM box AS SELECT ISTREAM *, (int-1)*2 AS int FROM src [RANGE 2 SECONDS]`
+		plan, err := createDefaultSelectPlan(s, t)
+		So(err, ShouldBeNil)
+
+		Convey("When feeding it with tuples", func() {
+			for idx, inTup := range tuples {
+				out, err := plan.Process(inTup)
+				So(err, ShouldBeNil)
+
+				Convey(fmt.Sprintf("Then those values should appear in %v", idx), func() {
+					So(len(out), ShouldEqual, 1)
+					So(out[0], ShouldResemble,
+						data.Map{"int": data.Int(2 * idx)})
+				})
+			}
+
+		})
+	})
+
+	Convey("Given a SELECT clause with a stream wildcard and an overriding column", t, func() {
+		tuples := getTuples(4)
+		s := `CREATE STREAM box AS SELECT ISTREAM src:*, (src:int-1)*2 AS int FROM src [RANGE 2 SECONDS]`
 		plan, err := createDefaultSelectPlan(s, t)
 		So(err, ShouldBeNil)
 
@@ -455,6 +497,48 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 	Convey("Given a SELECT clause with an aliased wildcard and an anonymous column", t, func() {
 		tuples := getTuples(4)
 		s := `CREATE STREAM box AS SELECT ISTREAM * AS x, (int-1)*2 FROM src [RANGE 2 SECONDS]`
+		plan, err := createDefaultSelectPlan(s, t)
+		So(err, ShouldBeNil)
+
+		Convey("When feeding it with tuples", func() {
+			for idx, inTup := range tuples {
+				out, err := plan.Process(inTup)
+				So(err, ShouldBeNil)
+
+				Convey(fmt.Sprintf("Then those values should appear in %v", idx), func() {
+					So(len(out), ShouldEqual, 1)
+					So(out[0], ShouldResemble,
+						data.Map{"col_2": data.Int(2 * idx), "x": data.Map{"int": data.Int(idx + 1)}})
+				})
+			}
+
+		})
+	})
+
+	Convey("Given a SELECT clause with an aliased wildcard and an anonymous column (both prefixed)", t, func() {
+		tuples := getTuples(4)
+		s := `CREATE STREAM box AS SELECT ISTREAM src:* AS x, (src:int-1)*2 FROM src [RANGE 2 SECONDS]`
+		plan, err := createDefaultSelectPlan(s, t)
+		So(err, ShouldBeNil)
+
+		Convey("When feeding it with tuples", func() {
+			for idx, inTup := range tuples {
+				out, err := plan.Process(inTup)
+				So(err, ShouldBeNil)
+
+				Convey(fmt.Sprintf("Then those values should appear in %v", idx), func() {
+					So(len(out), ShouldEqual, 1)
+					So(out[0], ShouldResemble,
+						data.Map{"col_2": data.Int(2 * idx), "x": data.Map{"int": data.Int(idx + 1)}})
+				})
+			}
+
+		})
+	})
+
+	Convey("Given a SELECT clause with an aliased wildcard and a prefixed anonymous column (both prefixed)", t, func() {
+		tuples := getTuples(4)
+		s := `CREATE STREAM box AS SELECT ISTREAM * AS x, (src:int-1)*2 FROM src [RANGE 2 SECONDS]`
 		plan, err := createDefaultSelectPlan(s, t)
 		So(err, ShouldBeNil)
 
@@ -1170,6 +1254,177 @@ func TestDefaultSelectExecutionPlanJoin(t *testing.T) {
 						So(out[1], ShouldResemble, data.Map{
 							"l": data.String(fmt.Sprintf("l%d", idx)),
 							"r": data.String(fmt.Sprintf("r%d", idx-1)),
+						})
+					}
+				})
+			}
+		})
+	})
+
+	Convey("Given a JOIN selecting with a big wildcard", t, func() {
+		tuples := getTuples(4)
+		// rearrange the tuples
+		for i, t := range tuples {
+			if i%2 == 0 {
+				t.InputName = "src1"
+				t.Data["l"] = data.String(fmt.Sprintf("l%d", i))
+				delete(t.Data, "int")
+				t.Data["hoge"] = data.Int(i)
+			} else {
+				t.InputName = "src2"
+				t.Data["r"] = data.String(fmt.Sprintf("r%d", i))
+			}
+		}
+		s := `CREATE STREAM box AS SELECT RSTREAM * FROM src1 [RANGE 2 TUPLES], src2 [RANGE 2 TUPLES]`
+		plan, err := createDefaultSelectPlan(s, t)
+		So(err, ShouldBeNil)
+
+		Convey("When feeding it with tuples", func() {
+			for idx, inTup := range tuples {
+				out, err := plan.Process(inTup)
+				// sort the output by the "l" and then the "r" key before
+				// checking if it resembles the expected value
+				sort.Sort(tupleList(out))
+				So(err, ShouldBeNil)
+
+				Convey(fmt.Sprintf("Then joined values should appear in %v", idx), func() {
+					if idx == 0 {
+						So(len(out), ShouldEqual, 0)
+					} else if idx == 1 {
+						So(len(out), ShouldEqual, 1)
+						So(out[0], ShouldResemble, data.Map{
+							"l":    data.String("l0"),
+							"r":    data.String("r1"),
+							"hoge": data.Int(0),
+							"int":  data.Int(2),
+						})
+					} else if idx == 2 {
+						So(len(out), ShouldEqual, 2)
+						So(out[0], ShouldResemble, data.Map{
+							"l":    data.String("l0"),
+							"r":    data.String("r1"),
+							"hoge": data.Int(0),
+							"int":  data.Int(2),
+						})
+						So(out[1], ShouldResemble, data.Map{
+							"l":    data.String("l2"),
+							"r":    data.String("r1"),
+							"hoge": data.Int(2),
+							"int":  data.Int(2),
+						})
+					}
+				})
+			}
+		})
+	})
+
+	Convey("Given a JOIN selecting with a left wildcard", t, func() {
+		tuples := getTuples(4)
+		// rearrange the tuples
+		for i, t := range tuples {
+			if i%2 == 0 {
+				t.InputName = "src1"
+				t.Data["l"] = data.String(fmt.Sprintf("l%d", i))
+				delete(t.Data, "int")
+				t.Data["hoge"] = data.Int(i)
+			} else {
+				t.InputName = "src2"
+				t.Data["r"] = data.String(fmt.Sprintf("r%d", i))
+			}
+		}
+		s := `CREATE STREAM box AS SELECT RSTREAM src1:*, src2:r FROM src1 [RANGE 2 TUPLES], src2 [RANGE 2 TUPLES]`
+		plan, err := createDefaultSelectPlan(s, t)
+		So(err, ShouldBeNil)
+
+		Convey("When feeding it with tuples", func() {
+			for idx, inTup := range tuples {
+				out, err := plan.Process(inTup)
+				// sort the output by the "l" and then the "r" key before
+				// checking if it resembles the expected value
+				sort.Sort(tupleList(out))
+				So(err, ShouldBeNil)
+
+				Convey(fmt.Sprintf("Then joined values should appear in %v", idx), func() {
+					if idx == 0 {
+						So(len(out), ShouldEqual, 0)
+					} else if idx == 1 {
+						So(len(out), ShouldEqual, 1)
+						So(out[0], ShouldResemble, data.Map{
+							"l":    data.String("l0"),
+							"r":    data.String("r1"),
+							"hoge": data.Int(0),
+						})
+					} else if idx == 2 {
+						So(len(out), ShouldEqual, 2)
+						So(out[0], ShouldResemble, data.Map{
+							"l":    data.String("l0"),
+							"r":    data.String("r1"),
+							"hoge": data.Int(0),
+						})
+						So(out[1], ShouldResemble, data.Map{
+							"l":    data.String("l2"),
+							"r":    data.String("r1"),
+							"hoge": data.Int(2),
+						})
+					}
+				})
+			}
+		})
+	})
+
+	Convey("Given a JOIN selecting with a nested right wildcard", t, func() {
+		tuples := getTuples(4)
+		// rearrange the tuples
+		for i, t := range tuples {
+			if i%2 == 0 {
+				t.InputName = "src1"
+				t.Data["l"] = data.String(fmt.Sprintf("l%d", i))
+				delete(t.Data, "int")
+				t.Data["hoge"] = data.Int(i)
+			} else {
+				t.InputName = "src2"
+				t.Data["r"] = data.String(fmt.Sprintf("r%d", i))
+			}
+		}
+		s := `CREATE STREAM box AS SELECT RSTREAM src1:l, src2:* AS b FROM src1 [RANGE 2 TUPLES], src2 [RANGE 2 TUPLES]`
+		plan, err := createDefaultSelectPlan(s, t)
+		So(err, ShouldBeNil)
+
+		Convey("When feeding it with tuples", func() {
+			for idx, inTup := range tuples {
+				out, err := plan.Process(inTup)
+				// sort the output by the "l" and then the "r" key before
+				// checking if it resembles the expected value
+				sort.Sort(tupleList(out))
+				So(err, ShouldBeNil)
+
+				Convey(fmt.Sprintf("Then joined values should appear in %v", idx), func() {
+					if idx == 0 {
+						So(len(out), ShouldEqual, 0)
+					} else if idx == 1 {
+						So(len(out), ShouldEqual, 1)
+						So(out[0], ShouldResemble, data.Map{
+							"l": data.String("l0"),
+							"b": data.Map{
+								"r":   data.String("r1"),
+								"int": data.Int(2),
+							},
+						})
+					} else if idx == 2 {
+						So(len(out), ShouldEqual, 2)
+						So(out[0], ShouldResemble, data.Map{
+							"l": data.String("l0"),
+							"b": data.Map{
+								"r":   data.String("r1"),
+								"int": data.Int(2),
+							},
+						})
+						So(out[1], ShouldResemble, data.Map{
+							"l": data.String("l2"),
+							"b": data.Map{
+								"r":   data.String("r1"),
+								"int": data.Int(2),
+							},
 						})
 					}
 				})

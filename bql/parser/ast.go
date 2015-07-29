@@ -356,22 +356,31 @@ func NewStream(s string) Stream {
 }
 
 type Wildcard struct {
+	Relation string
 }
 
 func (w Wildcard) ReferencedRelations() map[string]bool {
-	return map[string]bool{"": true}
+	if w.Relation == "" {
+		// the wildcard does not reference any relation
+		// (this is different to referencing the "" relation)
+		return nil
+	}
+	return map[string]bool{w.Relation: true}
 }
 
 func (w Wildcard) RenameReferencedRelation(from, to string) Expression {
-	return Wildcard{}
+	if w.Relation == from {
+		return Wildcard{to}
+	}
+	return Wildcard{w.Relation}
 }
 
 func (w Wildcard) Foldable() bool {
 	return false
 }
 
-func NewWildcard() Wildcard {
-	return Wildcard{}
+func NewWildcard(relation string) Wildcard {
+	return Wildcard{strings.TrimRight(relation, ":*")}
 }
 
 type RowValue struct {
