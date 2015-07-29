@@ -368,32 +368,38 @@ func (b BinaryOpAST) Foldable() bool {
 func (b BinaryOpAST) string() string {
 	str := []string{b.Left.string(), b.Op.String(), b.Right.string()}
 
+	// TODO: This implementation, this method can add unnecessary parentheses.
+	// For example,
+	//  input:  "a * 2 / b"
+	//  output: "(a * 2) / b"
+	// we can omit output parentehsis.
+
 	// Enclose expression in parentheses for operator precedence
-	switch b.Op {
-	case Multiply, Divide, Modulo:
-		if left, ok := b.Left.(BinaryOpAST); ok {
-			switch left.Op {
-			case Plus, Minus:
-				str[0] = "(" + str[0] + ")"
-			}
+	encloseLeft, encloseRight := false, false
+
+	if left, ok := b.Left.(BinaryOpAST); ok {
+		if left.Op.precedenceGreaterThan(b.Op) {
+			// we need no parentheses
+		} else {
+			// we probably need parentheses
+			encloseLeft = true
 		}
-		if right, ok := b.Right.(BinaryOpAST); ok {
-			switch right.Op {
-			case Plus, Minus:
-				str[2] = "(" + str[2] + ")"
-			}
+	}
+
+	if right, ok := b.Right.(BinaryOpAST); ok {
+		if right.Op.precedenceGreaterThan(b.Op) {
+			// we need no parentheses
+		} else {
+			// we probably need parentheses
+			encloseRight = true
 		}
-	case And:
-		if left, ok := b.Left.(BinaryOpAST); ok {
-			if left.Op == Or {
-				str[0] = "(" + str[0] + ")"
-			}
-		}
-		if right, ok := b.Right.(BinaryOpAST); ok {
-			if right.Op == Or {
-				str[2] = "(" + str[2] + ")"
-			}
-		}
+	}
+
+	if encloseLeft {
+		str[0] = "(" + str[0] + ")"
+	}
+	if encloseRight {
+		str[2] = "(" + str[2] + ")"
 	}
 
 	return strings.Join(str, " ")
@@ -1056,6 +1062,8 @@ func (t Type) String() string {
 type Operator int
 
 const (
+	// Operator is defined in precedence order (increasing).
+	// These values are compared in comparing method.
 	UnknownOperator Operator = iota
 	Or
 	And
@@ -1076,6 +1084,36 @@ const (
 	Modulo
 	UnaryMinus
 )
+
+// precedenceEqualTo checks the arguement operator is the same precedence.
+func (op Operator) precedenceEqualTo(rhs Operator) bool {
+	// Check the same precedence
+	if Or <= op && op <= Not && Or <= rhs && rhs <= Not {
+		return true
+	}
+	if Less <= op && op <= GreaterOrEqual && Less <= rhs && rhs <= GreaterOrEqual {
+		return true
+	}
+	if Is <= op && op <= IsNot && Is <= rhs && rhs <= IsNot {
+		return true
+	}
+	if Plus <= op && op <= Minus && Plus <= rhs && rhs <= Minus {
+		return true
+	}
+	if Multiply <= op && op <= Modulo && Multiply <= rhs && rhs <= Modulo {
+		return true
+	}
+
+	return false
+}
+
+func (op Operator) precedenceGreaterThan(rhs Operator) bool {
+	if op.precedenceEqualTo(rhs) {
+		return false
+	}
+
+	return op > rhs
+}
 
 func (o Operator) String() string {
 	s := "UnknownOperator"
