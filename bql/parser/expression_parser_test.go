@@ -53,6 +53,10 @@ func TestExpressionParser(t *testing.T) {
 		// Wildcard
 		"*":   {Wildcard{}},
 		"x:*": {Wildcard{"x"}},
+		// Array
+		"[]":       {ArrayAST{ExpressionsAST{[]Expression{}}}},
+		"[2]":      {ArrayAST{ExpressionsAST{[]Expression{NumericLiteral{2}}}}},
+		"[a, 2.3]": {ArrayAST{ExpressionsAST{[]Expression{RowValue{"", "a"}, FloatLiteral{2.3}}}}},
 		// NumericLiteral
 		"2":    {NumericLiteral{2}},
 		"-2":   {UnaryOpAST{UnaryMinus, NumericLiteral{2}}},

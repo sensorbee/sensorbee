@@ -331,6 +331,39 @@ func (f FuncAppAST) Foldable() bool {
 	return foldable
 }
 
+type ArrayAST struct {
+	ExpressionsAST
+}
+
+func (a ArrayAST) ReferencedRelations() map[string]bool {
+	rels := map[string]bool{}
+	for _, expr := range a.Expressions {
+		for rel := range expr.ReferencedRelations() {
+			rels[rel] = true
+		}
+	}
+	return rels
+}
+
+func (a ArrayAST) RenameReferencedRelation(from, to string) Expression {
+	newExprs := make([]Expression, len(a.Expressions))
+	for i, expr := range a.Expressions {
+		newExprs[i] = expr.RenameReferencedRelation(from, to)
+	}
+	return ArrayAST{ExpressionsAST{newExprs}}
+}
+
+func (a ArrayAST) Foldable() bool {
+	foldable := true
+	for _, expr := range a.Expressions {
+		if !expr.Foldable() {
+			foldable = false
+			break
+		}
+	}
+	return foldable
+}
+
 type ExpressionsAST struct {
 	Expressions []Expression
 }

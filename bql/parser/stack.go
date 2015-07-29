@@ -698,7 +698,7 @@ func (ps *parseStack) AssembleStreamWindow() {
 }
 
 // AssembleUDSFFuncApp takes the topmost elements from the stack,
-// assuming they are components of a UDFS clause, and
+// assuming they are components of a UDSF clause, and
 // replaces them by a single Stream element.
 //
 //  FuncAppAST{Function, ExpressionsAST}
@@ -909,6 +909,23 @@ func (ps *parseStack) AssembleFuncApp() {
 
 	// assemble the FuncAppAST and push it back
 	ps.PushComponent(_funcName.begin, _exprs.end, FuncAppAST{funcName, exprs})
+}
+
+// AssembleArray takes the topmost elements from the stack, assuming
+// they are components of an array expression, and replaces them
+// by a single ArrayAST element.
+//
+//  ExpressionsAST
+//   =>
+//  ArrayAST{ExpressionsAST}
+func (ps *parseStack) AssembleArray() {
+	// pop the components from the stack in reverse order
+	_exprs := ps.Pop()
+
+	exprs := _exprs.comp.(ExpressionsAST)
+
+	se := ParsedComponent{_exprs.begin, _exprs.end, ArrayAST{exprs}}
+	ps.Push(&se)
 }
 
 // AssembleExpressions takes the elements from the stack that
