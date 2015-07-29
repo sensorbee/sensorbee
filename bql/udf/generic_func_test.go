@@ -67,6 +67,68 @@ func TestGenericFunc(t *testing.T) {
 			})
 		}
 
+		aggCases := []struct {
+			title string
+			f     interface{}
+		}{
+			{
+				title: "When passing an aggregation function receiving a context and two args and returning an error",
+				f: func(ctx *core.Context, i []int, f float32) (int, error) {
+					return len(i) + int(f), nil
+				},
+			},
+			{
+				title: "When passing an aggregation function receiving two args and returning an error",
+				f: func(i []int, f float32) (int, error) {
+					return len(i) + int(f), nil
+				},
+			},
+			{
+				title: "When passing an aggregation function receiving a context and two args and not returning an error",
+				f: func(ctx *core.Context, i []int, f float32) int {
+					return len(i) + int(f)
+				},
+			},
+			{
+				title: "When passing an aggregation function receiving two args and not returning an error",
+				f: func(i []int, f float32) int {
+					return len(i) + int(f)
+				},
+			},
+		}
+
+		for _, c := range aggCases {
+			c := c
+			Convey(c.title, func() {
+				aggParams := []bool{true, false}
+				f, err := ConvertGenericAggregate(c.f, aggParams)
+				So(err, ShouldBeNil)
+
+				Convey("Then the udf should return a correct value", func() {
+					v, err := f.Call(ctx, data.Array([]data.Value{data.Int(1), data.Int(2)}), data.Float(1))
+					So(err, ShouldBeNil)
+					res, err := data.ToInt(v)
+					So(err, ShouldBeNil)
+					So(res, ShouldEqual, 3)
+				})
+
+				Convey("Then the udf's arity should be 2", func() {
+					So(f.Accept(2), ShouldBeTrue)
+					So(f.Accept(1), ShouldBeFalse)
+					So(f.Accept(3), ShouldBeFalse)
+				})
+
+				Convey("Then the udf's IsAggregationParameter should return correct values", func() {
+					So(f.IsAggregationParameter(0), ShouldBeTrue)
+					So(f.IsAggregationParameter(1), ShouldBeFalse)
+				})
+
+				Convey("Then the udf's IsAggregationParameter with out of bounds index should be false", func() {
+					So(f.IsAggregationParameter(2), ShouldBeFalse)
+				})
+			})
+		}
+
 		variadicCases := []struct {
 			title string
 			f     interface{}
@@ -279,6 +341,22 @@ func TestGenericFunc(t *testing.T) {
 				}, ShouldPanic)
 			})
 		})
+
+		Convey("When creating a valid UDF with MustConvertGenericAggregate", func() {
+			Convey("Then it shouldn't panic", func() {
+				So(func() {
+					MustConvertGenericAggregate(func() int { return 0 })
+				}, ShouldNotPanic)
+			})
+		})
+
+		Convey("When creating a invalid UDF with MustConvertGenericAggregate", func() {
+			Convey("Then it should panic", func() {
+				So(func() {
+					MustConvertGenericAggregate(func() {})
+				}, ShouldPanic)
+			})
+		})
 	})
 }
 
@@ -294,22 +372,31 @@ func TestGenericFuncInvalidCases(t *testing.T) {
 
 	Convey("Given a generic UDF generator", t, func() {
 		genCases := []struct {
-			title string
-			f     interface{}
+			title     string
+			f         interface{}
+			aggParams []bool
 		}{
-			{"with no return value", func() {}},
-			{"with an unsupported type", func(error) int { return 0 }},
-			{"with non-function type", 10},
-			{"with non-error second return type", func() (int, int) { return 0, 0 }},
-			{"with an unsupported type and non-error second return type", func(error) (int, int) { return 0, 0 }},
-			{"with an unsupported return type", func() *core.Context { return nil }},
-			{"with an unsupported interface return type", func() error { return nil }},
+			{"with no return value", func() {}, nil},
+			{"with an unsupported type", func(error) int { return 0 }, nil},
+			{"with non-function type", 10, nil},
+			{"with non-error second return type", func() (int, int) { return 0, 0 }, nil},
+			{"with an unsupported type and non-error second return type", func(error) (int, int) { return 0, 0 }, nil},
+			{"with an unsupported return type", func() *core.Context { return nil }, nil},
+			{"with an unsupported interface return type", func() error { return nil }, nil},
+			{"with an invalid aggParams 1", func(int) int { return 0 }, []bool{}},
+			{"with an invalid aggParams 2", func(int) int { return 0 }, []bool{false, false}},
+			{"with an invalid aggParams 3", func(*core.Context, int) int { return 0 }, []bool{false, false}},
 		}
 
 		for _, c := range genCases {
 			c := c
 			Convey("When passing a function "+c.title, func() {
-				_, err := ConvertGeneric(c.f)
+				var err error
+				if c.aggParams == nil {
+					_, err = ConvertGeneric(c.f)
+				} else {
+					_, err = ConvertGenericAggregate(c.f, c.aggParams)
+				}
 
 				Convey("Then it should fail", func() {
 					So(err, ShouldNotBeNil)

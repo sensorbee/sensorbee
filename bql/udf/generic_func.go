@@ -32,15 +32,48 @@ func ConvertGeneric(function interface{}) (UDF, error) {
 		return nil, errors.New("the argument must be a function")
 	}
 
+	numArgs := t.NumIn()
+	if genericFuncHasContext(t) {
+		numArgs -= 1
+	}
+
+	return ConvertGenericAggregate(function, make([]bool, numArgs))
+}
+
+func MustConvertGeneric(function interface{}) UDF {
+	f, err := ConvertGeneric(function)
+	if err != nil {
+		panic(err)
+	}
+	return f
+}
+
+// ConvertGenericAggregate creates a new aggregate UDF from various form of
+// functions. aggParams arguement is used where the argument of function
+// receives aggregation parameter.
+// Supported and acceptable types are the same as ConvertGeneric.
+func ConvertGenericAggregate(function interface{}, aggParams []bool) (UDF, error) {
+	t := reflect.TypeOf(function)
+	if t.Kind() != reflect.Func {
+		return nil, errors.New("the argument must be a function")
+	}
+
+	copiedParams := make([]bool, len(aggParams))
+	copy(copiedParams, aggParams)
 	g := &genericFunc{
-		function:   reflect.ValueOf(function),
-		hasContext: genericFuncHasContext(t),
-		variadic:   t.IsVariadic(),
-		arity:      t.NumIn(),
+		function:             reflect.ValueOf(function),
+		hasContext:           genericFuncHasContext(t),
+		variadic:             t.IsVariadic(),
+		arity:                t.NumIn(),
+		aggregationParameter: copiedParams,
 	}
 
 	if g.hasContext {
 		g.arity -= 1
+	}
+
+	if g.arity != len(aggParams) {
+		return nil, errors.New("the aggParams must have the same number of arguments of the function")
 	}
 
 	if hasError, err := checkGenericFuncReturnTypes(t); err != nil {
@@ -57,7 +90,7 @@ func ConvertGeneric(function interface{}) (UDF, error) {
 	return g, nil
 }
 
-func MustConvertGeneric(function interface{}) UDF {
+func MustConvertGenericAggregate(function interface{}) UDF {
 	f, err := ConvertGeneric(function)
 	if err != nil {
 		panic(err)
@@ -353,6 +386,13 @@ type genericFunc struct {
 	// func(int, float, ...string), arity is 3. It doesn't count Context.
 	arity int
 
+	// aggregationParameter have the same length as the number of arguments
+	// excluding the *core.Context.
+	// The values are returned by IsAggregationParameter method.
+	// If the aggregationParameter[n] boolean value is true, the n-th function
+	// argument receives aggregation parameter.
+	aggregationParameter []bool
+
 	converters []argumentConverter
 }
 
@@ -424,6 +464,8 @@ func (g *genericFunc) Accept(arity int) bool {
 }
 
 func (g *genericFunc) IsAggregationParameter(k int) bool {
-	// at the moment we cannot produce generic aggregate functions
-	return false
+	if len(g.aggregationParameter) <= k {
+		return false
+	}
+	return g.aggregationParameter[k]
 }
