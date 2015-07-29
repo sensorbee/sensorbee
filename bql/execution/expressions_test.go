@@ -42,6 +42,13 @@ func TestFlatExpressionConverter(t *testing.T) {
 			StmtMeta{parser.NowMeta}}}, Stable, []RowValue{{"", "a"}}},
 		"[f(a), true]": {ArrayAST{[]FlatExpression{FuncAppAST{parser.FuncName("f"),
 			[]FlatExpression{RowValue{"", "a"}}}, BoolLiteral{true}}}, Volatile, []RowValue{{"", "a"}}},
+		// Maps
+		"{}":          {MapAST{[]KeyValuePair{}}, Immutable, nil},
+		"{'hoge': 2}": {MapAST{[]KeyValuePair{{"hoge", NumericLiteral{2}}}}, Immutable, nil},
+		"{'a':a, 'now':now()}": {MapAST{[]KeyValuePair{{"a", RowValue{"", "a"}},
+			{"now", StmtMeta{parser.NowMeta}}}}, Stable, []RowValue{{"", "a"}}},
+		"{'f':f(a),'b':true}": {MapAST{[]KeyValuePair{{"f", FuncAppAST{parser.FuncName("f"),
+			[]FlatExpression{RowValue{"", "a"}}}}, {"b", BoolLiteral{true}}}}, Volatile, []RowValue{{"", "a"}}},
 		// Composed Expressions
 		"a OR 2":    {BinaryOpAST{parser.Or, RowValue{"", "a"}, NumericLiteral{2}}, Immutable, []RowValue{{"", "a"}}},
 		"a IS NULL": {BinaryOpAST{parser.Is, RowValue{"", "a"}, NullLiteral{}}, Immutable, []RowValue{{"", "a"}}},
