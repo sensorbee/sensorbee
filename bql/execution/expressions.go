@@ -417,7 +417,7 @@ func (f FuncAppAST) Repr() string {
 }
 
 func (f FuncAppAST) Columns() []RowValue {
-	allColumns := []RowValue{}
+	var allColumns []RowValue
 	for _, e := range f.Expressions {
 		allColumns = append(allColumns, e.Columns()...)
 	}
