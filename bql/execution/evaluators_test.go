@@ -141,6 +141,10 @@ func TestFoldableExecution(t *testing.T) {
 		{parser.FuncAppAST{parser.FuncName("plusone"),
 			parser.ExpressionsAST{[]parser.Expression{parser.NumericLiteral{7}}}},
 			true, data.Int(8)},
+		{parser.ArrayAST{parser.ExpressionsAST{[]parser.Expression{parser.RowValue{"", "a"}}}},
+			false, nil},
+		{parser.ArrayAST{parser.ExpressionsAST{[]parser.Expression{parser.NumericLiteral{7}}}},
+			true, data.Array{data.Int(7)}},
 	}
 
 	reg := &testFuncRegistry{ctx: core.NewContext(nil)}
@@ -1355,6 +1359,23 @@ func getTestCases() []struct {
 				{data.Map{"a": data.Bool(false)}, nil},
 				// function panics
 				{data.Map{"a": data.Null{}}, nil},
+			},
+		},
+		/// JSON-like Structures
+		{parser.ArrayAST{parser.ExpressionsAST{[]parser.Expression{
+			parser.NumericLiteral{2}, parser.RowValue{"", "a"}}}},
+			[]evalTest{
+				// not a map:
+				{data.Int(17), nil},
+				// keys not present:
+				{data.Map{"x": data.Int(17)}, nil},
+				// key present and number-like => conversion
+				{data.Map{"a": data.Int(17)}, data.Array{data.Int(2), data.Int(17)}},
+				{data.Map{"a": data.Float(3.14)}, data.Array{data.Int(2), data.Float(3.14)}},
+				{data.Map{"a": data.String("日本語")}, data.Array{data.Int(2), data.String("日本語")}},
+				{data.Map{"a": data.Array{data.Int(3)}}, data.Array{data.Int(2), data.Array{data.Int(3)}}},
+				{data.Map{"a": data.Map{"b": data.Int(3)}}, data.Array{data.Int(2), data.Map{"b": data.Int(3)}}},
+				{data.Map{"a": data.Null{}}, data.Array{data.Int(2), data.Null{}}},
 			},
 		},
 		// Using now() should find the timestamp at the
