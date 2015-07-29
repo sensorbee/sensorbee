@@ -25,6 +25,7 @@ func TestFlatExpressionConverter(t *testing.T) {
 		"1.2":   {FloatLiteral{1.2}, Immutable},
 		`'bql'`: {StringLiteral{"bql"}, Immutable},
 		"*":     {WildcardAST{}, Stable},
+		"x:*":   {WildcardAST{"x"}, Stable},
 		// Type Cast
 		"CAST(2 AS FLOAT)": {TypeCastAST{NumericLiteral{2}, parser.Float}, Immutable},
 		// Function Application

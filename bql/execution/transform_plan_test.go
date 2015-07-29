@@ -64,6 +64,7 @@ func TestRelationChecker(t *testing.T) {
 	t_a := parser.RowValue{"t", "a"}
 	t_b := parser.RowValue{"t", "b"}
 	t_c := parser.RowValue{"t", "c"}
+	t_wc := parser.Wildcard{"t"}
 	t_ts := parser.RowMeta{"t", parser.TimestampMeta}
 	x_a := parser.RowValue{"x", "a"}
 	x_b := parser.RowValue{"x", "b"}
@@ -92,6 +93,10 @@ func TestRelationChecker(t *testing.T) {
 		// SELECT t:ts() -> NG
 		{&parser.SelectStmt{
 			ProjectionsAST: parser.ProjectionsAST{[]parser.Expression{t_ts}},
+		}, "need at least one relation to select from"},
+		// SELECT t:*   -> NG
+		{&parser.SelectStmt{
+			ProjectionsAST: parser.ProjectionsAST{[]parser.Expression{t_wc}},
 		}, "need at least one relation to select from"},
 
 		////////// FROM (single input relation) //////////////
@@ -136,6 +141,11 @@ func TestRelationChecker(t *testing.T) {
 			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{t_a, t_b}},
 			WindowedFromAST: singleFrom,
 		}, ""},
+		// SELECT t:a, t:* FROM t -> OK
+		{&parser.SelectStmt{
+			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{t_a, t_wc}},
+			WindowedFromAST: singleFrom,
+		}, ""},
 		// SELECT t:a, t:ts() FROM t -> OK
 		{&parser.SelectStmt{
 			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{t_a, t_ts}},
@@ -146,9 +156,19 @@ func TestRelationChecker(t *testing.T) {
 			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{two, t_a}},
 			WindowedFromAST: singleFrom,
 		}, ""},
+		// SELECT t:*      FROM t -> OK
+		{&parser.SelectStmt{
+			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{t_wc}},
+			WindowedFromAST: singleFrom,
+		}, ""},
 		// SELECT a, t:b   FROM t -> NG
 		{&parser.SelectStmt{
 			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{a, t_a}},
+			WindowedFromAST: singleFrom,
+		}, "cannot refer to relations"},
+		// SELECT a, t:*   FROM t -> NG
+		{&parser.SelectStmt{
+			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{a, t_wc}},
 			WindowedFromAST: singleFrom,
 		}, "cannot refer to relations"},
 		// SELECT t:a, *   FROM t -> OK (this is special about the wildcard!!)
@@ -199,7 +219,19 @@ func TestRelationChecker(t *testing.T) {
 			WindowedFromAST: singleFrom,
 			FilterAST:       parser.FilterAST{b},
 		}, ""},
+		// SELECT *   FROM t WHERE b   -> OK
+		{&parser.SelectStmt{
+			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{wc}},
+			WindowedFromAST: singleFrom,
+			FilterAST:       parser.FilterAST{b},
+		}, ""},
 		// SELECT t:a FROM t WHERE b   -> NG
+		{&parser.SelectStmt{
+			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{t_wc}},
+			WindowedFromAST: singleFrom,
+			FilterAST:       parser.FilterAST{b},
+		}, "cannot refer to relations"},
+		// SELECT t:* FROM t WHERE b   -> NG
 		{&parser.SelectStmt{
 			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{t_a}},
 			WindowedFromAST: singleFrom,
@@ -211,6 +243,12 @@ func TestRelationChecker(t *testing.T) {
 			WindowedFromAST: singleFrom,
 			FilterAST:       parser.FilterAST{t_b},
 		}, "cannot refer to relations"},
+		// SELECT *   FROM t WHERE t:b -> OK (this is special about wildcard!)
+		{&parser.SelectStmt{
+			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{wc}},
+			WindowedFromAST: singleFrom,
+			FilterAST:       parser.FilterAST{t_b},
+		}, ""},
 		// SELECT 2   FROM t WHERE t:b -> OK
 		{&parser.SelectStmt{
 			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{two}},
