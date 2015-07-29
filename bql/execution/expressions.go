@@ -160,7 +160,7 @@ func ParserExprToFlatExpr(e parser.Expression, reg udf.FunctionRegistry) (FlatEx
 		}
 		return FuncAppAST{obj.Function, exprs}, nil
 	case parser.Wildcard:
-		return WildcardAST{}, nil
+		return WildcardAST{obj.Relation}, nil
 	}
 	err := fmt.Errorf("don't know how to convert type %#v", e)
 	return nil, err
@@ -432,10 +432,14 @@ func (f FuncAppAST) Volatility() VolatilityType {
 }
 
 type WildcardAST struct {
+	Relation string
 }
 
 func (w WildcardAST) Repr() string {
-	return "*"
+	if w.Relation == "" {
+		return "*"
+	}
+	return fmt.Sprintf("%s:*", w.Relation)
 }
 
 func (w WildcardAST) Columns() []RowValue {
