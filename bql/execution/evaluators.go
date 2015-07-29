@@ -183,7 +183,7 @@ func ExpressionToEvaluator(ast FlatExpression, reg udf.FunctionRegistry) (Evalua
 		}
 		return FuncApp(fName, f, reg.Context(), evals), nil
 	case WildcardAST:
-		return &Wildcard{}, nil
+		return &Wildcard{obj.Relation}, nil
 	}
 	err := fmt.Errorf("don't know how to evaluate type %#v", ast)
 	return nil, err
@@ -845,7 +845,9 @@ func FuncApp(name string, f udf.UDF, ctx *core.Context, params []Evaluator) Eval
 //   {"x": ..., "y": ..., "z": ...}.
 // If there are keys appearing in multiple top-level Maps, then only one
 // of them will appear in the output, but it is undefined which.
-type Wildcard struct{}
+type Wildcard struct {
+	Relation string
+}
 
 func (w *Wildcard) Eval(input data.Value) (data.Value, error) {
 	aMap, err := data.AsMap(input)
@@ -853,9 +855,11 @@ func (w *Wildcard) Eval(input data.Value) (data.Value, error) {
 		return nil, err
 	}
 	output := data.Map{}
-	for alias, subElement := range aMap {
-		if strings.Contains(alias, ":meta:") {
-			continue
+	if w.Relation != "" {
+		// if we have t:*, pick only the items in this submap
+		subElement, exists := aMap[w.Relation]
+		if !exists {
+			return nil, fmt.Errorf("there is no entry with key '%s'", w.Relation)
 		}
 		subMap, err := data.AsMap(subElement)
 		if err != nil {
@@ -863,6 +867,20 @@ func (w *Wildcard) Eval(input data.Value) (data.Value, error) {
 		}
 		for key, value := range subMap {
 			output[key] = value
+		}
+	} else {
+		// if we have *, take items from all submaps
+		for alias, subElement := range aMap {
+			if strings.Contains(alias, ":meta:") {
+				continue
+			}
+			subMap, err := data.AsMap(subElement)
+			if err != nil {
+				return nil, err
+			}
+			for key, value := range subMap {
+				output[key] = value
+			}
 		}
 	}
 	return output, nil
