@@ -35,6 +35,13 @@ func TestFlatExpressionConverter(t *testing.T) {
 		// Aggregate Function Application
 		"count(a)": {FuncAppAST{parser.FuncName("count"),
 			[]FlatExpression{AggInputRef{"_a4839edb"}}}, Volatile, nil},
+		// Arrays
+		"[]":  {ArrayAST{[]FlatExpression{}}, Immutable, nil},
+		"[2]": {ArrayAST{[]FlatExpression{NumericLiteral{2}}}, Immutable, nil},
+		"[a, now()]": {ArrayAST{[]FlatExpression{RowValue{"", "a"},
+			StmtMeta{parser.NowMeta}}}, Stable, []RowValue{{"", "a"}}},
+		"[f(a), true]": {ArrayAST{[]FlatExpression{FuncAppAST{parser.FuncName("f"),
+			[]FlatExpression{RowValue{"", "a"}}}, BoolLiteral{true}}}, Volatile, []RowValue{{"", "a"}}},
 		// Composed Expressions
 		"a OR 2":    {BinaryOpAST{parser.Or, RowValue{"", "a"}, NumericLiteral{2}}, Immutable, []RowValue{{"", "a"}}},
 		"a IS NULL": {BinaryOpAST{parser.Is, RowValue{"", "a"}, NullLiteral{}}, Immutable, []RowValue{{"", "a"}}},
