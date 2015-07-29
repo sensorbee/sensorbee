@@ -653,22 +653,22 @@ func TestAggregateChecker(t *testing.T) {
 		{"a + udaf(a + 1) FROM x [RANGE 1 TUPLES] GROUP BY a", "",
 			BinaryOpAST{parser.Plus,
 				RowValue{"x", "a"},
-				FuncAppAST{"udaf", []FlatExpression{AggInputRef{"_20fea01a"}}}},
+				FuncAppAST{"udaf", []FlatExpression{AggInputRef{"_2d5e5764"}}}},
 			map[string]FlatExpression{
-				"_20fea01a": BinaryOpAST{parser.Plus, RowValue{"x", "a"}, NumericLiteral{1}},
+				"_2d5e5764": BinaryOpAST{parser.Plus, RowValue{"x", "a"}, NumericLiteral{1}},
 			}},
 
 		// there are two aggregate calls, so both are referenced from the
 		// expression list and there are two entries in the `aggrs` list
 		{"udaf(a + 1) + g(count(a)) FROM x [RANGE 1 TUPLES]", "",
 			BinaryOpAST{parser.Plus,
-				FuncAppAST{"udaf", []FlatExpression{AggInputRef{"_20fea01a"}}},
+				FuncAppAST{"udaf", []FlatExpression{AggInputRef{"_2d5e5764"}}},
 				FuncAppAST{"g", []FlatExpression{
 					FuncAppAST{"count", []FlatExpression{AggInputRef{"_f12cd6bc"}}},
 				}},
 			},
 			map[string]FlatExpression{
-				"_20fea01a": BinaryOpAST{parser.Plus,
+				"_2d5e5764": BinaryOpAST{parser.Plus,
 					RowValue{"x", "a"},
 					NumericLiteral{1},
 				},
