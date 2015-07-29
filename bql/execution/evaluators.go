@@ -182,6 +182,17 @@ func ExpressionToEvaluator(ast FlatExpression, reg udf.FunctionRegistry) (Evalua
 			evals[i] = eval
 		}
 		return FuncApp(fName, f, reg.Context(), evals), nil
+	case ArrayAST:
+		// compute child Evaluators
+		evals := make([]Evaluator, len(obj.Expressions))
+		for i, ast := range obj.Expressions {
+			eval, err := ExpressionToEvaluator(ast, reg)
+			if err != nil {
+				return nil, err
+			}
+			evals[i] = eval
+		}
+		return ArrayBuilder(evals), nil
 	case WildcardAST:
 		return &Wildcard{obj.Relation}, nil
 	}
@@ -836,6 +847,29 @@ func FuncApp(name string, f udf.UDF, ctx *core.Context, params []Evaluator) Eval
 	paramValues := make([]reflect.Value, len(params)+1)
 	paramValues[0] = reflect.ValueOf(ctx)
 	return &funcApp{name, fVal, params, paramValues}
+}
+
+/// JSON-like data structures
+
+type arrayBuilder struct {
+	elems []Evaluator
+}
+
+func (a *arrayBuilder) Eval(input data.Value) (v data.Value, err error) {
+	results := make([]data.Value, len(a.elems))
+	// evaluate all the parameters and store the results
+	for i, elem := range a.elems {
+		value, err := elem.Eval(input)
+		if err != nil {
+			return nil, err
+		}
+		results[i] = value
+	}
+	return data.Array(results), nil
+}
+
+func ArrayBuilder(elems []Evaluator) Evaluator {
+	return &arrayBuilder{elems}
 }
 
 // Wildcard only works on Maps, assumes that the elements which do not contain

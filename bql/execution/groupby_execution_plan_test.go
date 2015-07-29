@@ -266,6 +266,46 @@ func TestGroupbyExecutionPlan(t *testing.T) {
 		})
 	})
 
+	Convey("Given a SELECT clause with an array of aggregations and GROUP BY", t, func() {
+		tuples := getOtherTuples()
+		tuples[3].Data["int"] = data.Null{} // NULL should not be counted
+		s := `CREATE STREAM box AS SELECT RSTREAM foo, [count(int), max(int)] AS a FROM src [RANGE 3 TUPLES] GROUP BY foo`
+		plan, err := createGroupbyPlan(s, t)
+		So(err, ShouldBeNil)
+
+		Convey("When feeding it with tuples", func() {
+			for idx, inTup := range tuples {
+				out, err := plan.Process(inTup)
+				So(err, ShouldBeNil)
+
+				Convey(fmt.Sprintf("Then those values should appear in %v", idx), func() {
+					if idx == 0 {
+						So(len(out), ShouldEqual, 1)
+						So(out[0], ShouldResemble,
+							data.Map{"foo": data.Int(1), "a": data.Array{data.Int(1), data.Int(1)}})
+					} else if idx == 1 {
+						So(len(out), ShouldEqual, 1)
+						So(out[0], ShouldResemble,
+							data.Map{"foo": data.Int(1), "a": data.Array{data.Int(2), data.Int(2)}})
+					} else if idx == 2 {
+						So(len(out), ShouldEqual, 2)
+						So(out[0], ShouldResemble,
+							data.Map{"foo": data.Int(1), "a": data.Array{data.Int(2), data.Int(2)}})
+						So(out[1], ShouldResemble,
+							data.Map{"foo": data.Int(2), "a": data.Array{data.Int(1), data.Int(3)}})
+					} else {
+						So(len(out), ShouldEqual, 2)
+						So(out[0], ShouldResemble,
+							data.Map{"foo": data.Int(1), "a": data.Array{data.Int(1), data.Int(2)}})
+						So(out[1], ShouldResemble,
+							// the below is just 1 because NULL isn't counted
+							data.Map{"foo": data.Int(2), "a": data.Array{data.Int(1), data.Int(3)}})
+					}
+				})
+			}
+		})
+	})
+
 	Convey("Given a SELECT clause with a simple aggregation and GROUP BY and HAVING", t, func() {
 		tuples := getOtherTuples()
 		tuples[2].Data["int"] = data.Null{}
