@@ -170,6 +170,17 @@ func ParserExprToFlatExpr(e parser.Expression, reg udf.FunctionRegistry) (FlatEx
 			exprs[i] = expr
 		}
 		return ArrayAST{exprs}, nil
+	case parser.MapAST:
+		// compute child expressions
+		pairs := make([]KeyValuePair, len(obj.Entries))
+		for i, pair := range obj.Entries {
+			expr, err := ParserExprToFlatExpr(pair.Value, reg)
+			if err != nil {
+				return nil, err
+			}
+			pairs[i] = KeyValuePair{pair.Key, expr}
+		}
+		return MapAST{pairs}, nil
 	case parser.Wildcard:
 		return WildcardAST{obj.Relation}, nil
 	}
@@ -321,6 +332,26 @@ func ParserExprToMaybeAggregate(e parser.Expression, aggIdx int, reg udf.Functio
 			returnAgg = nil
 		}
 		return ArrayAST{exprs}, returnAgg, nil
+	case parser.MapAST:
+		// compute child expressions
+		pairs := make([]KeyValuePair, len(obj.Entries))
+		returnAgg := map[string]FlatExpression{}
+		for i, pair := range obj.Entries {
+			// compute the correct aggIdx
+			newAggIdx := aggIdx + len(returnAgg)
+			expr, agg, err := ParserExprToMaybeAggregate(pair.Value, newAggIdx, reg)
+			if err != nil {
+				return nil, nil, err
+			}
+			for key, val := range agg {
+				returnAgg[key] = val
+			}
+			pairs[i] = KeyValuePair{pair.Key, expr}
+		}
+		if len(returnAgg) == 0 {
+			returnAgg = nil
+		}
+		return MapAST{pairs}, returnAgg, nil
 	}
 	err := fmt.Errorf("don't know how to convert type %#v", e)
 	return nil, nil, err
@@ -491,6 +522,42 @@ func (a ArrayAST) Volatility() VolatilityType {
 		}
 	}
 	return lv
+}
+
+type MapAST struct {
+	Entries []KeyValuePair
+}
+
+func (m MapAST) Repr() string {
+	reprs := make([]string, len(m.Entries))
+	for i, p := range m.Entries {
+		reprs[i] = fmt.Sprintf("\"%s\":%s", p.Key, p.Value.Repr())
+	}
+	return fmt.Sprintf("{%s}", strings.Join(reprs, ", "))
+}
+
+func (m MapAST) Columns() []RowValue {
+	var allColumns []RowValue
+	for _, p := range m.Entries {
+		allColumns = append(allColumns, p.Value.Columns()...)
+	}
+	return allColumns
+}
+
+func (m MapAST) Volatility() VolatilityType {
+	lv := VolatilityType(Immutable)
+	for _, p := range m.Entries {
+		v := p.Value.Volatility()
+		if v < lv {
+			lv = v
+		}
+	}
+	return lv
+}
+
+type KeyValuePair struct {
+	Key   string
+	Value FlatExpression
 }
 
 type WildcardAST struct {
