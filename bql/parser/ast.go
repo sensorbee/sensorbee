@@ -368,6 +368,47 @@ type ExpressionsAST struct {
 	Expressions []Expression
 }
 
+type MapAST struct {
+	Entries []KeyValuePairAST
+}
+
+func (m MapAST) ReferencedRelations() map[string]bool {
+	rels := map[string]bool{}
+	for _, pair := range m.Entries {
+		for rel := range pair.Value.ReferencedRelations() {
+			rels[rel] = true
+		}
+	}
+	return rels
+}
+
+func (m MapAST) RenameReferencedRelation(from, to string) Expression {
+	newEntries := make([]KeyValuePairAST, len(m.Entries))
+	for i, pair := range m.Entries {
+		newEntries[i] = KeyValuePairAST{
+			pair.Key,
+			pair.Value.RenameReferencedRelation(from, to),
+		}
+	}
+	return MapAST{newEntries}
+}
+
+func (m MapAST) Foldable() bool {
+	foldable := true
+	for _, pair := range m.Entries {
+		if !pair.Value.Foldable() {
+			foldable = false
+			break
+		}
+	}
+	return foldable
+}
+
+type KeyValuePairAST struct {
+	Key   string
+	Value Expression
+}
+
 // Elementary Structures (all without *AST for now)
 
 // Note that we need the constructors for the elementary structures

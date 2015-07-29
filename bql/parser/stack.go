@@ -928,15 +928,51 @@ func (ps *parseStack) AssembleArray() {
 	ps.Push(&se)
 }
 
+// AssembleMap takes the elements from the stack that
+// correspond to the input[begin:end] string and wraps a
+// MapAST struct around them.
+//
+//  KeyValuePairAST
+//  KeyValuePairAST
+//  KeyValuePairAST
+//   =>
+//  MapAST{[KeyValuePairAST, KeyValuePairAST, KeyValuePairAST]}
+func (ps *parseStack) AssembleMap(begin int, end int) {
+	elems := ps.collectElements(begin, end)
+	pairs := make([]KeyValuePairAST, len(elems))
+	for i := range elems {
+		pairs[i] = elems[i].(KeyValuePairAST)
+	}
+	// push the grouped list back
+	ps.PushComponent(begin, end, MapAST{pairs})
+}
+
+// AssembleKeyValuePair takes the topmost elements from the stack,
+// assuming they are components of a key-value pair expression, and
+// replaces them by a single KeyValuePairAST element.
+//
+//  StringLiteral
+//  Expression
+//   =>
+//  KeyValuePairAST{string, Expression}
+func (ps *parseStack) AssembleKeyValuePair() {
+	_expr, _key := ps.pop2()
+
+	expr := _expr.comp.(Expression)
+	key := _key.comp.(StringLiteral).Value
+
+	ps.PushComponent(_key.begin, _expr.end, KeyValuePairAST{key, expr})
+}
+
 // AssembleExpressions takes the elements from the stack that
 // correspond to the input[begin:end] string and wraps a
 // ProjectionsAST struct around them.
 //
-//  Any
-//  Any
-//  Any
+//  Expression
+//  Expression
+//  Expression
 //   =>
-//  ExpressionsAST{[Any, Any, Any]}
+//  ExpressionsAST{[Expression, Expression, Expression]}
 func (ps *parseStack) AssembleExpressions(begin int, end int) {
 	elems := ps.collectElements(begin, end)
 	exprs := make([]Expression, len(elems))

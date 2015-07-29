@@ -57,6 +57,15 @@ func TestExpressionParser(t *testing.T) {
 		"[]":       {ArrayAST{ExpressionsAST{[]Expression{}}}},
 		"[2]":      {ArrayAST{ExpressionsAST{[]Expression{NumericLiteral{2}}}}},
 		"[a, 2.3]": {ArrayAST{ExpressionsAST{[]Expression{RowValue{"", "a"}, FloatLiteral{2.3}}}}},
+		// Map
+		"{}":         {MapAST{[]KeyValuePairAST{}}},
+		"{'hoge':2}": {MapAST{[]KeyValuePairAST{{"hoge", NumericLiteral{2}}}}},
+		"{'foo':x:a, 'bar':{'a':[2]}}": {MapAST{[]KeyValuePairAST{
+			{"foo", RowValue{"x", "a"}},
+			{"bar", MapAST{[]KeyValuePairAST{
+				{"a", ArrayAST{ExpressionsAST{[]Expression{NumericLiteral{2}}}}},
+			}}},
+		}}},
 		// NumericLiteral
 		"2":    {NumericLiteral{2}},
 		"-2":   {UnaryOpAST{UnaryMinus, NumericLiteral{2}}},
