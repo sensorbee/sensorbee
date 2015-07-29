@@ -24,6 +24,7 @@ func TestExpressionParser(t *testing.T) {
 			ExpressionsAST{[]Expression{RowValue{"", "a"}}}}},
 		"f(*)": {FuncAppAST{FuncName("f"),
 			ExpressionsAST{[]Expression{Wildcard{}}}}},
+		"f(x:*)": nil, // forbidden
 		"f(2.1, 'a')": {FuncAppAST{FuncName("f"),
 			ExpressionsAST{[]Expression{FloatLiteral{2.1}, StringLiteral{"a"}}}}},
 		// Type Cast
@@ -50,7 +51,8 @@ func TestExpressionParser(t *testing.T) {
 		"A":         {RowValue{"", "A"}},
 		"my_mem_27": {RowValue{"", "my_mem_27"}},
 		// Wildcard
-		"*": {Wildcard{}},
+		"*":   {Wildcard{}},
+		"x:*": {Wildcard{"x"}},
 		// NumericLiteral
 		"2":    {NumericLiteral{2}},
 		"-2":   {UnaryOpAST{UnaryMinus, NumericLiteral{2}}},
