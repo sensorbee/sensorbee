@@ -351,7 +351,7 @@ type BinaryOpAST struct {
 }
 
 func (b BinaryOpAST) Repr() string {
-	return fmt.Sprintf("%s%s%s", b.Left.Repr(), b.Op, b.Right.Repr())
+	return fmt.Sprintf("(%s)%s(%s)", b.Left.Repr(), b.Op, b.Right.Repr())
 }
 
 func (b BinaryOpAST) Columns() []RowValue {
@@ -375,7 +375,7 @@ type UnaryOpAST struct {
 }
 
 func (u UnaryOpAST) Repr() string {
-	return fmt.Sprintf("%s%s", u.Op, u.Expr.Repr())
+	return fmt.Sprintf("%s(%s)", u.Op, u.Expr.Repr())
 }
 
 func (u UnaryOpAST) Columns() []RowValue {
