@@ -465,6 +465,9 @@ func (g *genericFunc) Accept(arity int) bool {
 
 func (g *genericFunc) IsAggregationParameter(k int) bool {
 	if len(g.aggregationParameter) <= k {
+		if g.variadic {
+			return g.aggregationParameter[len(g.aggregationParameter)-1]
+		}
 		return false
 	}
 	return g.aggregationParameter[k]
