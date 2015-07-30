@@ -49,7 +49,8 @@ func MustConvertGeneric(function interface{}) UDF {
 }
 
 // ConvertGenericAggregate creates a new aggregate UDF from various form of
-// functions. aggParams arguement is used where the argument of function
+// functions. aggParams argument is used to indicate which arguments of the
+// function are aggregation parameter.
 // receives aggregation parameter.
 // Supported and acceptable types are the same as ConvertGeneric.
 func ConvertGenericAggregate(function interface{}, aggParams []bool) (UDF, error) {
