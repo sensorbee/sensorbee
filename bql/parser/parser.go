@@ -36,7 +36,10 @@ func (p *bqlParser) ParseStmt(s string) (result interface{}, rest string, err er
 	}
 	stackElem := b.parseStack.Pop()
 	// we look at the part of the string right of the parsed
-	// statement
+	// statement. note that we expect that trailing whitespace
+	// or comments are already included in the range [0:stackElem.end]
+	// as done by IncludeTrailingWhitespace() so that we do not
+	// return a comment-only string as rest.
 	isSpaceOrSemicolon := func(r rune) bool {
 		return unicode.IsSpace(r) || r == rune(';')
 	}

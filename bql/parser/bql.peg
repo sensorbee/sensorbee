@@ -25,7 +25,18 @@ type bqlPeg Peg {
 ##### MAIN STATEMENTS #####
 ###########################
 
-Statements <- sp ((Statement sp ';' .*) / Statement) !.
+# Either a statement followed by a semicolon plus maybe some
+# other arbitrary stuff (probably other statements), or a
+# statement without a semicolon that is not followed by anything.
+SingleStatement <- sp (StatementWithRest / StatementWithoutRest) !.
+
+StatementWithRest <- < Statement sp ';' sp > .* {
+        p.IncludeTrailingWhitespace(begin, end)
+    }
+
+StatementWithoutRest <- < Statement sp > {
+        p.IncludeTrailingWhitespace(begin, end)
+    }
 
 Statement <- (SelectUnionStmt / SelectStmt / SourceStmt / SinkStmt / StateStmt / StreamStmt)
 
@@ -594,8 +605,10 @@ ident <- [[a-z]] ([[a-z]] / [0-9] / '_')*
 # TODO actual JSON Path must allow a larger range of characters
 jsonPath <- [[a-z]] ([[a-z]] / [0-9] / '_' / '.' / '[' / ']' / '"')*
 
-sp <- ( ' ' / '\t' / '\n' / '\r' / comment )*
+sp <- ( ' ' / '\t' / '\n' / '\r' / comment / finalComment )*
 
 # Note: we need a negative-lookahead *and then* need to eat
 # one character, or we will have infinite recursion.
 comment <- '--' (![\r\n] .)* [\r\n]
+
+finalComment <- '--' (![\r\n] .)* !.
