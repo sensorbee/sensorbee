@@ -10,6 +10,43 @@ import (
 	"time"
 )
 
+func TestClockTimestampFunc(t *testing.T) {
+	name := "clock_timestamp"
+	f := clockTimestampFunc
+
+	Convey(fmt.Sprintf("Given the %s function", name), t, func() {
+		Convey("Then a call should return a timestamp", func() {
+
+			actual_1, err := f.Call(nil)
+			So(err, ShouldBeNil)
+			So(actual_1, ShouldHaveSameTypeAs, data.Timestamp{})
+
+			Convey("And the location should be UTC", func() {
+
+				t1, _ := data.AsTimestamp(actual_1)
+				So(t1.Location(), ShouldPointTo, time.UTC)
+
+				Convey("And the times of two calls should differ", func() {
+
+					actual_2, err := f.Call(nil)
+					So(err, ShouldBeNil)
+					So(actual_2, ShouldHaveSameTypeAs, data.Timestamp{})
+					So(actual_1, ShouldNotResemble, actual_2)
+				})
+			})
+		})
+
+		Convey("Then it should equal the one in the default registry", func() {
+			regFun, err := udf.CopyGlobalUDFRegistry(nil).Lookup(name, 0)
+			if dispatcher, ok := regFun.(*arityDispatcher); ok {
+				regFun = dispatcher.binary
+			}
+			So(err, ShouldBeNil)
+			So(regFun, ShouldHaveSameTypeAs, f)
+		})
+	})
+}
+
 func TestBinaryDateFuncs(t *testing.T) {
 	someTime := time.Date(2015, time.May, 1, 14, 27, 0, 0, time.UTC)
 	nextTime := time.Date(2015, time.May, 1, 14, 27, 0, 0, time.UTC)

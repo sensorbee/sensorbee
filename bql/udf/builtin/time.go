@@ -5,6 +5,7 @@ import (
 	"pfi/sensorbee/sensorbee/bql/udf"
 	"pfi/sensorbee/sensorbee/core"
 	"pfi/sensorbee/sensorbee/data"
+	"time"
 )
 
 type diffUsFuncTmpl struct {
@@ -42,3 +43,14 @@ func (f *diffUsFuncTmpl) Call(ctx *core.Context, args ...data.Value) (val data.V
 //  Input: 2 * Timestamp
 //  Return Type: Int
 var diffUsFunc udf.UDF = &diffUsFuncTmpl{}
+
+// clockTimestampFunc returns the local time (in UTC) as a Timestamp.
+// See also: time.Now
+//
+// It can be used in BQL as `clock_timestamp`.
+//
+//  Input: None
+//  Return Type: Timestamp
+var clockTimestampFunc udf.UDF = udf.MustConvertGeneric(func() time.Time {
+	return time.Now().In(time.UTC)
+})
