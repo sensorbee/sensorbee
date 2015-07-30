@@ -159,6 +159,28 @@ func ParserExprToFlatExpr(e parser.Expression, reg udf.FunctionRegistry) (FlatEx
 			exprs[i] = expr
 		}
 		return FuncAppAST{obj.Function, exprs}, nil
+	case parser.ArrayAST:
+		// compute child expressions
+		exprs := make([]FlatExpression, len(obj.Expressions))
+		for i, ast := range obj.Expressions {
+			expr, err := ParserExprToFlatExpr(ast, reg)
+			if err != nil {
+				return nil, err
+			}
+			exprs[i] = expr
+		}
+		return ArrayAST{exprs}, nil
+	case parser.MapAST:
+		// compute child expressions
+		pairs := make([]KeyValuePair, len(obj.Entries))
+		for i, pair := range obj.Entries {
+			expr, err := ParserExprToFlatExpr(pair.Value, reg)
+			if err != nil {
+				return nil, err
+			}
+			pairs[i] = KeyValuePair{pair.Key, expr}
+		}
+		return MapAST{pairs}, nil
 	case parser.Wildcard:
 		return WildcardAST{obj.Relation}, nil
 	}
@@ -290,6 +312,46 @@ func ParserExprToMaybeAggregate(e parser.Expression, aggIdx int, reg udf.Functio
 			}
 		}
 		return FuncAppAST{obj.Function, exprs}, returnAgg, nil
+	case parser.ArrayAST:
+		// compute child expressions
+		exprs := make([]FlatExpression, len(obj.Expressions))
+		returnAgg := map[string]FlatExpression{}
+		for i, ast := range obj.Expressions {
+			// compute the correct aggIdx
+			newAggIdx := aggIdx + len(returnAgg)
+			expr, agg, err := ParserExprToMaybeAggregate(ast, newAggIdx, reg)
+			if err != nil {
+				return nil, nil, err
+			}
+			for key, val := range agg {
+				returnAgg[key] = val
+			}
+			exprs[i] = expr
+		}
+		if len(returnAgg) == 0 {
+			returnAgg = nil
+		}
+		return ArrayAST{exprs}, returnAgg, nil
+	case parser.MapAST:
+		// compute child expressions
+		pairs := make([]KeyValuePair, len(obj.Entries))
+		returnAgg := map[string]FlatExpression{}
+		for i, pair := range obj.Entries {
+			// compute the correct aggIdx
+			newAggIdx := aggIdx + len(returnAgg)
+			expr, agg, err := ParserExprToMaybeAggregate(pair.Value, newAggIdx, reg)
+			if err != nil {
+				return nil, nil, err
+			}
+			for key, val := range agg {
+				returnAgg[key] = val
+			}
+			pairs[i] = KeyValuePair{pair.Key, expr}
+		}
+		if len(returnAgg) == 0 {
+			returnAgg = nil
+		}
+		return MapAST{pairs}, returnAgg, nil
 	}
 	err := fmt.Errorf("don't know how to convert type %#v", e)
 	return nil, nil, err
@@ -351,7 +413,7 @@ type BinaryOpAST struct {
 }
 
 func (b BinaryOpAST) Repr() string {
-	return fmt.Sprintf("%s%s%s", b.Left.Repr(), b.Op, b.Right.Repr())
+	return fmt.Sprintf("(%s)%s(%s)", b.Left.Repr(), b.Op, b.Right.Repr())
 }
 
 func (b BinaryOpAST) Columns() []RowValue {
@@ -375,7 +437,7 @@ type UnaryOpAST struct {
 }
 
 func (u UnaryOpAST) Repr() string {
-	return fmt.Sprintf("%s%s", u.Op, u.Expr.Repr())
+	return fmt.Sprintf("%s(%s)", u.Op, u.Expr.Repr())
 }
 
 func (u UnaryOpAST) Columns() []RowValue {
@@ -417,7 +479,7 @@ func (f FuncAppAST) Repr() string {
 }
 
 func (f FuncAppAST) Columns() []RowValue {
-	allColumns := []RowValue{}
+	var allColumns []RowValue
 	for _, e := range f.Expressions {
 		allColumns = append(allColumns, e.Columns()...)
 	}
@@ -429,6 +491,73 @@ func (f FuncAppAST) Volatility() VolatilityType {
 	// cannot assume that UDFs are stable or immutable
 	// in general
 	return Volatile
+}
+
+type ArrayAST struct {
+	Expressions []FlatExpression
+}
+
+func (a ArrayAST) Repr() string {
+	reprs := make([]string, len(a.Expressions))
+	for i, e := range a.Expressions {
+		reprs[i] = e.Repr()
+	}
+	return fmt.Sprintf("[%s]", strings.Join(reprs, ", "))
+}
+
+func (a ArrayAST) Columns() []RowValue {
+	var allColumns []RowValue
+	for _, e := range a.Expressions {
+		allColumns = append(allColumns, e.Columns()...)
+	}
+	return allColumns
+}
+
+func (a ArrayAST) Volatility() VolatilityType {
+	lv := VolatilityType(Immutable)
+	for _, e := range a.Expressions {
+		v := e.Volatility()
+		if v < lv {
+			lv = v
+		}
+	}
+	return lv
+}
+
+type MapAST struct {
+	Entries []KeyValuePair
+}
+
+func (m MapAST) Repr() string {
+	reprs := make([]string, len(m.Entries))
+	for i, p := range m.Entries {
+		reprs[i] = fmt.Sprintf("\"%s\":%s", p.Key, p.Value.Repr())
+	}
+	return fmt.Sprintf("{%s}", strings.Join(reprs, ", "))
+}
+
+func (m MapAST) Columns() []RowValue {
+	var allColumns []RowValue
+	for _, p := range m.Entries {
+		allColumns = append(allColumns, p.Value.Columns()...)
+	}
+	return allColumns
+}
+
+func (m MapAST) Volatility() VolatilityType {
+	lv := VolatilityType(Immutable)
+	for _, p := range m.Entries {
+		v := p.Value.Volatility()
+		if v < lv {
+			lv = v
+		}
+	}
+	return lv
+}
+
+type KeyValuePair struct {
+	Key   string
+	Value FlatExpression
 }
 
 type WildcardAST struct {

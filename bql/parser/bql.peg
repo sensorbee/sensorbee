@@ -302,6 +302,8 @@ castExpr <- < baseExpr (sp '::' sp Type)? > {
 
 baseExpr <-
     ('(' sp Expression sp ')') /
+    ArrayExpr /
+    MapExpr /
     BooleanLiteral /
     NullLiteral /
     RowMeta /
@@ -320,6 +322,19 @@ FuncApp <- Function sp '(' sp FuncParams sp ')' {
 
 FuncParams <- < Star / (Expression sp (',' sp Expression)*)? > {
         p.AssembleExpressions(begin, end)
+    }
+
+ArrayExpr <- < '[' sp (Expression (',' sp Expression)*)? sp ']' > {
+        p.AssembleExpressions(begin, end)
+        p.AssembleArray()
+    }
+
+MapExpr <- < '{' sp (KeyValuePair (',' sp KeyValuePair)*)? sp '}' > {
+        p.AssembleMap(begin, end)
+    }
+
+KeyValuePair <- < StringLiteral sp ':' sp Expression > {
+        p.AssembleKeyValuePair()
     }
 
 Literal <-
