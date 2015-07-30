@@ -217,6 +217,65 @@ func TestGenericFunc(t *testing.T) {
 			})
 		}
 
+		aggVariadicCases := []struct {
+			title string
+			f     interface{}
+		}{
+			{
+				title: "When passing a variadic aggregation function with a context and returning an error",
+				f: func(ctx *core.Context, i int, ss ...string) (string, error) {
+					return strings.Join(ss, ""), nil
+				},
+			},
+			{
+				title: "When passing a variadic aggregation function without a context and returning an error",
+				f: func(i int, ss ...string) (string, error) {
+					return strings.Join(ss, ""), nil
+				},
+			},
+			{
+				title: "When passing a variadic aggregation function with a context and not returing an error",
+				f: func(ctx *core.Context, i int, ss ...string) string {
+					return strings.Join(ss, "")
+				},
+			},
+			{
+				title: "When passing a variadic aggregation function without a context and not returing an error",
+				f: func(i int, ss ...string) string {
+					return strings.Join(ss, "")
+				},
+			},
+		}
+
+		for _, c := range aggVariadicCases {
+			c := c
+			Convey(c.title, func() {
+				f, err := ConvertGenericAggregate(c.f, []bool{false, true})
+				So(err, ShouldBeNil)
+
+				Convey("And passing with two arguments", func() {
+					res, err := f.Call(ctx, data.Int(1), data.String("a"))
+
+					Convey("Then it should succeed", func() {
+						So(err, ShouldBeNil)
+						s, err := data.AsString(res)
+						So(err, ShouldBeNil)
+						So(s, ShouldEqual, "a")
+					})
+				})
+
+				Convey("Then the udf's IsAggregationParameter should return false", func() {
+					So(f.IsAggregationParameter(0), ShouldBeFalse)
+				})
+
+				Convey("Then the udf's IsAggregationParameter for variadic parameter should be true", func() {
+					So(f.IsAggregationParameter(1), ShouldBeTrue)
+					So(f.IsAggregationParameter(2), ShouldBeTrue)
+					So(f.IsAggregationParameter(10000000), ShouldBeTrue)
+				})
+			})
+		}
+
 		variadicExtraCases := []struct {
 			title string
 			f     interface{}
