@@ -103,7 +103,7 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 
 	Convey("Given a SELECT clause with a column and timestamp", t, func() {
 		tuples := getTuples(4)
-		s := `CREATE STREAM box AS SELECT ISTREAM int, now() FROM src [RANGE 2 TUPLES]`
+		s := `CREATE STREAM box AS SELECT ISTREAM int, now(), clock_timestamp() AS t FROM src [RANGE 2 TUPLES]`
 		plan, err := createDefaultSelectPlan(s, t)
 		So(err, ShouldBeNil)
 
@@ -127,6 +127,7 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 						So(out[1]["now"], ShouldHaveSameTypeAs, data.Timestamp{})
 						So(out[1]["now"], ShouldResemble, out[0]["now"])
 						So(out[1]["now"], ShouldNotResemble, prevTime)
+						So(out[0]["t"], ShouldNotResemble, out[1]["t"])
 					}
 				})
 			}
