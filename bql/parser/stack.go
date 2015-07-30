@@ -998,6 +998,16 @@ func (ps *parseStack) PushComponent(begin int, end int, comp interface{}) {
 	ps.Push(&se)
 }
 
+// IncludeTrailingWhitespace updates the `end` value of the top of
+// the stack to match the given `end` parameter. This is required
+// so that we "eat" trailing comments and do not try to parse them
+// into a follow-up statement.
+func (ps *parseStack) IncludeTrailingWhitespace(begin int, end int) {
+	topElem := ps.Pop()
+	topElem.end = end
+	ps.Push(topElem)
+}
+
 /* helper functions to reduce code duplication */
 
 // collectElements pops all elements with begin/end contained in
