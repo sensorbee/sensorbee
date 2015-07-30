@@ -53,6 +53,9 @@ func TestBasicBQLBoxConnectivity(t *testing.T) {
 		So(err, ShouldBeNil)
 		si := sin.Sink().(*tupleCollectorSink)
 
+		// Enable tuple tracing
+		dt.Context().Flags.TupleTrace.Set(true)
+
 		Convey("When 4 tuples are emitted by the source", func() {
 			tup2.Data["x"] = data.String(fmt.Sprintf("%d", ((2 + 1) % 3)))
 			tup4.Data["x"] = data.String(fmt.Sprintf("%d", ((4 + 1) % 3)))
@@ -64,12 +67,22 @@ func TestBasicBQLBoxConnectivity(t *testing.T) {
 
 				Convey("And the first tuple has tup2's data and timestamp", func() {
 					si.Tuples[0].InputName = "input"
+					si.Tuples[0].Trace = nil // don't check trace here
 					So(*si.Tuples[0], ShouldResemble, tup2)
+				})
+
+				Convey("And the first tuple has trace", func() {
+					So(si.Tuples[0].Trace, ShouldNotBeEmpty)
 				})
 
 				Convey("And the second tuple has tup4's data and timestamp", func() {
 					si.Tuples[1].InputName = "input"
+					si.Tuples[1].Trace = nil // don't check trace here
 					So(*si.Tuples[1], ShouldResemble, tup4)
+				})
+
+				Convey("And the second tuple has trace", func() {
+					So(si.Tuples[1].Trace, ShouldNotBeEmpty)
 				})
 			})
 		})
