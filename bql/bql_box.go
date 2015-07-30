@@ -58,6 +58,10 @@ func (b *bqlBox) Process(ctx *core.Context, t *core.Tuple, s core.Writer) error 
 			ProcTimestamp: t.ProcTimestamp,
 			BatchID:       t.BatchID,
 		}
+		if len(t.Trace) != 0 {
+			tup.Trace = make([]core.TraceEvent, len(t.Trace))
+			copy(tup.Trace, t.Trace)
+		}
 		if err := s.Write(ctx, tup); err != nil {
 			return err
 		}
