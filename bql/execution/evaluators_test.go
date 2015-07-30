@@ -145,6 +145,10 @@ func TestFoldableExecution(t *testing.T) {
 			false, nil},
 		{parser.ArrayAST{parser.ExpressionsAST{[]parser.Expression{parser.NumericLiteral{7}}}},
 			true, data.Array{data.Int(7)}},
+		{parser.MapAST{[]parser.KeyValuePairAST{{"a", parser.RowValue{"", "a"}}}},
+			false, nil},
+		{parser.MapAST{[]parser.KeyValuePairAST{{"a", parser.NumericLiteral{7}}}},
+			true, data.Map{"a": data.Int(7)}},
 	}
 
 	reg := &testFuncRegistry{ctx: core.NewContext(nil)}
@@ -1376,6 +1380,22 @@ func getTestCases() []struct {
 				{data.Map{"a": data.Array{data.Int(3)}}, data.Array{data.Int(2), data.Array{data.Int(3)}}},
 				{data.Map{"a": data.Map{"b": data.Int(3)}}, data.Array{data.Int(2), data.Map{"b": data.Int(3)}}},
 				{data.Map{"a": data.Null{}}, data.Array{data.Int(2), data.Null{}}},
+			},
+		},
+		{parser.MapAST{[]parser.KeyValuePairAST{{"two", parser.NumericLiteral{2}},
+			{"a", parser.RowValue{"", "a"}}}},
+			[]evalTest{
+				// not a map:
+				{data.Int(17), nil},
+				// keys not present:
+				{data.Map{"x": data.Int(17)}, nil},
+				// key present and number-like => conversion
+				{data.Map{"a": data.Int(17)}, data.Map{"two": data.Int(2), "a": data.Int(17)}},
+				{data.Map{"a": data.Float(3.14)}, data.Map{"two": data.Int(2), "a": data.Float(3.14)}},
+				{data.Map{"a": data.String("日本語")}, data.Map{"two": data.Int(2), "a": data.String("日本語")}},
+				{data.Map{"a": data.Array{data.Int(3)}}, data.Map{"two": data.Int(2), "a": data.Array{data.Int(3)}}},
+				{data.Map{"a": data.Map{"b": data.Int(3)}}, data.Map{"two": data.Int(2), "a": data.Map{"b": data.Int(3)}}},
+				{data.Map{"a": data.Null{}}, data.Map{"two": data.Int(2), "a": data.Null{}}},
 			},
 		},
 		// Using now() should find the timestamp at the

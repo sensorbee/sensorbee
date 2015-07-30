@@ -266,10 +266,11 @@ func TestGroupbyExecutionPlan(t *testing.T) {
 		})
 	})
 
-	Convey("Given a SELECT clause with an array of aggregations and GROUP BY", t, func() {
+	Convey("Given a SELECT clause with an structure of aggregations and GROUP BY", t, func() {
 		tuples := getOtherTuples()
 		tuples[3].Data["int"] = data.Null{} // NULL should not be counted
-		s := `CREATE STREAM box AS SELECT RSTREAM foo, [count(int), max(int)] AS a FROM src [RANGE 3 TUPLES] GROUP BY foo`
+		s := `CREATE STREAM box AS SELECT RSTREAM foo, [count(int), max(int)] AS a,
+			{'c': count(int), 'm': min(int)} AS b FROM src [RANGE 3 TUPLES] GROUP BY foo`
 		plan, err := createGroupbyPlan(s, t)
 		So(err, ShouldBeNil)
 
@@ -282,24 +283,30 @@ func TestGroupbyExecutionPlan(t *testing.T) {
 					if idx == 0 {
 						So(len(out), ShouldEqual, 1)
 						So(out[0], ShouldResemble,
-							data.Map{"foo": data.Int(1), "a": data.Array{data.Int(1), data.Int(1)}})
+							data.Map{"foo": data.Int(1), "a": data.Array{data.Int(1), data.Int(1)},
+								"b": data.Map{"c": data.Int(1), "m": data.Int(1)}})
 					} else if idx == 1 {
 						So(len(out), ShouldEqual, 1)
 						So(out[0], ShouldResemble,
-							data.Map{"foo": data.Int(1), "a": data.Array{data.Int(2), data.Int(2)}})
+							data.Map{"foo": data.Int(1), "a": data.Array{data.Int(2), data.Int(2)},
+								"b": data.Map{"c": data.Int(2), "m": data.Int(1)}})
 					} else if idx == 2 {
 						So(len(out), ShouldEqual, 2)
 						So(out[0], ShouldResemble,
-							data.Map{"foo": data.Int(1), "a": data.Array{data.Int(2), data.Int(2)}})
+							data.Map{"foo": data.Int(1), "a": data.Array{data.Int(2), data.Int(2)},
+								"b": data.Map{"c": data.Int(2), "m": data.Int(1)}})
 						So(out[1], ShouldResemble,
-							data.Map{"foo": data.Int(2), "a": data.Array{data.Int(1), data.Int(3)}})
+							data.Map{"foo": data.Int(2), "a": data.Array{data.Int(1), data.Int(3)},
+								"b": data.Map{"c": data.Int(1), "m": data.Int(3)}})
 					} else {
 						So(len(out), ShouldEqual, 2)
 						So(out[0], ShouldResemble,
-							data.Map{"foo": data.Int(1), "a": data.Array{data.Int(1), data.Int(2)}})
+							data.Map{"foo": data.Int(1), "a": data.Array{data.Int(1), data.Int(2)},
+								"b": data.Map{"c": data.Int(1), "m": data.Int(2)}})
 						So(out[1], ShouldResemble,
 							// the below is just 1 because NULL isn't counted
-							data.Map{"foo": data.Int(2), "a": data.Array{data.Int(1), data.Int(3)}})
+							data.Map{"foo": data.Int(2), "a": data.Array{data.Int(1), data.Int(3)},
+								"b": data.Map{"c": data.Int(1), "m": data.Int(3)}})
 					}
 				})
 			}
