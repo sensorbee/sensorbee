@@ -445,6 +445,8 @@ func TestGenericFuncInvalidCases(t *testing.T) {
 			{"with an invalid aggParams 1", func(int) int { return 0 }, []bool{}},
 			{"with an invalid aggParams 2", func(int) int { return 0 }, []bool{false, false}},
 			{"with an invalid aggParams 3", func(*core.Context, int) int { return 0 }, []bool{false, false}},
+			{"with an aggregate function which has non-slice aggregation parameter", func(int) int { return 0 }, []bool{true}},
+			{"with an aggregate function which has non-slice aggregation parameter with context", func(*core.Context, int) int { return 0 }, []bool{true}},
 		}
 
 		for _, c := range genCases {

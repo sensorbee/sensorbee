@@ -76,6 +76,20 @@ func ConvertGenericAggregate(function interface{}, aggParams []bool) (UDF, error
 		return nil, errors.New("the aggParams must have the same number of arguments of the function")
 	}
 
+	for i := 0; i < g.arity; i++ {
+		if !aggParams[i] {
+			continue
+		}
+
+		in := i
+		if g.hasContext {
+			in += 1
+		}
+		if t.In(in).Kind() != reflect.Slice {
+			return nil, fmt.Errorf("the %v-th parameter for aggregation must be slice", i+1)
+		}
+	}
+
 	if hasError, err := checkGenericFuncReturnTypes(t); err != nil {
 		return nil, err
 	} else {
