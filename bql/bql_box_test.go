@@ -4,17 +4,21 @@ import (
 	"fmt"
 	. "github.com/smartystreets/goconvey/convey"
 	_ "pfi/sensorbee/sensorbee/bql/udf/builtin"
+	"pfi/sensorbee/sensorbee/core"
 	"pfi/sensorbee/sensorbee/data"
 	"testing"
 )
 
-func setupTopology(stmt string) (*TopologyBuilder, error) {
+func setupTopology(stmt string, trace bool) (*TopologyBuilder, error) {
 	// create a stream from a dummy source
 	dt := newTestTopology()
+	dt.Context().Flags.TupleTrace.Set(trace)
+
 	tb, err := NewTopologyBuilder(dt)
 	if err != nil {
 		return nil, err
 	}
+
 	err = addBQLToTopology(tb, "CREATE PAUSED SOURCE source TYPE dummy WITH num=4")
 	if err != nil {
 		return nil, err
@@ -42,7 +46,7 @@ func TestBasicBQLBoxConnectivity(t *testing.T) {
 	Convey("Given an ISTREAM/2 SECONDS BQL statement", t, func() {
 		s := "CREATE STREAM box AS SELECT " +
 			"ISTREAM int, str((int+1) % 3) AS x FROM source [RANGE 1 TUPLES] WHERE int % 2 = 0"
-		tb, err := setupTopology(s)
+		tb, err := setupTopology(s, true)
 		So(err, ShouldBeNil)
 		dt := tb.Topology()
 		Reset(func() {
@@ -64,12 +68,40 @@ func TestBasicBQLBoxConnectivity(t *testing.T) {
 
 				Convey("And the first tuple has tup2's data and timestamp", func() {
 					si.Tuples[0].InputName = "input"
+					si.Tuples[0].Trace = nil // don't check trace here
 					So(*si.Tuples[0], ShouldResemble, tup2)
+				})
+
+				Convey("And the first tuple has trace", func() {
+					ts := si.Tuples[0].Trace
+					So(len(ts), ShouldEqual, 4)
+					So(ts[0].Type, ShouldEqual, core.ETOutput)
+					So(ts[0].Msg, ShouldEqual, "source")
+					So(ts[1].Type, ShouldEqual, core.ETInput)
+					So(ts[1].Msg, ShouldEqual, "box")
+					So(ts[2].Type, ShouldEqual, core.ETOutput)
+					So(ts[2].Msg, ShouldEqual, "box")
+					So(ts[3].Type, ShouldEqual, core.ETInput)
+					So(ts[3].Msg, ShouldEqual, "snk")
 				})
 
 				Convey("And the second tuple has tup4's data and timestamp", func() {
 					si.Tuples[1].InputName = "input"
+					si.Tuples[1].Trace = nil // don't check trace here
 					So(*si.Tuples[1], ShouldResemble, tup4)
+				})
+
+				Convey("And the second tuple has trace", func() {
+					ts := si.Tuples[1].Trace
+					So(len(ts), ShouldEqual, 4)
+					So(ts[0].Type, ShouldEqual, core.ETOutput)
+					So(ts[0].Msg, ShouldEqual, "source")
+					So(ts[1].Type, ShouldEqual, core.ETInput)
+					So(ts[1].Msg, ShouldEqual, "box")
+					So(ts[2].Type, ShouldEqual, core.ETOutput)
+					So(ts[2].Msg, ShouldEqual, "box")
+					So(ts[3].Type, ShouldEqual, core.ETInput)
+					So(ts[3].Msg, ShouldEqual, "snk")
 				})
 			})
 		})
@@ -91,7 +123,7 @@ func TestBasicBQLBoxUnionCapability(t *testing.T) {
 		s := "CREATE STREAM box AS " +
 			"SELECT ISTREAM int FROM source [RANGE 1 TUPLES] WHERE int % 2 = 0 " +
 			"UNION ALL SELECT ISTREAM int FROM source [RANGE 1 TUPLES] WHERE int % 2 = 0"
-		tb, err := setupTopology(s)
+		tb, err := setupTopology(s, false)
 		So(err, ShouldBeNil)
 		dt := tb.Topology()
 		Reset(func() {
@@ -137,7 +169,7 @@ func TestBasicBQLBoxUnionCapability(t *testing.T) {
 		s := "CREATE STREAM box AS " +
 			"SELECT ISTREAM int FROM source [RANGE 1 TUPLES] WHERE int % 2 = 0 " +
 			"UNION ALL SELECT ISTREAM int FROM source [RANGE 1 TUPLES] WHERE int % 2 = 1"
-		tb, err := setupTopology(s)
+		tb, err := setupTopology(s, false)
 		So(err, ShouldBeNil)
 		dt := tb.Topology()
 		Reset(func() {
@@ -184,7 +216,7 @@ func TestBasicBQLBoxUnionCapability(t *testing.T) {
 			"SELECT ISTREAM int, 'a' AS x FROM source [RANGE 1 TUPLES] WHERE int = 0 " +
 			"UNION ALL SELECT ISTREAM int, 'b' AS y FROM source [RANGE 1 TUPLES] WHERE int = 1" +
 			"UNION ALL SELECT ISTREAM int, 'c' AS z FROM source [RANGE 1 TUPLES] WHERE int >= 2"
-		tb, err := setupTopology(s)
+		tb, err := setupTopology(s, false)
 		So(err, ShouldBeNil)
 		dt := tb.Topology()
 		Reset(func() {
@@ -243,7 +275,7 @@ func TestBQLBoxJoinCapability(t *testing.T) {
 		     duplicate('source', 3) [RANGE 1 TUPLES],
 		     duplicate('source', 2) [RANGE 1 TUPLES] AS d2
 		`
-		tb, err := setupTopology(s)
+		tb, err := setupTopology(s, false)
 		So(err, ShouldBeNil)
 		dt := tb.Topology()
 		Reset(func() {
@@ -288,7 +320,7 @@ func TestBQLBoxGroupByCapability(t *testing.T) {
 	Convey("Given an ISTREAM/2 SECONDS BQL statement", t, func() {
 		s := "CREATE STREAM box AS SELECT " +
 			"ISTREAM count(1) FROM source [RANGE 2 SECONDS] WHERE int % 2 = 0"
-		tb, err := setupTopology(s)
+		tb, err := setupTopology(s, false)
 		So(err, ShouldBeNil)
 		dt := tb.Topology()
 		Reset(func() {
@@ -320,7 +352,7 @@ func TestBQLBoxGroupByCapability(t *testing.T) {
 
 func TestBQLBoxUDSF(t *testing.T) {
 	Convey("Given a topology using UDSF", t, func() {
-		tb, err := setupTopology(`CREATE STREAM box AS SELECT ISTREAM duplicate:int FROM duplicate('source', 3) [RANGE 1 TUPLES]`)
+		tb, err := setupTopology(`CREATE STREAM box AS SELECT ISTREAM duplicate:int FROM duplicate('source', 3) [RANGE 1 TUPLES]`, false)
 		So(err, ShouldBeNil)
 		dt := tb.Topology()
 		Reset(func() {
