@@ -36,13 +36,15 @@ func (d *dummySource) GenerateStream(ctx *core.Context, w core.Writer) error {
 	// it generates all tuples.
 	for i := 0; i < 4; i++ {
 		now := time.Now()
-		w.Write(ctx, &core.Tuple{
+		if err := w.Write(ctx, &core.Tuple{
 			Data: data.Map{
 				"int": data.Int(i),
 			},
 			Timestamp:     now,
 			ProcTimestamp: now,
-		})
+		}); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -55,6 +57,11 @@ func createDummySource(ctx *core.Context, ioParams *bql.IOParams, params data.Ma
 	return &dummySource{}, nil
 }
 
+func createRewindableDummySource(ctx *core.Context, ioParams *bql.IOParams, params data.Map) (core.Source, error) {
+	return core.NewRewindableSource(&dummySource{}), nil
+}
+
 func init() {
 	bql.MustRegisterGlobalSourceCreator("dummy", bql.SourceCreatorFunc(createDummySource))
+	bql.MustRegisterGlobalSourceCreator("rewindable_dummy", bql.SourceCreatorFunc(createRewindableDummySource))
 }

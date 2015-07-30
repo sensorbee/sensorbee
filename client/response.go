@@ -211,9 +211,9 @@ func (r *Response) ReadStreamJSON() (<-chan interface{}, error) {
 			}
 		}
 
-		body := make([]byte, 0, 4096)
+		bodyBuf := make([]byte, 4096)
 		for { // read each part
-			body = body[:0]
+			body := bodyBuf[:0]
 			header := http.Header{}
 			for { // read header
 				line, _, err := nextLine()
@@ -239,7 +239,8 @@ func (r *Response) ReadStreamJSON() (<-chan interface{}, error) {
 				return
 			}
 
-			var contentLength int
+			boundaryFound := false
+			finalPart := false
 			clStr := header.Get("Content-Length")
 			if clStr != "" {
 				cl, err := strconv.Atoi(clStr)
@@ -247,30 +248,40 @@ func (r *Response) ReadStreamJSON() (<-chan interface{}, error) {
 					r.streamErr = err
 					return
 				}
-				contentLength = cl
-			}
-
-			boundaryFound := false
-			finalPart := false
-			for {
-				line, nl, err := nextLine()
-				if err != nil {
+				if len(bodyBuf) < cl {
+					bodyBuf = make([]byte, cl)
+				}
+				body = bodyBuf[:cl]
+				if _, err := io.ReadFull(reader, body); err != nil {
 					if err != io.EOF {
 						r.streamErr = err
 					}
 					return
 				}
-				if boundaryFound, finalPart = isBoundaryLine(line); boundaryFound {
-					break
-				}
 
-				if len(body) != 0 {
-					body = append(body, nl...)
+			} else {
+				var prevNL []byte
+				for {
+					line, nl, err := nextLine()
+					if err != nil {
+						if err != io.EOF {
+							r.streamErr = err
+						}
+						return
+					}
+					if boundaryFound, finalPart = isBoundaryLine(line); boundaryFound {
+						break
+					}
+
+					// Because the last newline is added as a part of the boundary,
+					// it shouldn't be included to the body.
+					body = append(body, prevNL...)
+					body = append(body, line...)
+					prevNL = nl
 				}
-				body = append(body, line...)
-				if contentLength != 0 && len(body) >= contentLength {
-					break
-				}
+			}
+			if len(bodyBuf) < len(body) {
+				bodyBuf = body
 			}
 
 			var js interface{}

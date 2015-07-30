@@ -209,7 +209,7 @@ func TestTopologiesQueriesSelectStmt(t *testing.T) {
 		So(res.Raw.StatusCode, ShouldEqual, http.StatusOK)
 
 		res, _, err = do(r, Post, "/topologies/test_topology/queries", map[string]interface{}{
-			"queries": `CREATE PAUSED SOURCE source TYPE dummy;`,
+			"queries": `CREATE PAUSED SOURCE source TYPE rewindable_dummy;`,
 		})
 		So(err, ShouldBeNil)
 		So(res.Raw.StatusCode, ShouldEqual, http.StatusOK)
@@ -239,6 +239,12 @@ func TestTopologiesQueriesSelectStmt(t *testing.T) {
 					So(ok, ShouldBeTrue)
 					So(jscan(js, "/int"), ShouldEqual, i)
 				}
+				res, err := r.Do(Post, "/topologies/test_topology/queries", map[string]interface{}{
+					"queries": `DROP SOURCE source;`,
+				})
+				So(err, ShouldBeNil)
+				So(res.Raw.StatusCode, ShouldEqual, http.StatusOK)
+
 				_, ok := <-ch
 				So(ok, ShouldBeFalse)
 				So(streamRes.Close(), ShouldBeNil)
