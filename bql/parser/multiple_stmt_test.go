@@ -125,6 +125,26 @@ func TestComment(t *testing.T) {
 			SelectStmt{EmitterAST: EmitterAST{Istream},
 				ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "a"}}}},
 		},
+		// single statement with a blank line following
+		"SELECT ISTREAM a\n": []interface{}{
+			SelectStmt{EmitterAST: EmitterAST{Istream},
+				ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "a"}}}},
+		},
+		// single statement with a comment following on a new line
+		"SELECT DSTREAM a\n--comment": []interface{}{
+			SelectStmt{EmitterAST: EmitterAST{Dstream},
+				ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "a"}}}},
+		},
+		// single semi-colon terminated statement with a comment following on a new line
+		"SELECT DSTREAM a;\n--comment": []interface{}{
+			SelectStmt{EmitterAST: EmitterAST{Dstream},
+				ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "a"}}}},
+		},
+		// single statement with a comment following on a new line and more newlines
+		"SELECT DSTREAM a\n--comment\n\n": []interface{}{
+			SelectStmt{EmitterAST: EmitterAST{Dstream},
+				ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "a"}}}},
+		},
 		// single statement with an empty comment on two lines
 		"SELECT ISTREAM --\na": []interface{}{
 			SelectStmt{EmitterAST: EmitterAST{Istream},
@@ -157,6 +177,14 @@ func TestComment(t *testing.T) {
 			SelectStmt{EmitterAST: EmitterAST{Istream},
 				ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "b"}}}},
 		},
+		// non-select statements as well
+		("-- do some setup\nCREATE STATE hoge TYPE test;\nSELECT ISTREAM\n  --cols\n" +
+			"  a,b;\nDROP STATE hoge;\n--done"): []interface{}{
+			CreateStateStmt{StreamIdentifier("hoge"), SourceSinkType("test"), SourceSinkSpecsAST{nil}},
+			SelectStmt{EmitterAST: EmitterAST{Istream},
+				ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "a"}, RowValue{"", "b"}}}},
+			DropStateStmt{StreamIdentifier("hoge")},
+		},
 	}
 
 	Convey("Given a BQL parser", t, func() {
@@ -166,7 +194,7 @@ func TestComment(t *testing.T) {
 			// avoid closure over loop variables
 			input, expected := input, expected
 
-			Convey(fmt.Sprintf("When parsing %s", input), func() {
+			Convey(fmt.Sprintf("When parsing <%s>", input), func() {
 				results, err := p.ParseStmts(input)
 
 				Convey(fmt.Sprintf("Then the result should be %v", expected), func() {
