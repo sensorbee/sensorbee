@@ -635,6 +635,7 @@ const (
 
 func newDataDestinations(nodeType NodeType, nodeName string) *dataDestinations {
 	d := &dataDestinations{
+		nodeType:            nodeType,
 		nodeName:            nodeName,
 		dsts:                map[string]*pipeSender{},
 		reportDroppedTuples: true,

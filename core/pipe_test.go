@@ -349,6 +349,10 @@ func TestDataDestinations(t *testing.T) {
 				So(err, ShouldBeNil)
 			})
 		})
+
+		Convey("When getting nodeType it should be NTBox", func() {
+			So(dsts.nodeType, ShouldEqual, NTBox)
+		})
 	})
 
 	Convey("Given data destinations", t, func() {
