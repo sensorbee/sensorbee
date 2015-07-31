@@ -478,11 +478,22 @@ func (rv RowValue) Foldable() bool {
 }
 
 func NewRowValue(s string) RowValue {
-	// TODO when we support full JSONPath this must become more
-	//      sophisticated in order to deal, for example, with:
-	//        `SELECT elem["foo:bar"] FROM mystream`
+	// in the current JSON path implementation as per data/mapscan.go,
+	// single quotes in map access strings do not need to be escaped,
+	// so we have to turn a BQL expression like `hoge['foo''bar]` into
+	// a string `hoge['foo'bar']`
+	s = strings.Replace(s, "''", "'", -1)
+
+	bracketPos := strings.Index(s, "[")
 	components := strings.SplitN(s, ":", 2)
-	if len(components) == 1 {
+	if bracketPos >= 0 && bracketPos < len(components[0]) {
+		// if there is a bracket, then it is definitely on the right
+		// side of the colon. therefore, if the part before the first
+		// found colon is longer than where the first bracket is,
+		// then the colon is part of the JSON path, not the stream
+		// separator.
+		return RowValue{"", s}
+	} else if len(components) == 1 {
 		// just "col"
 		return RowValue{"", components[0]}
 	}
