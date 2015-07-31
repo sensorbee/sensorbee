@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/peterh/liner"
+	"io"
 	"os"
 	"pfi/sensorbee/sensorbee/client"
 	"strings"
@@ -41,7 +42,9 @@ func (a *App) prompt(line *liner.State) {
 	for {
 		input, err := line.Prompt(promptLineStart)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "error reading line: %v", err)
+			if err != io.EOF {
+				fmt.Fprintf(os.Stderr, "error reading line: %v", err)
+			}
 			return
 		}
 
