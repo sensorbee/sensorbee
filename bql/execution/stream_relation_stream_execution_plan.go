@@ -6,7 +6,6 @@ import (
 	"pfi/sensorbee/sensorbee/bql/udf"
 	"pfi/sensorbee/sensorbee/core"
 	"pfi/sensorbee/sensorbee/data"
-	"reflect"
 	"time"
 )
 
@@ -50,6 +49,15 @@ type streamRelationStreamExecutionPlan struct {
 	// prevResults holds results of a query over the buffer
 	// in the previous execution run.
 	prevResults []data.Map
+	// prevHashesForIstream is only for ISTREAM and holds the hashes
+	// of the items from the previous run so that we can compute
+	// the check "is current item in previous results?" quickly
+	prevHashesForIstream map[data.HashValue]bool
+	// prevHashesForDstream is only for DSTREAM and holds the
+	// hashes of the items from the previous run in the same order
+	// as the data, so we need to compute them only once and also
+	// preserve order
+	prevHashesForDstream []data.HashValue
 	// now holds the a time at the beginning of the execution of
 	// a statement
 	now time.Time
@@ -97,11 +105,13 @@ func newStreamRelationStreamExecutionPlan(lp *LogicalPlan, reg udf.FunctionRegis
 			groupList:   groupList,
 			filter:      filter,
 		},
-		relations:   lp.Relations,
-		buffers:     buffers,
-		emitterType: lp.EmitterType,
-		curResults:  []data.Map{},
-		prevResults: []data.Map{},
+		relations:            lp.Relations,
+		buffers:              buffers,
+		emitterType:          lp.EmitterType,
+		curResults:           []data.Map{},
+		prevResults:          []data.Map{},
+		prevHashesForIstream: map[data.HashValue]bool{},
+		prevHashesForDstream: []data.HashValue{},
 	}, nil
 }
 
@@ -215,47 +225,51 @@ func (ep *streamRelationStreamExecutionPlan) computeResultTuples() ([]data.Map, 
 		for _, res := range ep.curResults {
 			output = append(output, res)
 		}
+
 	} else if ep.emitterType == parser.Istream {
+		curHashes := make(map[data.HashValue]bool, len(ep.curResults))
 		// emit only new tuples
 		for _, res := range ep.curResults {
+			hash := data.Hash(res)
+			curHashes[hash] = true
 			// check if this tuple is already present in the previous results
-			found := false
-			for _, prevRes := range ep.prevResults {
-				if reflect.DeepEqual(res, prevRes) {
-					// yes, it is, do not emit
-					// TODO we may want to delete the found item from prevRes
-					//      so that item counts are considered for "new items"
-					found = true
-					break
-				}
-			}
+			_, found := ep.prevHashesForIstream[hash]
 			if found {
 				continue
 			}
 			// if we arrive here, `res` is not contained in prevResults
 			output = append(output, res)
 		}
+		// the hashes computed for the current items will be reused
+		// in the next run
+		ep.prevHashesForIstream = curHashes
+
 	} else if ep.emitterType == parser.Dstream {
+		// we only access the current items' hashes, not their values.
+		// however, in the next run, we *will* have to access their values.
+		curHashMap := make(map[data.HashValue]bool, len(ep.curResults))
+		curHashList := make([]data.HashValue, len(ep.curResults))
+		for i, res := range ep.curResults {
+			hash := data.Hash(res)
+			curHashMap[hash] = true
+			curHashList[i] = hash
+		}
 		// emit only old tuples
-		for _, prevRes := range ep.prevResults {
+		for i, prevHash := range ep.prevHashesForDstream {
 			// check if this tuple is present in the current results
-			found := false
-			for _, res := range ep.curResults {
-				if reflect.DeepEqual(res, prevRes) {
-					// yes, it is, do not emit
-					// TODO we may want to delete the found item from curRes
-					//      so that item counts are considered for "new items",
-					//      but can we do this safely with regard to the next run?
-					found = true
-					break
-				}
-			}
+			_, found := curHashMap[prevHash]
 			if found {
 				continue
 			}
 			// if we arrive here, `prevRes` is not contained in curResults
+			prevRes := ep.prevResults[i]
 			output = append(output, prevRes)
 		}
+		// the hashes computed for the current items will be reused
+		// in the next run (we keep them in a list instead of only
+		// a map to prevent the order)
+		ep.prevHashesForDstream = curHashList
+
 	} else {
 		return nil, fmt.Errorf("emitter type '%s' not implemented", ep.emitterType)
 	}

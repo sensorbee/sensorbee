@@ -104,30 +104,22 @@ func (ep *groupbyExecutionPlan) performQueryOnBuffer() error {
 
 	// groups holds one item for every combination of values that
 	// appear in the GROUP BY clause
-	groups := []tmpGroupData{}
+	groups := map[data.HashValue]*tmpGroupData{}
+	// we also keep a list of group keys so that we can still loop
+	// over them in the order they were added
+	groupKeys := []data.HashValue{}
 
 	// findOrCreateGroup looks up the group that has the given
-	// groupValues in the `groups` list. if there is no such
+	// groupValues in the `groups`map. if there is no such
 	// group, a new one is created and a copy of the given map
 	// is used as a representative of this group's values.
 	findOrCreateGroup := func(groupValues []data.Value, d data.Map) (*tmpGroupData, error) {
-		eq := Equal(binOp{}).(*compBinOp).cmpOp
-		groupValuesArr := data.Array(groupValues)
+		groupHash := data.Hash(data.Array(groupValues))
 		// find the correct group
-		groupIdx := -1
-		for i, groupData := range groups {
-			equals, err := eq(groupData.group, groupValuesArr)
-			if err != nil {
-				return nil, err
-			}
-			if equals {
-				groupIdx = i
-				break
-			}
-		}
+		group, exists := groups[groupHash]
 		// if there is no such group, create one
-		if groupIdx < 0 {
-			newGroup := tmpGroupData{
+		if !exists {
+			newGroup := &tmpGroupData{
 				// the values that make up this group
 				groupValues,
 				// the input values of the aggregate functions
@@ -143,12 +135,13 @@ func (ep *groupbyExecutionPlan) performQueryOnBuffer() error {
 					newGroup.aggData[key] = make([]data.Value, 0, 1)
 				}
 			}
-			groups = append(groups, newGroup)
-			groupIdx = len(groups) - 1
+			groups[groupHash] = newGroup
+			group = newGroup
+			groupKeys = append(groupKeys, groupHash)
 		}
 
 		// return a pointer to the (found or created) group
-		return &groups[groupIdx], nil
+		return group, nil
 	}
 
 	// we need to make a cross product of the data in all buffers,
@@ -182,6 +175,9 @@ func (ep *groupbyExecutionPlan) performQueryOnBuffer() error {
 
 		// now compute the expressions in the GROUP BY to find the correct
 		// group to append to
+		// TODO there is actually no need to allocate this array again
+		//      and again, or even have an array since we can update the
+		//      group's hash value incrementally
 		itemGroupValues := make([]data.Value, len(ep.groupList))
 		for i, eval := range ep.groupList {
 			// ordinary "flat" expression
@@ -306,9 +302,10 @@ func (ep *groupbyExecutionPlan) performQueryOnBuffer() error {
 
 	// if we arrive here, then the input for the aggregation functions
 	// is in the `group` list and we need to compute aggregation and output.
-	// TODO deal with the case of an empty list
-	for _, group := range groups {
-		if err := evalGroup(&group); err != nil {
+	// NB. we do not directly loop over the `groups` map to avoid random order.
+	for _, groupKey := range groupKeys {
+		group := groups[groupKey]
+		if err := evalGroup(group); err != nil {
 			rollback()
 			return err
 		}
