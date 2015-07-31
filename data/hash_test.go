@@ -67,6 +67,39 @@ func TestUpdateHash(t *testing.T) {
 	}
 }
 
+func TestEquality(t *testing.T) {
+	for i, tc1 := range testCases {
+		for j, tc2 := range testCases {
+			left := tc1.input
+			right := tc2.input
+			Convey(fmt.Sprintf("When comparing %#v and %#v", left, right), t, func() {
+				de := reflect.DeepEqual(left, right)
+				he := HashEqual(left, right)
+
+				Convey("Then the output should be the same", func() {
+					if // int vs float
+					((i == 8 || i == 9) && (j == 12)) ||
+						((j == 8 || j == 9) && (i == 12)) ||
+						// array
+						((i == 21 && j == 22) || (j == 21 && i == 22)) ||
+						// map
+						((i == 26 && j == 27) || (j == 26 && i == 27)) ||
+						// NaN
+						(i == 6 && j == 6) {
+						So(de, ShouldBeFalse)
+						So(he, ShouldBeTrue)
+					} else {
+						if de != he {
+							fmt.Printf("%v vs %v: %t/%t\n", left, right, de, he)
+						}
+						So(de, ShouldEqual, he)
+					}
+				})
+			})
+		}
+	}
+}
+
 func BenchmarkDeepEqual(b *testing.B) {
 	for n := 0; n < b.N; n++ {
 		for _, tc1 := range testCases {

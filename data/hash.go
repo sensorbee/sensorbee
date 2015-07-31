@@ -16,7 +16,13 @@ func Hash(v Value) HashValue {
 }
 
 func HashEqual(v1 Value, v2 Value) bool {
-	return v1.Type() == v2.Type() && Hash(v1) == Hash(v2)
+	lType := v1.Type()
+	rType := v2.Type()
+	// cases in which we need a hash comparison
+	return (lType == rType || // same type
+		(lType == TypeFloat && rType == TypeInt) || // float vs. int
+		(lType == TypeInt && rType == TypeFloat)) && // int vs. float
+		Hash(v1) == Hash(v2)
 }
 
 func updateHash(v Value, h io.Writer) {
