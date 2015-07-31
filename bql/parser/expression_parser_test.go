@@ -39,6 +39,7 @@ func TestExpressionParser(t *testing.T) {
 		"2.1::INT":             {TypeCastAST{FloatLiteral{2.1}, Int}},
 		"int::STRING":          {TypeCastAST{RowValue{"", "int"}, String}},
 		"x:int::STRING":        {TypeCastAST{RowValue{"x", "int"}, String}},
+		"x:['ar'][0].y::int":   {TypeCastAST{RowValue{"x", "['ar'][0].y"}, Int}},
 		"ts()::STRING":         {TypeCastAST{RowMeta{"", TimestampMeta}, String}},
 		"tab:ts()::STRING":     {TypeCastAST{RowMeta{"tab", TimestampMeta}, String}},
 		// RowValue
@@ -50,16 +51,42 @@ func TestExpressionParser(t *testing.T) {
 		"a, b":      {RowValue{"", "a"}, RowValue{"", "b"}},
 		"A":         {RowValue{"", "A"}},
 		"my_mem_27": {RowValue{"", "my_mem_27"}},
+		/// JSON Path
+		"['hoge']":       {RowValue{"", "['hoge']"}},
+		"['array'][0]":   {RowValue{"", "['array'][0]"}},
+		"['array'][0].x": {RowValue{"", "['array'][0].x"}},
+		"['array']['x']": {RowValue{"", "['array']['x']"}},
+		"array.x":        {RowValue{"", "array.x"}},
+		// Colon checks
+		"array['x::int']": {RowValue{"", "array['x::int']"}},
+		"[':hoge']":       {RowValue{"", "[':hoge']"}},
+		"x:[':hoge']":     {RowValue{"x", "[':hoge']"}},
+		"x:['hoge']":      {RowValue{"x", "['hoge']"}},
+		// Quote checks
+		"['ar''ray']['x::int']": {RowValue{"", "['ar'ray']['x::int']"}},
+		"['''ray']['x::int']":   {RowValue{"", "[''ray']['x::int']"}},
+		"['ar''']['x::int']":    {RowValue{"", "['ar'']['x::int']"}},
 		// Wildcard
 		"*":   {Wildcard{}},
 		"x:*": {Wildcard{"x"}},
 		// Array
-		"[]":       {ArrayAST{ExpressionsAST{[]Expression{}}}},
-		"[2]":      {ArrayAST{ExpressionsAST{[]Expression{NumericLiteral{2}}}}},
-		"[a, 2.3]": {ArrayAST{ExpressionsAST{[]Expression{RowValue{"", "a"}, FloatLiteral{2.3}}}}},
+		"[]":          {ArrayAST{ExpressionsAST{[]Expression{}}}},
+		"[2]":         {ArrayAST{ExpressionsAST{[]Expression{NumericLiteral{2}}}}},
+		"[2,]":        {ArrayAST{ExpressionsAST{[]Expression{NumericLiteral{2}}}}},
+		"[a]":         {ArrayAST{ExpressionsAST{[]Expression{RowValue{"", "a"}}}}},
+		"[a,]":        {ArrayAST{ExpressionsAST{[]Expression{RowValue{"", "a"}}}}},
+		"['hoge',]":   {ArrayAST{ExpressionsAST{[]Expression{StringLiteral{"hoge"}}}}},
+		"x:['hoge',]": nil, // an array takes no stream prefix
+		"[a, 2.3]":    {ArrayAST{ExpressionsAST{[]Expression{RowValue{"", "a"}, FloatLiteral{2.3}}}}},
+		"[a, 2.3,]":   {ArrayAST{ExpressionsAST{[]Expression{RowValue{"", "a"}, FloatLiteral{2.3}}}}},
+		"[['hoge'], hoge.x[0], a]": {ArrayAST{ExpressionsAST{[]Expression{RowValue{"", "['hoge']"},
+			RowValue{"", "hoge.x[0]"}, RowValue{"", "a"}}}}},
+		"[{'key':hoge:image}]": {ArrayAST{ExpressionsAST{[]Expression{
+			MapAST{[]KeyValuePairAST{{"key", RowValue{"hoge", "image"}}}}}}}},
 		// Map
-		"{}":         {MapAST{[]KeyValuePairAST{}}},
-		"{'hoge':2}": {MapAST{[]KeyValuePairAST{{"hoge", NumericLiteral{2}}}}},
+		"{}":                 {MapAST{[]KeyValuePairAST{}}},
+		"{'hoge':2}":         {MapAST{[]KeyValuePairAST{{"hoge", NumericLiteral{2}}}}},
+		"{'key':hoge:image}": {MapAST{[]KeyValuePairAST{{"key", RowValue{"hoge", "image"}}}}},
 		"{'foo':x:a, 'bar':{'a':[2]}}": {MapAST{[]KeyValuePairAST{
 			{"foo", RowValue{"x", "a"}},
 			{"bar", MapAST{[]KeyValuePairAST{

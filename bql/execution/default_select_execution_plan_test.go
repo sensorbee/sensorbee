@@ -371,7 +371,7 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 
 	Convey("Given a SELECT clause with a nested column alias", t, func() {
 		tuples := getTuples(4)
-		s := `CREATE STREAM box AS SELECT ISTREAM int-1 AS a.c, int+1 AS a["d"], int AS b[1] FROM src [RANGE 2 SECONDS]`
+		s := `CREATE STREAM box AS SELECT ISTREAM int-1 AS a.c, int+1 AS a['d'], int AS b[1] FROM src [RANGE 2 SECONDS]`
 		plan, err := createDefaultSelectPlan(s, t)
 		So(err, ShouldBeNil)
 
