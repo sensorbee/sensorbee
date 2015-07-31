@@ -63,9 +63,7 @@ func TestExpressionParser(t *testing.T) {
 		"x:[':hoge']":     {RowValue{"x", "[':hoge']"}},
 		"x:['hoge']":      {RowValue{"x", "['hoge']"}},
 		// Quote checks
-		"['ar''ray']['x::int']": {RowValue{"", "['ar'ray']['x::int']"}},
-		"['''ray']['x::int']":   {RowValue{"", "[''ray']['x::int']"}},
-		"['ar''']['x::int']":    {RowValue{"", "['ar'']['x::int']"}},
+		"['ar''ray']['x::int']": {RowValue{"", "['ar''ray']['x::int']"}},
 		// Wildcard
 		"*":   {Wildcard{}},
 		"x:*": {Wildcard{"x"}},
