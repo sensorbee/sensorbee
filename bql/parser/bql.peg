@@ -271,11 +271,11 @@ PausedOpt <- < (Paused / Unpaused)? > {
 
 Expression <- orExpr
 
-orExpr <- < andExpr sp (Or sp andExpr)? > {
+orExpr <- < andExpr sp (Or sp andExpr)* > {
         p.AssembleBinaryOperation(begin, end)
     }
 
-andExpr <- < notExpr sp (And sp notExpr)? > {
+andExpr <- < notExpr sp (And sp notExpr)* > {
         p.AssembleBinaryOperation(begin, end)
     }
 
