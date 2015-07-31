@@ -795,7 +795,7 @@ func (ps *parseStack) EnsureKeywordPresent(begin int, end int) {
 // the stack that correspond to the input[begin:end] string and adds
 // the given binary operator between each two of them. At the moment,
 // all operators are treated as left-associative (which is why the
-// parser only allows this for +,-,*,/)
+// parser only allows this for +,-,*,/,OR,AND)
 //
 //  Any
 //   =>

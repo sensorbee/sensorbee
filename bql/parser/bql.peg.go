@@ -7149,7 +7149,7 @@ func (p *bqlPeg) Init() {
 			position, tokenIndex, depth = position707, tokenIndex707, depth707
 			return false
 		},
-		/* 51 orExpr <- <(<(andExpr sp (Or sp andExpr)?)> Action38)> */
+		/* 51 orExpr <- <(<(andExpr sp (Or sp andExpr)*)> Action38)> */
 		func() bool {
 			position709, tokenIndex709, depth709 := position, tokenIndex, depth
 			{
@@ -7164,22 +7164,22 @@ func (p *bqlPeg) Init() {
 					if !_rules[rulesp]() {
 						goto l709
 					}
+				l712:
 					{
-						position712, tokenIndex712, depth712 := position, tokenIndex, depth
+						position713, tokenIndex713, depth713 := position, tokenIndex, depth
 						if !_rules[ruleOr]() {
-							goto l712
+							goto l713
 						}
 						if !_rules[rulesp]() {
-							goto l712
+							goto l713
 						}
 						if !_rules[ruleandExpr]() {
-							goto l712
+							goto l713
 						}
-						goto l713
-					l712:
-						position, tokenIndex, depth = position712, tokenIndex712, depth712
+						goto l712
+					l713:
+						position, tokenIndex, depth = position713, tokenIndex713, depth713
 					}
-				l713:
 					depth--
 					add(rulePegText, position711)
 				}
@@ -7194,7 +7194,7 @@ func (p *bqlPeg) Init() {
 			position, tokenIndex, depth = position709, tokenIndex709, depth709
 			return false
 		},
-		/* 52 andExpr <- <(<(notExpr sp (And sp notExpr)?)> Action39)> */
+		/* 52 andExpr <- <(<(notExpr sp (And sp notExpr)*)> Action39)> */
 		func() bool {
 			position714, tokenIndex714, depth714 := position, tokenIndex, depth
 			{
@@ -7209,22 +7209,22 @@ func (p *bqlPeg) Init() {
 					if !_rules[rulesp]() {
 						goto l714
 					}
+				l717:
 					{
-						position717, tokenIndex717, depth717 := position, tokenIndex, depth
+						position718, tokenIndex718, depth718 := position, tokenIndex, depth
 						if !_rules[ruleAnd]() {
-							goto l717
+							goto l718
 						}
 						if !_rules[rulesp]() {
-							goto l717
+							goto l718
 						}
 						if !_rules[rulenotExpr]() {
-							goto l717
+							goto l718
 						}
-						goto l718
-					l717:
-						position, tokenIndex, depth = position717, tokenIndex717, depth717
+						goto l717
+					l718:
+						position, tokenIndex, depth = position718, tokenIndex718, depth718
 					}
-				l718:
 					depth--
 					add(rulePegText, position716)
 				}
