@@ -5,7 +5,6 @@ import (
 	"pfi/sensorbee/sensorbee/bql/udf"
 	"pfi/sensorbee/sensorbee/core"
 	"pfi/sensorbee/sensorbee/data"
-	"reflect"
 )
 
 type filterIstreamPlan struct {
@@ -103,7 +102,7 @@ func (ep *filterIstreamPlan) Process(input *core.Tuple) ([]data.Map, error) {
 	// check if the item is in the previous results
 	alreadyEmitted := false
 	for _, item := range ep.prevResults {
-		if reflect.DeepEqual(result, item) {
+		if data.HashEqual(result, item) {
 			alreadyEmitted = true
 			break
 		}

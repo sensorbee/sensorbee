@@ -556,23 +556,7 @@ func (cbo *compBinOp) Eval(input data.Value) (data.Value, error) {
 
 func Equal(bo binOp) Evaluator {
 	cmpOp := func(leftVal data.Value, rightVal data.Value) (bool, error) {
-		leftType := leftVal.Type()
-		rightType := rightVal.Type()
-		eq := false
-		if leftType == rightType {
-			eq = reflect.DeepEqual(leftVal, rightVal)
-		} else if leftType == data.TypeInt && rightType == data.TypeFloat {
-			l, _ := data.AsInt(leftVal)
-			r, _ := data.AsFloat(rightVal)
-			// convert left to float to get 2 == 2.0
-			eq = float64(l) == r
-		} else if leftType == data.TypeFloat && rightType == data.TypeInt {
-			l, _ := data.AsFloat(leftVal)
-			r, _ := data.AsInt(rightVal)
-			// convert right to float to get 2.0 == 2
-			eq = l == float64(r)
-		}
-		return eq, nil
+		return data.HashEqual(leftVal, rightVal), nil
 
 	}
 	return &compBinOp{bo, cmpOp}
