@@ -6,7 +6,6 @@ import (
 	"pfi/sensorbee/sensorbee/bql/udf"
 	"pfi/sensorbee/sensorbee/core"
 	"pfi/sensorbee/sensorbee/data"
-	"reflect"
 	"time"
 )
 
@@ -216,19 +215,16 @@ func (ep *streamRelationStreamExecutionPlan) computeResultTuples() ([]data.Map, 
 			output = append(output, res)
 		}
 	} else if ep.emitterType == parser.Istream {
+		// we only access the previous items' hashes, not their values
+		oldHashes := make(map[data.HashValue]bool, len(ep.prevResults))
+		for _, prevRes := range ep.prevResults {
+			oldHashes[data.Hash(prevRes)] = true
+		}
 		// emit only new tuples
 		for _, res := range ep.curResults {
+			hash := data.Hash(res)
 			// check if this tuple is already present in the previous results
-			found := false
-			for _, prevRes := range ep.prevResults {
-				if reflect.DeepEqual(res, prevRes) {
-					// yes, it is, do not emit
-					// TODO we may want to delete the found item from prevRes
-					//      so that item counts are considered for "new items"
-					found = true
-					break
-				}
-			}
+			_, found := oldHashes[hash]
 			if found {
 				continue
 			}
@@ -236,20 +232,17 @@ func (ep *streamRelationStreamExecutionPlan) computeResultTuples() ([]data.Map, 
 			output = append(output, res)
 		}
 	} else if ep.emitterType == parser.Dstream {
+		// we only access the current items' hashes, not their values.
+		// however, in the next run, we *will* have to access their values.
+		newHashes := make(map[data.HashValue]bool, len(ep.curResults))
+		for _, res := range ep.curResults {
+			newHashes[data.Hash(res)] = true
+		}
 		// emit only old tuples
 		for _, prevRes := range ep.prevResults {
+			hash := data.Hash(prevRes)
 			// check if this tuple is present in the current results
-			found := false
-			for _, res := range ep.curResults {
-				if reflect.DeepEqual(res, prevRes) {
-					// yes, it is, do not emit
-					// TODO we may want to delete the found item from curRes
-					//      so that item counts are considered for "new items",
-					//      but can we do this safely with regard to the next run?
-					found = true
-					break
-				}
-			}
+			_, found := newHashes[hash]
 			if found {
 				continue
 			}
