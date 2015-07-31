@@ -536,6 +536,16 @@ func getTestCases() []struct {
 				{data.Map{"a": data.Map{"b": data.Int(3)}}, data.Map{"b": data.Int(3)}},
 			},
 		},
+		{parser.RowValue{"", "a['ho''ge']"},
+			[]evalTest{
+				// not a map:
+				{data.Int(17), nil},
+				// key not present:
+				{data.Map{"x": data.Int(17)}, nil},
+				// key present
+				{data.Map{"a": data.Map{"ho'ge": data.Int(3)}}, data.Int(3)},
+			},
+		},
 		// Access to columns/keys should return the same values
 		{parser.AliasAST{parser.RowValue{"", "a"}, "hoge"},
 			[]evalTest{

@@ -478,12 +478,6 @@ func (rv RowValue) Foldable() bool {
 }
 
 func NewRowValue(s string) RowValue {
-	// in the current JSON path implementation as per data/mapscan.go,
-	// single quotes in map access strings do not need to be escaped,
-	// so we have to turn a BQL expression like `hoge['foo''bar]` into
-	// a string `hoge['foo'bar']`
-	s = strings.Replace(s, "''", "'", -1)
-
 	bracketPos := strings.Index(s, "[")
 	components := strings.SplitN(s, ":", 2)
 	if bracketPos >= 0 && bracketPos < len(components[0]) {

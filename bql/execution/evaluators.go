@@ -68,7 +68,12 @@ func ExpressionToEvaluator(ast FlatExpression, reg udf.FunctionRegistry) (Evalua
 			return &timestampCast{&PathAccess{metaKey}}, nil
 		}
 	case RowValue:
-		return &PathAccess{obj.Relation + "." + obj.Column}, nil
+		// in the current JSON path implementation as per data/mapscan.go,
+		// single quotes in map access strings do not need to be escaped,
+		// so we have to turn a BQL expression like `hoge['foo''bar]` into
+		// a string `hoge['foo'bar']`
+		path := strings.Replace(obj.Column, "''", "'", -1)
+		return &PathAccess{obj.Relation + "." + path}, nil
 	case AggInputRef:
 		return &PathAccess{obj.Ref}, nil
 	case NullLiteral:
