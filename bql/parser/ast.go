@@ -51,6 +51,14 @@ type SelectUnionStmt struct {
 	Selects []SelectStmt
 }
 
+func (s SelectUnionStmt) String() string {
+	str := make([]string, len(s.Selects))
+	for i, s := range s.Selects {
+		str[i] = s.String()
+	}
+	return strings.Join(str, " UNION ALL ")
+}
+
 type CreateStreamAsSelectStmt struct {
 	Name   StreamIdentifier
 	Select SelectStmt
