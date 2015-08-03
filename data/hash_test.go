@@ -74,7 +74,7 @@ func TestEquality(t *testing.T) {
 			right := tc2.input
 			Convey(fmt.Sprintf("When comparing %#v and %#v", left, right), t, func() {
 				de := reflect.DeepEqual(left, right)
-				he := HashEqual(left, right)
+				he := Equal(left, right)
 
 				Convey("Then the output should be the same", func() {
 					if // int vs float
@@ -110,11 +110,11 @@ func BenchmarkDeepEqual(b *testing.B) {
 	}
 }
 
-func BenchmarkHashEqual(b *testing.B) {
+func BenchmarkEqual(b *testing.B) {
 	for n := 0; n < b.N; n++ {
 		for _, tc1 := range testCases {
 			for _, tc2 := range testCases {
-				HashEqual(tc1.input, tc2.input)
+				Equal(tc1.input, tc2.input)
 			}
 		}
 	}
