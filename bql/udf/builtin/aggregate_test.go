@@ -110,6 +110,7 @@ func TestUnaryAggregateFuncs(t *testing.T) {
 			{data.Array{data.Float(2.3), data.Float(3.2)}, data.Float(3.2)},
 			{data.Array{data.Float(3.2), data.Float(2.3)}, data.Float(3.2)},
 			// mixed type
+			{data.Array{data.Null{}, data.Int(3)}, data.Int(3)},
 			{data.Array{data.Float(2.3), data.Int(3)}, data.Int(3)},
 			{data.Array{data.Int(3), data.Float(2.3)}, data.Int(3)},
 			{data.Array{data.Int(2), data.Float(3.2)}, data.Float(3.2)},
@@ -138,6 +139,7 @@ func TestUnaryAggregateFuncs(t *testing.T) {
 			{data.Array{data.Float(2.3), data.Float(3.2)}, data.Float(2.3)},
 			{data.Array{data.Float(3.2), data.Float(2.3)}, data.Float(2.3)},
 			// mixed type
+			{data.Array{data.Null{}, data.Int(3)}, data.Int(3)},
 			{data.Array{data.Float(2.3), data.Int(3)}, data.Float(2.3)},
 			{data.Array{data.Int(3), data.Float(2.3)}, data.Float(2.3)},
 			{data.Array{data.Int(2), data.Float(3.2)}, data.Int(2)},

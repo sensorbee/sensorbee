@@ -276,31 +276,36 @@ var maxFunc udf.UDF = &singleParamAggFunc{
 		if len(arr) == 0 {
 			return data.Null{}, nil
 		}
+		// deal with the case of leading nulls and only nulls
+		firstNonNull := -1
+		for i, item := range arr {
+			if item.Type() != data.TypeNull {
+				firstNonNull = i
+				break
+			}
+		}
+		if firstNonNull == -1 {
+			return data.Null{}, nil
+		}
 		maxFloat := -float64(math.MaxFloat64)
 		maxInt := int64(math.MinInt64)
-		onlyNulls := true
-		for _, item := range arr {
+		for _, item := range arr[firstNonNull:] {
 			if item.Type() == data.TypeInt {
 				i, _ := data.AsInt(item)
 				if i > maxInt {
 					maxInt = i
 				}
-				onlyNulls = false
 			} else if item.Type() == data.TypeFloat {
 				f, _ := data.AsFloat(item)
 				if f > maxFloat {
 					maxFloat = f
 				}
-				onlyNulls = false
 			} else if item.Type() == data.TypeNull {
 				continue
 			} else {
 				return nil, fmt.Errorf("cannot interpret %s (%T) as a number",
 					item, item)
 			}
-		}
-		if onlyNulls {
-			return data.Null{}, nil
 		}
 		if float64(maxInt) >= maxFloat {
 			return data.Int(maxInt), nil
@@ -322,31 +327,36 @@ var minFunc udf.UDF = &singleParamAggFunc{
 		if len(arr) == 0 {
 			return data.Null{}, nil
 		}
+		// deal with the case of leading nulls and only nulls
+		firstNonNull := -1
+		for i, item := range arr {
+			if item.Type() != data.TypeNull {
+				firstNonNull = i
+				break
+			}
+		}
+		if firstNonNull == -1 {
+			return data.Null{}, nil
+		}
 		minFloat := float64(math.MaxFloat64)
 		minInt := int64(math.MaxInt64)
-		onlyNulls := true
-		for _, item := range arr {
+		for _, item := range arr[firstNonNull:] {
 			if item.Type() == data.TypeInt {
 				i, _ := data.AsInt(item)
 				if i < minInt {
 					minInt = i
 				}
-				onlyNulls = false
 			} else if item.Type() == data.TypeFloat {
 				f, _ := data.AsFloat(item)
 				if f < minFloat {
 					minFloat = f
 				}
-				onlyNulls = false
 			} else if item.Type() == data.TypeNull {
 				continue
 			} else {
 				return nil, fmt.Errorf("cannot interpret %s (%T) as a number",
 					item, item)
 			}
-		}
-		if onlyNulls {
-			return data.Null{}, nil
 		}
 		if float64(minInt) <= minFloat {
 			return data.Int(minInt), nil
