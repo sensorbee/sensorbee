@@ -18,5 +18,9 @@ func (ss *serverStatus) Index(rw web.ResponseWriter, req *web.Request) {
 	ss.RenderJSON(map[string]interface{}{
 		"num_goroutine": runtime.NumGoroutine(),
 		"num_cgo_call":  runtime.NumCgoCall(),
+		"gomaxprocs":    runtime.GOMAXPROCS(0),
+		"goroot":        runtime.GOROOT(),
+		"num_cpu":       runtime.NumCPU(),
+		"goversion":     runtime.Version(),
 	})
 }
