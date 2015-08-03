@@ -74,6 +74,11 @@ type CreateStreamAsSelectUnionStmt struct {
 	SelectUnionStmt
 }
 
+func (s CreateStreamAsSelectUnionStmt) String() string {
+	str := []string{"CREATE", "STREAM", string(s.Name), "AS", s.SelectUnionStmt.String()}
+	return strings.Join(str, " ")
+}
+
 type CreateSourceStmt struct {
 	Paused BinaryKeyword
 	Name   StreamIdentifier
