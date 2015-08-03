@@ -102,6 +102,10 @@ func TestAssembleProjections(t *testing.T) {
 				So(s.Projections[1], ShouldResemble, Wildcard{})
 				So(s.Projections[2], ShouldResemble, AliasAST{RowValue{"", "b"}, "c"})
 				So(s.Projections[3], ShouldResemble, AliasAST{Wildcard{}, "d"})
+
+				Convey("And String() should return the original statement", func() {
+					So(s.String(), ShouldEqual, p.Buffer)
+				})
 			})
 		})
 	})

@@ -63,6 +63,10 @@ func TestAssembleEmitter(t *testing.T) {
 
 				So(comp.Name, ShouldEqual, "x")
 				So(comp.Select.EmitterType, ShouldEqual, Istream)
+
+				Convey("And String() should return the original statement", func() {
+					So(comp.String(), ShouldEqual, p.Buffer)
+				})
 			})
 		})
 	})
