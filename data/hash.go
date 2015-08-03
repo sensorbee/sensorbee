@@ -4,15 +4,16 @@ import (
 	"bytes"
 	"hash/fnv"
 	"io"
+	"math"
 	"sort"
-	"strconv"
 )
 
 type HashValue uint64
 
 func Hash(v Value) HashValue {
 	h := fnv.New64a()
-	updateHash(v, h)
+	buffer := make([]byte, 0, 16)
+	updateHash(v, h, buffer)
 	return HashValue(h.Sum64())
 }
 
@@ -26,8 +27,9 @@ func Equal(v1 Value, v2 Value) bool {
 		// compare based on the string representation
 		// (this is exact, not probabilistic)
 		var left, right bytes.Buffer
-		updateHash(v1, &left)
-		updateHash(v2, &right)
+		buffer := make([]byte, 0, 16)
+		updateHash(v1, &left, buffer)
+		updateHash(v2, &right, buffer)
 		return left.String() == right.String()
 	}
 	// if we arrive here, types are so different that the values
@@ -35,89 +37,96 @@ func Equal(v1 Value, v2 Value) bool {
 	return false
 }
 
-func updateHash(v Value, h io.Writer) {
-	buffer := make([]byte, 1, 5)
+func appendInt32(b []byte, i int32) []byte {
+	return append(b,
+		byte(i&0xff),
+		byte((i>>8)&0xff),
+		byte((i>>16)&0xff),
+		byte((i>>24)&0xff),
+	)
+}
+
+func appendInt64(b []byte, i int64) []byte {
+	return append(b,
+		byte(i&0xff),
+		byte((i>>8)&0xff),
+		byte((i>>16)&0xff),
+		byte((i>>24)&0xff),
+		byte((i>>32)&0xff),
+		byte((i>>40)&0xff),
+		byte((i>>48)&0xff),
+		byte((i>>56)&0xff),
+	)
+}
+
+func updateHash(v Value, h io.Writer, buffer []byte) []byte {
 	switch v.Type() {
 	case TypeBlob:
-		buffer[0] = 'B'
-		// to decode: read digits until colon, then that many bytes
 		b, _ := v.asBlob()
-		buffer = strconv.AppendInt(buffer, int64(len(b)), 10)
-		buffer = append(buffer, ':')
+		buffer = append(buffer, byte(TypeBlob))
+		buffer = appendInt32(buffer, int32(len(b)))
 		h.Write(buffer)
 		h.Write(b)
 	case TypeBool:
-		buffer[0] = 'b'
-		// to decode: read one digit
 		b, _ := v.asBool()
 		if b {
-			buffer = append(buffer, '1')
+			buffer = append(buffer, byte(TypeBool), 1)
 		} else {
-			buffer = append(buffer, '0')
+			buffer = append(buffer, byte(TypeBool), 0)
 		}
 		h.Write(buffer)
 	case TypeFloat:
-		buffer[0] = 'n'
-		// to decode: read until semi-colon. if any character other
-		// than [-0-9] is contained, it is a float.
 		f, _ := v.asFloat()
-		buffer = strconv.AppendFloat(buffer, f, 'g', -1, 64)
-		buffer = append(buffer, ';')
+		if float64(int64(f)) == f {
+			return updateHash(Int(f), h, buffer)
+		}
+		buffer = append(buffer, byte(TypeFloat))
+		buffer = appendInt64(buffer, int64(math.Float64bits(f)))
 		h.Write(buffer)
 	case TypeInt:
-		buffer[0] = 'n'
-		// to decode: read until semi-colon
 		i, _ := v.asInt()
-		buffer = strconv.AppendInt(buffer, i, 10)
-		buffer = append(buffer, ';')
+		buffer = append(buffer, byte(TypeInt))
+		buffer = appendInt64(buffer, i)
 		h.Write(buffer)
 	case TypeNull:
-		buffer[0] = 'N'
+		buffer = append(buffer, byte(TypeNull))
 		h.Write(buffer)
 	case TypeString:
-		buffer[0] = 's'
-		// to decode: read digits until colon, then that many bytes
 		s, _ := v.asString()
-		buffer = strconv.AppendInt(buffer, int64(len(s)), 10)
-		buffer = append(buffer, ':')
+		buffer = append(buffer, byte(TypeString))
+		buffer = appendInt32(buffer, int32(len(s)))
 		h.Write(buffer)
-		h.Write([]byte(s))
+		io.WriteString(h, s)
 	case TypeTimestamp:
-		buffer[0] = 't'
-		// to decode: read digits until colon, then that many bytes
-		s := v.String()
-		l := len(s)
-		buffer = strconv.AppendInt(buffer, int64(l-2), 10)
-		buffer = append(buffer, ':')
+		t, _ := v.asTimestamp()
+		buffer = append(buffer, byte(TypeTimestamp))
+		buffer = appendInt64(buffer, t.Unix())
+		buffer = appendInt32(buffer, int32(t.Nanosecond()/1000)) // Use microseconds
 		h.Write(buffer)
-		h.Write([]byte(s[1 : l-1]))
 	case TypeArray:
-		buffer[0] = 'a'
-		// to decode: read digits until colon, then recurse that
-		// many times
 		a, _ := v.asArray()
-		buffer = strconv.AppendInt(buffer, int64(len(a)), 10)
-		buffer = append(buffer, ':')
+		buffer = append(buffer, byte(TypeArray))
+		buffer = appendInt32(buffer, int32(len(a)))
 		h.Write(buffer)
 		for _, item := range a {
-			updateHash(item, h)
+			buffer = updateHash(item, h, buffer[:0])
 		}
 	case TypeMap:
-		buffer[0] = 'm'
-		// to decode: read digits until colon, then recurse twice
-		// that many times to read key (string) and value
 		m, _ := v.asMap()
-		buffer = strconv.AppendInt(buffer, int64(len(m)), 10)
-		buffer = append(buffer, ':')
+		buffer = append(buffer, byte(TypeMap))
+		buffer = appendInt32(buffer, int32(len(m)))
 		h.Write(buffer)
+
+		// TODO: reduce this allocation
 		keys := make(sort.StringSlice, 0, len(m))
 		for key := range m {
 			keys = append(keys, key)
 		}
 		keys.Sort()
 		for _, key := range keys {
-			updateHash(String(key), h)
-			updateHash(m[key], h)
+			buffer = updateHash(String(key), h, buffer[:0])
+			buffer = updateHash(m[key], h, buffer[:0])
 		}
 	}
+	return buffer
 }
