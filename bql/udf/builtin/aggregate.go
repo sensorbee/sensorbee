@@ -287,6 +287,25 @@ var maxFunc udf.UDF = &singleParamAggFunc{
 		if firstNonNull == -1 {
 			return data.Null{}, nil
 		}
+		// if we have timestamp-shaped data
+		if arr[firstNonNull].Type() == data.TypeTimestamp {
+			maxTime, _ := data.AsTimestamp(arr[firstNonNull])
+			for _, item := range arr[firstNonNull:] {
+				if item.Type() == data.TypeTimestamp {
+					t, _ := data.AsTimestamp(item)
+					if maxTime.Sub(t).Seconds() < 0 {
+						maxTime = t
+					}
+				} else if item.Type() == data.TypeNull {
+					continue
+				} else {
+					return nil, fmt.Errorf("cannot interpret %s (%T) as a timestamp",
+						item, item)
+				}
+			}
+			return data.Timestamp(maxTime), nil
+		}
+		// else: numeric
 		maxFloat := -float64(math.MaxFloat64)
 		maxInt := int64(math.MinInt64)
 		for _, item := range arr[firstNonNull:] {
@@ -338,6 +357,25 @@ var minFunc udf.UDF = &singleParamAggFunc{
 		if firstNonNull == -1 {
 			return data.Null{}, nil
 		}
+		// if we have timestamp-shaped data
+		if arr[firstNonNull].Type() == data.TypeTimestamp {
+			minTime, _ := data.AsTimestamp(arr[firstNonNull])
+			for _, item := range arr[firstNonNull:] {
+				if item.Type() == data.TypeTimestamp {
+					t, _ := data.AsTimestamp(item)
+					if minTime.Sub(t).Seconds() > 0 {
+						minTime = t
+					}
+				} else if item.Type() == data.TypeNull {
+					continue
+				} else {
+					return nil, fmt.Errorf("cannot interpret %s (%T) as a timestamp",
+						item, item)
+				}
+			}
+			return data.Timestamp(minTime), nil
+		}
+		// else: numeric
 		minFloat := float64(math.MaxFloat64)
 		minInt := int64(math.MaxInt64)
 		for _, item := range arr[firstNonNull:] {

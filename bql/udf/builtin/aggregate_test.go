@@ -12,6 +12,7 @@ import (
 
 func TestUnaryAggregateFuncs(t *testing.T) {
 	someTime := time.Date(2015, time.May, 1, 14, 27, 0, 0, time.UTC)
+	someTimeLater := time.Date(2015, time.May, 1, 14, 28, 0, 0, time.UTC)
 
 	invalidInputs := []udfUnaryTestCaseInput{
 		{data.Null{}, nil},
@@ -104,13 +105,18 @@ func TestUnaryAggregateFuncs(t *testing.T) {
 			// single values
 			{data.Array{data.Float(2.3)}, data.Float(2.3)},
 			{data.Array{data.Int(2)}, data.Int(2)},
+			{data.Array{data.Timestamp(someTime)}, data.Timestamp(someTime)},
 			// homogeneous inputs
 			{data.Array{data.Int(2), data.Int(3)}, data.Int(3)},
 			{data.Array{data.Int(3), data.Int(2)}, data.Int(3)},
 			{data.Array{data.Float(2.3), data.Float(3.2)}, data.Float(3.2)},
 			{data.Array{data.Float(3.2), data.Float(2.3)}, data.Float(3.2)},
+			{data.Array{data.Timestamp(someTime), data.Timestamp(someTimeLater)}, data.Timestamp(someTimeLater)},
+			{data.Array{data.Timestamp(someTimeLater), data.Timestamp(someTime)}, data.Timestamp(someTimeLater)},
 			// mixed type
 			{data.Array{data.Null{}, data.Int(3)}, data.Int(3)},
+			{data.Array{data.Null{}, data.Timestamp(someTime)}, data.Timestamp(someTime)},
+			{data.Array{data.Timestamp(someTime), data.Null{}, data.Timestamp(someTimeLater)}, data.Timestamp(someTimeLater)},
 			{data.Array{data.Float(2.3), data.Int(3)}, data.Int(3)},
 			{data.Array{data.Int(3), data.Float(2.3)}, data.Int(3)},
 			{data.Array{data.Int(2), data.Float(3.2)}, data.Float(3.2)},
@@ -133,13 +139,18 @@ func TestUnaryAggregateFuncs(t *testing.T) {
 			// single values
 			{data.Array{data.Float(2.3)}, data.Float(2.3)},
 			{data.Array{data.Int(2)}, data.Int(2)},
+			{data.Array{data.Timestamp(someTime)}, data.Timestamp(someTime)},
 			// homogeneous inputs
 			{data.Array{data.Int(2), data.Int(3)}, data.Int(2)},
 			{data.Array{data.Int(3), data.Int(2)}, data.Int(2)},
 			{data.Array{data.Float(2.3), data.Float(3.2)}, data.Float(2.3)},
 			{data.Array{data.Float(3.2), data.Float(2.3)}, data.Float(2.3)},
+			{data.Array{data.Timestamp(someTime), data.Timestamp(someTimeLater)}, data.Timestamp(someTime)},
+			{data.Array{data.Timestamp(someTimeLater), data.Timestamp(someTime)}, data.Timestamp(someTime)},
 			// mixed type
 			{data.Array{data.Null{}, data.Int(3)}, data.Int(3)},
+			{data.Array{data.Null{}, data.Timestamp(someTime)}, data.Timestamp(someTime)},
+			{data.Array{data.Timestamp(someTime), data.Null{}, data.Timestamp(someTimeLater)}, data.Timestamp(someTime)},
 			{data.Array{data.Float(2.3), data.Int(3)}, data.Float(2.3)},
 			{data.Array{data.Int(3), data.Float(2.3)}, data.Float(2.3)},
 			{data.Array{data.Int(2), data.Float(3.2)}, data.Int(2)},
