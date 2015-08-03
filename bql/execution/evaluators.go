@@ -561,7 +561,7 @@ func (cbo *compBinOp) Eval(input data.Value) (data.Value, error) {
 
 func Equal(bo binOp) Evaluator {
 	cmpOp := func(leftVal data.Value, rightVal data.Value) (bool, error) {
-		return data.HashEqual(leftVal, rightVal), nil
+		return data.Equal(leftVal, rightVal), nil
 
 	}
 	return &compBinOp{bo, cmpOp}
