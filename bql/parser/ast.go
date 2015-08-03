@@ -368,17 +368,17 @@ func (b BinaryOpAST) Foldable() bool {
 func (b BinaryOpAST) string() string {
 	str := []string{b.Left.string(), b.Op.String(), b.Right.string()}
 
-	// TODO: This implementation, this method can add unnecessary parentheses.
-	// For example,
+	// TODO: This implementation may add unnecessary parentheses.
+	// For example, in
 	//  input:  "a * 2 / b"
 	//  output: "(a * 2) / b"
-	// we can omit output parentehsis.
+	// we could omit output parentehsis.
 
 	// Enclose expression in parentheses for operator precedence
 	encloseLeft, encloseRight := false, false
 
 	if left, ok := b.Left.(BinaryOpAST); ok {
-		if left.Op.precedenceGreaterThan(b.Op) {
+		if left.Op.hasHigherPrecedenceThan(b.Op) {
 			// we need no parentheses
 		} else {
 			// we probably need parentheses
@@ -387,7 +387,7 @@ func (b BinaryOpAST) string() string {
 	}
 
 	if right, ok := b.Right.(BinaryOpAST); ok {
-		if right.Op.precedenceGreaterThan(b.Op) {
+		if right.Op.hasHigherPrecedenceThan(b.Op) {
 			// we need no parentheses
 		} else {
 			// we probably need parentheses
@@ -1062,8 +1062,8 @@ func (t Type) String() string {
 type Operator int
 
 const (
-	// Operator is defined in precedence order (increasing).
-	// These values are compared in comparing method.
+	// Operators are defined in precedence order (increasing). These
+	// values can be compared using the hasHigherPrecedenceThan method.
 	UnknownOperator Operator = iota
 	Or
 	And
@@ -1085,9 +1085,8 @@ const (
 	UnaryMinus
 )
 
-// precedenceEqualTo checks the arguement operator is the same precedence.
-func (op Operator) precedenceEqualTo(rhs Operator) bool {
-	// Check the same precedence
+// hasSamePrecedenceAs checks if the arguement operator has the same precedence.
+func (op Operator) hasSamePrecedenceAs(rhs Operator) bool {
 	if Or <= op && op <= Not && Or <= rhs && rhs <= Not {
 		return true
 	}
@@ -1107,8 +1106,8 @@ func (op Operator) precedenceEqualTo(rhs Operator) bool {
 	return false
 }
 
-func (op Operator) precedenceGreaterThan(rhs Operator) bool {
-	if op.precedenceEqualTo(rhs) {
+func (op Operator) hasHigherPrecedenceThan(rhs Operator) bool {
+	if op.hasSamePrecedenceAs(rhs) {
 		return false
 	}
 
