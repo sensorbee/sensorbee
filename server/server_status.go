@@ -10,11 +10,11 @@ type serverStatus struct {
 }
 
 func SetUpServerStatusRouter(prefix string, router *web.Router) {
-	root := router.Subrouter(serverStatus{}, "/runtime_status")
-	root.Get("/", (*serverStatus).Index)
+	root := router.Subrouter(serverStatus{}, "")
+	root.Get("/runtime_status", (*serverStatus).RuntimeStatus)
 }
 
-func (ss *serverStatus) Index(rw web.ResponseWriter, req *web.Request) {
+func (ss *serverStatus) RuntimeStatus(rw web.ResponseWriter, req *web.Request) {
 	ss.RenderJSON(map[string]interface{}{
 		"num_goroutine": runtime.NumGoroutine(),
 		"num_cgo_call":  runtime.NumCgoCall(),
