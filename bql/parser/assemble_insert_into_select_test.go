@@ -138,6 +138,10 @@ func TestAssembleInsertIntoSelect(t *testing.T) {
 				So(comp.GroupList[0], ShouldResemble, RowValue{"", "f"})
 				So(comp.GroupList[1], ShouldResemble, RowValue{"", "g"})
 				So(comp.Having, ShouldResemble, RowValue{"", "h"})
+
+				Convey("And String() should return the original statement", func() {
+					So(comp.String(), ShouldEqual, p.Buffer)
+				})
 			})
 		})
 	})

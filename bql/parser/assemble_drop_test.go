@@ -58,6 +58,10 @@ func TestAssembleDropSource(t *testing.T) {
 				comp := top.(DropSourceStmt)
 
 				So(comp.Source, ShouldEqual, "a_1")
+
+				Convey("And String() should return the original statement", func() {
+					So(comp.String(), ShouldEqual, p.Buffer)
+				})
 			})
 		})
 	})
@@ -116,6 +120,10 @@ func TestAssembleDropStream(t *testing.T) {
 				comp := top.(DropStreamStmt)
 
 				So(comp.Stream, ShouldEqual, "a_1")
+
+				Convey("And String() should return the original statement", func() {
+					So(comp.String(), ShouldEqual, p.Buffer)
+				})
 			})
 		})
 	})
@@ -174,6 +182,10 @@ func TestAssembleDropSink(t *testing.T) {
 				comp := top.(DropSinkStmt)
 
 				So(comp.Sink, ShouldEqual, "a_1")
+
+				Convey("And String() should return the original statement", func() {
+					So(comp.String(), ShouldEqual, p.Buffer)
+				})
 			})
 		})
 	})
@@ -232,6 +244,10 @@ func TestAssembleDropState(t *testing.T) {
 				comp := top.(DropStateStmt)
 
 				So(comp.State, ShouldEqual, "a_1")
+
+				Convey("And String() should return the original statement", func() {
+					So(comp.String(), ShouldEqual, p.Buffer)
+				})
 			})
 		})
 	})

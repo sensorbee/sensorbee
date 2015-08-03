@@ -79,7 +79,7 @@ func (s CreateSourceStmt) String() string {
 	if paused != "" {
 		str = append(str[:1], append([]string{paused}, str[1:]...)...)
 	}
-	specs := s.SourceSinkSpecsAST.string()
+	specs := s.SourceSinkSpecsAST.string("WITH")
 	if specs != "" {
 		str = append(str, specs)
 	}
@@ -94,7 +94,7 @@ type CreateSinkStmt struct {
 
 func (s CreateSinkStmt) String() string {
 	str := []string{"CREATE", "SINK", string(s.Name), "TYPE", string(s.Type)}
-	specs := s.SourceSinkSpecsAST.string()
+	specs := s.SourceSinkSpecsAST.string("WITH")
 	if specs != "" {
 		str = append(str, specs)
 	}
@@ -109,7 +109,7 @@ type CreateStateStmt struct {
 
 func (s CreateStateStmt) String() string {
 	str := []string{"CREATE", "STATE", string(s.Name), "TYPE", string(s.Type)}
-	specs := s.SourceSinkSpecsAST.string()
+	specs := s.SourceSinkSpecsAST.string("WITH")
 	if specs != "" {
 		str = append(str, specs)
 	}
@@ -121,9 +121,27 @@ type UpdateStateStmt struct {
 	SourceSinkSpecsAST
 }
 
+func (s UpdateStateStmt) String() string {
+	str := []string{"UPDATE", "STATE", string(s.Name)}
+	specs := s.SourceSinkSpecsAST.string("SET")
+	if specs != "" {
+		str = append(str, specs)
+	}
+	return strings.Join(str, " ")
+}
+
 type UpdateSourceStmt struct {
 	Name StreamIdentifier
 	SourceSinkSpecsAST
+}
+
+func (s UpdateSourceStmt) String() string {
+	str := []string{"UPDATE", "SOURCE", string(s.Name)}
+	specs := s.SourceSinkSpecsAST.string("SET")
+	if specs != "" {
+		str = append(str, specs)
+	}
+	return strings.Join(str, " ")
 }
 
 type UpdateSinkStmt struct {
@@ -131,9 +149,23 @@ type UpdateSinkStmt struct {
 	SourceSinkSpecsAST
 }
 
+func (s UpdateSinkStmt) String() string {
+	str := []string{"UPDATE", "SINK", string(s.Name)}
+	specs := s.SourceSinkSpecsAST.string("SET")
+	if specs != "" {
+		str = append(str, specs)
+	}
+	return strings.Join(str, " ")
+}
+
 type InsertIntoSelectStmt struct {
 	Sink StreamIdentifier
 	SelectStmt
+}
+
+func (s InsertIntoSelectStmt) String() string {
+	str := []string{"INSERT", "INTO", string(s.Sink), s.SelectStmt.String()}
+	return strings.Join(str, " ")
 }
 
 type InsertIntoFromStmt struct {
@@ -141,32 +173,72 @@ type InsertIntoFromStmt struct {
 	Input StreamIdentifier
 }
 
+func (s InsertIntoFromStmt) String() string {
+	str := []string{"INSERT", "INTO", string(s.Sink), "FROM", string(s.Input)}
+	return strings.Join(str, " ")
+}
+
 type PauseSourceStmt struct {
 	Source StreamIdentifier
+}
+
+func (s PauseSourceStmt) String() string {
+	str := []string{"PAUSE", "SOURCE", string(s.Source)}
+	return strings.Join(str, " ")
 }
 
 type ResumeSourceStmt struct {
 	Source StreamIdentifier
 }
 
+func (s ResumeSourceStmt) String() string {
+	str := []string{"RESUME", "SOURCE", string(s.Source)}
+	return strings.Join(str, " ")
+}
+
 type RewindSourceStmt struct {
 	Source StreamIdentifier
+}
+
+func (s RewindSourceStmt) String() string {
+	str := []string{"REWIND", "SOURCE", string(s.Source)}
+	return strings.Join(str, " ")
 }
 
 type DropSourceStmt struct {
 	Source StreamIdentifier
 }
 
+func (s DropSourceStmt) String() string {
+	str := []string{"DROP", "SOURCE", string(s.Source)}
+	return strings.Join(str, " ")
+}
+
 type DropStreamStmt struct {
 	Stream StreamIdentifier
+}
+
+func (s DropStreamStmt) String() string {
+	str := []string{"DROP", "STREAM", string(s.Stream)}
+	return strings.Join(str, " ")
 }
 
 type DropSinkStmt struct {
 	Sink StreamIdentifier
 }
 
+func (s DropSinkStmt) String() string {
+	str := []string{"DROP", "SINK", string(s.Sink)}
+	return strings.Join(str, " ")
+}
+
 type DropStateStmt struct {
 	State StreamIdentifier
+}
+
+func (s DropStateStmt) String() string {
+	str := []string{"DROP", "STATE", string(s.State)}
+	return strings.Join(str, " ")
 }
 
 type EmitterAST struct {
@@ -314,7 +386,7 @@ type SourceSinkSpecsAST struct {
 	Params []SourceSinkParamAST
 }
 
-func (a SourceSinkSpecsAST) string() string {
+func (a SourceSinkSpecsAST) string(keyword string) string {
 	if len(a.Params) == 0 {
 		return ""
 	}
@@ -322,7 +394,7 @@ func (a SourceSinkSpecsAST) string() string {
 	for i, p := range a.Params {
 		ps[i] = p.string()
 	}
-	return "WITH " + strings.Join(ps, ", ")
+	return keyword + " " + strings.Join(ps, ", ")
 }
 
 type SourceSinkParamAST struct {
