@@ -1,7 +1,6 @@
 package data
 
 import (
-	"bytes"
 	"hash/fnv"
 	"io"
 	"math"
@@ -24,13 +23,7 @@ func Equal(v1 Value, v2 Value) bool {
 	if lType == rType || // same type
 		(lType == TypeFloat && rType == TypeInt) || // float vs. int
 		(lType == TypeInt && rType == TypeFloat) { // int vs. float
-		// compare based on the string representation
-		// (this is exact, not probabilistic)
-		var left, right bytes.Buffer
-		buffer := make([]byte, 0, 16)
-		updateHash(v1, &left, buffer)
-		updateHash(v2, &right, buffer)
-		return left.String() == right.String()
+		return Hash(v1) == Hash(v2)
 	}
 	// if we arrive here, types are so different that the values
 	// cannot possibly be equal
