@@ -1,0 +1,2 @@
+-coverpkg=pfi/sensorbee/sensorbee/client,pfi/sensorbee/sensorbee/server,pfi/sensorbee/sensorbee/server/response,pfi/sensorbee/sensorbee/server/testutil
+-timeout=10s

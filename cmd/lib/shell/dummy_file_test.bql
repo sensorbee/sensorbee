@@ -1,0 +1,2 @@
+CREATE SOURCE dummy TYPE homhom;
+SELECT foo FROM dummy;
