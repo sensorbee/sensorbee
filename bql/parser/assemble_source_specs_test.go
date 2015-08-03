@@ -112,6 +112,10 @@ func TestAssembleSourceSinkSpecs(t *testing.T) {
 				So(top, ShouldHaveSameTypeAs, CreateSourceStmt{})
 				s := top.(CreateSourceStmt)
 				So(s.Params, ShouldBeNil)
+
+				Convey("And String() should return the original statement", func() {
+					So(s.String(), ShouldEqual, p.Buffer)
+				})
 			})
 		})
 
@@ -135,6 +139,10 @@ func TestAssembleSourceSinkSpecs(t *testing.T) {
 					SourceSinkParamAST{"port", data.Int(8080)})
 				So(s.Params[1], ShouldResemble,
 					SourceSinkParamAST{"proto", data.String("http")})
+
+				Convey("And String() should return the original statement", func() {
+					So(s.String(), ShouldEqual, p.Buffer)
+				})
 			})
 		})
 	})

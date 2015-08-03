@@ -96,6 +96,11 @@ func TestAssembleStreamWindow(t *testing.T) {
 				So(comp.Relations[0].Value, ShouldEqual, 3)
 				So(comp.Relations[0].Unit, ShouldEqual, Tuples)
 				So(comp.Relations[0].Alias, ShouldEqual, "")
+
+				Convey("And String() should return the original statement", func() {
+					stmt := top.(CreateStreamAsSelectStmt)
+					So(stmt.String(), ShouldEqual, p.Buffer)
+				})
 			})
 		})
 	})

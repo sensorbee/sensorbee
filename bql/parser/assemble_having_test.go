@@ -84,6 +84,10 @@ func TestAssembleHaving(t *testing.T) {
 				So(top, ShouldHaveSameTypeAs, SelectStmt{})
 				s := top.(SelectStmt)
 				So(s.Having, ShouldBeNil)
+
+				Convey("And String() should return the original statement", func() {
+					So(s.String(), ShouldEqual, p.Buffer)
+				})
 			})
 		})
 
@@ -103,6 +107,10 @@ func TestAssembleHaving(t *testing.T) {
 				s := top.(SelectStmt)
 				So(s.Having, ShouldNotBeNil)
 				So(s.Having, ShouldResemble, RowValue{"", "c"})
+
+				Convey("And String() should return the original statement", func() {
+					So(s.String(), ShouldEqual, p.Buffer)
+				})
 			})
 		})
 	})
