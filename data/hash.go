@@ -1,6 +1,7 @@
 package data
 
 import (
+	"bytes"
 	"hash/fnv"
 	"io"
 	"sort"
@@ -15,14 +16,23 @@ func Hash(v Value) HashValue {
 	return HashValue(h.Sum64())
 }
 
-func HashEqual(v1 Value, v2 Value) bool {
+func Equal(v1 Value, v2 Value) bool {
 	lType := v1.Type()
 	rType := v2.Type()
-	// cases in which we need a hash comparison
-	return (lType == rType || // same type
+	// cases in which we need a byte array comparison
+	if lType == rType || // same type
 		(lType == TypeFloat && rType == TypeInt) || // float vs. int
-		(lType == TypeInt && rType == TypeFloat)) && // int vs. float
-		Hash(v1) == Hash(v2)
+		(lType == TypeInt && rType == TypeFloat) { // int vs. float
+		// compare based on the string representation
+		// (this is exact, not probabilistic)
+		var left, right bytes.Buffer
+		updateHash(v1, &left)
+		updateHash(v2, &right)
+		return left.String() == right.String()
+	}
+	// if we arrive here, types are so different that the values
+	// cannot possibly be equal
+	return false
 }
 
 func updateHash(v Value, h io.Writer) {

@@ -102,7 +102,7 @@ func (ep *filterIstreamPlan) Process(input *core.Tuple) ([]data.Map, error) {
 	// check if the item is in the previous results
 	alreadyEmitted := false
 	for _, item := range ep.prevResults {
-		if data.HashEqual(result, item) {
+		if data.Equal(result, item) {
 			alreadyEmitted = true
 			break
 		}
