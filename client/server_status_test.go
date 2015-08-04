@@ -3,6 +3,8 @@ package client
 import (
 	. "github.com/smartystreets/goconvey/convey"
 	"net/http"
+	"os"
+	"os/user"
 	"pfi/sensorbee/sensorbee/server/testutil"
 	"runtime"
 	"testing"
@@ -26,6 +28,19 @@ func TestServerStatus(t *testing.T) {
 				So(js["goroot"], ShouldEqual, runtime.GOROOT())
 				So(js["num_cpu"], ShouldEqual, runtime.NumCPU())
 				So(js["goversion"], ShouldEqual, runtime.Version())
+				So(js["pid"], ShouldEqual, os.Getpid())
+
+				dir, err := os.Getwd()
+				So(err, ShouldBeNil)
+				So(js["current_directory"], ShouldEqual, dir)
+
+				host, err := os.Hostname()
+				So(err, ShouldBeNil)
+				So(js["hostname"], ShouldEqual, host)
+
+				user, err := user.Current()
+				So(err, ShouldBeNil)
+				So(js["user"], ShouldEqual, user.Username)
 			})
 		})
 	})
