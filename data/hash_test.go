@@ -6,6 +6,7 @@ import (
 	"math"
 	"reflect"
 	"testing"
+	"time"
 )
 
 var testCases = []struct {
@@ -48,7 +49,115 @@ var testCases = []struct {
 	{Map{"hoge": String("hoge")}},
 	{Map{"a": Int(2), "b": Float(3.0)}},
 	{Map{"b": Int(3), "a": Float(2.0)}},
+	{Map{"b": Int(3), "a": Float(2.5)}},
 	{Map{"i": Int(-6), "xy": Map{"h": String("hoge")}}},
+}
+
+func TestHash(t *testing.T) {
+	now := time.Now()
+	for now.Nanosecond()%1000 == 999 {
+		now = time.Now()
+	}
+
+	Convey("Given a map containing all types", t, func() {
+		m := Map{
+			"null":      Null{},
+			"true":      True,
+			"false":     False,
+			"int":       Int(10),
+			"float":     Float(2.5),
+			"string":    String("hoge"),
+			"blob":      Blob("hoge"),
+			"timestamp": Timestamp(now),
+			"array": Array{Null{}, True, False, Int(10), Float(2.5), String("hoge"),
+				Blob("hoge"), Timestamp(now), Array{Null{}, True, False, Int(10), Float(2.5), String("hoge")},
+				Map{
+					"null":   Null{},
+					"true":   True,
+					"false":  False,
+					"int":    Int(10),
+					"float":  Float(2.5),
+					"string": String("hoge"),
+				},
+			},
+			"map": Map{
+				"null":      Null{},
+				"true":      True,
+				"false":     False,
+				"int":       Int(10),
+				"float":     Float(2.5),
+				"string":    String("hoge"),
+				"blob":      Blob("hoge"),
+				"timestamp": Timestamp(now),
+				"array": Array{Null{}, True, False, Int(10), Float(2.5), String("hoge"),
+					Blob("hoge"), Timestamp(now), Array{Null{}, True, False, Int(10), Float(2.5), String("hoge")},
+					Map{
+						"null":   Null{},
+						"true":   True,
+						"false":  False,
+						"int":    Int(10),
+						"float":  Float(2.5),
+						"string": String("hoge"),
+					},
+				},
+			},
+		}
+
+		Convey("When a map doesn't contain something invalid", func() {
+			Convey("Then Hash should always return the same value", func() {
+				So(Hash(m), ShouldEqual, Hash(m))
+			})
+		})
+
+		Convey("When comparing a float having an integer value to int and vice vasa", func() {
+			c := m.Copy()
+			c["int"] = Float(10.0)
+			m["float"] = Float(3.0)
+			c["float"] = Int(3)
+			So(c.Set("array[3]", Float(10.0)), ShouldBeNil)
+			So(m.Set("map.int", Float(10.0)), ShouldBeNil)
+
+			Convey("Then Hash should return the same value", func() {
+				So(Hash(m), ShouldEqual, Hash(m))
+			})
+		})
+
+		Convey("When comparing timestamps whose differences are less than 1us", func() {
+			t := Timestamp(now.Add(1))
+			c := m.Copy()
+			Convey("Then Hash should return the same value", func() {
+				c["timestamp"] = t
+				So(Hash(c), ShouldEqual, Hash(m))
+			})
+
+			Convey("Then Hash should behave samely when they're in an array", func() {
+				So(m.Set("array[7]", t), ShouldBeNil)
+				So(Hash(c), ShouldEqual, Hash(m))
+			})
+
+			Convey("Then Hash should behave samely when they're in a map", func() {
+				So(m.Set("map.timestamp", t), ShouldBeNil)
+				So(Hash(m), ShouldEqual, Hash(m))
+			})
+		})
+
+		Convey("When a map contains NaN", func() {
+			Convey("Then Hash should alwasy return different values", func() {
+				m["nan"] = Float(math.NaN())
+				So(Hash(m), ShouldNotEqual, Hash(m))
+			})
+
+			Convey("Then NaN in an array should behave samely", func() {
+				So(m.Set("array[0]", Float(math.NaN())), ShouldBeNil)
+				So(Hash(m), ShouldNotEqual, Hash(m))
+			})
+
+			Convey("Then NaN in a map should behave samely", func() {
+				So(m.Set("map.float", Float(math.NaN())), ShouldBeNil)
+				So(Hash(m), ShouldNotEqual, Hash(m))
+			})
+		})
+	})
 }
 
 func TestEquality(t *testing.T) {
