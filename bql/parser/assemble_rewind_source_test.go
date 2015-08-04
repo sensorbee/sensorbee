@@ -58,6 +58,10 @@ func TestAssembleRewindSource(t *testing.T) {
 				comp := top.(RewindSourceStmt)
 
 				So(comp.Source, ShouldEqual, "a_1")
+
+				Convey("And String() should return the original statement", func() {
+					So(comp.String(), ShouldEqual, p.Buffer)
+				})
 			})
 		})
 	})

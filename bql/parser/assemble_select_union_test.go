@@ -103,6 +103,10 @@ func TestAssembleSelectUnion(t *testing.T) {
 				So(s.Selects[0].Projections, ShouldResemble, []Expression{RowValue{"", "a"}})
 				So(s.Selects[1].EmitterType, ShouldEqual, Dstream)
 				So(s.Selects[1].Projections, ShouldResemble, []Expression{RowValue{"", "b"}})
+
+				Convey("And String() should return the original statement", func() {
+					So(s.String(), ShouldEqual, p.Buffer)
+				})
 			})
 		})
 
@@ -127,6 +131,10 @@ func TestAssembleSelectUnion(t *testing.T) {
 				So(s.Selects[1].Projections, ShouldResemble, []Expression{RowValue{"", "b"}})
 				So(s.Selects[2].EmitterType, ShouldEqual, Rstream)
 				So(s.Selects[2].Projections, ShouldResemble, []Expression{RowValue{"", "c"}})
+
+				Convey("And String() should return the original statement", func() {
+					So(s.String(), ShouldEqual, p.Buffer)
+				})
 			})
 		})
 	})
