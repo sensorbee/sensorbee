@@ -8,6 +8,12 @@ import (
 	"sync"
 )
 
+var (
+	serverStatusGetwdWarnOnce       sync.Once
+	serverStatusHostnameWarnOnce    sync.Once
+	serverStatusUserCurrentWarnOnce sync.Once
+)
+
 type serverStatus struct {
 	*APIContext
 }
@@ -28,25 +34,24 @@ func (ss *serverStatus) RuntimeStatus(rw web.ResponseWriter, req *web.Request) {
 		"pid":           os.Getpid(),
 	}
 
-	var once sync.Once
-	logOnce := func(name string) {
+	logOnce := func(name string, once sync.Once) {
 		once.Do(func() {
 			ss.APIContext.Log().Warnf("runtime status '%v' isn't supported on this environment (this log is only written once)", name)
 		})
 	}
 
 	if dir, err := os.Getwd(); err != nil {
-		logOnce("working_directory")
+		logOnce("working_directory", serverStatusGetwdWarnOnce)
 	} else {
 		res["working_directory"] = dir
 	}
 	if host, err := os.Hostname(); err != nil {
-		logOnce("hostname")
+		logOnce("hostname", serverStatusHostnameWarnOnce)
 	} else {
 		res["hostname"] = host
 	}
 	if user, err := user.Current(); err != nil {
-		logOnce("user")
+		logOnce("user", serverStatusUserCurrentWarnOnce)
 	} else {
 		res["user"] = user.Username
 	}
