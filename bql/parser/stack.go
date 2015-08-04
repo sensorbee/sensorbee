@@ -753,9 +753,10 @@ func (ps *parseStack) AssembleSourceSinkSpecs(begin int, end int) {
 func (ps *parseStack) AssembleSourceSinkParam() {
 	_value, _key := ps.pop2()
 
-	toValue := func(i interface{}) data.Value {
+	var toValue func(obj interface{}) data.Value
+	toValue = func(obj interface{}) data.Value {
 		var value data.Value
-		switch lit := i.(type) {
+		switch lit := obj.(type) {
 		default:
 			panic(fmt.Sprintf("cannot deal with a %T here", lit))
 		case StringLiteral:
@@ -766,6 +767,12 @@ func (ps *parseStack) AssembleSourceSinkParam() {
 			value = data.Int(lit.Value)
 		case FloatLiteral:
 			value = data.Float(lit.Value)
+		case ArrayAST:
+			arr := make(data.Array, len(lit.Expressions))
+			for i, item := range lit.Expressions {
+				arr[i] = toValue(item)
+			}
+			value = arr
 		}
 		return value
 	}

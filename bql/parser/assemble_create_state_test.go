@@ -66,7 +66,7 @@ func TestAssembleCreateState(t *testing.T) {
 		p := &bqlPeg{}
 
 		Convey("When doing a full CREATE STATE", func() {
-			p.Buffer = "CREATE STATE a_1 TYPE b WITH c=27, e_='f_1'"
+			p.Buffer = "CREATE STATE a_1 TYPE b WITH c=27, e_='f_1', f=[7,'g']"
 			p.Init()
 
 			Convey("Then the statement should be parsed correctly", func() {
@@ -82,11 +82,13 @@ func TestAssembleCreateState(t *testing.T) {
 
 				So(comp.Name, ShouldEqual, "a_1")
 				So(comp.Type, ShouldEqual, "b")
-				So(len(comp.Params), ShouldEqual, 2)
+				So(len(comp.Params), ShouldEqual, 3)
 				So(comp.Params[0].Key, ShouldEqual, "c")
 				So(comp.Params[0].Value, ShouldEqual, data.Int(27))
 				So(comp.Params[1].Key, ShouldEqual, "e_")
 				So(comp.Params[1].Value, ShouldEqual, data.String("f_1"))
+				So(comp.Params[2].Key, ShouldEqual, "f")
+				So(comp.Params[2].Value, ShouldResemble, data.Array{data.Int(7), data.String("g")})
 
 				Convey("And String() should return the original statement", func() {
 					So(comp.String(), ShouldEqual, p.Buffer)
