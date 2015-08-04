@@ -4,7 +4,7 @@
 
 package parser
 
-type bqlPeg Peg {
+type bqlPegBackend Peg {
     parseStack
 }
 

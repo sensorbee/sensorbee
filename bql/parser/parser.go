@@ -63,3 +63,43 @@ func (p *bqlParser) ParseStmts(s string) ([]interface{}, error) {
 	}
 	return results, nil
 }
+
+type bqlPeg struct {
+	bqlPegBackend
+}
+
+func (b *bqlPeg) Parse(rule ...int) error {
+	// override the Parse method from the bqlPegBackend in order
+	// to place our own error before returning
+	if err := b.bqlPegBackend.Parse(rule...); err != nil {
+		if pErr, ok := err.(*parseError); ok {
+			return &bqlParseError{pErr}
+		}
+		return err
+	}
+	return nil
+}
+
+type bqlParseError struct {
+	*parseError
+}
+
+func (e *bqlParseError) Error() string {
+	tokens, error := e.p.tokenTree.Error(), "\n"
+	positions, p := make([]int, 2*len(tokens)), 0
+	for _, token := range tokens {
+		positions[p], p = int(token.begin), p+1
+		positions[p], p = int(token.end), p+1
+	}
+	translations := translatePositions(e.p.Buffer, positions)
+	for _, token := range tokens {
+		begin, end := int(token.begin), int(token.end)
+		error += fmt.Sprintf("parse error near \x1B[34m%v\x1B[m (line %v symbol %v - line %v symbol %v):\n%v\n",
+			rul3s[token.pegRule],
+			translations[begin].line, translations[begin].symbol,
+			translations[end].line, translations[end].symbol,
+			/*strconv.Quote(*/ e.p.Buffer[begin:end] /*)*/)
+	}
+
+	return error
+}
