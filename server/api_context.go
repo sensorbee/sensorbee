@@ -12,6 +12,7 @@ func SetUpAPIRouter(prefix string, router *web.Router, route func(prefix string,
 	root := router.Subrouter(APIContext{}, "/api/v1")
 
 	SetUpTopologiesRouter(prefix, root)
+	SetUpServerStatusRouter(prefix, root)
 
 	if route != nil {
 		route(prefix, root)
