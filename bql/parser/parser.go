@@ -2,6 +2,7 @@ package parser
 
 import (
 	"fmt"
+	"github.com/mattn/go-runewidth"
 	"strings"
 	"unicode"
 )
@@ -85,20 +86,69 @@ type bqlParseError struct {
 }
 
 func (e *bqlParseError) Error() string {
-	tokens, error := e.p.tokenTree.Error(), "\n"
+	error := "failed to parse string as BQL statement\n"
+	stmt := []rune(e.p.Buffer)
+	tokens := e.p.tokenTree.Error()
+	// collect the current stack of tokens and translate their
+	// string indexes into line/symbol pairs
 	positions, p := make([]int, 2*len(tokens)), 0
 	for _, token := range tokens {
 		positions[p], p = int(token.begin), p+1
 		positions[p], p = int(token.end), p+1
 	}
 	translations := translatePositions(e.p.Buffer, positions)
+	// now find the offensive line
+	foundError := false
 	for _, token := range tokens {
 		begin, end := int(token.begin), int(token.end)
-		error += fmt.Sprintf("parse error near \x1B[34m%v\x1B[m (line %v symbol %v - line %v symbol %v):\n%v\n",
-			rul3s[token.pegRule],
-			translations[begin].line, translations[begin].symbol,
-			translations[end].line, translations[end].symbol,
-			/*strconv.Quote(*/ e.p.Buffer[begin:end] /*)*/)
+		if end == 0 {
+			// these are '' matches we cannot exploit for a useful error message
+			continue
+		} else if foundError {
+			// if we found an error, the next tokens may give some additional
+			// information about what kind of statement we have here. the first
+			// rule that starts at 0 is (often?) the description we want.
+			ruleName := rul3s[token.pegRule]
+			if begin == 0 && end > 0 {
+				error += fmt.Sprintf("\nconsider to look up the documentation for %s",
+					ruleName)
+				break
+			}
+		} else if end > 0 {
+			error += fmt.Sprintf("statement has a syntax error near line %v, symbol %v:\n",
+				translations[end].line, translations[end].symbol)
+			// we want some output like:
+			//
+			//   ... FROM x [RANGE 7 UPLES] WHERE ...
+			//                       ^
+			//
+			snipStartIdx := end - 20
+			snipStart := "..."
+			if snipStartIdx < 0 {
+				snipStartIdx = 0
+				snipStart = ""
+			}
+			snipEndIdx := end + 30
+			snipEnd := "..."
+			if snipEndIdx > len(stmt) {
+				snipEndIdx = len(stmt)
+				snipEnd = ""
+			}
+			// first line: an excerpt from the statement
+			error += "  " + snipStart
+			snipBeforeErr := strings.Replace(string(stmt[snipStartIdx:end]), "\n", " ", -1)
+			snipAfterInclErr := strings.Replace(string(stmt[end:snipEndIdx]), "\n", " ", -1)
+			error += snipBeforeErr + snipAfterInclErr
+			error += snipEnd + "\n"
+			// second line: a ^ marker at the correct position
+			error += strings.Repeat(" ", len(snipStart)+2)
+			error += strings.Repeat(" ", runewidth.StringWidth(snipBeforeErr))
+			error += "^"
+			foundError = true
+		}
+	}
+	if !foundError {
+		error += "statement has an unlocatable syntax error"
 	}
 
 	return error
