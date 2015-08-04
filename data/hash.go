@@ -5,7 +5,6 @@ import (
 	"hash/fnv"
 	"io"
 	"math"
-	"sort"
 	"sync/atomic"
 )
 
@@ -112,6 +111,7 @@ func Equal(v1 Value, v2 Value) bool {
 }
 
 func appendInt32(b []byte, t TypeID, i int32) []byte {
+	i *= 16777619 // multiply fnv.prime32 due to the same reason as appendInt64
 	return append(b, byte(t),
 		byte(i&0xff),
 		byte((i>>8)&0xff),
@@ -121,6 +121,9 @@ func appendInt32(b []byte, t TypeID, i int32) []byte {
 }
 
 func appendInt64(b []byte, t TypeID, i int64) []byte {
+	// Because FNV-64a doesn't seem to work well with small numbers,
+	// fnv.prime64 is manually multiplied beforehand.
+	i *= 1099511628211
 	return append(b, byte(t),
 		byte(i&0xff),
 		byte((i>>8)&0xff),
@@ -146,10 +149,11 @@ func updateHash(v Value, h io.Writer, buffer []byte) []byte {
 	case TypeBool:
 		b, _ := v.asBool()
 		if b {
-			buffer = append(buffer, byte(TypeBool), 1)
+			buffer = append(buffer, byte(TypeBool), 0xaa)
 		} else {
-			buffer = append(buffer, byte(TypeBool), 0)
+			buffer = append(buffer, byte(TypeBool), 0x55)
 		}
+		// 0xaa and 0x55 is to make better distribution of hash values.
 		h.Write(buffer)
 
 	case TypeInt:
@@ -202,19 +206,30 @@ func updateHash(v Value, h io.Writer, buffer []byte) []byte {
 
 	case TypeMap:
 		m, _ := v.asMap()
-		buffer = appendInt32(buffer, TypeMap, int32(len(m)))
-		h.Write(buffer)
 
-		// TODO: reduce this allocation
-		keys := make(sort.StringSlice, 0, len(m))
-		for key := range m {
-			keys = append(keys, key)
+		var upper uint32
+		var lower uint64
+
+		subHash := fnv.New64a() // TODO: reduce this allocation
+		for k, v := range m {
+			subHash.Reset()
+
+			// Because values usually vary more than keys, hash values of values
+			// should be computed first to make better distribution of hash
+			// values.
+			buffer = updateHash(v, subHash, buffer[:0])
+			buffer = updateHash(String(k), subHash, buffer[:0])
+			sh := subHash.Sum64()
+			if sh+lower < sh|lower { // carried
+				upper++
+			}
+			lower += sh
 		}
-		keys.Sort()
-		for _, key := range keys {
-			buffer = updateHash(String(key), h, buffer[:0])
-			buffer = updateHash(m[key], h, buffer[:0])
-		}
+
+		buffer = appendInt32(buffer[:0], TypeMap, int32(len(m)))
+		buffer = appendInt32(buffer, TypeMap, int32(upper))
+		buffer = appendInt64(buffer, TypeMap, int64(lower))
+		h.Write(buffer)
 	}
 	return buffer
 }
