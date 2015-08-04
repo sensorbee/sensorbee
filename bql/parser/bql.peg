@@ -251,7 +251,14 @@ SourceSinkParam <- SourceSinkParamKey '=' SourceSinkParamVal {
         p.AssembleSourceSinkParam()
     }
 
-SourceSinkParamVal <- BooleanLiteral / Literal
+SourceSinkParamVal <- ParamLiteral / ParamArrayExpr
+
+ParamLiteral <- BooleanLiteral / Literal
+
+ParamArrayExpr <- < '[' sp (ParamLiteral (',' sp ParamLiteral)*)? sp ','? sp ']' > {
+        p.AssembleExpressions(begin, end)
+        p.AssembleArray()
+    }
 
 PausedOpt <- < (Paused / Unpaused)? > {
         p.EnsureKeywordPresent(begin, end)
