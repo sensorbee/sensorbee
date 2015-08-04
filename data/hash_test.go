@@ -118,7 +118,7 @@ func TestHash(t *testing.T) {
 			So(m.Set("map.int", Float(10.0)), ShouldBeNil)
 
 			Convey("Then Hash should return the same value", func() {
-				So(Hash(m), ShouldEqual, Hash(m))
+				So(Hash(c), ShouldEqual, Hash(m))
 			})
 		})
 
@@ -217,5 +217,28 @@ func BenchmarkHash(b *testing.B) {
 		for _, tc := range testCases {
 			h += Hash(tc.input)
 		}
+	}
+}
+
+func BenchmarkHashLargeMap(b *testing.B) {
+	nested := Map{}
+	prefixes := []string{"hoge", "moge", "fuga", "pfn", "sensorbee"}
+	for i := 0; i < 2500; i++ {
+		p := fmt.Sprintf("%v%v", prefixes[i%len(prefixes)], i+1)
+
+		nested[p+"int"] = Int(((-2 * (i % 2)) + 1) * i)
+		nested[p+"float"] = Float(math.Exp(math.Pow(float64(i), 0.3)))
+		nested[p+"string"] = String("hogehogehogehogehogehogehgoehoge")
+		nested[p+"timestamp"] = Timestamp(time.Now().AddDate(0, 0, i))
+	}
+	m := Map{}
+	for i := 0; i < 10; i++ {
+		m[fmt.Sprint(i+1)] = nested.Copy()
+	}
+	b.ResetTimer()
+
+	var h HashValue
+	for n := 0; n < b.N; n++ {
+		h += Hash(m)
 	}
 }
