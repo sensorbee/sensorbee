@@ -32,7 +32,7 @@ func TestServerStatus(t *testing.T) {
 
 				dir, err := os.Getwd()
 				So(err, ShouldBeNil)
-				So(js["current_directory"], ShouldEqual, dir)
+				So(js["working_directory"], ShouldEqual, dir)
 
 				host, err := os.Hostname()
 				So(err, ShouldBeNil)

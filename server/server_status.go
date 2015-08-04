@@ -27,7 +27,7 @@ func (ss *serverStatus) RuntimeStatus(rw web.ResponseWriter, req *web.Request) {
 		"pid":           os.Getpid(),
 	}
 	if dir, err := os.Getwd(); err == nil {
-		res["current_directory"] = dir
+		res["working_directory"] = dir
 	}
 	if host, err := os.Hostname(); err == nil {
 		res["hostname"] = host
