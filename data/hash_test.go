@@ -105,14 +105,10 @@ func BenchmarkEqual(b *testing.B) {
 }
 
 func BenchmarkHash(b *testing.B) {
-	cnt := 0
+	var h HashValue
 	for n := 0; n < b.N; n++ {
-		for _, tc1 := range testCases {
-			for _, tc2 := range testCases {
-				if Hash(tc1.input) == Hash(tc2.input) {
-					cnt++
-				}
-			}
+		for _, tc := range testCases {
+			h += Hash(tc.input)
 		}
 	}
 }
