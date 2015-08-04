@@ -131,13 +131,13 @@ func TestHash(t *testing.T) {
 			})
 
 			Convey("Then Hash should behave samely when they're in an array", func() {
-				So(m.Set("array[7]", t), ShouldBeNil)
+				So(c.Set("array[7]", t), ShouldBeNil)
 				So(Hash(c), ShouldEqual, Hash(m))
 			})
 
 			Convey("Then Hash should behave samely when they're in a map", func() {
-				So(m.Set("map.timestamp", t), ShouldBeNil)
-				So(Hash(m), ShouldEqual, Hash(m))
+				So(c.Set("map.timestamp", t), ShouldBeNil)
+				So(Hash(c), ShouldEqual, Hash(m))
 			})
 		})
 
