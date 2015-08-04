@@ -753,19 +753,31 @@ func (ps *parseStack) AssembleSourceSinkSpecs(begin int, end int) {
 func (ps *parseStack) AssembleSourceSinkParam() {
 	_value, _key := ps.pop2()
 
-	var value data.Value
-	switch lit := _value.comp.(type) {
-	default:
-		panic(fmt.Sprintf("cannot deal with a %T here", lit))
-	case StringLiteral:
-		value = data.String(lit.Value)
-	case BoolLiteral:
-		value = data.Bool(lit.Value)
-	case NumericLiteral:
-		value = data.Int(lit.Value)
-	case FloatLiteral:
-		value = data.Float(lit.Value)
+	var toValue func(obj interface{}) data.Value
+	toValue = func(obj interface{}) data.Value {
+		var value data.Value
+		switch lit := obj.(type) {
+		default:
+			panic(fmt.Sprintf("cannot deal with a %T here", lit))
+		case StringLiteral:
+			value = data.String(lit.Value)
+		case BoolLiteral:
+			value = data.Bool(lit.Value)
+		case NumericLiteral:
+			value = data.Int(lit.Value)
+		case FloatLiteral:
+			value = data.Float(lit.Value)
+		case ArrayAST:
+			arr := make(data.Array, len(lit.Expressions))
+			for i, item := range lit.Expressions {
+				arr[i] = toValue(item)
+			}
+			value = arr
+		}
+		return value
 	}
+
+	value := toValue(_value.comp)
 	key := _key.comp.(SourceSinkParamKey)
 
 	ss := SourceSinkParamAST{key, value}

@@ -416,11 +416,29 @@ type SourceSinkParamAST struct {
 }
 
 func (a SourceSinkParamAST) string() string {
-	s, _ := data.ToString(a.Value)
-	if a.Value.Type() == data.TypeString {
-		s = "'" + strings.Replace(s, "'", "''", -1) + "'"
+	// helper function to convert to string and escape
+	// actual data.String objects correctly
+	mkString := func(v data.Value) string {
+		s, _ := data.ToString(v)
+		if v.Type() == data.TypeString {
+			return "'" + strings.Replace(s, "'", "''", -1) + "'"
+		}
+		return s
 	}
-	return string(a.Key) + "=" + s
+	var valRepr string
+	if a.Value.Type() == data.TypeArray {
+		// convert arrays to string elementwise and
+		// add brackets
+		arr, _ := data.AsArray(a.Value)
+		reps := make([]string, len(arr))
+		for i, v := range arr {
+			reps[i] = mkString(v)
+		}
+		valRepr = "[" + strings.Join(reps, ",") + "]"
+	} else {
+		valRepr = mkString(a.Value)
+	}
+	return string(a.Key) + "=" + valRepr
 }
 
 type BinaryOpAST struct {
