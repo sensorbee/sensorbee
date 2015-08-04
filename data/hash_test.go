@@ -20,7 +20,7 @@ var testCases = []struct {
 	{Bool(true)},
 	// Float
 	{Float(2.34)},
-	{Float(math.NaN())},
+	{Float(math.NaN())}, // NaN == NaN is false
 	{Float(math.Inf(-1))},
 	{Float(2.000000000000000000000000000000000000000000000000000000000001)},
 	{Float(2.0)},
@@ -67,9 +67,7 @@ func TestEquality(t *testing.T) {
 						// array
 						((i == 21 && j == 22) || (j == 21 && i == 22)) ||
 						// map
-						((i == 26 && j == 27) || (j == 26 && i == 27)) ||
-						// NaN
-						(i == 6 && j == 6) {
+						((i == 26 && j == 27) || (j == 26 && i == 27)) {
 						So(de, ShouldBeFalse)
 						So(he, ShouldBeTrue)
 					} else {
