@@ -831,7 +831,7 @@ func (t *tokens32) Expand(index int) tokenTree {
 	return nil
 }
 
-type bqlPeg struct {
+type bqlPegBackend struct {
 	parseStack
 
 	Buffer string
@@ -853,7 +853,7 @@ func translatePositions(buffer string, positions []int) textPositionMap {
 	sort.Ints(positions)
 
 search:
-	for i, c := range buffer[0:] {
+	for i, c := range []rune(buffer) {
 		if c == '\n' {
 			line, symbol = line+1, 0
 		} else {
@@ -874,7 +874,7 @@ search:
 }
 
 type parseError struct {
-	p *bqlPeg
+	p *bqlPegBackend
 }
 
 func (e *parseError) Error() string {
@@ -897,15 +897,15 @@ func (e *parseError) Error() string {
 	return error
 }
 
-func (p *bqlPeg) PrintSyntaxTree() {
+func (p *bqlPegBackend) PrintSyntaxTree() {
 	p.tokenTree.PrintSyntaxTree(p.Buffer)
 }
 
-func (p *bqlPeg) Highlighter() {
+func (p *bqlPegBackend) Highlighter() {
 	p.tokenTree.PrintSyntax()
 }
 
-func (p *bqlPeg) Execute() {
+func (p *bqlPegBackend) Execute() {
 	buffer, _buffer, text, begin, end := p.Buffer, p.buffer, "", 0, 0
 	for token := range p.tokenTree.Tokens() {
 		switch token.pegRule {
@@ -1366,7 +1366,7 @@ func (p *bqlPeg) Execute() {
 	_, _, _, _ = buffer, text, begin, end
 }
 
-func (p *bqlPeg) Init() {
+func (p *bqlPegBackend) Init() {
 	p.buffer = []rune(p.Buffer)
 	if len(p.buffer) == 0 || p.buffer[len(p.buffer)-1] != end_symbol {
 		p.buffer = append(p.buffer, end_symbol)
