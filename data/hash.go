@@ -8,8 +8,15 @@ import (
 	"sync/atomic"
 )
 
+// HashValue is a type which hold hash values of Values.
 type HashValue uint64
 
+// Hash computes a hash value of a Value. A hash value of a Float having an
+// integer value is computed as a Int's hash value so that Hash(Float(2.0))
+// equals Hash(Int(2)). The hash value of Null is always the same. Hash values
+// of NaNs always varies. For example, Hash(Float(math.NaN())) isn't equal to
+// Hash(Float(math.NaN())). Therefore, if an array or a map has a NaN, the hash
+// value changes everytime calling Hash function.
 func Hash(v Value) HashValue {
 	h := fnv.New64a()
 	buffer := make([]byte, 0, 16)
@@ -17,6 +24,12 @@ func Hash(v Value) HashValue {
 	return HashValue(h.Sum64())
 }
 
+// Equal tests equality of two Values. When comparing a Float and an Int, Int is
+// implicitly converted to float so that they can be true when the Float has an
+// integer value. For example, Equal(Float(2.0), Int(2)) is true.
+//
+// If either one is NaN, Equal always returns false. Equal(Null, Null) is true
+// although this is inconsistent with the three-valued logic.
 func Equal(v1 Value, v2 Value) bool {
 	lType := v1.Type()
 	rType := v2.Type()
@@ -206,6 +219,20 @@ func updateHash(v Value, h io.Writer, buffer []byte) []byte {
 
 	case TypeMap:
 		m, _ := v.asMap()
+
+		// In terms of reducing hash value collisions, computing the hash value
+		// over sorted key-value pairs is the best. However, some Maps such as
+		// feature vectors of machine learning sometimes have over 10,000
+		// elements. Because Hash is called on each tuple, this method could be
+		// a serious bottle-neck.
+		//
+		// The following implementation computes consistent hash values very
+		// quickly by sacrificing the possibility of collisions. Instead of
+		// sorting keys, it sums up all hash values computed from each key
+		// value pair. Therefore, when numbers of elements in two Maps are
+		// the same, possibility of collisions will increase. However, the hash
+		// value is 64bit and SensorBee usually process less than 1B tuples
+		// at once, the possibility is considered sufficiently low.
 
 		var upper uint32
 		var lower uint64
