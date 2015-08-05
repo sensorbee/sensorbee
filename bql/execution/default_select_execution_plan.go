@@ -84,27 +84,9 @@ func (ep *defaultSelectExecutionPlan) performQueryOnBuffer() error {
 
 	dataHolder := data.Map{}
 
-	// function to evaluate filter on the input data and -- if the filter does
-	// not exist or evaluates to true -- compute the projections and store
+	// function to compute the projection values and store
 	// the result in the `output` slice
 	evalItem := func(d data.Map) error {
-		// evaluate filter condition and convert to bool
-		if ep.filter != nil {
-			filterResult, err := ep.filter.Eval(d)
-			if err != nil {
-				return err
-			}
-			filterResultBool, err := data.ToBool(filterResult)
-			if err != nil {
-				return err
-			}
-			// if it evaluated to false, do not further process this tuple
-			// (ToBool also evalutes the NULL value to false, so we don't
-			// need to treat this specially)
-			if !filterResultBool {
-				return nil
-			}
-		}
 		// otherwise, compute all the expressions
 		result := data.Map(make(map[string]data.Value, len(ep.projections)))
 		for _, proj := range ep.projections {
@@ -128,9 +110,18 @@ func (ep *defaultSelectExecutionPlan) performQueryOnBuffer() error {
 	for key := range ep.buffers {
 		allStreams = append(allStreams, key)
 	}
-	if err := ep.processCartesianProduct(dataHolder, allStreams, evalItem); err != nil {
+	// write only the items matching the filter to ep.joinedInputData
+	if err := ep.preprocessCartesianProduct(dataHolder, allStreams); err != nil {
 		rollback()
 		return err
+	}
+	// compute the output for each item in ep.joinedInputData
+	for e := ep.joinedInputData.Front(); e != nil; e = e.Next() {
+		item := e.Value.(*data.Map)
+		if err := evalItem(*item); err != nil {
+			rollback()
+			return err
+		}
 	}
 
 	ep.curResults = output

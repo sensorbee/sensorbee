@@ -1,6 +1,7 @@
 package execution
 
 import (
+	"container/list"
 	"fmt"
 	"pfi/sensorbee/sensorbee/bql/parser"
 	"pfi/sensorbee/sensorbee/bql/udf"
@@ -61,6 +62,9 @@ type streamRelationStreamExecutionPlan struct {
 	// now holds the a time at the beginning of the execution of
 	// a statement
 	now time.Time
+	// joinedInputData holds data that serves as the input for
+	// the relation-to-relation operation
+	joinedInputData *list.List
 }
 
 func newStreamRelationStreamExecutionPlan(lp *LogicalPlan, reg udf.FunctionRegistry) (*streamRelationStreamExecutionPlan, error) {
@@ -295,6 +299,7 @@ func (ep *streamRelationStreamExecutionPlan) process(input *core.Tuple, performQ
 	// relation-to-relation:
 	// performs a SELECT query on buffer and writes result
 	// to temporary table
+	ep.joinedInputData = list.New()
 	if err := performQueryOnBuffer(); err != nil {
 		return nil, err
 	}
@@ -306,9 +311,10 @@ func (ep *streamRelationStreamExecutionPlan) process(input *core.Tuple, performQ
 	return nil, nil
 }
 
-// processCartesianProduct computes the cartesian product and executes the
-// given function on each resulting item
-func (ep *streamRelationStreamExecutionPlan) processCartesianProduct(dataHolder data.Map, remainingKeys []string, processItem func(data.Map) error) error {
+// preprocessCartesianProduct computes the cartesian product,
+// applies this plan's filter/join condition to each item and
+// appends it to `ep.joinedInputData`
+func (ep *streamRelationStreamExecutionPlan) preprocessCartesianProduct(dataHolder data.Map, remainingKeys []string) error {
 	if len(remainingKeys) > 0 {
 		// not all buffers have been visited yet
 		myKey := remainingKeys[0]
@@ -318,7 +324,7 @@ func (ep *streamRelationStreamExecutionPlan) processCartesianProduct(dataHolder 
 			// add the data of this tuple to dataHolder and recurse
 			dataHolder[myKey] = t.Data[myKey]
 			setMetadata(dataHolder, myKey, t)
-			if err := ep.processCartesianProduct(dataHolder, rest, processItem); err != nil {
+			if err := ep.preprocessCartesianProduct(dataHolder, rest); err != nil {
 				return err
 			}
 		}
@@ -327,9 +333,30 @@ func (ep *streamRelationStreamExecutionPlan) processCartesianProduct(dataHolder 
 		// all tuples have been visited and we should now have the data
 		// of one cartesian product item in dataHolder
 		dataHolder[":meta:NOW"] = data.Timestamp(ep.now)
-		if err := processItem(dataHolder); err != nil {
-			return err
+
+		// evaluate filter condition and convert to bool
+		if ep.filter != nil {
+			filterResult, err := ep.filter.Eval(dataHolder)
+			if err != nil {
+				return err
+			}
+			filterResultBool, err := data.ToBool(filterResult)
+			if err != nil {
+				return err
+			}
+			// if it evaluated to false, do not further process this tuple
+			// (ToBool also evalutes the NULL value to false, so we don't
+			// need to treat this specially)
+			if !filterResultBool {
+				return nil
+			}
 		}
+
+		// if we arrive here, this item of the cartesian product fulfills
+		// the filter/join condition, so we add it to the list of input
+		// items
+		item := dataHolder.Copy()
+		ep.joinedInputData.PushBack(&item)
 	}
 	return nil
 }

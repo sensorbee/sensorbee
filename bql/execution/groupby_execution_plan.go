@@ -151,29 +151,10 @@ func (ep *groupbyExecutionPlan) performQueryOnBuffer() error {
 
 	dataHolder := data.Map{}
 
-	// function to evaluate filter on the input data and do the computations
-	// that are required on each input tuple. (those computations differ
-	// depending on whether we are in grouping mode or not.)
+	// function to compute the grouping expressions and store the
+	// input for aggregate functions in the correct group.
 	evalItem := func(d data.Map) error {
-		// evaluate filter condition and convert to bool
-		if ep.filter != nil {
-			filterResult, err := ep.filter.Eval(d)
-			if err != nil {
-				return err
-			}
-			filterResultBool, err := data.ToBool(filterResult)
-			if err != nil {
-				return err
-			}
-			// if it evaluated to false, do not further process this tuple
-			// (ToBool also evalutes the NULL value to false, so we don't
-			// need to treat this specially)
-			if !filterResultBool {
-				return nil
-			}
-		}
-
-		// now compute the expressions in the GROUP BY to find the correct
+		// compute the expressions in the GROUP BY to find the correct
 		// group to append to
 		// TODO there is actually no need to allocate this array again
 		//      and again, or even have an array since we can update the
@@ -295,9 +276,18 @@ func (ep *groupbyExecutionPlan) performQueryOnBuffer() error {
 	for key := range ep.buffers {
 		allStreams = append(allStreams, key)
 	}
-	if err := ep.processCartesianProduct(dataHolder, allStreams, evalItem); err != nil {
+	// write only the items matching the filter to ep.joinedInputData
+	if err := ep.preprocessCartesianProduct(dataHolder, allStreams); err != nil {
 		rollback()
 		return err
+	}
+	// compute the output for each item in ep.joinedInputData
+	for e := ep.joinedInputData.Front(); e != nil; e = e.Next() {
+		item := e.Value.(*data.Map)
+		if err := evalItem(*item); err != nil {
+			rollback()
+			return err
+		}
 	}
 
 	// if we arrive here, then the input for the aggregation functions
