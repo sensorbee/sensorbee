@@ -4,15 +4,16 @@ import (
 	"bytes"
 	"hash/fnv"
 	"io"
-	"sort"
-	"strconv"
+	"math"
+	"sync/atomic"
 )
 
 type HashValue uint64
 
 func Hash(v Value) HashValue {
 	h := fnv.New64a()
-	updateHash(v, h)
+	buffer := make([]byte, 0, 16)
+	updateHash(v, h, buffer)
 	return HashValue(h.Sum64())
 }
 
@@ -23,101 +24,212 @@ func Equal(v1 Value, v2 Value) bool {
 	if lType == rType || // same type
 		(lType == TypeFloat && rType == TypeInt) || // float vs. int
 		(lType == TypeInt && rType == TypeFloat) { // int vs. float
-		// compare based on the string representation
-		// (this is exact, not probabilistic)
-		var left, right bytes.Buffer
-		updateHash(v1, &left)
-		updateHash(v2, &right)
-		return left.String() == right.String()
+	} else {
+		// if we arrive here, types are so different that the values
+		// cannot possibly be equal
+		return false
 	}
-	// if we arrive here, types are so different that the values
-	// cannot possibly be equal
-	return false
+
+	switch lType {
+	case TypeNull:
+		// As long as Null is compared within a map or a array, Null = Null
+		// should be true.
+		return true
+
+	case TypeBool:
+		lhs, _ := v1.asBool()
+		rhs, _ := v2.asBool()
+		return lhs == rhs
+
+	case TypeInt:
+		lhs, _ := v1.asInt()
+		if rType == TypeFloat {
+			rhs, _ := v2.asFloat()
+			return float64(lhs) == rhs
+		}
+		rhs, _ := v2.asInt()
+		return lhs == rhs
+
+	case TypeFloat:
+		lhs, _ := v1.asFloat()
+		if rType == TypeInt {
+			rhs, _ := v2.asInt()
+			return lhs == float64(rhs)
+		}
+		rhs, _ := v2.asFloat()
+		return lhs == rhs // NaN == NaN is false
+
+	case TypeString:
+		lhs, _ := v1.asString()
+		rhs, _ := v2.asString()
+		return lhs == rhs
+
+	case TypeBlob:
+		lhs, _ := v1.asBlob()
+		rhs, _ := v2.asBlob()
+		return bytes.Equal(lhs, rhs)
+
+	case TypeTimestamp:
+		lhs, _ := v1.asTimestamp()
+		rhs, _ := v2.asTimestamp()
+		return lhs.Equal(rhs)
+
+	case TypeArray:
+		lhs, _ := v1.asArray()
+		rhs, _ := v2.asArray()
+		if len(lhs) != len(rhs) {
+			return false
+		}
+		for i, l := range lhs {
+			if !Equal(l, rhs[i]) {
+				return false
+			}
+		}
+		return true
+
+	case TypeMap:
+		lhs, _ := v1.asMap()
+		rhs, _ := v2.asMap()
+		if len(lhs) != len(rhs) {
+			return false
+		}
+		for k, l := range lhs {
+			r, ok := rhs[k]
+			if !ok {
+				return false
+			}
+			if !Equal(l, r) {
+				return false
+			}
+		}
+		return true
+
+	default:
+		// no such case, though
+		return false
+	}
 }
 
-func updateHash(v Value, h io.Writer) {
-	buffer := make([]byte, 1, 5)
+func appendInt32(b []byte, t TypeID, i int32) []byte {
+	i *= 16777619 // multiply fnv.prime32 due to the same reason as appendInt64
+	return append(b, byte(t),
+		byte(i&0xff),
+		byte((i>>8)&0xff),
+		byte((i>>16)&0xff),
+		byte((i>>24)&0xff),
+	)
+}
+
+func appendInt64(b []byte, t TypeID, i int64) []byte {
+	// Because FNV-64a doesn't seem to work well with small numbers,
+	// fnv.prime64 is manually multiplied beforehand.
+	i *= 1099511628211
+	return append(b, byte(t),
+		byte(i&0xff),
+		byte((i>>8)&0xff),
+		byte((i>>16)&0xff),
+		byte((i>>24)&0xff),
+		byte((i>>32)&0xff),
+		byte((i>>40)&0xff),
+		byte((i>>48)&0xff),
+		byte((i>>56)&0xff),
+	)
+}
+
+var (
+	nullHashCounter int64
+)
+
+func updateHash(v Value, h io.Writer, buffer []byte) []byte {
 	switch v.Type() {
-	case TypeBlob:
-		buffer[0] = 'B'
-		// to decode: read digits until colon, then that many bytes
-		b, _ := v.asBlob()
-		buffer = strconv.AppendInt(buffer, int64(len(b)), 10)
-		buffer = append(buffer, ':')
+	case TypeNull:
+		buffer = appendInt64(buffer, TypeNull, 0)
 		h.Write(buffer)
-		h.Write(b)
+
 	case TypeBool:
-		buffer[0] = 'b'
-		// to decode: read one digit
 		b, _ := v.asBool()
 		if b {
-			buffer = append(buffer, '1')
+			buffer = append(buffer, byte(TypeBool), 0xaa)
 		} else {
-			buffer = append(buffer, '0')
+			buffer = append(buffer, byte(TypeBool), 0x55)
+		}
+		// 0xaa and 0x55 is to make better distribution of hash values.
+		h.Write(buffer)
+
+	case TypeInt:
+		i, _ := v.asInt()
+		buffer = appendInt64(buffer, TypeInt, i)
+		h.Write(buffer)
+
+	case TypeFloat:
+		f, _ := v.asFloat()
+		if float64(int64(f)) == f {
+			return updateHash(Int(f), h, buffer)
+		}
+
+		if math.IsNaN(f) {
+			// NaN is processed as Null with a unique counter which results in
+			// generating different hash values for each NaN.
+			cnt := atomic.AddInt64(&nullHashCounter, 1)
+			buffer = appendInt64(buffer, TypeNull, cnt)
+		} else {
+			buffer = appendInt64(buffer, TypeFloat, int64(math.Float64bits(f)))
 		}
 		h.Write(buffer)
-	case TypeFloat:
-		buffer[0] = 'n'
-		// to decode: read until semi-colon. if any character other
-		// than [-0-9] is contained, it is a float.
-		f, _ := v.asFloat()
-		buffer = strconv.AppendFloat(buffer, f, 'g', -1, 64)
-		buffer = append(buffer, ';')
-		h.Write(buffer)
-	case TypeInt:
-		buffer[0] = 'n'
-		// to decode: read until semi-colon
-		i, _ := v.asInt()
-		buffer = strconv.AppendInt(buffer, i, 10)
-		buffer = append(buffer, ';')
-		h.Write(buffer)
-	case TypeNull:
-		buffer[0] = 'N'
-		h.Write(buffer)
+
 	case TypeString:
-		buffer[0] = 's'
-		// to decode: read digits until colon, then that many bytes
 		s, _ := v.asString()
-		buffer = strconv.AppendInt(buffer, int64(len(s)), 10)
-		buffer = append(buffer, ':')
+		buffer = appendInt32(buffer, TypeString, int32(len(s)))
 		h.Write(buffer)
-		h.Write([]byte(s))
+		io.WriteString(h, s)
+
+	case TypeBlob:
+		b, _ := v.asBlob()
+		buffer = appendInt32(buffer, TypeBlob, int32(len(b)))
+		h.Write(buffer)
+		h.Write(b)
+
 	case TypeTimestamp:
-		buffer[0] = 't'
-		// to decode: read digits until colon, then that many bytes
-		s := v.String()
-		l := len(s)
-		buffer = strconv.AppendInt(buffer, int64(l-2), 10)
-		buffer = append(buffer, ':')
+		t, _ := v.asTimestamp()
+		buffer = appendInt64(buffer, TypeTimestamp, t.Unix())
+		// TODO: This TypeInt isn't necessary.
+		buffer = appendInt32(buffer, TypeInt, int32(t.Nanosecond()/1000)) // Use microseconds
 		h.Write(buffer)
-		h.Write([]byte(s[1 : l-1]))
+
 	case TypeArray:
-		buffer[0] = 'a'
-		// to decode: read digits until colon, then recurse that
-		// many times
 		a, _ := v.asArray()
-		buffer = strconv.AppendInt(buffer, int64(len(a)), 10)
-		buffer = append(buffer, ':')
+		buffer = appendInt32(buffer, TypeArray, int32(len(a)))
 		h.Write(buffer)
 		for _, item := range a {
-			updateHash(item, h)
+			buffer = updateHash(item, h, buffer[:0])
 		}
+
 	case TypeMap:
-		buffer[0] = 'm'
-		// to decode: read digits until colon, then recurse twice
-		// that many times to read key (string) and value
 		m, _ := v.asMap()
-		buffer = strconv.AppendInt(buffer, int64(len(m)), 10)
-		buffer = append(buffer, ':')
+
+		var upper uint32
+		var lower uint64
+
+		subHash := fnv.New64a() // TODO: reduce this allocation
+		for k, v := range m {
+			subHash.Reset()
+
+			// Because values usually vary more than keys, hash values of values
+			// should be computed first to make better distribution of hash
+			// values.
+			buffer = updateHash(v, subHash, buffer[:0])
+			buffer = updateHash(String(k), subHash, buffer[:0])
+			sh := subHash.Sum64()
+			if sh+lower < sh|lower { // carried
+				upper++
+			}
+			lower += sh
+		}
+
+		buffer = appendInt32(buffer[:0], TypeMap, int32(len(m)))
+		buffer = appendInt32(buffer, TypeMap, int32(upper))
+		buffer = appendInt64(buffer, TypeMap, int64(lower))
 		h.Write(buffer)
-		keys := make(sort.StringSlice, 0, len(m))
-		for key := range m {
-			keys = append(keys, key)
-		}
-		keys.Sort()
-		for _, key := range keys {
-			updateHash(String(key), h)
-			updateHash(m[key], h)
-		}
 	}
+	return buffer
 }
