@@ -11,9 +11,14 @@ import (
 )
 
 type inputBuffer struct {
-	tuples     []*core.Tuple
+	tuples     []tupleWithDerivedInputRows
 	windowSize int64
 	windowType parser.IntervalUnit
+}
+
+type tupleWithDerivedInputRows struct {
+	tuple *core.Tuple
+	rows  []*data.Map
 }
 
 func (i *inputBuffer) isTimeBased() bool {
@@ -62,9 +67,9 @@ type streamRelationStreamExecutionPlan struct {
 	// now holds the a time at the beginning of the execution of
 	// a statement
 	now time.Time
-	// joinedInputData holds data that serves as the input for
+	// filteredInputRows holds data that serves as the input for
 	// the relation-to-relation operation
-	joinedInputData *list.List
+	filteredInputRows *list.List
 }
 
 func newStreamRelationStreamExecutionPlan(lp *LogicalPlan, reg udf.FunctionRegistry) (*streamRelationStreamExecutionPlan, error) {
@@ -89,13 +94,13 @@ func newStreamRelationStreamExecutionPlan(lp *LogicalPlan, reg udf.FunctionRegis
 	// initialize buffers (one per declared input relation)
 	buffers := make(map[string]*inputBuffer, len(lp.Relations))
 	for _, rel := range lp.Relations {
-		var tuples []*core.Tuple
+		var tuples []tupleWithDerivedInputRows
 		rangeValue := rel.Value
 		rangeUnit := rel.Unit
 		if rangeUnit == parser.Tuples {
 			// we already know the required capacity of this buffer
 			// if we work with absolute numbers
-			tuples = make([]*core.Tuple, 0, rangeValue+1)
+			tuples = make([]tupleWithDerivedInputRows, 0, rangeValue+1)
 		}
 		// the alias of the relation is the key of the buffer
 		buffers[rel.Alias] = &inputBuffer{
@@ -116,6 +121,7 @@ func newStreamRelationStreamExecutionPlan(lp *LogicalPlan, reg udf.FunctionRegis
 		prevResults:          []data.Map{},
 		prevHashesForIstream: map[data.HashValue]bool{},
 		prevHashesForDstream: []data.HashValue{},
+		filteredInputRows:    list.New(),
 	}, nil
 }
 
@@ -168,9 +174,13 @@ func (ep *streamRelationStreamExecutionPlan) addTupleToBuffer(t *core.Tuple) err
 			}
 			// nest the data in a one-element map using the alias as the key
 			editTuple.Data = data.Map{rel.Alias: editTuple.Data}
+			// wrap this in a container struct
+			editTupleCont := tupleWithDerivedInputRows{
+				tuple: editTuple,
+			}
 			// TODO maybe a slice is not the best implementation for a queue?
 			bufferPtr := ep.buffers[rel.Alias]
-			bufferPtr.tuples = append(bufferPtr.tuples, editTuple)
+			bufferPtr.tuples = append(bufferPtr.tuples, editTupleCont)
 		}
 	}
 
@@ -181,10 +191,18 @@ func (ep *streamRelationStreamExecutionPlan) addTupleToBuffer(t *core.Tuple) err
 // lie outside the current window as per the statement's window
 // specification.
 func (ep *streamRelationStreamExecutionPlan) removeOutdatedTuplesFromBuffer(curTupTime time.Time) error {
+	expiredInputRows := map[*data.Map]bool{}
 	for _, buffer := range ep.buffers {
 		curBufSize := int64(len(buffer.tuples))
 		if buffer.windowType == parser.Tuples { // tuple-based window
 			if curBufSize > buffer.windowSize {
+				// mark input rows that are derived from outdated
+				// tuples for deletion
+				for _, tupCont := range buffer.tuples[:curBufSize-buffer.windowSize] {
+					for _, inputRow := range tupCont.rows {
+						expiredInputRows[inputRow] = true
+					}
+				}
 				// we just need to take the last `windowSize` items:
 				// {a, b, c, d} => {b, c, d}
 				buffer.tuples = buffer.tuples[curBufSize-buffer.windowSize : curBufSize]
@@ -197,16 +215,31 @@ func (ep *streamRelationStreamExecutionPlan) removeOutdatedTuplesFromBuffer(curT
 			}
 			// copy all "sufficiently new" tuples to new buffer
 			// TODO avoid the reallocation here
-			newBuf := make([]*core.Tuple, 0, curBufSize)
-			for _, tup := range buffer.tuples {
-				dur := curTupTime.Sub(tup.Timestamp)
+			newBuf := make([]tupleWithDerivedInputRows, 0, curBufSize)
+			for _, tupCont := range buffer.tuples {
+				dur := curTupTime.Sub(tupCont.tuple.Timestamp)
 				if dur.Seconds() <= windowSizeSeconds {
-					newBuf = append(newBuf, tup)
+					newBuf = append(newBuf, tupCont)
+				} else {
+					// mark input rows that are derived from outdated
+					// tuples for deletion
+					for _, inputRow := range tupCont.rows {
+						expiredInputRows[inputRow] = true
+					}
 				}
 			}
 			buffer.tuples = newBuf
 		} else {
 			return fmt.Errorf("unknown window type: %+v", *buffer)
+		}
+	}
+	// now delete all rows marked for deletion
+	var next *list.Element
+	for e := ep.filteredInputRows.Front(); e != nil; e = next {
+		next = e.Next()
+		mapPtr := e.Value.(*data.Map)
+		if toDelete := expiredInputRows[mapPtr]; toDelete {
+			ep.filteredInputRows.Remove(e)
 		}
 	}
 
@@ -299,7 +332,7 @@ func (ep *streamRelationStreamExecutionPlan) process(input *core.Tuple, performQ
 	// relation-to-relation:
 	// performs a SELECT query on buffer and writes result
 	// to temporary table
-	ep.joinedInputData = list.New()
+	ep.filteredInputRows = list.New() // this is necessary for volatile filters
 	if err := performQueryOnBuffer(); err != nil {
 		return nil, err
 	}
@@ -313,18 +346,24 @@ func (ep *streamRelationStreamExecutionPlan) process(input *core.Tuple, performQ
 
 // preprocessCartesianProduct computes the cartesian product,
 // applies this plan's filter/join condition to each item and
-// appends it to `ep.joinedInputData`
+// appends it to `ep.filteredInputRows`
 func (ep *streamRelationStreamExecutionPlan) preprocessCartesianProduct(dataHolder data.Map, remainingKeys []string) error {
+	return ep.preprocCartProdInt(dataHolder, remainingKeys,
+		map[string]*tupleWithDerivedInputRows{})
+}
+
+func (ep *streamRelationStreamExecutionPlan) preprocCartProdInt(dataHolder data.Map, remainingKeys []string, origin map[string]*tupleWithDerivedInputRows) error {
 	if len(remainingKeys) > 0 {
 		// not all buffers have been visited yet
 		myKey := remainingKeys[0]
 		myBuffer := ep.buffers[myKey].tuples
 		rest := remainingKeys[1:]
-		for _, t := range myBuffer {
+		for i, t := range myBuffer {
 			// add the data of this tuple to dataHolder and recurse
-			dataHolder[myKey] = t.Data[myKey]
-			setMetadata(dataHolder, myKey, t)
-			if err := ep.preprocessCartesianProduct(dataHolder, rest); err != nil {
+			dataHolder[myKey] = t.tuple.Data[myKey]
+			origin[myKey] = &myBuffer[i]
+			setMetadata(dataHolder, myKey, t.tuple)
+			if err := ep.preprocCartProdInt(dataHolder, rest, origin); err != nil {
 				return err
 			}
 		}
@@ -353,10 +392,18 @@ func (ep *streamRelationStreamExecutionPlan) preprocessCartesianProduct(dataHold
 		}
 
 		// if we arrive here, this item of the cartesian product fulfills
-		// the filter/join condition, so we add it to the list of input
-		// items
-		item := dataHolder.Copy()
-		ep.joinedInputData.PushBack(&item)
+		// the filter/join condition, so we make a shallow copy (that should
+		// be fine) and add it to the list of input items
+		item := make(data.Map, len(dataHolder))
+		for key, val := range dataHolder {
+			item[key] = val
+		}
+		// also write the address of this item to all tuples
+		// it originates from
+		for _, tupHolder := range origin {
+			tupHolder.rows = append(tupHolder.rows, &item)
+		}
+		ep.filteredInputRows.PushBack(&item)
 	}
 	return nil
 }
