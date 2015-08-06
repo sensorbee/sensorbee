@@ -694,6 +694,63 @@ func TestDefaultSelectExecutionPlanEmitters(t *testing.T) {
 		})
 	})
 
+	Convey("Given a WHERE clause with a column that does not exist in one tuple (ISTREAM)", t, func() {
+		tuples := getTuples(6)
+		// remove the selected key from one tuple
+		delete(tuples[1].Data, "int")
+
+		s := `CREATE STREAM box AS SELECT ISTREAM int FROM src [RANGE 2 TUPLES] WHERE int > 0`
+		plan, err := createDefaultSelectPlan(s, t)
+		So(err, ShouldBeNil)
+
+		Convey("When feeding it with tuples", func() {
+			for idx, inTup := range tuples {
+				out, err := plan.Process(inTup)
+
+				if idx == 0 {
+					// In the idx==0 run, the window contains only item 0.
+					// That item is fine, no problem.
+					Convey(fmt.Sprintf("Then those values should appear in %v", idx), func() {
+						So(err, ShouldBeNil)
+						So(len(out), ShouldEqual, 1)
+						So(out[0], ShouldResemble,
+							data.Map{"int": data.Int(idx + 1)})
+					})
+				} else if idx == 1 || idx == 2 {
+					// In the idx==1 run, the window contains item 0 and item 1,
+					// the latter is broken, therefore the query fails.
+					// In the idx==2 run, the window contains item 1 and item 2,
+					// the latter is broken, therefore the query fails.
+					Convey(fmt.Sprintf("Then there should be an error for a queries in %v", idx), func() {
+						So(err, ShouldNotBeNil)
+					})
+				} else if idx == 3 {
+					// In the idx==3 run, the window contains item 2 and item 3.
+					// Both items are fine and have not been emitted before, so
+					// both are emitted now.
+					Convey(fmt.Sprintf("Then those values should appear in %v", idx), func() {
+						So(err, ShouldBeNil)
+						So(len(out), ShouldEqual, 2)
+						So(out[0], ShouldResemble,
+							data.Map{"int": data.Int(idx)})
+						So(out[1], ShouldResemble,
+							data.Map{"int": data.Int(idx + 1)})
+					})
+				} else {
+					// In later runs, we have recovered from the error in item 1
+					// and emit one item per run as normal.
+					Convey(fmt.Sprintf("Then those values should appear in %v", idx), func() {
+						So(err, ShouldBeNil)
+						So(len(out), ShouldEqual, 1)
+						So(out[0], ShouldResemble,
+							data.Map{"int": data.Int(idx + 1)})
+					})
+				}
+			}
+
+		})
+	})
+
 	Convey("Given a SELECT clause with a column that does not exist in one tuple (DSTREAM)", t, func() {
 		tuples := getTuples(6)
 		// remove the selected key from one tuple

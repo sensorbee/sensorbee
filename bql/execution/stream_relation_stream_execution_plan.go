@@ -73,6 +73,10 @@ type streamRelationStreamExecutionPlan struct {
 	// immutableFilter stores whether the filter/join condition is
 	// immutable, i.e., needs to be computed only once per input tuple
 	immutableFilter bool
+	// recomputeAll stores whether we unconditionally need to re-evaluate
+	// the filter values for all elements of the cartesian product,
+	// for example after a failure in the previous run
+	recomputeAll bool
 	// lastTupleBuffers stores the names of the input buffers that
 	// the last tuple was appended to. this is valid after
 	// `addTupleToBuffer` has returned.
@@ -350,6 +354,7 @@ func (ep *streamRelationStreamExecutionPlan) process(input *core.Tuple, performQ
 	// performs a SELECT query on buffer and writes result
 	// to temporary table
 	if err := ep.filterInputTuples(); err != nil {
+		ep.recomputeAll = true
 		return nil, err
 	}
 	if err := performQueryOnBuffer(); err != nil {
@@ -376,7 +381,7 @@ func (ep *streamRelationStreamExecutionPlan) filterInputTuples() error {
 	// a consistent order in which evalItem is run on the items of the
 	// cartesian product.
 	allStreams := make(map[string][]tupleWithDerivedInputRows, len(ep.buffers))
-	if ep.immutableFilter {
+	if ep.immutableFilter && !ep.recomputeAll {
 		// add the now() timestamp to rows from previous runs (they
 		// still have the old timestamp there)
 		for e := ep.filteredInputRows.Front(); e != nil; e = e.Next() {
@@ -450,6 +455,10 @@ func (ep *streamRelationStreamExecutionPlan) filterInputTuples() error {
 		if err := ep.preprocessCartesianProduct(dataHolder, allStreams); err != nil {
 			return err
 		}
+
+		// if we arrive here, the filter process was successful,
+		// so we can reset the recomputeAll flag
+		ep.recomputeAll = false
 	}
 	return nil
 }
