@@ -43,8 +43,8 @@ func (ep *defaultSelectExecutionPlan) Process(input *core.Tuple) ([]data.Map, er
 	return ep.process(input, ep.performQueryOnBuffer)
 }
 
-// performQueryOnBuffer executes a SELECT query on the data of the tuples
-// currently stored in the buffer. The query results (which is a set of
+// performQueryOnBuffer computes the projections of a SELECT query on the data
+// stored in `ep.filteredInputRows`. The query results (which is a set of
 // data.Value, not core.Tuple) is stored in ep.curResults. The data
 // that was stored in ep.curResults before this method was called is
 // moved to ep.prevResults. Note that the order of values in ep.curResults
@@ -54,9 +54,6 @@ func (ep *defaultSelectExecutionPlan) Process(input *core.Tuple) ([]data.Map, er
 // the same as before the call (so that the next run performs as
 // if no error had happened), but the contents of ep.curResults are
 // undefined.
-//
-// Currently performQueryOnBuffer can only perform SELECT ... WHERE ...
-// queries without aggregate functions, GROUP BY, or HAVING clauses.
 func (ep *defaultSelectExecutionPlan) performQueryOnBuffer() error {
 	// reuse the allocated memory
 	output := ep.prevResults[0:0]
@@ -77,13 +74,6 @@ func (ep *defaultSelectExecutionPlan) performQueryOnBuffer() error {
 		ep.prevResults = output
 	}
 
-	// we need to make a cross product of the data in all buffers,
-	// combine it to get an input like
-	//  {"streamA": {data}, "streamB": {data}, "streamC": {data}}
-	// and then run filter/projections on each of this items
-
-	dataHolder := data.Map{}
-
 	// function to compute the projection values and store
 	// the result in the `output` slice
 	evalItem := func(d data.Map) error {
@@ -102,19 +92,6 @@ func (ep *defaultSelectExecutionPlan) performQueryOnBuffer() error {
 		return nil
 	}
 
-	// Note: `ep.buffers` is a map, so iterating over its keys may yield
-	// different results in every run of the program. We cannot expect
-	// a consistent order in which evalItem is run on the items of the
-	// cartesian product.
-	allStreams := make(map[string][]tupleWithDerivedInputRows, len(ep.buffers))
-	for key, buffer := range ep.buffers {
-		allStreams[key] = buffer.tuples
-	}
-	// write only the items matching the filter to ep.filteredInputRows
-	if err := ep.preprocessCartesianProduct(dataHolder, allStreams); err != nil {
-		rollback()
-		return err
-	}
 	// compute the output for each item in ep.filteredInputRows
 	for e := ep.filteredInputRows.Front(); e != nil; e = e.Next() {
 		item := e.Value.(*data.Map)
