@@ -1687,6 +1687,44 @@ func TestDefaultSelectExecutionPlanJoin(t *testing.T) {
 			}
 		})
 	})
+
+	Convey("Given a self-self-join with a join condition", t, func() {
+		tuples := getTuples(8)
+		// rearrange the tuples
+		for i, t := range tuples {
+			t.InputName = "src"
+			t.Data["x"] = data.String(fmt.Sprintf("x%d", i))
+		}
+		s := `CREATE STREAM box AS SELECT ISTREAM src1:x AS l, src2:x AS r, src3:x AS x ` +
+			`FROM src [RANGE 2 TUPLES] AS src1, src [RANGE 2 TUPLES] AS src2, src [RANGE 3 TUPLES] AS src3 ` +
+			`WHERE src1:int + 1 = src2:int AND src2:int = src3:int + 1`
+		plan, err := createDefaultSelectPlan(s, t)
+		So(err, ShouldBeNil)
+
+		Convey("When feeding it with tuples", func() {
+			for idx, inTup := range tuples {
+				out, err := plan.Process(inTup)
+				So(err, ShouldBeNil)
+				// sort the output by the "l" and then the "r" key before
+				// checking if it resembles the expected value
+				sort.Sort(tupleList(out))
+
+				Convey(fmt.Sprintf("Then joined values should appear in %v", idx), func() {
+					if idx == 0 {
+						// join condition fails
+						So(len(out), ShouldEqual, 0)
+					} else {
+						So(len(out), ShouldEqual, 1)
+						So(out[0], ShouldResemble, data.Map{
+							"l": data.String(fmt.Sprintf("x%d", idx-1)), // int: x
+							"r": data.String(fmt.Sprintf("x%d", idx)),   // int: x+1
+							"x": data.String(fmt.Sprintf("x%d", idx-1)), // int: x
+						})
+					}
+				})
+			}
+		})
+	})
 }
 
 func createDefaultSelectPlan2(s string) (ExecutionPlan, error) {
