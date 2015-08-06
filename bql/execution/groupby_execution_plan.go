@@ -58,8 +58,8 @@ func (ep *groupbyExecutionPlan) Process(input *core.Tuple) ([]data.Map, error) {
 	return ep.process(input, ep.performQueryOnBuffer)
 }
 
-// performQueryOnBuffer executes a SELECT query on the data of the tuples
-// currently stored in the buffer. The query results (which is a set of
+// performQueryOnBuffer computes the projections of a SELECT query on the data
+// stored in `ep.filteredInputRows`. The query results (which is a set of
 // data.Value, not core.Tuple) is stored in ep.curResults. The data
 // that was stored in ep.curResults before this method was called is
 // moved to ep.prevResults. Note that the order of values in ep.curResults
@@ -69,9 +69,6 @@ func (ep *groupbyExecutionPlan) Process(input *core.Tuple) ([]data.Map, error) {
 // the same as before the call (so that the next run performs as
 // if no error had happened), but the contents of ep.curResults are
 // undefined.
-//
-// Currently performQueryOnBuffer can only perform SELECT ... WHERE ...
-// queries without aggregate functions, GROUP BY, or HAVING clauses.
 func (ep *groupbyExecutionPlan) performQueryOnBuffer() error {
 	// reuse the allocated memory
 	output := ep.prevResults[0:0]
@@ -144,36 +141,10 @@ func (ep *groupbyExecutionPlan) performQueryOnBuffer() error {
 		return group, nil
 	}
 
-	// we need to make a cross product of the data in all buffers,
-	// combine it to get an input like
-	//  {"streamA": {data}, "streamB": {data}, "streamC": {data}}
-	// and then run filter/projections on each of this items
-
-	dataHolder := data.Map{}
-
-	// function to evaluate filter on the input data and do the computations
-	// that are required on each input tuple. (those computations differ
-	// depending on whether we are in grouping mode or not.)
+	// function to compute the grouping expressions and store the
+	// input for aggregate functions in the correct group.
 	evalItem := func(d data.Map) error {
-		// evaluate filter condition and convert to bool
-		if ep.filter != nil {
-			filterResult, err := ep.filter.Eval(d)
-			if err != nil {
-				return err
-			}
-			filterResultBool, err := data.ToBool(filterResult)
-			if err != nil {
-				return err
-			}
-			// if it evaluated to false, do not further process this tuple
-			// (ToBool also evalutes the NULL value to false, so we don't
-			// need to treat this specially)
-			if !filterResultBool {
-				return nil
-			}
-		}
-
-		// now compute the expressions in the GROUP BY to find the correct
+		// compute the expressions in the GROUP BY to find the correct
 		// group to append to
 		// TODO there is actually no need to allocate this array again
 		//      and again, or even have an array since we can update the
@@ -287,17 +258,13 @@ func (ep *groupbyExecutionPlan) performQueryOnBuffer() error {
 		return nil
 	}
 
-	// Note: `ep.buffers` is a map, so iterating over its keys may yield
-	// different results in every run of the program. We cannot expect
-	// a consistent order in which evalItem is run on the items of the
-	// cartesian product.
-	allStreams := make([]string, 0, len(ep.buffers))
-	for key := range ep.buffers {
-		allStreams = append(allStreams, key)
-	}
-	if err := ep.processCartesianProduct(dataHolder, allStreams, evalItem); err != nil {
-		rollback()
-		return err
+	// compute the output for each item in ep.filteredInputRows
+	for e := ep.filteredInputRows.Front(); e != nil; e = e.Next() {
+		item := e.Value.(*data.Map)
+		if err := evalItem(*item); err != nil {
+			rollback()
+			return err
+		}
 	}
 
 	// if we arrive here, then the input for the aggregation functions
