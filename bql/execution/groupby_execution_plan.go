@@ -272,9 +272,9 @@ func (ep *groupbyExecutionPlan) performQueryOnBuffer() error {
 	// different results in every run of the program. We cannot expect
 	// a consistent order in which evalItem is run on the items of the
 	// cartesian product.
-	allStreams := make([]string, 0, len(ep.buffers))
-	for key := range ep.buffers {
-		allStreams = append(allStreams, key)
+	allStreams := make(map[string][]tupleWithDerivedInputRows, len(ep.buffers))
+	for key, buffer := range ep.buffers {
+		allStreams[key] = buffer.tuples
 	}
 	// write only the items matching the filter to ep.filteredInputRows
 	if err := ep.preprocessCartesianProduct(dataHolder, allStreams); err != nil {

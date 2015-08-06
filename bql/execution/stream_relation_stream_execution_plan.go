@@ -347,17 +347,28 @@ func (ep *streamRelationStreamExecutionPlan) process(input *core.Tuple, performQ
 // preprocessCartesianProduct computes the cartesian product,
 // applies this plan's filter/join condition to each item and
 // appends it to `ep.filteredInputRows`
-func (ep *streamRelationStreamExecutionPlan) preprocessCartesianProduct(dataHolder data.Map, remainingKeys []string) error {
-	return ep.preprocCartProdInt(dataHolder, remainingKeys,
+func (ep *streamRelationStreamExecutionPlan) preprocessCartesianProduct(dataHolder data.Map, remainingBuffers map[string][]tupleWithDerivedInputRows) error {
+	return ep.preprocCartProdInt(dataHolder, remainingBuffers,
 		map[string]*tupleWithDerivedInputRows{})
 }
 
-func (ep *streamRelationStreamExecutionPlan) preprocCartProdInt(dataHolder data.Map, remainingKeys []string, origin map[string]*tupleWithDerivedInputRows) error {
-	if len(remainingKeys) > 0 {
+func (ep *streamRelationStreamExecutionPlan) preprocCartProdInt(dataHolder data.Map, remainingBuffers map[string][]tupleWithDerivedInputRows, origin map[string]*tupleWithDerivedInputRows) error {
+	if len(remainingBuffers) > 0 {
 		// not all buffers have been visited yet
-		myKey := remainingKeys[0]
-		myBuffer := ep.buffers[myKey].tuples
-		rest := remainingKeys[1:]
+		var myKey string
+		for key := range remainingBuffers {
+			myKey = key
+			break
+		}
+		myBuffer := remainingBuffers[myKey]
+		// compile a dictionary with the rest of the unvisited streams
+		// (do NOT modify remainingBuffers directly!)
+		rest := map[string][]tupleWithDerivedInputRows{}
+		for key, buffer := range remainingBuffers {
+			if key != myKey {
+				rest[key] = buffer
+			}
+		}
 		for i, t := range myBuffer {
 			// add the data of this tuple to dataHolder and recurse
 			dataHolder[myKey] = t.tuple.Data[myKey]
