@@ -276,13 +276,13 @@ func (ep *groupbyExecutionPlan) performQueryOnBuffer() error {
 	for key := range ep.buffers {
 		allStreams = append(allStreams, key)
 	}
-	// write only the items matching the filter to ep.joinedInputData
+	// write only the items matching the filter to ep.filteredInputRows
 	if err := ep.preprocessCartesianProduct(dataHolder, allStreams); err != nil {
 		rollback()
 		return err
 	}
-	// compute the output for each item in ep.joinedInputData
-	for e := ep.joinedInputData.Front(); e != nil; e = e.Next() {
+	// compute the output for each item in ep.filteredInputRows
+	for e := ep.filteredInputRows.Front(); e != nil; e = e.Next() {
 		item := e.Value.(*data.Map)
 		if err := evalItem(*item); err != nil {
 			rollback()
