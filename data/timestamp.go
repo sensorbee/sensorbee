@@ -52,6 +52,21 @@ func (t Timestamp) MarshalJSON() ([]byte, error) {
 	return []byte(t.String()), nil
 }
 
+func (t *Timestamp) UnmarshalJSON(data []byte) error {
+	str := string(data)
+	ts, err := time.Parse(`"`+time.RFC3339Nano+`"`, str)
+	if err == nil {
+		*t = Timestamp(ts)
+		return nil
+	}
+	ts, err = time.Parse(`"`+time.RFC3339+`"`, str)
+	if err == nil {
+		*t = Timestamp(ts)
+		return nil
+	}
+	return err
+}
+
 func (t Timestamp) String() string {
 	s, _ := ToString(t)
 	return `"` + s + `"`
