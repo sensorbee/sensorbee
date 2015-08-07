@@ -18,12 +18,18 @@ type inputBuffer struct {
 
 type tupleWithDerivedInputRows struct {
 	tuple *core.Tuple
-	rows  []*data.Map
+	rows  []*inputRowWithCachedResult
 }
 
 func (i *inputBuffer) isTimeBased() bool {
 	return i.windowType == parser.Seconds ||
 		i.windowType == parser.Milliseconds
+}
+
+type inputRowWithCachedResult struct {
+	input     *data.Map
+	output    *data.Map
+	groupData []data.Value
 }
 
 // streamRelationStreamExecutionPlan provides methods for
@@ -200,7 +206,7 @@ func (ep *streamRelationStreamExecutionPlan) addTupleToBuffer(t *core.Tuple) err
 // lie outside the current window as per the statement's window
 // specification.
 func (ep *streamRelationStreamExecutionPlan) removeOutdatedTuplesFromBuffer(curTupTime time.Time) error {
-	expiredInputRows := map[*data.Map]bool{}
+	expiredInputRows := map[*inputRowWithCachedResult]bool{}
 	for _, buffer := range ep.buffers {
 		curBufSize := int64(len(buffer.tuples))
 		if buffer.windowType == parser.Tuples { // tuple-based window
@@ -246,8 +252,8 @@ func (ep *streamRelationStreamExecutionPlan) removeOutdatedTuplesFromBuffer(curT
 	var next *list.Element
 	for e := ep.filteredInputRows.Front(); e != nil; e = next {
 		next = e.Next()
-		mapPtr := e.Value.(*data.Map)
-		if toDelete := expiredInputRows[mapPtr]; toDelete {
+		itemPtr := e.Value.(*inputRowWithCachedResult)
+		if toDelete := expiredInputRows[itemPtr]; toDelete {
 			ep.filteredInputRows.Remove(e)
 		}
 	}
@@ -502,12 +508,15 @@ func (ep *streamRelationStreamExecutionPlan) preprocCartProdInt(dataHolder data.
 		for key, val := range dataHolder {
 			item[key] = val
 		}
+		itemWithCachedResult := &inputRowWithCachedResult{
+			input: &item,
+		}
 		// also write the address of this item to all tuples
 		// it originates from
 		for _, tupHolder := range origin {
-			tupHolder.rows = append(tupHolder.rows, &item)
+			tupHolder.rows = append(tupHolder.rows, itemWithCachedResult)
 		}
-		ep.filteredInputRowsBuffer.PushBack(&item)
+		ep.filteredInputRowsBuffer.PushBack(itemWithCachedResult)
 	}
 	return nil
 }

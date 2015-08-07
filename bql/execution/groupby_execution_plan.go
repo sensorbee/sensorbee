@@ -143,20 +143,24 @@ func (ep *groupbyExecutionPlan) performQueryOnBuffer() error {
 
 	// function to compute the grouping expressions and store the
 	// input for aggregate functions in the correct group.
-	evalItem := func(d data.Map) error {
-		// compute the expressions in the GROUP BY to find the correct
-		// group to append to
-		// TODO there is actually no need to allocate this array again
-		//      and again, or even have an array since we can update the
-		//      group's hash value incrementally
-		itemGroupValues := make([]data.Value, len(ep.groupList))
-		for i, eval := range ep.groupList {
-			// ordinary "flat" expression
-			value, err := eval.Eval(d)
-			if err != nil {
-				return err
+	evalItem := func(io *inputRowWithCachedResult) error {
+		d := *io.input
+
+		// if we have a cached result, use this
+		itemGroupValues := io.groupData
+		if itemGroupValues == nil {
+			// compute the expressions in the GROUP BY to find the correct
+			// group to append to
+			itemGroupValues = make([]data.Value, len(ep.groupList))
+			for i, eval := range ep.groupList {
+				// ordinary "flat" expression
+				value, err := eval.Eval(d)
+				if err != nil {
+					return err
+				}
+				itemGroupValues[i] = value
 			}
-			itemGroupValues[i] = value
+			io.groupData = itemGroupValues
 		}
 
 		itemGroup, err := findOrCreateGroup(itemGroupValues, d)
@@ -260,8 +264,8 @@ func (ep *groupbyExecutionPlan) performQueryOnBuffer() error {
 
 	// compute the output for each item in ep.filteredInputRows
 	for e := ep.filteredInputRows.Front(); e != nil; e = e.Next() {
-		item := e.Value.(*data.Map)
-		if err := evalItem(*item); err != nil {
+		item := e.Value.(*inputRowWithCachedResult)
+		if err := evalItem(item); err != nil {
 			rollback()
 			return err
 		}
