@@ -264,7 +264,7 @@ func (tc *topologies) Queries(rw web.ResponseWriter, req *web.Request) {
 		queries = f
 	}
 
-	bp := parser.NewBQLParser()
+	bp := parser.New()
 	type stmtWithStr struct {
 		stmt    interface{}
 		stmtStr string // TODO: this should be stmt.String()

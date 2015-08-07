@@ -44,7 +44,7 @@ consider to look up the documentation for InsertIntoSelectStmt`,
 	}
 
 	Convey("Given a BQL parser", t, func() {
-		p := NewBQLParser()
+		p := New()
 
 		for stmt, expected := range testCases {
 			// avoid closure over loop variables
