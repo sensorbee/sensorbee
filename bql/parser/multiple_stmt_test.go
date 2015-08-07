@@ -87,7 +87,7 @@ func TestMultipleStmtParser(t *testing.T) {
 	}
 
 	Convey("Given a BQL parser", t, func() {
-		p := NewBQLParser()
+		p := New()
 
 		for input, expected := range testCases {
 			// avoid closure over loop variables
@@ -188,7 +188,7 @@ func TestComment(t *testing.T) {
 	}
 
 	Convey("Given a BQL parser", t, func() {
-		p := NewBQLParser()
+		p := New()
 
 		for input, expected := range testCases {
 			// avoid closure over loop variables
@@ -237,7 +237,7 @@ func TestSingleStmtParser(t *testing.T) {
 	}
 
 	Convey("Given a BQL parser", t, func() {
-		p := NewBQLParser()
+		p := New()
 
 		for input, expected := range testCases {
 			// avoid closure over loop variables

@@ -709,7 +709,7 @@ func TestSelectStmt(t *testing.T) {
 		So(addBQLToTopology(tb, `CREATE PAUSED SOURCE s TYPE dummy WITH num=4, resumable=false;`), ShouldBeNil)
 
 		Convey("When issuing a SELECT stmt", func() {
-			bp := parser.NewBQLParser()
+			bp := parser.New()
 			istmt, _, err := bp.ParseStmt(`SELECT ISTREAM * FROM s [RANGE 1 TUPLES];`)
 			So(err, ShouldBeNil)
 			stmt := istmt.(parser.SelectStmt)
@@ -736,7 +736,7 @@ func TestSelectStmt(t *testing.T) {
 		})
 
 		Convey("When issuing a SELECT stmt referencing an unknown source", func() {
-			bp := parser.NewBQLParser()
+			bp := parser.New()
 			numNodes := len(tb.topology.Nodes())
 			istmt, _, err := bp.ParseStmt(`SELECT ISTREAM * FROM hoge [RANGE 1 TUPLES];`)
 			So(err, ShouldBeNil)
@@ -759,7 +759,7 @@ func TestSelectUnionStmt(t *testing.T) {
 		So(addBQLToTopology(tb, `CREATE PAUSED SOURCE s TYPE dummy WITH num=4, resumable=false;`), ShouldBeNil)
 
 		Convey("When issuing a SELECT stmt", func() {
-			bp := parser.NewBQLParser()
+			bp := parser.New()
 			istmt, _, err := bp.ParseStmt(`SELECT ISTREAM * FROM s [RANGE 1 TUPLES] WHERE int%2=0
 				UNION ALL SELECT ISTREAM * FROM s [RANGE 1 TUPLES] WHERE int%2=1`)
 			So(err, ShouldBeNil)
@@ -787,7 +787,7 @@ func TestSelectUnionStmt(t *testing.T) {
 		})
 
 		Convey("When issuing a SELECT stmt referencing an unknown source (1)", func() {
-			bp := parser.NewBQLParser()
+			bp := parser.New()
 			numNodes := len(tb.topology.Nodes())
 			istmt, _, err := bp.ParseStmt(`SELECT ISTREAM * FROM hoge [RANGE 1 TUPLES] WHERE int%2=0
 				UNION ALL SELECT ISTREAM * FROM s [RANGE 1 TUPLES] WHERE int%2=1`)
@@ -799,7 +799,7 @@ func TestSelectUnionStmt(t *testing.T) {
 		})
 
 		Convey("When issuing a SELECT stmt referencing an unknown source (2)", func() {
-			bp := parser.NewBQLParser()
+			bp := parser.New()
 			numNodes := len(tb.topology.Nodes())
 			istmt, _, err := bp.ParseStmt(`SELECT ISTREAM * FROM s [RANGE 1 TUPLES] WHERE int%2=0
 				UNION ALL SELECT ISTREAM * FROM hoge [RANGE 1 TUPLES] WHERE int%2=1`)
@@ -932,7 +932,7 @@ func TestSelectInsertIntoSelectStmtEnabledRemoveOnStop(t *testing.T) {
 		So(addBQLToTopology(tb, `CREATE SINK foo TYPE collector`), ShouldBeNil)
 
 		Convey("When issuing a INSERT INTO stmt", func() {
-			bp := parser.NewBQLParser()
+			bp := parser.New()
 			istmt, _, err := bp.ParseStmt(`INSERT INTO foo SELECT ISTREAM * FROM s [RANGE 1 TUPLES];`)
 			So(err, ShouldBeNil)
 			bn, err := tb.AddStmt(istmt)

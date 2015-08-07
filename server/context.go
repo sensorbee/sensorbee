@@ -341,7 +341,7 @@ func setUpTopology(logger *logrus.Logger, name string, conf *config.Config) (*bq
 	}
 
 	// TODO: improve error handling
-	bp := parser.NewBQLParser()
+	bp := parser.New()
 	stmts, err := bp.ParseStmts(string(queries))
 	if err != nil {
 		return nil, err
