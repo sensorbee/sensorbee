@@ -11,7 +11,7 @@ type bqlParser struct {
 	b bqlPeg
 }
 
-func NewBQLParser() *bqlParser {
+func New() *bqlParser {
 	return &bqlParser{}
 }
 

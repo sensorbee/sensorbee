@@ -13,7 +13,7 @@ func newTestTopology() core.Topology {
 }
 
 func addBQLToTopology(tb *TopologyBuilder, bql string) error {
-	p := parser.NewBQLParser()
+	p := parser.New()
 	// execute all parsed statements
 	stmts, err := p.ParseStmts(bql)
 	if err != nil {

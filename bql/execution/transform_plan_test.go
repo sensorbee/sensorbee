@@ -781,7 +781,7 @@ func TestAggregateChecker(t *testing.T) {
 		testCase := testCase
 
 		Convey(fmt.Sprintf("Given the statement", testCase.bql), t, func() {
-			p := parser.NewBQLParser()
+			p := parser.New()
 			stmt := "CREATE STREAM x AS SELECT ISTREAM " + testCase.bql
 			ast_, _, err := p.ParseStmt(stmt)
 			So(err, ShouldBeNil)
@@ -981,7 +981,7 @@ func TestVolatileAggregateChecker(t *testing.T) {
 		testCase := testCase
 
 		Convey(fmt.Sprintf("Given the statement", testCase.bql), t, func() {
-			p := parser.NewBQLParser()
+			p := parser.New()
 			stmt := "CREATE STREAM x AS SELECT ISTREAM " + testCase.bql
 			ast_, _, err := p.ParseStmt(stmt)
 			So(err, ShouldBeNil)
