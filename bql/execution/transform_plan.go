@@ -397,9 +397,7 @@ func (lp *LogicalPlan) MakePhysicalPlan(reg udf.FunctionRegistry) (ExecutionPlan
 	   > and generates one or more physical plans, using physical operators
 	   > that match the Spark execution engine.
 	*/
-	if CanBuildFilterIstreamPlan(lp, reg) {
-		return NewFilterIstreamPlan(lp, reg)
-	} else if CanBuildDefaultSelectExecutionPlan(lp, reg) {
+	if CanBuildDefaultSelectExecutionPlan(lp, reg) {
 		return NewDefaultSelectExecutionPlan(lp, reg)
 	} else if CanBuildGroupbyExecutionPlan(lp, reg) {
 		return NewGroupbyExecutionPlan(lp, reg)
