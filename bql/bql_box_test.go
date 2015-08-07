@@ -352,7 +352,7 @@ func TestBQLBoxGroupByCapability(t *testing.T) {
 
 func TestBQLBoxUDSF(t *testing.T) {
 	Convey("Given a topology using UDSF", t, func() {
-		tb, err := setupTopology(`CREATE STREAM box AS SELECT ISTREAM duplicate:int FROM duplicate('source', 3) [RANGE 1 TUPLES]`, false)
+		tb, err := setupTopology(`CREATE STREAM box AS SELECT RSTREAM duplicate:int FROM duplicate('source', 3) [RANGE 1 TUPLES]`, false)
 		So(err, ShouldBeNil)
 		dt := tb.Topology()
 		Reset(func() {
