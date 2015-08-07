@@ -120,15 +120,12 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 						So(out[0]["int"], ShouldEqual, data.Int(1))
 						So(out[0]["now"], ShouldHaveSameTypeAs, data.Timestamp{})
 					} else if idx == 1 {
-						So(len(out), ShouldEqual, 2)
-						So(out[0]["int"], ShouldEqual, data.Int(1))
+						So(len(out), ShouldEqual, 1)
+						// the result of now() and clock_timestamp() does
+						// not change for the previous tuple after it was
+						// emitted, so it is not emitted via ISTREAM
+						So(out[0]["int"], ShouldEqual, data.Int(2))
 						So(out[0]["now"], ShouldHaveSameTypeAs, data.Timestamp{})
-						So(out[1]["int"], ShouldEqual, data.Int(2))
-						So(out[1]["now"], ShouldHaveSameTypeAs, data.Timestamp{})
-						// the timestamp for the new tuple MUST NOT
-						// equal the timestamp of the previous tuple!
-						So(out[1]["now"], ShouldNotResemble, out[0]["now"])
-						So(out[0]["t"], ShouldNotResemble, out[1]["t"])
 					}
 				})
 			}
@@ -1806,32 +1803,6 @@ func BenchmarkNormalJoin(b *testing.B) {
 	s := `CREATE STREAM box AS SELECT ISTREAM left:int, right:int
 	FROM src [RANGE 5 TUPLES] AS left, src [RANGE 5 TUPLES] AS right
 	WHERE left:int - right:int < 2`
-	plan, err := createDefaultSelectPlan2(s)
-	if err != nil {
-		panic(err.Error())
-	}
-	tmplTup := core.Tuple{
-		Data:          data.Map{"int": data.Int(-1)},
-		InputName:     "src",
-		Timestamp:     time.Date(2015, time.April, 10, 10, 23, 0, 0, time.UTC),
-		ProcTimestamp: time.Date(2015, time.April, 10, 10, 24, 0, 0, time.UTC),
-		BatchID:       7,
-	}
-	for n := 0; n < b.N; n++ {
-		inTup := tmplTup.Copy()
-		inTup.Data["int"] = data.Int(n)
-		_, err := plan.Process(inTup)
-		if err != nil {
-			panic(err.Error())
-		}
-	}
-}
-
-// ca. 500233 ns/op
-func BenchmarkVolatileJoin(b *testing.B) {
-	s := `CREATE STREAM box AS SELECT ISTREAM left:int, right:int
-	FROM src [RANGE 5 TUPLES] AS left, src [RANGE 5 TUPLES] AS right
-	WHERE left:int - right:int < 2 AND (TRUE OR now())`
 	plan, err := createDefaultSelectPlan2(s)
 	if err != nil {
 		panic(err.Error())
