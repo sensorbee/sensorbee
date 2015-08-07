@@ -1748,7 +1748,7 @@ func createDefaultSelectPlan2(s string) (ExecutionPlan, error) {
 	return NewDefaultSelectExecutionPlan(logicalPlan, reg)
 }
 
-// ca. 36000 ns/op
+// ca. 35000 ns/op
 func BenchmarkNormalExecution(b *testing.B) {
 	s := `CREATE STREAM box AS SELECT ISTREAM cast(3+4-6+1 as float), 3.0::int*4/2+1=7.0,
 			null, [2.0,3] = [2,3.0] FROM src [RANGE 5 TUPLES]`
@@ -1773,7 +1773,7 @@ func BenchmarkNormalExecution(b *testing.B) {
 	}
 }
 
-// ca. 105000 ns/op
+// ca. 104000 ns/op
 func BenchmarkNormalExecutionBigWindow(b *testing.B) {
 	s := `CREATE STREAM box AS SELECT ISTREAM cast(3+4-6+1 as float), 3.0::int*4/2+1=7.0,
 			null, [2.0,3] = [2,3.0] FROM src [RANGE 50 TUPLES]`
@@ -1824,7 +1824,7 @@ func BenchmarkTimeBasedExecution(b *testing.B) {
 	}
 }
 
-// ca. 113000 ns/op
+// ca. 110000 ns/op
 func BenchmarkTimeBasedExecutionBigWindow(b *testing.B) {
 	s := `CREATE STREAM box AS SELECT ISTREAM cast(3+4-6+1 as float), 3.0::int*4/2+1=7.0,
 			null, [2.0,3] = [2,3.0] FROM src [RANGE 50 SECONDS]`
@@ -1875,7 +1875,7 @@ func BenchmarkWithWhere(b *testing.B) {
 	}
 }
 
-// ca. 202000 ns/op
+// ca. 195000 ns/op
 func BenchmarkNormalJoin(b *testing.B) {
 	s := `CREATE STREAM box AS SELECT ISTREAM left:int, right:int
 	FROM src [RANGE 5 TUPLES] AS left, src [RANGE 5 TUPLES] AS right
