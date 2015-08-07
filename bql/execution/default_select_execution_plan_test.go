@@ -65,7 +65,9 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 				So(err, ShouldBeNil)
 
 				Convey(fmt.Sprintf("Then that constant should appear in %v", idx), func() {
-					if idx == 0 {
+					if idx <= 2 {
+						// items should be emitted as the number of
+						// rows increases
 						So(len(out), ShouldEqual, 1)
 						So(out[0], ShouldResemble,
 							data.Map{"col_1": data.Float(2.0), "col_2": data.Bool(true),
@@ -286,7 +288,9 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 				So(err, ShouldBeNil)
 
 				Convey(fmt.Sprintf("Then the null operations should be correct %v", idx), func() {
-					if idx == 0 {
+					if idx <= 2 {
+						// items should be emitted as the number of
+						// rows increases
 						So(len(out), ShouldEqual, 1)
 						So(out[0], ShouldResemble,
 							data.Map{"col_1": data.Bool(true), "col_2": data.Null{}})
@@ -1019,8 +1023,12 @@ func TestDefaultSelectExecutionPlanEmitters(t *testing.T) {
 				So(len(output), ShouldEqual, 4)
 				So(len(output[0]), ShouldEqual, 1)
 				So(output[0][0], ShouldResemble, data.Map{"a": data.Int(2)})
-				So(len(output[1]), ShouldEqual, 0)
-				So(len(output[2]), ShouldEqual, 0)
+				// items should be emitted as (long as) the number of
+				// rows increases
+				So(len(output[1]), ShouldEqual, 1)
+				So(output[1][0], ShouldResemble, data.Map{"a": data.Int(2)})
+				So(len(output[2]), ShouldEqual, 1)
+				So(output[1][0], ShouldResemble, data.Map{"a": data.Int(2)})
 				So(len(output[3]), ShouldEqual, 0)
 			})
 
@@ -1075,7 +1083,10 @@ func TestDefaultSelectExecutionPlanEmitters(t *testing.T) {
 				So(len(output), ShouldEqual, 4)
 				So(len(output[0]), ShouldEqual, 1)
 				So(output[0][0], ShouldResemble, data.Map{"a": data.Int(2)})
-				So(len(output[1]), ShouldEqual, 0)
+				// items should be emitted as (long as) the number of
+				// rows increases
+				So(len(output[1]), ShouldEqual, 1)
+				So(output[1][0], ShouldResemble, data.Map{"a": data.Int(2)})
 				So(len(output[2]), ShouldEqual, 0)
 				So(len(output[3]), ShouldEqual, 0)
 			})
