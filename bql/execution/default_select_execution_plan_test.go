@@ -115,20 +115,19 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 				So(err, ShouldBeNil)
 
 				Convey(fmt.Sprintf("Then those values should appear in %v", idx), func() {
-					var prevTime data.Value = nil
 					if idx == 0 {
 						So(len(out), ShouldEqual, 1)
 						So(out[0]["int"], ShouldEqual, data.Int(1))
 						So(out[0]["now"], ShouldHaveSameTypeAs, data.Timestamp{})
-						prevTime = out[0]["now"]
 					} else if idx == 1 {
 						So(len(out), ShouldEqual, 2)
 						So(out[0]["int"], ShouldEqual, data.Int(1))
 						So(out[0]["now"], ShouldHaveSameTypeAs, data.Timestamp{})
 						So(out[1]["int"], ShouldEqual, data.Int(2))
 						So(out[1]["now"], ShouldHaveSameTypeAs, data.Timestamp{})
-						So(out[1]["now"], ShouldResemble, out[0]["now"])
-						So(out[1]["now"], ShouldNotResemble, prevTime)
+						// the timestamp for the new tuple MUST NOT
+						// equal the timestamp of the previous tuple!
+						So(out[1]["now"], ShouldNotResemble, out[0]["now"])
 						So(out[0]["t"], ShouldNotResemble, out[1]["t"])
 					}
 				})
@@ -663,7 +662,7 @@ func TestDefaultSelectExecutionPlanEmitters(t *testing.T) {
 					// In the idx==1 run, the window contains item 0 and item 1,
 					// the latter is broken, therefore the query fails.
 					// In the idx==2 run, the window contains item 1 and item 2,
-					// the latter is broken, therefore the query fails.
+					// the former is broken, therefore the query fails.
 					Convey(fmt.Sprintf("Then there should be an error for a queries in %v", idx), func() {
 						So(err, ShouldNotBeNil)
 					})
@@ -716,13 +715,20 @@ func TestDefaultSelectExecutionPlanEmitters(t *testing.T) {
 						So(out[0], ShouldResemble,
 							data.Map{"int": data.Int(idx + 1)})
 					})
-				} else if idx == 1 || idx == 2 {
+				} else if idx == 1 {
 					// In the idx==1 run, the window contains item 0 and item 1,
-					// the latter is broken, therefore the query fails.
-					// In the idx==2 run, the window contains item 1 and item 2,
 					// the latter is broken, therefore the query fails.
 					Convey(fmt.Sprintf("Then there should be an error for a queries in %v", idx), func() {
 						So(err, ShouldNotBeNil)
+					})
+				} else if idx == 2 {
+					// In the idx==2 run, the window contains item 1 and item 2,
+					// only the latter is evaluated so there is no problem.
+					Convey(fmt.Sprintf("Then those values should appear in %v", idx), func() {
+						So(err, ShouldBeNil)
+						So(len(out), ShouldEqual, 1)
+						So(out[0], ShouldResemble,
+							data.Map{"int": data.Int(idx + 1)})
 					})
 				} else if idx == 3 {
 					// In the idx==3 run, the window contains item 2 and item 3.
@@ -730,10 +736,8 @@ func TestDefaultSelectExecutionPlanEmitters(t *testing.T) {
 					// both are emitted now.
 					Convey(fmt.Sprintf("Then those values should appear in %v", idx), func() {
 						So(err, ShouldBeNil)
-						So(len(out), ShouldEqual, 2)
+						So(len(out), ShouldEqual, 1)
 						So(out[0], ShouldResemble,
-							data.Map{"int": data.Int(idx)})
-						So(out[1], ShouldResemble,
 							data.Map{"int": data.Int(idx + 1)})
 					})
 				} else {
