@@ -53,9 +53,7 @@ type streamRelationStreamExecutionPlan struct {
 	// Process() is called with a new tuple.
 	buffers map[string]*inputBuffer
 	// emitter configuration
-	emitterType  parser.Emitter
-	emitterRules map[string]parser.IntervalAST
-	emitCounters map[string]int64
+	emitterType parser.Emitter
 	// curResults holds results of a query over the buffer.
 	curResults []data.Map
 	// prevResults holds results of a query over the buffer
