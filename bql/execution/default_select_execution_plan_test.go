@@ -30,7 +30,7 @@ func getTuples(num int) []*core.Tuple {
 }
 
 func createDefaultSelectPlan(s string, t *testing.T) (ExecutionPlan, error) {
-	p := parser.NewBQLParser()
+	p := parser.New()
 	reg := udf.CopyGlobalUDFRegistry(core.NewContext(nil))
 	_stmt, _, err := p.ParseStmt(s)
 	if err != nil {
@@ -1772,7 +1772,7 @@ func TestDefaultSelectExecutionPlanJoin(t *testing.T) {
 }
 
 func createDefaultSelectPlan2(s string) (ExecutionPlan, error) {
-	p := parser.NewBQLParser()
+	p := parser.New()
 	reg := udf.CopyGlobalUDFRegistry(core.NewContext(nil))
 	_stmt, _, err := p.ParseStmt(s)
 	if err != nil {

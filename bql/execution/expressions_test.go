@@ -68,7 +68,7 @@ func TestFlatExpressionConverter(t *testing.T) {
 	reg.Register("f", toString)
 
 	Convey("Given a BQL parser", t, func() {
-		p := parser.NewBQLParser()
+		p := parser.New()
 
 		for input, expected := range testCases {
 			// avoid closure over loop variables

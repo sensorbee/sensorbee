@@ -13,7 +13,7 @@ import (
 )
 
 func createGroupbyPlan(s string, t *testing.T) (ExecutionPlan, error) {
-	p := parser.NewBQLParser()
+	p := parser.New()
 	reg := udf.CopyGlobalUDFRegistry(core.NewContext(nil))
 	reg.Register("udaf", &dummyAggregate{})
 	_stmt, _, err := p.ParseStmt(s)
@@ -1013,7 +1013,7 @@ func TestAggregateFunctions(t *testing.T) {
 }
 
 func createGroupbyPlan2(s string) (ExecutionPlan, error) {
-	p := parser.NewBQLParser()
+	p := parser.New()
 	reg := udf.CopyGlobalUDFRegistry(core.NewContext(nil))
 	reg.Register("udaf", &dummyAggregate{})
 	_stmt, _, err := p.ParseStmt(s)
