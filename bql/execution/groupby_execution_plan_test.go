@@ -1058,6 +1058,32 @@ func BenchmarkGroupingExecution(b *testing.B) {
 	}
 }
 
+// ca. 71000 ns/op
+func BenchmarkGroupingTimeBasedExecution(b *testing.B) {
+	s := `CREATE STREAM box AS SELECT RSTREAM foo, count(int) FROM src [RANGE 5 SECONDS] GROUP BY foo`
+	plan, err := createGroupbyPlan2(s)
+	if err != nil {
+		panic(err.Error())
+	}
+	tmplTup := core.Tuple{
+		Data:          data.Map{"int": data.Int(-1)},
+		InputName:     "src",
+		Timestamp:     time.Date(2015, time.April, 10, 10, 23, 0, 0, time.UTC),
+		ProcTimestamp: time.Date(2015, time.April, 10, 10, 24, 0, 0, time.UTC),
+		BatchID:       7,
+	}
+	for n := 0; n < b.N; n++ {
+		inTup := tmplTup.Copy()
+		inTup.Data["int"] = data.Int(n)
+		inTup.Data["foo"] = data.Int(n % 2)
+		inTup.Timestamp = inTup.Timestamp.Add(time.Duration(n) * time.Second)
+		_, err := plan.Process(inTup)
+		if err != nil {
+			panic(err.Error())
+		}
+	}
+}
+
 // ca. 247000 ns/op
 func BenchmarkLargeGroupExecution(b *testing.B) {
 	s := `CREATE STREAM box AS SELECT RSTREAM foo, count(int) FROM src [RANGE 50 TUPLES] GROUP BY foo`
@@ -1076,6 +1102,32 @@ func BenchmarkLargeGroupExecution(b *testing.B) {
 		inTup := tmplTup.Copy()
 		inTup.Data["int"] = data.Int(n)
 		inTup.Data["foo"] = data.Int(n % 3)
+		_, err := plan.Process(inTup)
+		if err != nil {
+			panic(err.Error())
+		}
+	}
+}
+
+// ca. 250000 ns/op
+func BenchmarkLargeGroupTimeBasedExecution(b *testing.B) {
+	s := `CREATE STREAM box AS SELECT RSTREAM foo, count(int) FROM src [RANGE 50 SECONDS] GROUP BY foo`
+	plan, err := createGroupbyPlan2(s)
+	if err != nil {
+		panic(err.Error())
+	}
+	tmplTup := core.Tuple{
+		Data:          data.Map{"int": data.Int(-1)},
+		InputName:     "src",
+		Timestamp:     time.Date(2015, time.April, 10, 10, 23, 0, 0, time.UTC),
+		ProcTimestamp: time.Date(2015, time.April, 10, 10, 24, 0, 0, time.UTC),
+		BatchID:       7,
+	}
+	for n := 0; n < b.N; n++ {
+		inTup := tmplTup.Copy()
+		inTup.Data["int"] = data.Int(n)
+		inTup.Data["foo"] = data.Int(n % 3)
+		inTup.Timestamp = inTup.Timestamp.Add(time.Duration(n) * time.Second)
 		_, err := plan.Process(inTup)
 		if err != nil {
 			panic(err.Error())
