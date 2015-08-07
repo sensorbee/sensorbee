@@ -6,8 +6,9 @@ import (
 	"pfi/sensorbee/sensorbee/bql/parser"
 	"pfi/sensorbee/sensorbee/bql/udf"
 	"pfi/sensorbee/sensorbee/core"
+	"pfi/sensorbee/sensorbee/data"
 	"testing"
-	_ "time"
+	"time"
 )
 
 func createFilterPlan(s string, t *testing.T) (ExecutionPlan, ExecutionPlan, error) {
@@ -330,4 +331,74 @@ func TestFilterPlanEmitters(t *testing.T) {
 		compareWithRef(t, plan, refPlan, tuples)
 	})
 
+}
+
+func createFilterPlan2(s string) (ExecutionPlan, error) {
+	p := parser.New()
+	reg := udf.CopyGlobalUDFRegistry(core.NewContext(nil))
+	_stmt, _, err := p.ParseStmt(s)
+	if err != nil {
+		return nil, err
+	}
+	stmt := _stmt.(parser.CreateStreamAsSelectStmt).Select
+	logicalPlan, err := Analyze(stmt, reg)
+	if err != nil {
+		return nil, err
+	}
+	canBuild := CanBuildFilterPlan(logicalPlan, reg)
+	if !canBuild {
+		err := fmt.Errorf("filterPlan cannot be used for statement: %s", s)
+		return nil, err
+	}
+	return NewFilterPlan(logicalPlan, reg)
+}
+
+// ca. 20000 ns/op
+func BenchmarkFilterExecution(b *testing.B) {
+	s := `CREATE STREAM box AS SELECT RSTREAM cast(3+4-6+1 as float), 3.0::int*4/2+1=7.0,
+			null, [2.0,3] = [2,3.0] FROM src [RANGE 1 TUPLES]`
+	plan, err := createFilterPlan2(s)
+	if err != nil {
+		panic(err.Error())
+	}
+	tmplTup := core.Tuple{
+		Data:          data.Map{"int": data.Int(-1)},
+		InputName:     "src",
+		Timestamp:     time.Date(2015, time.April, 10, 10, 23, 0, 0, time.UTC),
+		ProcTimestamp: time.Date(2015, time.April, 10, 10, 24, 0, 0, time.UTC),
+		BatchID:       7,
+	}
+	for n := 0; n < b.N; n++ {
+		inTup := tmplTup.Copy()
+		inTup.Data["int"] = data.Int(n)
+		_, err := plan.Process(inTup)
+		if err != nil {
+			panic(err.Error())
+		}
+	}
+}
+
+// ca. 16000 ns/op
+func BenchmarkFilterWithWhere(b *testing.B) {
+	s := `CREATE STREAM box AS SELECT RSTREAM cast(3+4-6+1 as float), 3.0::int*4/2+1=7.0,
+			null, [2.0,3] = [2,3.0] FROM src [RANGE 1 TUPLES] WHERE int % 2 = 0`
+	plan, err := createFilterPlan2(s)
+	if err != nil {
+		panic(err.Error())
+	}
+	tmplTup := core.Tuple{
+		Data:          data.Map{"int": data.Int(-1)},
+		InputName:     "src",
+		Timestamp:     time.Date(2015, time.April, 10, 10, 23, 0, 0, time.UTC),
+		ProcTimestamp: time.Date(2015, time.April, 10, 10, 24, 0, 0, time.UTC),
+		BatchID:       7,
+	}
+	for n := 0; n < b.N; n++ {
+		inTup := tmplTup.Copy()
+		inTup.Data["int"] = data.Int(n)
+		_, err := plan.Process(inTup)
+		if err != nil {
+			panic(err.Error())
+		}
+	}
 }
