@@ -53,9 +53,7 @@ type streamRelationStreamExecutionPlan struct {
 	// Process() is called with a new tuple.
 	buffers map[string]*inputBuffer
 	// emitter configuration
-	emitterType  parser.Emitter
-	emitterRules map[string]parser.IntervalAST
-	emitCounters map[string]int64
+	emitterType parser.Emitter
 	// curResults holds results of a query over the buffer.
 	curResults []data.Map
 	// prevResults holds results of a query over the buffer
@@ -64,7 +62,7 @@ type streamRelationStreamExecutionPlan struct {
 	// prevHashesForIstream is only for ISTREAM and holds the hashes
 	// of the items from the previous run so that we can compute
 	// the check "is current item in previous results?" quickly
-	prevHashesForIstream map[data.HashValue]bool
+	prevHashesForIstream map[data.HashValue]int
 	// prevHashesForDstream is only for DSTREAM and holds the
 	// hashes of the items from the previous run in the same order
 	// as the data, so we need to compute them only once and also
@@ -132,7 +130,7 @@ func newStreamRelationStreamExecutionPlan(lp *LogicalPlan, reg udf.FunctionRegis
 		emitterType:          lp.EmitterType,
 		curResults:           []data.Map{},
 		prevResults:          []data.Map{},
-		prevHashesForIstream: map[data.HashValue]bool{},
+		prevHashesForIstream: map[data.HashValue]int{},
 		prevHashesForDstream: []data.HashValue{},
 		filteredInputRows:    list.New(),
 	}, nil
@@ -279,17 +277,18 @@ func (ep *streamRelationStreamExecutionPlan) computeResultTuples() ([]data.Map, 
 		}
 
 	} else if ep.emitterType == parser.Istream {
-		curHashes := make(map[data.HashValue]bool, len(ep.curResults))
+		curHashes := make(map[data.HashValue]int, len(ep.curResults))
 		// emit only new tuples
 		for _, res := range ep.curResults {
 			hash := data.Hash(res)
-			curHashes[hash] = true
+			identicalRows := curHashes[hash] + 1
+			curHashes[hash] = identicalRows
 			// check if this tuple is already present in the previous results
-			_, found := ep.prevHashesForIstream[hash]
-			if found {
+			if prevRows := ep.prevHashesForIstream[hash]; identicalRows <= prevRows {
 				continue
 			}
 			// if we arrive here, `res` is not contained in prevResults
+			// as often as in curResults
 			output = append(output, res)
 		}
 		// the hashes computed for the current items will be reused
@@ -299,21 +298,25 @@ func (ep *streamRelationStreamExecutionPlan) computeResultTuples() ([]data.Map, 
 	} else if ep.emitterType == parser.Dstream {
 		// we only access the current items' hashes, not their values.
 		// however, in the next run, we *will* have to access their values.
-		curHashMap := make(map[data.HashValue]bool, len(ep.curResults))
+		curHashMap := make(map[data.HashValue]int, len(ep.curResults))
 		curHashList := make([]data.HashValue, len(ep.curResults))
 		for i, res := range ep.curResults {
 			hash := data.Hash(res)
-			curHashMap[hash] = true
+			identicalRows := curHashMap[hash] + 1
+			curHashMap[hash] = identicalRows
 			curHashList[i] = hash
 		}
 		// emit only old tuples
+		counts := map[data.HashValue]int{}
 		for i, prevHash := range ep.prevHashesForDstream {
+			identicalRows := counts[prevHash] + 1
+			counts[prevHash] = identicalRows
 			// check if this tuple is present in the current results
-			_, found := curHashMap[prevHash]
-			if found {
+			if curRows := curHashMap[prevHash]; identicalRows <= curRows {
 				continue
 			}
 			// if we arrive here, `prevRes` is not contained in curResults
+			// as often as in prevResults
 			prevRes := ep.prevResults[i]
 			output = append(output, prevRes)
 		}

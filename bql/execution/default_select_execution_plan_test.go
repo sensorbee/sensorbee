@@ -65,7 +65,9 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 				So(err, ShouldBeNil)
 
 				Convey(fmt.Sprintf("Then that constant should appear in %v", idx), func() {
-					if idx == 0 {
+					if idx <= 2 {
+						// items should be emitted as the number of
+						// rows increases
 						So(len(out), ShouldEqual, 1)
 						So(out[0], ShouldResemble,
 							data.Map{"col_1": data.Float(2.0), "col_2": data.Bool(true),
@@ -286,7 +288,9 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 				So(err, ShouldBeNil)
 
 				Convey(fmt.Sprintf("Then the null operations should be correct %v", idx), func() {
-					if idx == 0 {
+					if idx <= 2 {
+						// items should be emitted as the number of
+						// rows increases
 						So(len(out), ShouldEqual, 1)
 						So(out[0], ShouldResemble,
 							data.Map{"col_1": data.Bool(true), "col_2": data.Null{}})
@@ -1019,8 +1023,12 @@ func TestDefaultSelectExecutionPlanEmitters(t *testing.T) {
 				So(len(output), ShouldEqual, 4)
 				So(len(output[0]), ShouldEqual, 1)
 				So(output[0][0], ShouldResemble, data.Map{"a": data.Int(2)})
-				So(len(output[1]), ShouldEqual, 0)
-				So(len(output[2]), ShouldEqual, 0)
+				// items should be emitted as (long as) the number of
+				// rows increases
+				So(len(output[1]), ShouldEqual, 1)
+				So(output[1][0], ShouldResemble, data.Map{"a": data.Int(2)})
+				So(len(output[2]), ShouldEqual, 1)
+				So(output[1][0], ShouldResemble, data.Map{"a": data.Int(2)})
 				So(len(output[3]), ShouldEqual, 0)
 			})
 
@@ -1075,7 +1083,10 @@ func TestDefaultSelectExecutionPlanEmitters(t *testing.T) {
 				So(len(output), ShouldEqual, 4)
 				So(len(output[0]), ShouldEqual, 1)
 				So(output[0][0], ShouldResemble, data.Map{"a": data.Int(2)})
-				So(len(output[1]), ShouldEqual, 0)
+				// items should be emitted as (long as) the number of
+				// rows increases
+				So(len(output[1]), ShouldEqual, 1)
+				So(output[1][0], ShouldResemble, data.Map{"a": data.Int(2)})
 				So(len(output[2]), ShouldEqual, 0)
 				So(len(output[3]), ShouldEqual, 0)
 			})
@@ -1212,6 +1223,38 @@ func TestDefaultSelectExecutionPlanEmitters(t *testing.T) {
 				So(output[2][0], ShouldResemble, data.Map{"a": data.Int(1)})
 				So(len(output[3]), ShouldEqual, 1)
 				So(output[3][0], ShouldResemble, data.Map{"a": data.Int(2)})
+			})
+
+		})
+	})
+
+	Convey("Given a DSTREAM emitter selecting a column (varying multiplicities) and a 2 TUPLES window", t, func() {
+		tuples := getTuples(6)
+		tuples[1].Data["int"] = data.Int(1)
+		s := `CREATE STREAM box AS SELECT DSTREAM int AS a FROM src [RANGE 2 TUPLES]`
+		plan, err := createDefaultSelectPlan(s, t)
+		So(err, ShouldBeNil)
+
+		Convey("When feeding it with tuples", func() {
+			output := [][]data.Map{}
+			for _, inTup := range tuples {
+				out, err := plan.Process(inTup)
+				So(err, ShouldBeNil)
+				output = append(output, out)
+			}
+
+			Convey("Then items dropped from state should be emitted", func() {
+				So(len(output), ShouldEqual, 6)
+				So(len(output[0]), ShouldEqual, 0)
+				So(len(output[1]), ShouldEqual, 0)
+				So(len(output[2]), ShouldEqual, 1)
+				So(output[2][0], ShouldResemble, data.Map{"a": data.Int(1)})
+				So(len(output[3]), ShouldEqual, 1)
+				So(output[3][0], ShouldResemble, data.Map{"a": data.Int(1)})
+				So(len(output[3]), ShouldEqual, 1)
+				So(output[4][0], ShouldResemble, data.Map{"a": data.Int(3)})
+				So(len(output[3]), ShouldEqual, 1)
+				So(output[5][0], ShouldResemble, data.Map{"a": data.Int(4)})
 			})
 
 		})
