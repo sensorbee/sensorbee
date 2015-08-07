@@ -1084,7 +1084,7 @@ func BenchmarkGroupingTimeBasedExecution(b *testing.B) {
 	}
 }
 
-// ca. 247000 ns/op
+// ca. 240000 ns/op
 func BenchmarkLargeGroupExecution(b *testing.B) {
 	s := `CREATE STREAM box AS SELECT RSTREAM foo, count(int) FROM src [RANGE 50 TUPLES] GROUP BY foo`
 	plan, err := createGroupbyPlan2(s)
