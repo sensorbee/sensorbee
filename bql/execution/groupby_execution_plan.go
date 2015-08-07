@@ -143,7 +143,8 @@ func (ep *groupbyExecutionPlan) performQueryOnBuffer() error {
 
 	// function to compute the grouping expressions and store the
 	// input for aggregate functions in the correct group.
-	evalItem := func(d data.Map) error {
+	evalItem := func(io *inputRowWithCachedResult) error {
+		d := *io.input
 		// compute the expressions in the GROUP BY to find the correct
 		// group to append to
 		// TODO there is actually no need to allocate this array again
@@ -260,8 +261,8 @@ func (ep *groupbyExecutionPlan) performQueryOnBuffer() error {
 
 	// compute the output for each item in ep.filteredInputRows
 	for e := ep.filteredInputRows.Front(); e != nil; e = e.Next() {
-		item := e.Value.(*data.Map)
-		if err := evalItem(*item); err != nil {
+		item := e.Value.(*inputRowWithCachedResult)
+		if err := evalItem(item); err != nil {
 			rollback()
 			return err
 		}

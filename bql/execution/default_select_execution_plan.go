@@ -76,7 +76,8 @@ func (ep *defaultSelectExecutionPlan) performQueryOnBuffer() error {
 
 	// function to compute the projection values and store
 	// the result in the `output` slice
-	evalItem := func(d data.Map) error {
+	evalItem := func(io *inputRowWithCachedResult) error {
+		d := *io.input
 		// otherwise, compute all the expressions
 		result := data.Map(make(map[string]data.Value, len(ep.projections)))
 		for _, proj := range ep.projections {
@@ -94,8 +95,8 @@ func (ep *defaultSelectExecutionPlan) performQueryOnBuffer() error {
 
 	// compute the output for each item in ep.filteredInputRows
 	for e := ep.filteredInputRows.Front(); e != nil; e = e.Next() {
-		item := e.Value.(*data.Map)
-		if err := evalItem(*item); err != nil {
+		item := e.Value.(*inputRowWithCachedResult)
+		if err := evalItem(item); err != nil {
 			rollback()
 			return err
 		}
