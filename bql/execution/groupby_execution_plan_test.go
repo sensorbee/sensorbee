@@ -9,6 +9,7 @@ import (
 	"pfi/sensorbee/sensorbee/core"
 	"pfi/sensorbee/sensorbee/data"
 	"testing"
+	"time"
 )
 
 func createGroupbyPlan(s string, t *testing.T) (ExecutionPlan, error) {
@@ -1009,4 +1010,100 @@ func TestAggregateFunctions(t *testing.T) {
 			}
 		})
 	})
+}
+
+func createGroupbyPlan2(s string) (ExecutionPlan, error) {
+	p := parser.NewBQLParser()
+	reg := udf.CopyGlobalUDFRegistry(core.NewContext(nil))
+	reg.Register("udaf", &dummyAggregate{})
+	_stmt, _, err := p.ParseStmt(s)
+	if err != nil {
+		return nil, err
+	}
+	stmt := _stmt.(parser.CreateStreamAsSelectStmt).Select
+	logicalPlan, err := Analyze(stmt, reg)
+	if err != nil {
+		return nil, err
+	}
+	canBuild := CanBuildGroupbyExecutionPlan(logicalPlan, reg)
+	if !canBuild {
+		err := fmt.Errorf("groupByExecutionPlan cannot be used for statement: %s", s)
+		return nil, err
+	}
+	return NewGroupbyExecutionPlan(logicalPlan, reg)
+}
+
+// ca. 77000 ns/op
+func BenchmarkGroupingExecution(b *testing.B) {
+	s := `CREATE STREAM box AS SELECT RSTREAM foo, count(int) FROM src [RANGE 5 TUPLES] GROUP BY foo`
+	plan, err := createGroupbyPlan2(s)
+	if err != nil {
+		panic(err.Error())
+	}
+	tmplTup := core.Tuple{
+		Data:          data.Map{"int": data.Int(-1)},
+		InputName:     "src",
+		Timestamp:     time.Date(2015, time.April, 10, 10, 23, 0, 0, time.UTC),
+		ProcTimestamp: time.Date(2015, time.April, 10, 10, 24, 0, 0, time.UTC),
+		BatchID:       7,
+	}
+	for n := 0; n < b.N; n++ {
+		inTup := tmplTup.Copy()
+		inTup.Data["int"] = data.Int(n)
+		inTup.Data["foo"] = data.Int(n % 2)
+		_, err := plan.Process(inTup)
+		if err != nil {
+			panic(err.Error())
+		}
+	}
+}
+
+// ca. 405000 ns/op
+func BenchmarkLargeGroupExecution(b *testing.B) {
+	s := `CREATE STREAM box AS SELECT RSTREAM foo, count(int) FROM src [RANGE 50 TUPLES] GROUP BY foo`
+	plan, err := createGroupbyPlan2(s)
+	if err != nil {
+		panic(err.Error())
+	}
+	tmplTup := core.Tuple{
+		Data:          data.Map{"int": data.Int(-1)},
+		InputName:     "src",
+		Timestamp:     time.Date(2015, time.April, 10, 10, 23, 0, 0, time.UTC),
+		ProcTimestamp: time.Date(2015, time.April, 10, 10, 24, 0, 0, time.UTC),
+		BatchID:       7,
+	}
+	for n := 0; n < b.N; n++ {
+		inTup := tmplTup.Copy()
+		inTup.Data["int"] = data.Int(n)
+		inTup.Data["foo"] = data.Int(n % 3)
+		_, err := plan.Process(inTup)
+		if err != nil {
+			panic(err.Error())
+		}
+	}
+}
+
+// ca. 140000 ns/op
+func BenchmarkComplicatedGroupExecution(b *testing.B) {
+	s := `CREATE STREAM box AS SELECT RSTREAM foo, udaf(int, foo) FROM src [RANGE 10 TUPLES] GROUP BY foo`
+	plan, err := createGroupbyPlan2(s)
+	if err != nil {
+		panic(err.Error())
+	}
+	tmplTup := core.Tuple{
+		Data:          data.Map{"int": data.Int(-1)},
+		InputName:     "src",
+		Timestamp:     time.Date(2015, time.April, 10, 10, 23, 0, 0, time.UTC),
+		ProcTimestamp: time.Date(2015, time.April, 10, 10, 24, 0, 0, time.UTC),
+		BatchID:       7,
+	}
+	for n := 0; n < b.N; n++ {
+		inTup := tmplTup.Copy()
+		inTup.Data["int"] = data.Int(n)
+		inTup.Data["foo"] = data.Int(n % 3)
+		_, err := plan.Process(inTup)
+		if err != nil {
+			panic(err.Error())
+		}
+	}
 }
