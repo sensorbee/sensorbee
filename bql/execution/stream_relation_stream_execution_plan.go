@@ -27,8 +27,9 @@ func (i *inputBuffer) isTimeBased() bool {
 }
 
 type inputRowWithCachedResult struct {
-	input  *data.Map
-	output *data.Map
+	input     *data.Map
+	output    *data.Map
+	groupData []data.Value
 }
 
 // streamRelationStreamExecutionPlan provides methods for
@@ -508,7 +509,7 @@ func (ep *streamRelationStreamExecutionPlan) preprocCartProdInt(dataHolder data.
 			item[key] = val
 		}
 		itemWithCachedResult := &inputRowWithCachedResult{
-			&item, nil,
+			input: &item,
 		}
 		// also write the address of this item to all tuples
 		// it originates from
