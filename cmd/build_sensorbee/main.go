@@ -79,7 +79,7 @@ func loadConfig(path string) *Config {
 	}
 	// TODO: validation
 
-	config.SubCommands = []string{"run", "shell", "topology"}
+	config.SubCommands = []string{"run", "shell", "topology", "exp"}
 	// TODO: sub commands should be configurable
 
 	return config
