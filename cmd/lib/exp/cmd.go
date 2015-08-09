@@ -12,7 +12,7 @@ func SetUp() cli.Command {
 		Subcommands: []cli.Command{
 			setUpRun(),
 			setUpClean(),
-			// TODO: file <node>: get cache file name of the node
+			setUpFile(),
 			// TODO: hash <node>: get hash of the latest cache of the node
 		},
 	}

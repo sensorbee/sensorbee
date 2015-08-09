@@ -58,7 +58,7 @@ func runRun(c *cli.Context) {
 	err := func() error {
 		if a := c.Args(); len(a) != 1 {
 			cli.ShowSubcommandHelp(c)
-			panic(1)
+			os.Exit(1)
 		}
 		filename := c.Args()[0]
 
