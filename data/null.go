@@ -4,8 +4,12 @@ import (
 	"time"
 )
 
+// Null corresponds to null in JSON. It can be assigned to Value interface.
+// Null is provided for Null Object pattern and it should always be used
+// instead of nil.
 type Null struct{}
 
+// Type returns TypeID of Null. It's always TypeNull.
 func (n Null) Type() TypeID {
 	return TypeNull
 }
@@ -46,12 +50,14 @@ func (n Null) clone() Value {
 	return Null{}
 }
 
+// MarshalJSON marshals Null to JSON.
 func (n Null) MarshalJSON() ([]byte, error) {
 	// the JSON serialization is defined via the String()
 	// return value as defined below
 	return []byte(n.String()), nil
 }
 
+// String returns JSON representation of a Null.
 func (n Null) String() string {
 	return "null"
 }
