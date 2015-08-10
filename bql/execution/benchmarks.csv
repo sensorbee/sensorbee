@@ -1,4 +1,7 @@
-BenchmarkNormalExecution	101667.9	3033.2478781
-BenchmarkNormalJoin	325553.6	4444.29340166
-BenchmarkVolatileJoin	328765.2	5054.4814927
-BenchmarkWithWhere	58808.7	809.604848059
+BenchmarkComplicatedGroupExecution	136858.6	3263.86863093
+BenchmarkGroupingExecution	76750.7	2019.8165288
+BenchmarkLargeGroupExecution	399683.4	8718.1972242
+BenchmarkNormalExecution	103661.9	1434.8381407
+BenchmarkNormalJoin	346600.1	16950.7809817
+BenchmarkVolatileJoin	343142.2	11875.3399598
+BenchmarkWithWhere	61711.8	2051.67910746
