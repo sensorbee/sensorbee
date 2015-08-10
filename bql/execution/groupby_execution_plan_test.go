@@ -1033,7 +1033,6 @@ func createGroupbyPlan2(s string) (ExecutionPlan, error) {
 	return NewGroupbyExecutionPlan(logicalPlan, reg)
 }
 
-// ca. 65000 ns/op
 func BenchmarkGroupingExecution(b *testing.B) {
 	s := `CREATE STREAM box AS SELECT RSTREAM foo, count(int) FROM src [RANGE 5 TUPLES] GROUP BY foo`
 	plan, err := createGroupbyPlan2(s)
@@ -1058,7 +1057,6 @@ func BenchmarkGroupingExecution(b *testing.B) {
 	}
 }
 
-// ca. 71000 ns/op
 func BenchmarkGroupingTimeBasedExecution(b *testing.B) {
 	s := `CREATE STREAM box AS SELECT RSTREAM foo, count(int) FROM src [RANGE 5 SECONDS] GROUP BY foo`
 	plan, err := createGroupbyPlan2(s)
@@ -1084,7 +1082,6 @@ func BenchmarkGroupingTimeBasedExecution(b *testing.B) {
 	}
 }
 
-// ca. 240000 ns/op
 func BenchmarkLargeGroupExecution(b *testing.B) {
 	s := `CREATE STREAM box AS SELECT RSTREAM foo, count(int) FROM src [RANGE 50 TUPLES] GROUP BY foo`
 	plan, err := createGroupbyPlan2(s)
@@ -1109,7 +1106,6 @@ func BenchmarkLargeGroupExecution(b *testing.B) {
 	}
 }
 
-// ca. 250000 ns/op
 func BenchmarkLargeGroupTimeBasedExecution(b *testing.B) {
 	s := `CREATE STREAM box AS SELECT RSTREAM foo, count(int) FROM src [RANGE 50 SECONDS] GROUP BY foo`
 	plan, err := createGroupbyPlan2(s)
@@ -1135,7 +1131,6 @@ func BenchmarkLargeGroupTimeBasedExecution(b *testing.B) {
 	}
 }
 
-// ca. 110000 ns/op
 func BenchmarkComplicatedGroupExecution(b *testing.B) {
 	s := `CREATE STREAM box AS SELECT RSTREAM foo, udaf(int, foo) FROM src [RANGE 10 TUPLES] GROUP BY foo`
 	plan, err := createGroupbyPlan2(s)
