@@ -158,61 +158,15 @@ func getArrayIndex(runes []rune, i int) string {
 // scanMap does basically what is described in the Map.Get documentation.
 // The value found at p is written to v.
 func scanMap(m Map, p string, v *Value) (err error) {
-	if p == "" {
-		return errors.New("empty key is not supported")
+	path, err := CompilePath(p)
+	if err != nil {
+		return err
 	}
-	// tempValue will point to the item of the Map that we are
-	// currently investigating
-	var tempValue Value = m
-	// loop over the components of the path, like "key" or "hoge[123]"
-	for _, token := range split(p) {
-		// check that we do indeed have a valid component form
-		matchStr := reArrayPath.FindAllStringSubmatch(token, -1)
-		if len(matchStr) == 0 {
-			return errors.New("invalid path component: " + token)
-		}
-		// get the "before brackets" part of the component
-		submatchStr := matchStr[0]
-		if submatchStr[1] != "" {
-			// try to access the current tempValue as a map and
-			// pull out the value therein
-			tempMap, err := tempValue.asMap()
-			if err != nil {
-				return fmt.Errorf("cannot access a %T using key \"%s\"",
-					tempValue, token)
-			}
-			foundValue := tempMap[submatchStr[1]]
-			if foundValue == nil {
-				return fmt.Errorf("key '%s' was not found in map",
-					submatchStr[1])
-			}
-			tempValue = foundValue
-		}
-		// get array index number
-		if submatchStr[2] != "" {
-			i64, err := strconv.ParseInt(
-				submatchStr[2][1:len(submatchStr[2])-1], 10, 64)
-			if err != nil {
-				return errors.New("invalid array index number: " + token)
-			}
-			if i64 > math.MaxInt32 {
-				return errors.New("overflow index number: " + token)
-			}
-			// try to access the current tempValue as an array
-			// and access the value therein
-			tempArr, err := tempValue.asArray()
-			if err != nil {
-				return fmt.Errorf("cannot access a %T using index %d",
-					tempValue, i64)
-			}
-			i := int(i64)
-			if i >= len(tempArr) {
-				return errors.New("out of range access: " + token)
-			}
-			tempValue = tempArr[i]
-		}
+	val, err := path.Evaluate(m)
+	if err != nil {
+		return err
 	}
-	*v = tempValue
+	*v = val
 	return nil
 }
 
