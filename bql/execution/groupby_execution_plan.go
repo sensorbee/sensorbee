@@ -1,6 +1,7 @@
 package execution
 
 import (
+	"fmt"
 	"pfi/sensorbee/sensorbee/bql/udf"
 	"pfi/sensorbee/sensorbee/core"
 	"pfi/sensorbee/sensorbee/data"
@@ -110,8 +111,7 @@ func (ep *groupbyExecutionPlan) performQueryOnBuffer() error {
 	// groupValues in the `groups`map. if there is no such
 	// group, a new one is created and a copy of the given map
 	// is used as a representative of this group's values.
-	findOrCreateGroup := func(groupValues []data.Value, d data.Map) (*tmpGroupData, error) {
-		groupHash := data.Hash(data.Array(groupValues))
+	findOrCreateGroup := func(groupValues []data.Value, groupHash data.HashValue, nonGroupValues data.Map) (*tmpGroupData, error) {
 		// find the correct group
 		group, exists := groups[groupHash]
 		// if there is no such group, create one
@@ -124,7 +124,7 @@ func (ep *groupbyExecutionPlan) performQueryOnBuffer() error {
 				// a representative set of values for this group for later evaluation
 				// TODO actually we don't need the whole map,
 				//      just the parts common to the whole group
-				d.Copy(),
+				nonGroupValues.Copy(),
 			}
 			// initialize the map with the aggregate function inputs
 			for _, proj := range ep.projections {
@@ -144,26 +144,31 @@ func (ep *groupbyExecutionPlan) performQueryOnBuffer() error {
 	// function to compute the grouping expressions and store the
 	// input for aggregate functions in the correct group.
 	evalItem := func(io *inputRowWithCachedResult) error {
-		d := *io.input
-
+		var itemGroupValues data.Array
 		// if we have a cached result, use this
-		itemGroupValues := io.groupData
-		if itemGroupValues == nil {
-			// compute the expressions in the GROUP BY to find the correct
-			// group to append to
+		if io.cache != nil {
+			cachedGroupValues, err := data.AsArray(io.cache)
+			if err != nil {
+				return fmt.Errorf("cached data was not an array: %v", io.cache)
+			}
+			itemGroupValues = cachedGroupValues
+		} else {
+			// otherwise, compute the expressions in the GROUP BY to find
+			// the correct group to append to
 			itemGroupValues = make([]data.Value, len(ep.groupList))
 			for i, eval := range ep.groupList {
 				// ordinary "flat" expression
-				value, err := eval.Eval(d)
+				value, err := eval.Eval(*io.input)
 				if err != nil {
 					return err
 				}
 				itemGroupValues[i] = value
 			}
-			io.groupData = itemGroupValues
+			io.cache = itemGroupValues
+			io.hash = data.Hash(io.cache)
 		}
 
-		itemGroup, err := findOrCreateGroup(itemGroupValues, d)
+		itemGroup, err := findOrCreateGroup(itemGroupValues, io.hash, *io.input)
 		if err != nil {
 			return err
 		}
@@ -171,7 +176,7 @@ func (ep *groupbyExecutionPlan) performQueryOnBuffer() error {
 		// now compute all the input data for the aggregate functions,
 		// e.g. for `SELECT count(a) + max(b/2)`, compute `a` and `b/2`
 		for key, agg := range allAggEvaluators {
-			value, err := agg.Eval(d)
+			value, err := agg.Eval(*io.input)
 			if err != nil {
 				return err
 			}
@@ -223,7 +228,7 @@ func (ep *groupbyExecutionPlan) performQueryOnBuffer() error {
 				return err
 			}
 		}
-		output = append(output, result)
+		output = append(output, resultRow{row: result, hash: data.Hash(result)})
 		return nil
 	}
 
@@ -258,7 +263,7 @@ func (ep *groupbyExecutionPlan) performQueryOnBuffer() error {
 				return err
 			}
 		}
-		output = append(output, result)
+		output = append(output, resultRow{row: result, hash: data.Hash(result)})
 		return nil
 	}
 

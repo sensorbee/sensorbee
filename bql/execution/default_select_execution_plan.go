@@ -1,6 +1,7 @@
 package execution
 
 import (
+	"fmt"
 	"pfi/sensorbee/sensorbee/bql/udf"
 	"pfi/sensorbee/sensorbee/core"
 	"pfi/sensorbee/sensorbee/data"
@@ -78,8 +79,12 @@ func (ep *defaultSelectExecutionPlan) performQueryOnBuffer() error {
 	// the result in the `output` slice
 	evalItem := func(io *inputRowWithCachedResult) error {
 		// if we have a cached result, use this
-		if io.output != nil {
-			output = append(output, *io.output)
+		if io.cache != nil {
+			cachedResults, err := data.AsMap(io.cache)
+			if err != nil {
+				return fmt.Errorf("cached data was not a map: %v", io.cache)
+			}
+			output = append(output, resultRow{row: cachedResults, hash: io.hash})
 			return nil
 		}
 		// otherwise, compute all the expressions
@@ -94,8 +99,12 @@ func (ep *defaultSelectExecutionPlan) performQueryOnBuffer() error {
 				return err
 			}
 		}
-		io.output = &result
-		output = append(output, result)
+		// update the fields of the input data for the next iteration
+		io.cache = result
+		io.hash = data.Hash(io.cache)
+		// since we have no grouping etc., "output data" = "cached data"
+		// and "hash of output data" = "hash of cached data"
+		output = append(output, resultRow{row: result, hash: io.hash})
 		return nil
 	}
 
