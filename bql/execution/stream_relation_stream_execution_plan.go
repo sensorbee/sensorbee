@@ -11,7 +11,7 @@ import (
 )
 
 type inputBuffer struct {
-	tuples     []tupleWithDerivedInputRows
+	tuples     *list.List
 	windowSize int64
 	windowType parser.IntervalUnit
 }
@@ -30,6 +30,14 @@ type inputRowWithCachedResult struct {
 	input     *data.Map
 	output    *data.Map
 	groupData []data.Value
+}
+
+// partialList is a data structure representing a continuous sublist
+// of a linked list. An iteration must start at the `start` item
+// and must go on until `end` is reached (not including `end`!)
+type partialList struct {
+	start *list.Element
+	end   *list.Element
 }
 
 // streamRelationStreamExecutionPlan provides methods for
@@ -105,14 +113,9 @@ func newStreamRelationStreamExecutionPlan(lp *LogicalPlan, reg udf.FunctionRegis
 	// initialize buffers (one per declared input relation)
 	buffers := make(map[string]*inputBuffer, len(lp.Relations))
 	for _, rel := range lp.Relations {
-		var tuples []tupleWithDerivedInputRows
+		tuples := list.New()
 		rangeValue := rel.Value
 		rangeUnit := rel.Unit
-		if rangeUnit == parser.Tuples {
-			// we already know the required capacity of this buffer
-			// if we work with absolute numbers
-			tuples = make([]tupleWithDerivedInputRows, 0, rangeValue+1)
-		}
 		// the alias of the relation is the key of the buffer
 		buffers[rel.Alias] = &inputBuffer{
 			tuples, rangeValue, rangeUnit,
@@ -190,9 +193,8 @@ func (ep *streamRelationStreamExecutionPlan) addTupleToBuffer(t *core.Tuple) err
 			editTupleCont := tupleWithDerivedInputRows{
 				tuple: editTuple,
 			}
-			// TODO maybe a slice is not the best implementation for a queue?
-			bufferPtr := ep.buffers[rel.Alias]
-			bufferPtr.tuples = append(bufferPtr.tuples, editTupleCont)
+			buffer := ep.buffers[rel.Alias]
+			buffer.tuples.PushBack(&editTupleCont)
 			ep.lastTupleBuffers[rel.Alias] = true
 		}
 	}
@@ -206,19 +208,25 @@ func (ep *streamRelationStreamExecutionPlan) addTupleToBuffer(t *core.Tuple) err
 func (ep *streamRelationStreamExecutionPlan) removeOutdatedTuplesFromBuffer(curTupTime time.Time) error {
 	expiredInputRows := map[*inputRowWithCachedResult]bool{}
 	for _, buffer := range ep.buffers {
-		curBufSize := int64(len(buffer.tuples))
+		curBufSize := int64(buffer.tuples.Len())
 		if buffer.windowType == parser.Tuples { // tuple-based window
 			if curBufSize > buffer.windowSize {
-				// mark input rows that are derived from outdated
-				// tuples for deletion
-				for _, tupCont := range buffer.tuples[:curBufSize-buffer.windowSize] {
+				// we just need to take the last `windowSize` items
+				//  {a, b, c, d} => {b, c, d}
+				// and remove all items (at most one?) before
+				i := int64(0)
+				var next *list.Element
+				for e := buffer.tuples.Front(); e != nil && i < curBufSize-buffer.windowSize; e = next {
+					next = e.Next()
+					i += 1
+					tupCont := e.Value.(*tupleWithDerivedInputRows)
+					// mark input rows that are derived from outdated
+					// tuples for deletion
 					for _, inputRow := range tupCont.rows {
 						expiredInputRows[inputRow] = true
 					}
+					buffer.tuples.Remove(e)
 				}
-				// we just need to take the last `windowSize` items:
-				// {a, b, c, d} => {b, c, d}
-				buffer.tuples = buffer.tuples[curBufSize-buffer.windowSize : curBufSize]
 			}
 
 		} else if buffer.isTimeBased() {
@@ -226,22 +234,22 @@ func (ep *streamRelationStreamExecutionPlan) removeOutdatedTuplesFromBuffer(curT
 			if buffer.windowType == parser.Milliseconds {
 				windowSizeSeconds = windowSizeSeconds / 1000
 			}
-			// copy all "sufficiently new" tuples to new buffer
-			// TODO avoid the reallocation here
-			newBuf := make([]tupleWithDerivedInputRows, 0, curBufSize)
-			for _, tupCont := range buffer.tuples {
+			// we have to remove all items from the list that are
+			// older than the specified window length
+			var next *list.Element
+			for e := buffer.tuples.Front(); e != nil; e = next {
+				next = e.Next()
+				tupCont := e.Value.(*tupleWithDerivedInputRows)
 				dur := curTupTime.Sub(tupCont.tuple.Timestamp)
-				if dur.Seconds() <= windowSizeSeconds {
-					newBuf = append(newBuf, tupCont)
-				} else {
+				if dur.Seconds() > windowSizeSeconds {
 					// mark input rows that are derived from outdated
 					// tuples for deletion
 					for _, inputRow := range tupCont.rows {
 						expiredInputRows[inputRow] = true
 					}
+					buffer.tuples.Remove(e)
 				}
 			}
-			buffer.tuples = newBuf
 		} else {
 			return fmt.Errorf("unknown window type: %+v", *buffer)
 		}
@@ -380,7 +388,7 @@ func (ep *streamRelationStreamExecutionPlan) filterInputTuples() error {
 	// different results in every run of the program. We cannot expect
 	// a consistent order in which evalItem is run on the items of the
 	// cartesian product.
-	allStreams := make(map[string][]tupleWithDerivedInputRows, len(ep.buffers))
+	allStreams := make(map[string]partialList, len(ep.buffers))
 
 	// we do not reevaluate the filter for all elements in the cartesian
 	// product of the input buffers, but only for those elements that use
@@ -410,26 +418,37 @@ func (ep *streamRelationStreamExecutionPlan) filterInputTuples() error {
 		for j := 0; j < i; j++ {
 			key := buffersWithNewTuple[j]
 			buffer := ep.buffers[key]
-			allStreams[key] = buffer.tuples[:len(buffer.tuples)-1]
+			var start, end *list.Element
+			if buffer.tuples.Len() > 1 {
+				start = buffer.tuples.Front()
+				end = buffer.tuples.Back()
+			}
+			allStreams[key] = partialList{start, end}
 		}
 		// buffer i uses just the new tuple
 		{
 			j := i
 			key := buffersWithNewTuple[j]
 			buffer := ep.buffers[key]
-			allStreams[key] = buffer.tuples[len(buffer.tuples)-1 : len(buffer.tuples)]
+			start := buffer.tuples.Back()
+			var end *list.Element
+			allStreams[key] = partialList{start, end}
 		}
 		// buffers >i are taken including the new tuple
 		for j := i + 1; j < len(buffersWithNewTuple); j++ {
 			key := buffersWithNewTuple[j]
 			buffer := ep.buffers[key]
-			allStreams[key] = buffer.tuples
+			start := buffer.tuples.Front()
+			var end *list.Element
+			allStreams[key] = partialList{start, end}
 		}
 		// and all buffers that do not hold the new tuple are
 		// always taken completely
 		for _, key := range buffersWithoutNewTuple {
 			buffer := ep.buffers[key]
-			allStreams[key] = buffer.tuples
+			start := buffer.tuples.Front()
+			var end *list.Element
+			allStreams[key] = partialList{start, end}
 		}
 		// write matching items to ep.filteredInputRowsBuffer
 		if err := ep.preprocessCartesianProduct(dataHolder, allStreams); err != nil {
@@ -446,12 +465,12 @@ func (ep *streamRelationStreamExecutionPlan) filterInputTuples() error {
 // preprocessCartesianProduct computes the cartesian product,
 // applies this plan's filter/join condition to each item and
 // appends it to `ep.filteredInputRows`
-func (ep *streamRelationStreamExecutionPlan) preprocessCartesianProduct(dataHolder data.Map, remainingBuffers map[string][]tupleWithDerivedInputRows) error {
+func (ep *streamRelationStreamExecutionPlan) preprocessCartesianProduct(dataHolder data.Map, remainingBuffers map[string]partialList) error {
 	return ep.preprocCartProdInt(dataHolder, remainingBuffers,
 		map[string]*tupleWithDerivedInputRows{})
 }
 
-func (ep *streamRelationStreamExecutionPlan) preprocCartProdInt(dataHolder data.Map, remainingBuffers map[string][]tupleWithDerivedInputRows, origin map[string]*tupleWithDerivedInputRows) error {
+func (ep *streamRelationStreamExecutionPlan) preprocCartProdInt(dataHolder data.Map, remainingBuffers map[string]partialList, origin map[string]*tupleWithDerivedInputRows) error {
 	if len(remainingBuffers) > 0 {
 		// not all buffers have been visited yet
 		var myKey string
@@ -462,16 +481,17 @@ func (ep *streamRelationStreamExecutionPlan) preprocCartProdInt(dataHolder data.
 		myBuffer := remainingBuffers[myKey]
 		// compile a dictionary with the rest of the unvisited streams
 		// (do NOT modify remainingBuffers directly!)
-		rest := map[string][]tupleWithDerivedInputRows{}
+		rest := map[string]partialList{}
 		for key, buffer := range remainingBuffers {
 			if key != myKey {
 				rest[key] = buffer
 			}
 		}
-		for i, t := range myBuffer {
+		for e := myBuffer.start; e != myBuffer.end; e = e.Next() {
+			t := e.Value.(*tupleWithDerivedInputRows)
 			// add the data of this tuple to dataHolder and recurse
 			dataHolder[myKey] = t.tuple.Data[myKey]
-			origin[myKey] = &myBuffer[i]
+			origin[myKey] = t
 			setMetadata(dataHolder, myKey, t.tuple)
 			if err := ep.preprocCartProdInt(dataHolder, rest, origin); err != nil {
 				return err
