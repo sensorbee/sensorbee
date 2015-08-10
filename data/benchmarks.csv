@@ -1,0 +1,5 @@
+BenchmarkDeepEqual	91464.8	1299.63085528
+BenchmarkEqual	23335.5	239.660280397
+BenchmarkHash	10979.2	222.84559677
+BenchmarkHashLargeMap	35945681.1	427165.727408
+BenchmarkMapAccess	21488.5	540.378617268
