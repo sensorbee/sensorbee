@@ -168,7 +168,6 @@ func TestScanMap(t *testing.T) {
 			err := scanMap(testData, "", &v)
 			Convey("Then lookup should fail", func() {
 				So(err, ShouldNotBeNil)
-				So(err.Error(), ShouldEqual, "empty key is not supported")
 			})
 		})
 		Convey("When accessing an invalid string key", func() {
@@ -176,7 +175,6 @@ func TestScanMap(t *testing.T) {
 			err := scanMap(testData, "ab[a", &v)
 			Convey("Then lookup should fail", func() {
 				So(err, ShouldNotBeNil)
-				So(err.Error(), ShouldEqual, "invalid path component: ab[a")
 			})
 		})
 		Convey("When accessing a non-existing key", func() {
@@ -192,7 +190,7 @@ func TestScanMap(t *testing.T) {
 			err := scanMap(testData, "array[2147483648]", &v)
 			Convey("Then lookup should fail", func() {
 				So(err, ShouldNotBeNil)
-				So(err.Error(), ShouldEqual, "overflow index number: array[2147483648]")
+				So(err.Error(), ShouldEqual, "overflow index number: 2147483648")
 			})
 		})
 		Convey("When accessing an invalid array key", func() {
@@ -208,7 +206,6 @@ func TestScanMap(t *testing.T) {
 			err := scanMap(testData, "[0]", &v)
 			Convey("Then lookup should fail", func() {
 				So(err, ShouldNotBeNil)
-				So(err.Error(), ShouldEqual, "cannot access a data.Map using index 0")
 			})
 		})
 		Convey("When accessing an out-of-range index", func() {
@@ -216,7 +213,7 @@ func TestScanMap(t *testing.T) {
 			err := scanMap(testData, "array[2]", &v)
 			Convey("Then lookup should fail", func() {
 				So(err, ShouldNotBeNil)
-				So(err.Error(), ShouldEqual, "out of range access: array[2]")
+				So(err.Error(), ShouldEqual, "out of range access: 2")
 			})
 		})
 
@@ -253,9 +250,6 @@ func TestScanMap(t *testing.T) {
 					`map['nested..string']`: "keywithtwodots",
 					`map['nestedstring]']`:  "keywithbracket",
 					`map['nested"string']`:  "keywithdoublequote",
-					`map['nested'string']`:  "keywithsinglequote",
-					`map[''nestedstring']`:  "keywithsinglequoteA",
-					`map['nestedstring'']`:  "keywithsinglequoteB",
 					`map['nested\"string']`: "keywithescapeddoublequote",
 					`map['nestedstring\']`:  "keywithbackslash",
 					"map['nested\nstring']": "keywithnewline",
@@ -301,8 +295,6 @@ func TestScanMap(t *testing.T) {
 				samples := map[string]string{
 					`['array'][0]`:                    "saysay",
 					`array[0]`:                        "saysay",
-					`array.[0]`:                       "saysay",
-					`array[0].`:                       "saysay",
 					`['arraymap'][0]['mappedstring']`: "boo",
 				}
 				Convey("Then lookup should succeed and match the original value", func() {
@@ -329,7 +321,6 @@ func TestScanMap(t *testing.T) {
 						var v Value
 						err := scanMap(testData, input, &v)
 						So(err, ShouldNotBeNil)
-						So(err.Error(), ShouldEqual, "invalid path component: "+input)
 
 					}
 				})
