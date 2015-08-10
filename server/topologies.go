@@ -15,6 +15,7 @@ import (
 	"pfi/sensorbee/sensorbee/data"
 	"pfi/sensorbee/sensorbee/server/response"
 	"strings"
+	"time"
 )
 
 type topologies struct {
@@ -373,7 +374,10 @@ func (tc *topologies) handleSelectUnionStmt(rw web.ResponseWriter, stmt parser.S
 		return
 	}
 
-	var writeErr error
+	var (
+		writeErr error
+		readErr  error
+	)
 	mw := multipart.NewWriter(bufrw)
 	defer func() {
 		if writeErr != nil {
@@ -381,7 +385,7 @@ func (tc *topologies) handleSelectUnionStmt(rw web.ResponseWriter, stmt parser.S
 		}
 
 		if err := mw.Close(); err != nil {
-			if writeErr == nil { // log it only when the write err hasn't happend
+			if writeErr == nil && readErr == nil { // log it only when the write err hasn't happend
 				tc.ErrLog(err).Info("Cannot finish the multipart response")
 			}
 		}
@@ -414,8 +418,53 @@ func (tc *topologies) handleSelectUnionStmt(rw web.ResponseWriter, stmt parser.S
 	// caused by the client closing the connection.
 	header := textproto.MIMEHeader{}
 	header.Add("Content-Type", "application/json")
-	for t := range ch {
-		// TODO: provide very efficient timeout detection
+
+	readPoll := time.After(1 * time.Minute)
+	sent := false
+	dummyReadBuf := make([]byte, 1024)
+	for {
+		var t *core.Tuple
+		select {
+		case v, ok := <-ch:
+			if !ok {
+				return
+			}
+			t = v
+			sent = true
+		case <-readPoll:
+			if sent {
+				sent = false
+				readPoll = time.After(1 * time.Minute)
+				continue
+			}
+
+			// Assuming there's no more data to be read. Because no tuple was
+			// written for past 1 minute, blocking read for 1ms here isn't a
+			// big deal.
+			// TODO: is there any better way to detect disconnection?
+			// TODO: If general errors are checked before checking the deadline,
+			//       this code doesn't have to add 1ms.
+			if err := conn.SetReadDeadline(time.Now().Add(1 * time.Millisecond)); err != nil {
+				tc.ErrLog(err).Error("Cannot check the status of connection due to the failure of conn.SetReadDeadline. Stopping streaming.")
+				// This isn't handled as a read error because some operating
+				// systems don't support SetReadDeadline.
+				return
+			}
+			if _, err := bufrw.Read(dummyReadBuf); err != nil {
+				type timeout interface {
+					Timeout() bool
+				}
+				if e, ok := err.(timeout); !ok || !e.Timeout() {
+					// Something happend on this connection.
+					readErr = err
+					tc.ErrLog(err).Error("The connection may be closed from the client side")
+					return
+				}
+			}
+			readPoll = time.After(1 * time.Minute)
+			continue
+		}
+
 		js := t.Data.String()
 		// TODO: don't forget to convert \n to \r\n when returning
 		// pretty-printed JSON objects.
