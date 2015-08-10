@@ -6,8 +6,11 @@ import (
 	"time"
 )
 
+// Blob is a binary large object which may have any type of byte data.
+// It can be assigned to Value interface.
 type Blob []byte
 
+// Type returns TypeID of Blob. It's always TypeBlob.
 func (b Blob) Type() TypeID {
 	return TypeBlob
 }
@@ -52,6 +55,7 @@ func (b Blob) clone() Value {
 	return Blob(out)
 }
 
+// Stringreturns JSON representation of a Blob. Blob is marshaled as a string.
 func (b Blob) String() string {
 	// the String return value is defined via the
 	// default JSON serialization

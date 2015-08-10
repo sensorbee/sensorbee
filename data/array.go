@@ -6,8 +6,10 @@ import (
 	"time"
 )
 
+// Array is an array of Values. It can be assigned to Value interface.
 type Array []Value
 
+// Type returns TypeID of Array. It's always TypeArray.
 func (a Array) Type() TypeID {
 	return TypeArray
 }
@@ -52,6 +54,7 @@ func (a Array) clone() Value {
 	return Array(out)
 }
 
+// String returns JSON representation of an Array.
 func (a Array) String() string {
 	// the String return value is defined via the
 	// default JSON serialization
@@ -62,6 +65,7 @@ func (a Array) String() string {
 	return string(bytes)
 }
 
+// UnmarshalJSON reconstructs an Array from JSON.
 func (a *Array) UnmarshalJSON(data []byte) error {
 	var j []interface{}
 	if err := json.Unmarshal(data, &j); err != nil {

@@ -6,8 +6,12 @@ import (
 	"time"
 )
 
+// Int is an integer. It can be assigned to Value interface. A value more than
+// 2^53 - 1 cannot exactly be marshaled to JSON because some languages like
+// JavaScript or Lua only has float as a numeric type.
 type Int int64
 
+// Type returns TypeID of Int. It's always TypeInt.
 func (i Int) Type() TypeID {
 	return TypeInt
 }
@@ -48,6 +52,7 @@ func (i Int) clone() Value {
 	return Int(i)
 }
 
+// String returns JSON representation of an Int.
 func (i Int) String() string {
 	// the String return value is defined via the
 	// default JSON serialization

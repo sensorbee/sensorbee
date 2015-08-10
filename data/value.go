@@ -41,18 +41,28 @@ func castError(from TypeID, to TypeID) error {
 	return fmt.Errorf("unsupported cast %v from %v", to.String(), from.String())
 }
 
+// TypeID is an ID of a type. A unique value is assigned to each type.
 type TypeID int
 
 const (
-	TypeUnknown TypeID = iota
+	typeUnknown TypeID = iota
+	// TypeNull is a TypeID of Null.
 	TypeNull
+	// TypeBool is a TypeID of Bool.
 	TypeBool
+	// TypeInt is a TypeID of Int.
 	TypeInt
+	// TypeFloat is a TypeID of Float.
 	TypeFloat
+	// TypeString is a TypeID of String.
 	TypeString
+	// TypeBlob is a TypeID of Blob.
 	TypeBlob
+	// TypeTimestamp is a TypeID of Timestamp.
 	TypeTimestamp
+	// TypeArray is a TypeID of Array.
 	TypeArray
+	// TypeMap is a TypeID of Map.
 	TypeMap
 )
 
