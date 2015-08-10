@@ -6,8 +6,10 @@ import (
 	"time"
 )
 
+// String is a string. It can be assigned to Value interface.
 type String string
 
+// Type returns TypeID of String. It's always TypeString.
 func (s String) Type() TypeID {
 	return TypeString
 }
@@ -48,6 +50,9 @@ func (s String) clone() Value {
 	return String(s)
 }
 
+// String returns JSON representation of a String. A string "a" will be marshaled
+// as `"a"` (double quotes are included), not `a`. To obtain a plain string
+// without double quotes, use ToString function.
 func (s String) String() string {
 	// the String return value is defined via the
 	// default JSON serialization

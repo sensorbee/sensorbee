@@ -5,6 +5,7 @@ import (
 	"time"
 )
 
+// Bool is a boolean value. It can be assigned to Value interface.
 type Bool bool
 
 const (
@@ -15,6 +16,7 @@ const (
 	False Bool = false
 )
 
+// Type returns TypeID of Bool. It's always TypeBool.
 func (b Bool) Type() TypeID {
 	return TypeBool
 }
@@ -55,6 +57,7 @@ func (b Bool) clone() Value {
 	return Bool(b)
 }
 
+// String returns JSON representation of a Bool, which is true or false.
 func (b Bool) String() string {
 	return fmt.Sprintf("%#v", b)
 }

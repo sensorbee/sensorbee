@@ -6,8 +6,11 @@ import (
 	"time"
 )
 
+// Map is a map of Values. It can be assigned to Value interface. Only
+// string keys are allowed.
 type Map map[string]Value
 
+// Type returns TypeID of Map. It's always TypeMap.
 func (m Map) Type() TypeID {
 	return TypeMap
 }
@@ -48,6 +51,7 @@ func (m Map) clone() Value {
 	return m.Copy()
 }
 
+// String returns JSON representation of a Map.
 func (m Map) String() string {
 	// the String return value is defined via the
 	// default JSON serialization
@@ -58,6 +62,7 @@ func (m Map) String() string {
 	return string(bytes)
 }
 
+// UnmarshalJSON reconstructs a Map from JSON.
 func (m *Map) UnmarshalJSON(data []byte) error {
 	var j map[string]interface{}
 	if err := json.Unmarshal(data, &j); err != nil {
@@ -72,6 +77,8 @@ func (m *Map) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// Copy performs deep copy of a Map. The Map returned from this method can
+// safely be modified without affecting the original.
 func (m Map) Copy() Map {
 	out := make(map[string]Value, len(m))
 	for key, val := range m {

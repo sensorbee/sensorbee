@@ -4,8 +4,12 @@ import (
 	"time"
 )
 
+// Timestamp is a date time information having microsecond-precision.
+// It can be assigned to Value. It may have nanosecond values but they're
+// usually ignored.
 type Timestamp time.Time
 
+// Type returns TypeID of Timestamp. It's always TypeTimestamp.
 func (t Timestamp) Type() TypeID {
 	return TypeTimestamp
 }
@@ -46,12 +50,17 @@ func (t Timestamp) clone() Value {
 	return Timestamp(t)
 }
 
+// MarshalJSON marshals a Timestamp to JSON. A Timestamp is encoded as a string
+// in RFC3339Nano format.
 func (t Timestamp) MarshalJSON() ([]byte, error) {
 	// the JSON serialization is defined via the String()
 	// return value as defined below
 	return []byte(t.String()), nil
 }
 
+// UnmarshalJSON reconstructs a Timestamp from JSON. It first tries to parse
+// a string in RFC3339Nano format. When it fails, then it tries again with
+// RFC3339 format.
 func (t *Timestamp) UnmarshalJSON(data []byte) error {
 	str := string(data)
 	ts, err := time.Parse(`"`+time.RFC3339Nano+`"`, str)
@@ -67,6 +76,8 @@ func (t *Timestamp) UnmarshalJSON(data []byte) error {
 	return err
 }
 
+// String returns JSON representation of a Timestamp. A Timestamp is encoded as
+// a string in RFC3339Nano format.
 func (t Timestamp) String() string {
 	s, _ := ToString(t)
 	return `"` + s + `"`
