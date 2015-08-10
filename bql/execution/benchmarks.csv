@@ -1,0 +1,3 @@
+BenchmarkNormalExecution	102409.0	2070.1841947
+BenchmarkNormalJoin	455563.2	8908.80161189
+BenchmarkWithWhere	78996.8	2057.02225559
