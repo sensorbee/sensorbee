@@ -1,6 +1,11 @@
-BenchmarkComplicatedGroupExecution	106546.7	3960.28271844
-BenchmarkGroupingExecution	64842.2	3427.8793386
-BenchmarkLargeGroupExecution	239330.8	7214.37911119
-BenchmarkNormalExecution	34456.0	935.739707397
-BenchmarkNormalJoin	192605.4	6757.29042146
-BenchmarkWithWhere	25782.5	731.991017704
+BenchmarkComplicatedGroupExecution	109986.1	6193.66653042
+BenchmarkGroupingExecution	65305.2	1591.17735027
+BenchmarkGroupingTimeBasedExecution	70442.8	4076.0019578
+BenchmarkLargeGroupExecution	242746.5	9108.35675904
+BenchmarkLargeGroupTimeBasedExecution	249635.4	7666.55553948
+BenchmarkNormalExecution	35331.3	802.478915611
+BenchmarkNormalExecutionBigWindow	104474.9	3195.10683546
+BenchmarkNormalJoin	198500.5	4681.34970388
+BenchmarkTimeBasedExecution	37856.8	1281.18334363
+BenchmarkTimeBasedExecutionBigWindow	112114.9	3919.38105956
+BenchmarkWithWhere	26560.0	1200.03591613
