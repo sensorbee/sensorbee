@@ -426,3 +426,33 @@ func TestSplit(t *testing.T) {
 		})
 	})
 }
+
+func BenchmarkMapAccess(b *testing.B) {
+	m := Map{
+		"store": Map{
+			"name": String("store name"),
+			"book": Array([]Value{
+				Map{
+					"title": String("book name"),
+				},
+			}),
+		},
+	}
+	examples := map[string]interface{}{
+		"store.name":                    String("store name"),
+		"store.book[0].title":           String("book name"),
+		`["store"]["name"]`:             String("store name"),
+		`["store"]["book"][0]["title"]`: String("book name"),
+	}
+	for n := 0; n < b.N; n++ {
+		for input, expected := range examples {
+			actual, err := m.Get(input)
+			if err != nil {
+				panic(err)
+			}
+			if actual != expected {
+				panic("result mismatch")
+			}
+		}
+	}
+}
