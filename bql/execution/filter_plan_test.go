@@ -353,7 +353,6 @@ func createFilterPlan2(s string) (ExecutionPlan, error) {
 	return NewFilterPlan(logicalPlan, reg)
 }
 
-// ca. 20000 ns/op
 func BenchmarkFilterExecution(b *testing.B) {
 	s := `CREATE STREAM box AS SELECT RSTREAM cast(3+4-6+1 as float), 3.0::int*4/2+1=7.0,
 			null, [2.0,3] = [2,3.0] FROM src [RANGE 1 TUPLES]`
@@ -378,7 +377,6 @@ func BenchmarkFilterExecution(b *testing.B) {
 	}
 }
 
-// ca. 16000 ns/op
 func BenchmarkFilterWithWhere(b *testing.B) {
 	s := `CREATE STREAM box AS SELECT RSTREAM cast(3+4-6+1 as float), 3.0::int*4/2+1=7.0,
 			null, [2.0,3] = [2,3.0] FROM src [RANGE 1 TUPLES] WHERE int % 2 = 0`
