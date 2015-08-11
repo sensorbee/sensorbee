@@ -164,8 +164,16 @@ DropStateStmt <- "DROP" sp "STATE" sp StreamIdentifier {
 ##### STATEMENT COMPONENTS #####
 ################################
 
-Emitter <- (ISTREAM / DSTREAM / RSTREAM) {
+Emitter <- (ISTREAM / DSTREAM / RSTREAM) sp EmitterOptions {
         p.AssembleEmitter()
+    }
+
+EmitterOptions <- < ('[' sp EmitterLimit sp ']')? > {
+        p.AssembleEmitterOptions(begin, end)
+    }
+
+EmitterLimit <- 'LIMIT' sp NumericLiteral {
+        p.AssembleEmitterLimit()
     }
 
 Projections <- < Projection sp (',' sp Projection)* > {
