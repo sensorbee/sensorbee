@@ -455,11 +455,46 @@ func (ps *parseStack) AssembleDropState() {
 //  EmitterAST{Emitter}
 func (ps *parseStack) AssembleEmitter() {
 	// pop the components from the stack in reverse order
-	_emitter := ps.Pop()
+	_options, _emitter := ps.pop2()
 
 	emitter := _emitter.comp.(Emitter)
+	options := _options.comp.([]interface{})
 
-	ps.PushComponent(_emitter.begin, _emitter.end, EmitterAST{emitter})
+	ps.PushComponent(_emitter.begin, _options.end, EmitterAST{emitter, options})
+}
+
+// AssembleEmitterOptions takes the elements from the stack that
+// correspond to the input[begin:end] string and pushes a slice
+// with all of them back to the stack.
+//
+//  Any
+//  Any
+//  Any
+//   =>
+//  []{Any, Any, Any}
+func (ps *parseStack) AssembleEmitterOptions(begin int, end int) {
+	elems := ps.collectElements(begin, end)
+	if len(elems) == 0 {
+		elems = nil
+	}
+	// push the grouped list back
+	ps.PushComponent(begin, end, elems)
+}
+
+// AssembleEmitterLimit takes the topmost elements from the stack,
+// assuming they are components of a emitter LIMIT option, and replaces
+// them by a single EmitterLimit element.
+//
+//  NumericLiteral
+//  ...
+//   =>
+//  EmitterLimit{NumericLiteral}
+func (ps *parseStack) AssembleEmitterLimit() {
+	_limit := ps.Pop()
+
+	limit := _limit.comp.(NumericLiteral)
+
+	ps.PushComponent(_limit.begin, _limit.end, EmitterLimit{limit.Value})
 }
 
 // AssembleProjections takes the elements from the stack that
