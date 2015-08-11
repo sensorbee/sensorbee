@@ -23,6 +23,9 @@ type bqlBox struct {
 	// count holds the number of items seen so far; but only
 	// if emitterLimit >= 0
 	count int64
+	// removeMe is a function to remove this bqlBox from its
+	// topology. A nil check must be done before calling.
+	removeMe func()
 }
 
 func NewBQLBox(stmt *parser.SelectStmt, reg udf.FunctionRegistry) *bqlBox {
@@ -53,6 +56,11 @@ func (b *bqlBox) Process(ctx *core.Context, t *core.Tuple, s core.Writer) error 
 
 	// deal with statements that have an emitter limit
 	if b.emitterLimit >= 0 && b.count >= b.emitterLimit {
+		if b.removeMe != nil {
+			b.removeMe()
+			// don't call twice
+			b.removeMe = nil
+		}
 		return nil
 	}
 
