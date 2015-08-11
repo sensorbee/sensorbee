@@ -395,6 +395,8 @@ func (tb *TopologyBuilder) createStreamAsSelectStmt(stmt *parser.CreateStreamAsS
 	if err != nil {
 		return nil, err
 	}
+	// provide a function to the BQL box to remove itself from the topology
+	box.removeMe = func() { go tb.topology.Remove(outName) }
 
 	removeNodes := true
 	var temporaryNodes []string
