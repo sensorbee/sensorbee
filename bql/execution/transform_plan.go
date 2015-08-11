@@ -23,8 +23,9 @@ in three phases:
 
 type LogicalPlan struct {
 	GroupingStmt bool
-	parser.EmitterAST
-	Projections []aliasedExpression
+	EmitterType  parser.Emitter
+	EmitterLimit int64
+	Projections  []aliasedExpression
 	parser.WindowedFromAST
 	Filter    FlatExpression
 	GroupList []FlatExpression
@@ -220,9 +221,26 @@ func flattenExpressions(s *parser.SelectStmt, reg udf.FunctionRegistry) (*Logica
 		}
 	}
 
+	// validate the emitter parameters
+	emitLimit := int64(-1)
+	for _, opt := range s.EmitterAST.EmitterOptions {
+		switch obj := opt.(type) {
+		default:
+			return nil, fmt.Errorf("unknown emitter options: %+v", obj)
+		case parser.EmitterLimit:
+			l := obj.Limit
+			if l < 0 {
+				return nil, fmt.Errorf("LIMIT parameter must have a "+
+					"positive value, not %d", l)
+			}
+			emitLimit = l
+		}
+	}
+
 	return &LogicalPlan{
 		groupingMode,
-		s.EmitterAST,
+		s.EmitterAST.EmitterType,
+		emitLimit,
 		flatProjExprs,
 		s.WindowedFromAST,
 		filterExpr,
