@@ -255,12 +255,27 @@ func (s DropStateStmt) String() string {
 }
 
 type EmitterAST struct {
-	EmitterType Emitter
-	// here is space for some emit options later on
+	EmitterType    Emitter
+	EmitterOptions []interface{}
 }
 
 func (a EmitterAST) string() string {
-	return a.EmitterType.String()
+	s := a.EmitterType.String()
+	if len(a.EmitterOptions) > 0 {
+		optStrings := make([]string, len(a.EmitterOptions))
+		for i, opt := range a.EmitterOptions {
+			switch obj := opt.(type) {
+			case EmitterLimit:
+				optStrings[i] = fmt.Sprintf("LIMIT %d", obj.Limit)
+			}
+		}
+		s += " [" + strings.Join(optStrings, ", ") + "]"
+	}
+	return s
+}
+
+type EmitterLimit struct {
+	Limit int64
 }
 
 type ProjectionsAST struct {
