@@ -404,7 +404,7 @@ func TestRelationChecker(t *testing.T) {
 	emitterTestCases := []analyzeTest{
 		// SELECT ISTREAM                                      a FROM t -> OK
 		{&parser.SelectStmt{
-			EmitterAST:      parser.EmitterAST{parser.Istream},
+			EmitterAST:      parser.EmitterAST{parser.Istream, nil},
 			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{a}},
 			WindowedFromAST: singleFrom,
 		}, ""},
@@ -417,7 +417,7 @@ func TestRelationChecker(t *testing.T) {
 		selectAst := testCase.input
 
 		Convey(fmt.Sprintf("Given the AST %+v", selectAst), t, func() {
-			emitter := parser.EmitterAST{parser.Istream}
+			emitter := parser.EmitterAST{parser.Istream, nil}
 			if selectAst.EmitterType != parser.UnspecifiedEmitter {
 				emitter = selectAst.EmitterAST
 			}
@@ -466,7 +466,7 @@ func TestRelationChecker(t *testing.T) {
 				myFrom = selectAst.WindowedFromAST
 			}
 			ast := parser.SelectStmt{
-				EmitterAST:      parser.EmitterAST{parser.Istream},
+				EmitterAST:      parser.EmitterAST{parser.Istream, nil},
 				ProjectionsAST:  selectAst.ProjectionsAST,
 				WindowedFromAST: myFrom,
 				FilterAST:       selectAst.FilterAST,
@@ -565,7 +565,7 @@ func TestRelationAliasing(t *testing.T) {
 
 		Convey(fmt.Sprintf("Given the AST %+v", selectAst), t, func() {
 			ast := parser.SelectStmt{
-				EmitterAST:      parser.EmitterAST{parser.Istream},
+				EmitterAST:      parser.EmitterAST{parser.Istream, nil},
 				ProjectionsAST:  selectAst.ProjectionsAST,
 				WindowedFromAST: selectAst.WindowedFromAST,
 			}

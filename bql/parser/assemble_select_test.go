@@ -10,6 +10,7 @@ func TestAssembleSelect(t *testing.T) {
 		ps := parseStack{}
 		Convey("When the stack contains the correct SELECT items", func() {
 			ps.PushComponent(4, 6, Istream)
+			ps.AssembleEmitterOptions(6, 6)
 			ps.AssembleEmitter()
 			ps.PushComponent(6, 7, RowValue{"", "a"})
 			ps.PushComponent(7, 8, RowValue{"", "b"})
@@ -49,6 +50,7 @@ func TestAssembleSelect(t *testing.T) {
 					Convey("And it contains the previously pushed data", func() {
 						comp := top.comp.(SelectStmt)
 						So(comp.EmitterType, ShouldEqual, Istream)
+						So(comp.EmitterOptions, ShouldBeNil)
 						So(len(comp.Projections), ShouldEqual, 2)
 						So(comp.Projections[0], ShouldResemble, RowValue{"", "a"})
 						So(comp.Projections[1], ShouldResemble, RowValue{"", "b"})
@@ -81,6 +83,7 @@ func TestAssembleSelect(t *testing.T) {
 
 		Convey("When the stack contains a wrong item", func() {
 			ps.PushComponent(4, 6, Istream)
+			ps.AssembleEmitterOptions(6, 6)
 			ps.AssembleEmitter()
 			ps.PushComponent(6, 7, RowValue{"", "a"})
 			ps.PushComponent(7, 8, RowValue{"", "b"})
@@ -130,6 +133,7 @@ func TestAssembleSelect(t *testing.T) {
 				comp := top.(SelectStmt)
 
 				So(comp.EmitterType, ShouldEqual, Istream)
+				So(comp.EmitterOptions, ShouldBeNil)
 				So(len(comp.Projections), ShouldEqual, 2)
 				So(comp.Projections[0], ShouldResemble, StringLiteral{"日本語"})
 				So(comp.Projections[1], ShouldResemble, RowValue{"", "b"})
