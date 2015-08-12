@@ -34,12 +34,13 @@ func ConvertGeneric(function interface{}) (UDF, error) {
 
 	numArgs := t.NumIn()
 	if genericFuncHasContext(t) {
-		numArgs -= 1
+		numArgs--
 	}
 
 	return ConvertGenericAggregate(function, make([]bool, numArgs))
 }
 
+// MustConvertGeneric is like ConvertGeneric, but panics on errors.
 func MustConvertGeneric(function interface{}) UDF {
 	f, err := ConvertGeneric(function)
 	if err != nil {
@@ -70,7 +71,7 @@ func ConvertGenericAggregate(function interface{}, aggParams []bool) (UDF, error
 	}
 
 	if g.hasContext {
-		g.arity -= 1
+		g.arity--
 	}
 
 	if g.arity != len(aggParams) {
@@ -84,7 +85,7 @@ func ConvertGenericAggregate(function interface{}, aggParams []bool) (UDF, error
 
 		in := i
 		if g.hasContext {
-			in += 1
+			in++
 		}
 		if t.In(in).Kind() != reflect.Slice {
 			return nil, fmt.Errorf("the %v-th parameter for aggregation must be slice", i+1)
@@ -105,6 +106,8 @@ func ConvertGenericAggregate(function interface{}, aggParams []bool) (UDF, error
 	return g, nil
 }
 
+// MustConvertGenericAggregate is like ConvertGenericAggregate,
+// but panics on errors.
 func MustConvertGenericAggregate(function interface{}) UDF {
 	f, err := ConvertGeneric(function)
 	if err != nil {
