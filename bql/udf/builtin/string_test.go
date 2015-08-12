@@ -96,10 +96,10 @@ func TestUnaryStringFuncs(t *testing.T) {
 						Convey(fmt.Sprintf("Then the result should be %s", tc.expected), func() {
 							So(err, ShouldBeNil)
 							if val.Type() == data.TypeFloat && tc.expected.Type() == data.TypeFloat {
-								f_actual, _ := data.AsFloat(val)
-								f_expected, _ := data.AsFloat(tc.expected)
-								if math.IsNaN(f_expected) {
-									So(math.IsNaN(f_actual), ShouldBeTrue)
+								fActual, _ := data.AsFloat(val)
+								fExpected, _ := data.AsFloat(tc.expected)
+								if math.IsNaN(fExpected) {
+									So(math.IsNaN(fActual), ShouldBeTrue)
 								} else {
 									So(val, ShouldAlmostEqual, tc.expected, 0.0000001)
 								}
@@ -196,10 +196,10 @@ func TestBinaryStringFuncs(t *testing.T) {
 						Convey(fmt.Sprintf("Then the result should be %s", tc.expected), func() {
 							So(err, ShouldBeNil)
 							if val.Type() == data.TypeFloat && tc.expected.Type() == data.TypeFloat {
-								f_actual, _ := data.AsFloat(val)
-								f_expected, _ := data.AsFloat(tc.expected)
-								if math.IsNaN(f_expected) {
-									So(math.IsNaN(f_actual), ShouldBeTrue)
+								fActual, _ := data.AsFloat(val)
+								fExpected, _ := data.AsFloat(tc.expected)
+								if math.IsNaN(fExpected) {
+									So(math.IsNaN(fActual), ShouldBeTrue)
 								} else {
 									So(val, ShouldAlmostEqual, tc.expected, 0.0000001)
 								}
@@ -296,10 +296,10 @@ func Test3aryStringFuncs(t *testing.T) {
 						Convey(fmt.Sprintf("Then the result should be %s", tc.expected), func() {
 							So(err, ShouldBeNil)
 							if val.Type() == data.TypeFloat && tc.expected.Type() == data.TypeFloat {
-								f_actual, _ := data.AsFloat(val)
-								f_expected, _ := data.AsFloat(tc.expected)
-								if math.IsNaN(f_expected) {
-									So(math.IsNaN(f_actual), ShouldBeTrue)
+								fActual, _ := data.AsFloat(val)
+								fExpected, _ := data.AsFloat(tc.expected)
+								if math.IsNaN(fExpected) {
+									So(math.IsNaN(fActual), ShouldBeTrue)
 								} else {
 									So(val, ShouldAlmostEqual, tc.expected, 0.0000001)
 								}
@@ -376,10 +376,10 @@ func Test4aryStringFuncs(t *testing.T) {
 						Convey(fmt.Sprintf("Then the result should be %s", tc.expected), func() {
 							So(err, ShouldBeNil)
 							if val.Type() == data.TypeFloat && tc.expected.Type() == data.TypeFloat {
-								f_actual, _ := data.AsFloat(val)
-								f_expected, _ := data.AsFloat(tc.expected)
-								if math.IsNaN(f_expected) {
-									So(math.IsNaN(f_actual), ShouldBeTrue)
+								fActual, _ := data.AsFloat(val)
+								fExpected, _ := data.AsFloat(tc.expected)
+								if math.IsNaN(fExpected) {
+									So(math.IsNaN(fActual), ShouldBeTrue)
 								} else {
 									So(val, ShouldAlmostEqual, tc.expected, 0.0000001)
 								}
@@ -483,10 +483,10 @@ func TestVariadicStringFuncs(t *testing.T) {
 						Convey(fmt.Sprintf("Then the result should be %s", tc.expected), func() {
 							So(err, ShouldBeNil)
 							if val.Type() == data.TypeFloat && tc.expected.Type() == data.TypeFloat {
-								f_actual, _ := data.AsFloat(val)
-								f_expected, _ := data.AsFloat(tc.expected)
-								if math.IsNaN(f_expected) {
-									So(math.IsNaN(f_actual), ShouldBeTrue)
+								fActual, _ := data.AsFloat(val)
+								fExpected, _ := data.AsFloat(tc.expected)
+								if math.IsNaN(fExpected) {
+									So(math.IsNaN(fActual), ShouldBeTrue)
 								} else {
 									So(val, ShouldAlmostEqual, tc.expected, 0.0000001)
 								}
