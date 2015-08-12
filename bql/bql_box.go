@@ -14,7 +14,7 @@ type bqlBox struct {
 	// reg holds functions that can be used in this box
 	reg udf.FunctionRegistry
 	// plan is the execution plan for the SELECT statement in there
-	execPlan execution.ExecutionPlan
+	execPlan execution.PhysicalPlan
 	// mutex protects access to shared state
 	mutex sync.Mutex
 	// emitterLimit holds a positive value if this box should

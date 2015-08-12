@@ -26,7 +26,7 @@ func CanBuildDefaultSelectExecutionPlan(lp *LogicalPlan, reg udf.FunctionRegistr
 // - perform a SELECT query on that data,
 // - compute the data that need to be emitted by comparison with
 //   the previous run's results.
-func NewDefaultSelectExecutionPlan(lp *LogicalPlan, reg udf.FunctionRegistry) (ExecutionPlan, error) {
+func NewDefaultSelectExecutionPlan(lp *LogicalPlan, reg udf.FunctionRegistry) (PhysicalPlan, error) {
 	underlying, err := newStreamRelationStreamExecutionPlan(lp, reg)
 	if err != nil {
 		return nil, err

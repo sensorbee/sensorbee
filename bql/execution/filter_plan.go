@@ -25,11 +25,11 @@ func CanBuildFilterPlan(lp *LogicalPlan, reg udf.FunctionRegistry) bool {
 		lp.Relations[0].Value == 1
 }
 
-// filterPlan is a fast and simple plan for the case where the
+// NewFilterPlan creates a fast and simple plan for the case where the
 // BQL statement has an Rstream emitter, a [RANGE 1 TUPLES] and (maybe)
 // a WHERE clause (no GROUP BY/aggregate functions). In that case we can
 // perform the check with less memory and faster than the default plan.
-func NewFilterPlan(lp *LogicalPlan, reg udf.FunctionRegistry) (ExecutionPlan, error) {
+func NewFilterPlan(lp *LogicalPlan, reg udf.FunctionRegistry) (PhysicalPlan, error) {
 	// prepare projection components
 	projs, err := prepareProjections(lp.Projections, reg)
 	if err != nil {
