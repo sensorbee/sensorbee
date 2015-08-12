@@ -17,15 +17,14 @@ func TestAssembleLoadState(t *testing.T) {
 			ps.AssembleSourceSinkSpecs(6, 10)
 			ps.AssembleLoadState()
 
-			Convey("Then AssembleLoadStateOrCreate transforms them into one item", func() {
+			Convey("Then AssembleLoadState transforms them into one item", func() {
 				So(ps.Len(), ShouldEqual, 1)
 
 				Convey("And that item is a LoadStateStmt", func() {
 					top := ps.Peek()
-					Println(top)
 					So(top, ShouldNotBeNil)
 					So(top.begin, ShouldEqual, 2)
-					So(top.end, ShouldEqual, 4)
+					So(top.end, ShouldEqual, 10)
 					So(top.comp, ShouldHaveSameTypeAs, LoadStateStmt{})
 
 					Convey("And it contains the previously pushed data", func() {
@@ -45,8 +44,8 @@ func TestAssembleLoadState(t *testing.T) {
 		Convey("When the stack does not contain enough items", func() {
 			ps.PushComponent(6, 7, RowValue{"", "a"})
 			ps.AssembleProjections(6, 7)
-			Convey("Then AssembleLoadStateOrCreate panics", func() {
-				So(ps.AssembleLoadStateOrCreate, ShouldPanic)
+			Convey("Then AssembleLoadState panics", func() {
+				So(ps.AssembleLoadState, ShouldPanic)
 			})
 		})
 
@@ -57,8 +56,8 @@ func TestAssembleLoadState(t *testing.T) {
 			ps.PushComponent(8, 10, SourceSinkParamAST{"e", data.String("f")})
 			ps.AssembleSourceSinkSpecs(6, 10)
 
-			Convey("Then AssembleLoadStateOrCreate panics", func() {
-				So(ps.AssembleLoadStateOrCreate, ShouldPanic)
+			Convey("Then AssembleLoadState panics", func() {
+				So(ps.AssembleLoadState, ShouldPanic)
 			})
 		})
 	})
