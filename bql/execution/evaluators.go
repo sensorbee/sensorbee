@@ -55,7 +55,7 @@ func EvaluateFoldable(expr parser.Expression, reg udf.FunctionRegistry) (data.Va
 // input Value.
 func ExpressionToEvaluator(ast FlatExpression, reg udf.FunctionRegistry) (Evaluator, error) {
 	switch obj := ast.(type) {
-	case RowMeta:
+	case rowMeta:
 		// construct a key for reading as used in setMetadata() for writing
 		metaKey := fmt.Sprintf("['%s:meta:%s']", obj.Relation, obj.MetaType)
 		if obj.MetaType == parser.TimestampMeta {
@@ -65,7 +65,7 @@ func ExpressionToEvaluator(ast FlatExpression, reg udf.FunctionRegistry) (Evalua
 			}
 			return &timestampCast{pa}, nil
 		}
-	case StmtMeta:
+	case stmtMeta:
 		// construct a key for reading as used in setMetadata() for writing
 		metaKey := fmt.Sprintf("[':meta:%s']", obj.MetaType)
 		if obj.MetaType == parser.NowMeta {
@@ -75,7 +75,7 @@ func ExpressionToEvaluator(ast FlatExpression, reg udf.FunctionRegistry) (Evalua
 			}
 			return &timestampCast{pa}, nil
 		}
-	case RowValue:
+	case rowValue:
 		path := obj.Column
 		if obj.Relation != "" {
 			if strings.HasPrefix(path, "[") {
@@ -85,19 +85,19 @@ func ExpressionToEvaluator(ast FlatExpression, reg udf.FunctionRegistry) (Evalua
 			}
 		}
 		return newPathAccess(path)
-	case AggInputRef:
+	case aggInputRef:
 		return newPathAccess(obj.Ref)
-	case NullLiteral:
+	case nullLiteral:
 		return &nullConstant{}, nil
-	case NumericLiteral:
+	case numericLiteral:
 		return &intConstant{obj.Value}, nil
-	case FloatLiteral:
+	case floatLiteral:
 		return &floatConstant{obj.Value}, nil
-	case BoolLiteral:
+	case boolLiteral:
 		return &boolConstant{obj.Value}, nil
-	case StringLiteral:
+	case stringLiteral:
 		return &stringConstant{obj.Value}, nil
-	case BinaryOpAST:
+	case binaryOpAST:
 		// recurse
 		left, err := ExpressionToEvaluator(obj.Left, reg)
 		if err != nil {
@@ -134,13 +134,13 @@ func ExpressionToEvaluator(ast FlatExpression, reg udf.FunctionRegistry) (Evalua
 		case parser.Is:
 			// at the moment there is only NULL allowed after IS,
 			// but maybe we want to allow other types later on
-			if obj.Right == (NullLiteral{}) {
+			if obj.Right == (nullLiteral{}) {
 				return newIsNull(left), nil
 			}
 		case parser.IsNot:
 			// at the moment there is only NULL allowed after IS NOT,
 			// but maybe we want to allow other types later on
-			if obj.Right == (NullLiteral{}) {
+			if obj.Right == (nullLiteral{}) {
 				return newNot(newIsNull(left)), nil
 			}
 		case parser.Plus:
@@ -154,7 +154,7 @@ func ExpressionToEvaluator(ast FlatExpression, reg udf.FunctionRegistry) (Evalua
 		case parser.Modulo:
 			return newModulo(bo), nil
 		}
-	case UnaryOpAST:
+	case unaryOpAST:
 		// recurse
 		expr, err := ExpressionToEvaluator(obj.Expr, reg)
 		if err != nil {
@@ -172,14 +172,14 @@ func ExpressionToEvaluator(ast FlatExpression, reg udf.FunctionRegistry) (Evalua
 			bo := binOp{expr, &intConstant{-1}}
 			return newMultiply(bo), nil
 		}
-	case TypeCastAST:
+	case typeCastAST:
 		// recurse
 		expr, err := ExpressionToEvaluator(obj.Expr, reg)
 		if err != nil {
 			return nil, err
 		}
 		return newTypeCast(expr, obj.Target)
-	case FuncAppAST:
+	case funcAppAST:
 		// lookup function in function registry
 		// (the registry will decide if the requested function
 		// is callable with the given number of arguments).
@@ -198,7 +198,7 @@ func ExpressionToEvaluator(ast FlatExpression, reg udf.FunctionRegistry) (Evalua
 			evals[i] = eval
 		}
 		return FuncApp(fName, f, reg.Context(), evals), nil
-	case ArrayAST:
+	case arrayAST:
 		// compute child Evaluators
 		evals := make([]Evaluator, len(obj.Expressions))
 		for i, ast := range obj.Expressions {
@@ -209,7 +209,7 @@ func ExpressionToEvaluator(ast FlatExpression, reg udf.FunctionRegistry) (Evalua
 			evals[i] = eval
 		}
 		return newArrayBuilder(evals), nil
-	case MapAST:
+	case mapAST:
 		// compute child Evaluators
 		names := make([]string, len(obj.Entries))
 		evals := make([]Evaluator, len(obj.Entries))
@@ -222,7 +222,7 @@ func ExpressionToEvaluator(ast FlatExpression, reg udf.FunctionRegistry) (Evalua
 			names[i] = pair.Key
 		}
 		return newMapBuilder(names, evals)
-	case WildcardAST:
+	case wildcardAST:
 		return &wildcard{obj.Relation}, nil
 	}
 	err := fmt.Errorf("don't know how to evaluate type %#v", ast)

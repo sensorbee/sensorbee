@@ -83,7 +83,7 @@ func prepareGroupList(groupList []FlatExpression, reg udf.FunctionRegistry) ([]E
 // is transformed into
 //   {"alias": {"col_1": ..., "col_2": ...},
 //    "alias:meta:TS": (timestamp of the given tuple)}
-// so that the Evaluator created from a RowMeta AST struct works correctly.
+// so that the Evaluator created from a parser.RowMeta AST struct works correctly.
 func setMetadata(where data.Map, alias string, t *core.Tuple) {
 	// this key format is also used in ExpressionToEvaluator()
 	tsKey := fmt.Sprintf("%s:meta:%s", alias, parser.TimestampMeta)
