@@ -51,6 +51,6 @@ var diffUsFunc udf.UDF = &diffUsFuncTmpl{}
 //
 //  Input: None
 //  Return Type: Timestamp
-var clockTimestampFunc udf.UDF = udf.MustConvertGeneric(func() time.Time {
+var clockTimestampFunc = udf.MustConvertGeneric(func() time.Time {
 	return time.Now().In(time.UTC)
 })

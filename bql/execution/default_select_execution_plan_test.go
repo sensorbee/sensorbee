@@ -29,7 +29,7 @@ func getTuples(num int) []*core.Tuple {
 	return tuples
 }
 
-func createDefaultSelectPlan(s string, t *testing.T) (ExecutionPlan, error) {
+func createDefaultSelectPlan(s string, t *testing.T) (PhysicalPlan, error) {
 	p := parser.New()
 	reg := udf.CopyGlobalUDFRegistry(core.NewContext(nil))
 	_stmt, _, err := p.ParseStmt(s)
@@ -1771,7 +1771,7 @@ func TestDefaultSelectExecutionPlanJoin(t *testing.T) {
 	})
 }
 
-func createDefaultSelectPlan2(s string) (ExecutionPlan, error) {
+func createDefaultSelectPlan2(s string) (PhysicalPlan, error) {
 	p := parser.New()
 	reg := udf.CopyGlobalUDFRegistry(core.NewContext(nil))
 	_stmt, _, err := p.ParseStmt(s)

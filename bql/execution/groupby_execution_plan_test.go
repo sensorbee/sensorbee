@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-func createGroupbyPlan(s string, t *testing.T) (ExecutionPlan, error) {
+func createGroupbyPlan(s string, t *testing.T) (PhysicalPlan, error) {
 	p := parser.New()
 	reg := udf.CopyGlobalUDFRegistry(core.NewContext(nil))
 	reg.Register("udaf", &dummyAggregate{})
@@ -1012,7 +1012,7 @@ func TestAggregateFunctions(t *testing.T) {
 	})
 }
 
-func createGroupbyPlan2(s string) (ExecutionPlan, error) {
+func createGroupbyPlan2(s string) (PhysicalPlan, error) {
 	p := parser.New()
 	reg := udf.CopyGlobalUDFRegistry(core.NewContext(nil))
 	reg.Register("udaf", &dummyAggregate{})

@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-func createFilterPlan(s string, t *testing.T) (ExecutionPlan, ExecutionPlan, error) {
+func createFilterPlan(s string, t *testing.T) (PhysicalPlan, PhysicalPlan, error) {
 	p := parser.New()
 	reg := udf.CopyGlobalUDFRegistry(core.NewContext(nil))
 	_stmt, _, err := p.ParseStmt(s)
@@ -35,7 +35,7 @@ func createFilterPlan(s string, t *testing.T) (ExecutionPlan, ExecutionPlan, err
 	return plan, refPlan, err
 }
 
-func compareWithRef(t *testing.T, plan, refPlan ExecutionPlan, tuples []*core.Tuple) {
+func compareWithRef(t *testing.T, plan, refPlan PhysicalPlan, tuples []*core.Tuple) {
 	Convey("When feeding it with tuples", func() {
 		for idx, inTup := range tuples {
 			out, err := plan.Process(inTup.Copy())
@@ -333,7 +333,7 @@ func TestFilterPlanEmitters(t *testing.T) {
 
 }
 
-func createFilterPlan2(s string) (ExecutionPlan, error) {
+func createFilterPlan2(s string) (PhysicalPlan, error) {
 	p := parser.New()
 	reg := udf.CopyGlobalUDFRegistry(core.NewContext(nil))
 	_stmt, _, err := p.ParseStmt(s)

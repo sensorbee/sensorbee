@@ -118,11 +118,11 @@ var avgFunc udf.UDF = &singleParamAggFunc{
 			if item.Type() == data.TypeInt {
 				i, _ := data.AsInt(item)
 				sum += float64(i)
-				count += 1
+				count++
 			} else if item.Type() == data.TypeFloat {
 				f, _ := data.AsFloat(item)
 				sum += f
-				count += 1
+				count++
 			} else if item.Type() == data.TypeNull {
 				continue
 			} else {
@@ -255,6 +255,8 @@ var jsonObjectAggFunc udf.UDF = &twoParamAggFunc{
 			} else if key.Type() == data.TypeNull {
 				return nil, fmt.Errorf("key is null but value (%s) is not", value)
 			} else {
+				// DO NOT outdent this block, even if golint recommends it,
+				// or we will never reach the next iteration
 				return nil, fmt.Errorf("cannot interpret %s (%T) as a string",
 					key, key)
 			}

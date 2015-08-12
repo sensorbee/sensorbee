@@ -29,15 +29,15 @@ type aliasedExpression struct {
 // as an input.
 //
 // Example 1: The BQL expression "x:a" will be converted to a
-// `parser.RowValue{"x", "a"}` and then to an `execution.RowValue{"x", "a"}` and
+// `parser.RowValue{"x", "a"}` and then to an `execution.rowValue{"x", "a"}` and
 // then to an `execution.PathAccess{"x.a"}`. If this `PathAccess{"x.a"}` is evaluated
 // on a row like `data.Map{"x": data.Map{"a": data.Int(2), "b": data.Int(6)}}`,
 // it will return `data.Int(2)`.
 //
 // Example 2: The BQL expression "f(x:a)" will be converted to a
 // `parser.FuncAppAST{"f", parser.RowValue{"x", "a"}}` and then
-// (if f is not an aggregate function) to an `execution.FuncAppAST{"f",
-// execution.RowValue{"x", "a"}}` and then to a `execution.funcApp{"f", ...,
+// (if f is not an aggregate function) to an `execution.funcAppAST{"f",
+// execution.rowValue{"x", "a"}}` and then to a `execution.funcApp{"f", ...,
 // []Evaluator{execution.PathAccess{"x.a"}}, ...}`. If this `funcApp` is evaluated
 // on a row like `data.Map{"x": data.Map{"a": data.Int(2),  "b": data.Int(6)}}`,
 // the `PathAccess` evaluator will first return extract `data.Int(2)` and then
@@ -61,8 +61,8 @@ type aliasedExpression struct {
 //
 // Example: The BQL expression "avg(x:a)" will be converted to a
 // `parser.FuncAppAST{"avg", parser.RowValue{"x", "a"}}`and then
-// to an `execution.FuncAppAST{"avg", execution.AggInputRef{"randstr"}}`
-// together with a mapping `{"randstr": execution.RowValue{"x", "a"}}`.
+// to an `execution.funcAppAST{"avg", execution.aggInputRef{"randstr"}}`
+// together with a mapping `{"randstr": execution.rowValue{"x", "a"}}`.
 // Those FlatExpressions are then converted to Evaluators so that we obtain
 // `execution.funcApp{"avg", ..., []Evaluator{execution.PathAccess{"randstr"}}, ...}`
 // and the map `{"randstr": execution.PathAccess{"x.a"}}`.
@@ -86,21 +86,21 @@ type aliasedExpression struct {
 func ParserExprToFlatExpr(e parser.Expression, reg udf.FunctionRegistry) (FlatExpression, error) {
 	switch obj := e.(type) {
 	case parser.RowMeta:
-		return RowMeta{obj.Relation, obj.MetaType}, nil
+		return rowMeta{obj.Relation, obj.MetaType}, nil
 	case parser.RowValue:
-		return RowValue{obj.Relation, obj.Column}, nil
+		return rowValue{obj.Relation, obj.Column}, nil
 	case parser.AliasAST:
 		return ParserExprToFlatExpr(obj.Expr, reg)
 	case parser.NullLiteral:
-		return NullLiteral{}, nil
+		return nullLiteral{}, nil
 	case parser.NumericLiteral:
-		return NumericLiteral{obj.Value}, nil
+		return numericLiteral{obj.Value}, nil
 	case parser.FloatLiteral:
-		return FloatLiteral{obj.Value}, nil
+		return floatLiteral{obj.Value}, nil
 	case parser.BoolLiteral:
-		return BoolLiteral{obj.Value}, nil
+		return boolLiteral{obj.Value}, nil
 	case parser.StringLiteral:
-		return StringLiteral{obj.Value}, nil
+		return stringLiteral{obj.Value}, nil
 	case parser.BinaryOpAST:
 		// recurse
 		left, err := ParserExprToFlatExpr(obj.Left, reg)
@@ -111,25 +111,25 @@ func ParserExprToFlatExpr(e parser.Expression, reg udf.FunctionRegistry) (FlatEx
 		if err != nil {
 			return nil, err
 		}
-		return BinaryOpAST{obj.Op, left, right}, nil
+		return binaryOpAST{obj.Op, left, right}, nil
 	case parser.UnaryOpAST:
 		// recurse
 		expr, err := ParserExprToFlatExpr(obj.Expr, reg)
 		if err != nil {
 			return nil, err
 		}
-		return UnaryOpAST{obj.Op, expr}, nil
+		return unaryOpAST{obj.Op, expr}, nil
 	case parser.TypeCastAST:
 		// recurse
 		expr, err := ParserExprToFlatExpr(obj.Expr, reg)
 		if err != nil {
 			return nil, err
 		}
-		return TypeCastAST{expr, obj.Target}, nil
+		return typeCastAST{expr, obj.Target}, nil
 	case parser.FuncAppAST:
 		// exception for now()
 		if string(obj.Function) == "now" && len(obj.Expressions) == 0 {
-			return StmtMeta{parser.NowMeta}, nil
+			return stmtMeta{parser.NowMeta}, nil
 		}
 		// look up the function
 		function, err := reg.Lookup(string(obj.Function), len(obj.Expressions))
@@ -158,7 +158,7 @@ func ParserExprToFlatExpr(e parser.Expression, reg udf.FunctionRegistry) (FlatEx
 			}
 			exprs[i] = expr
 		}
-		return FuncAppAST{obj.Function, exprs}, nil
+		return funcAppAST{obj.Function, exprs}, nil
 	case parser.ArrayAST:
 		// compute child expressions
 		exprs := make([]FlatExpression, len(obj.Expressions))
@@ -169,20 +169,20 @@ func ParserExprToFlatExpr(e parser.Expression, reg udf.FunctionRegistry) (FlatEx
 			}
 			exprs[i] = expr
 		}
-		return ArrayAST{exprs}, nil
+		return arrayAST{exprs}, nil
 	case parser.MapAST:
 		// compute child expressions
-		pairs := make([]KeyValuePair, len(obj.Entries))
+		pairs := make([]keyValuePair, len(obj.Entries))
 		for i, pair := range obj.Entries {
 			expr, err := ParserExprToFlatExpr(pair.Value, reg)
 			if err != nil {
 				return nil, err
 			}
-			pairs[i] = KeyValuePair{pair.Key, expr}
+			pairs[i] = keyValuePair{pair.Key, expr}
 		}
-		return MapAST{pairs}, nil
+		return mapAST{pairs}, nil
 	case parser.Wildcard:
-		return WildcardAST{obj.Relation}, nil
+		return wildcardAST{obj.Relation}, nil
 	}
 	err := fmt.Errorf("don't know how to convert type %#v", e)
 	return nil, err
@@ -218,25 +218,25 @@ func ParserExprToMaybeAggregate(e parser.Expression, aggIdx int, reg udf.Functio
 		} else if leftAgg == nil {
 			returnAgg = rightAgg
 		}
-		return BinaryOpAST{obj.Op, left, right}, returnAgg, nil
+		return binaryOpAST{obj.Op, left, right}, returnAgg, nil
 	case parser.UnaryOpAST:
 		// recurse
 		expr, agg, err := ParserExprToMaybeAggregate(obj.Expr, aggIdx, reg)
 		if err != nil {
 			return nil, nil, err
 		}
-		return UnaryOpAST{obj.Op, expr}, agg, nil
+		return unaryOpAST{obj.Op, expr}, agg, nil
 	case parser.TypeCastAST:
 		// recurse
 		expr, agg, err := ParserExprToMaybeAggregate(obj.Expr, aggIdx, reg)
 		if err != nil {
 			return nil, nil, err
 		}
-		return TypeCastAST{expr, obj.Target}, agg, nil
+		return typeCastAST{expr, obj.Target}, agg, nil
 	case parser.FuncAppAST:
 		// exception for now()
 		if string(obj.Function) == "now" && len(obj.Expressions) == 0 {
-			return StmtMeta{parser.NowMeta}, nil, nil
+			return stmtMeta{parser.NowMeta}, nil, nil
 		}
 		// look up the function
 		function, err := reg.Lookup(string(obj.Function), len(obj.Expressions))
@@ -278,7 +278,7 @@ func ParserExprToMaybeAggregate(e parser.Expression, aggIdx int, reg udf.Functio
 					// it by a reference to the aggregated list of values
 					h := sha1.New()
 					h.Write([]byte(fmt.Sprintf("%s", expr.Repr())))
-					exprId := "g_" + hex.EncodeToString(h.Sum(nil))[:8]
+					exprID := "g_" + hex.EncodeToString(h.Sum(nil))[:8]
 					// For stable or immutable expressions, we compute a reference
 					// string that depends only on the expression's string
 					// representation so that we have to compute and store values
@@ -287,10 +287,10 @@ func ParserExprToMaybeAggregate(e parser.Expression, aggIdx int, reg udf.Functio
 					// we add a numeric suffix that represents the index
 					// of this aggregate in the whole projection list.
 					if expr.Volatility() == Volatile {
-						exprId += fmt.Sprintf("_%d", aggIdx+len(returnAgg))
+						exprID += fmt.Sprintf("_%d", aggIdx+len(returnAgg))
 					}
-					exprs[i] = AggInputRef{exprId}
-					returnAgg[exprId] = expr
+					exprs[i] = aggInputRef{exprID}
+					returnAgg[exprID] = expr
 				} else {
 					// this is a non-aggregate parameter, use as is
 					exprs[i] = expr
@@ -311,7 +311,7 @@ func ParserExprToMaybeAggregate(e parser.Expression, aggIdx int, reg udf.Functio
 				returnAgg = nil
 			}
 		}
-		return FuncAppAST{obj.Function, exprs}, returnAgg, nil
+		return funcAppAST{obj.Function, exprs}, returnAgg, nil
 	case parser.ArrayAST:
 		// compute child expressions
 		exprs := make([]FlatExpression, len(obj.Expressions))
@@ -331,10 +331,10 @@ func ParserExprToMaybeAggregate(e parser.Expression, aggIdx int, reg udf.Functio
 		if len(returnAgg) == 0 {
 			returnAgg = nil
 		}
-		return ArrayAST{exprs}, returnAgg, nil
+		return arrayAST{exprs}, returnAgg, nil
 	case parser.MapAST:
 		// compute child expressions
-		pairs := make([]KeyValuePair, len(obj.Entries))
+		pairs := make([]keyValuePair, len(obj.Entries))
 		returnAgg := map[string]FlatExpression{}
 		for i, pair := range obj.Entries {
 			// compute the correct aggIdx
@@ -346,12 +346,12 @@ func ParserExprToMaybeAggregate(e parser.Expression, aggIdx int, reg udf.Functio
 			for key, val := range agg {
 				returnAgg[key] = val
 			}
-			pairs[i] = KeyValuePair{pair.Key, expr}
+			pairs[i] = keyValuePair{pair.Key, expr}
 		}
 		if len(returnAgg) == 0 {
 			returnAgg = nil
 		}
-		return MapAST{pairs}, returnAgg, nil
+		return mapAST{pairs}, returnAgg, nil
 	}
 	err := fmt.Errorf("don't know how to convert type %#v", e)
 	return nil, nil, err
@@ -367,29 +367,31 @@ type FlatExpression interface {
 	// a dictionary key for finding duplicate expressions.
 	Repr() string
 
-	// Columns returns a list of RowValues used in this expression.
-	Columns() []RowValue
+	// Columns returns a list of rowValues used in this expression.
+	Columns() []rowValue
 
-	// Volatility returns the volatility type of an expression as
-	// per the PostgreSQL classification:
-	// - VOLATILE: can do anything, in particular return a different
-	//             result on every call
-	// - STABLE: returns the same result for the same input values
-	//           within a single statement execution
-	// - IMMUTABLE: returns the same result for the same input values
-	//              forever
-	// One good hint to distinguish between Stable and Immutable is
-	// that (in PostgreSQL) Immutable functions can be used in
-	// functional indexes, while Stable functions can't.
+	// Volatility returns the volatility of an expression.
 	Volatility() VolatilityType
 }
 
+// VolatilityType describes the volatility of an expression as per
+// the PostgreSQL classification.
 type VolatilityType int
 
 const (
+	// UnknownVolatility describes an unset value. This is not
+	// a valid return value for FlatExpression.Volatility().
 	UnknownVolatility = iota
+	// Volatile expressions can do anything, in particular return a
+	// different result on every call
 	Volatile
+	// Stable expressions return the same result for the same input
+	// values within a single statement execution
 	Stable
+	// Immutable expressions return the same result for the same input
+	// values forever. One good hint to distinguish between Stable
+	// and Immutable is that (in PostgreSQL) Immutable functions can
+	// be used in functional indexes, while Stable functions can't.
 	Immutable
 )
 
@@ -406,21 +408,21 @@ func (v VolatilityType) String() string {
 	return s
 }
 
-type BinaryOpAST struct {
+type binaryOpAST struct {
 	Op    parser.Operator
 	Left  FlatExpression
 	Right FlatExpression
 }
 
-func (b BinaryOpAST) Repr() string {
+func (b binaryOpAST) Repr() string {
 	return fmt.Sprintf("(%s)%s(%s)", b.Left.Repr(), b.Op, b.Right.Repr())
 }
 
-func (b BinaryOpAST) Columns() []RowValue {
+func (b binaryOpAST) Columns() []rowValue {
 	return append(b.Left.Columns(), b.Right.Columns()...)
 }
 
-func (b BinaryOpAST) Volatility() VolatilityType {
+func (b binaryOpAST) Volatility() VolatilityType {
 	// take the lower level of both sub-expressions
 	// (all of the operators have IMMUTABLE behavior)
 	l := b.Left.Volatility()
@@ -431,46 +433,46 @@ func (b BinaryOpAST) Volatility() VolatilityType {
 	return r
 }
 
-type UnaryOpAST struct {
+type unaryOpAST struct {
 	Op   parser.Operator
 	Expr FlatExpression
 }
 
-func (u UnaryOpAST) Repr() string {
+func (u unaryOpAST) Repr() string {
 	return fmt.Sprintf("%s(%s)", u.Op, u.Expr.Repr())
 }
 
-func (u UnaryOpAST) Columns() []RowValue {
+func (u unaryOpAST) Columns() []rowValue {
 	return u.Expr.Columns()
 }
 
-func (u UnaryOpAST) Volatility() VolatilityType {
+func (u unaryOpAST) Volatility() VolatilityType {
 	return u.Expr.Volatility()
 }
 
-type TypeCastAST struct {
+type typeCastAST struct {
 	Expr   FlatExpression
 	Target parser.Type
 }
 
-func (t TypeCastAST) Repr() string {
+func (t typeCastAST) Repr() string {
 	return fmt.Sprintf("CAST(%s AS %s)", t.Expr.Repr(), t.Target)
 }
 
-func (t TypeCastAST) Columns() []RowValue {
+func (t typeCastAST) Columns() []rowValue {
 	return t.Expr.Columns()
 }
 
-func (t TypeCastAST) Volatility() VolatilityType {
+func (t typeCastAST) Volatility() VolatilityType {
 	return t.Expr.Volatility()
 }
 
-type FuncAppAST struct {
+type funcAppAST struct {
 	Function    parser.FuncName
 	Expressions []FlatExpression
 }
 
-func (f FuncAppAST) Repr() string {
+func (f funcAppAST) Repr() string {
 	reprs := make([]string, len(f.Expressions))
 	for i, e := range f.Expressions {
 		reprs[i] = e.Repr()
@@ -478,26 +480,26 @@ func (f FuncAppAST) Repr() string {
 	return fmt.Sprintf("%s(%s)", f.Function, strings.Join(reprs, ","))
 }
 
-func (f FuncAppAST) Columns() []RowValue {
-	var allColumns []RowValue
+func (f funcAppAST) Columns() []rowValue {
+	var allColumns []rowValue
 	for _, e := range f.Expressions {
 		allColumns = append(allColumns, e.Columns()...)
 	}
 	return allColumns
 }
 
-func (f FuncAppAST) Volatility() VolatilityType {
+func (f funcAppAST) Volatility() VolatilityType {
 	// we can change this later, but for the moment we
 	// cannot assume that UDFs are stable or immutable
 	// in general
 	return Volatile
 }
 
-type ArrayAST struct {
+type arrayAST struct {
 	Expressions []FlatExpression
 }
 
-func (a ArrayAST) Repr() string {
+func (a arrayAST) Repr() string {
 	reprs := make([]string, len(a.Expressions))
 	for i, e := range a.Expressions {
 		reprs[i] = e.Repr()
@@ -505,15 +507,15 @@ func (a ArrayAST) Repr() string {
 	return fmt.Sprintf("[%s]", strings.Join(reprs, ", "))
 }
 
-func (a ArrayAST) Columns() []RowValue {
-	var allColumns []RowValue
+func (a arrayAST) Columns() []rowValue {
+	var allColumns []rowValue
 	for _, e := range a.Expressions {
 		allColumns = append(allColumns, e.Columns()...)
 	}
 	return allColumns
 }
 
-func (a ArrayAST) Volatility() VolatilityType {
+func (a arrayAST) Volatility() VolatilityType {
 	lv := VolatilityType(Immutable)
 	for _, e := range a.Expressions {
 		v := e.Volatility()
@@ -524,11 +526,11 @@ func (a ArrayAST) Volatility() VolatilityType {
 	return lv
 }
 
-type MapAST struct {
-	Entries []KeyValuePair
+type mapAST struct {
+	Entries []keyValuePair
 }
 
-func (m MapAST) Repr() string {
+func (m mapAST) Repr() string {
 	reprs := make([]string, len(m.Entries))
 	for i, p := range m.Entries {
 		reprs[i] = fmt.Sprintf("\"%s\":%s", p.Key, p.Value.Repr())
@@ -536,15 +538,15 @@ func (m MapAST) Repr() string {
 	return fmt.Sprintf("{%s}", strings.Join(reprs, ", "))
 }
 
-func (m MapAST) Columns() []RowValue {
-	var allColumns []RowValue
+func (m mapAST) Columns() []rowValue {
+	var allColumns []rowValue
 	for _, p := range m.Entries {
 		allColumns = append(allColumns, p.Value.Columns()...)
 	}
 	return allColumns
 }
 
-func (m MapAST) Volatility() VolatilityType {
+func (m mapAST) Volatility() VolatilityType {
 	lv := VolatilityType(Immutable)
 	for _, p := range m.Entries {
 		v := p.Value.Volatility()
@@ -555,181 +557,176 @@ func (m MapAST) Volatility() VolatilityType {
 	return lv
 }
 
-type KeyValuePair struct {
+type keyValuePair struct {
 	Key   string
 	Value FlatExpression
 }
 
-type WildcardAST struct {
+type wildcardAST struct {
 	Relation string
 }
 
-func (w WildcardAST) Repr() string {
+func (w wildcardAST) Repr() string {
 	if w.Relation == "" {
 		return "*"
 	}
 	return fmt.Sprintf("%s:*", w.Relation)
 }
 
-func (w WildcardAST) Columns() []RowValue {
+func (w wildcardAST) Columns() []rowValue {
 	return nil
 }
 
-func (w WildcardAST) Volatility() VolatilityType {
+func (w wildcardAST) Volatility() VolatilityType {
 	// this selects all elements of a tuple, which is
 	// a stable operation (maybe it is even immutable,
 	// but probably we will never evaluate this)
 	return Stable
 }
 
-type AggInputRef struct {
+type aggInputRef struct {
 	Ref string
 }
 
-func (a AggInputRef) Repr() string {
+func (a aggInputRef) Repr() string {
 	return a.Ref
 }
 
-func (a AggInputRef) Columns() []RowValue {
+func (a aggInputRef) Columns() []rowValue {
 	return nil
 }
 
-func (a AggInputRef) Volatility() VolatilityType {
+func (a aggInputRef) Volatility() VolatilityType {
 	// TODO make this the same volatility level as the
 	//      aggregate function used
 	return Volatile
 }
 
-type RowValue struct {
+type rowValue struct {
 	Relation string
 	Column   string
 }
 
-func (rv RowValue) Repr() string {
+func (rv rowValue) Repr() string {
 	return fmt.Sprintf("%s:%s", rv.Relation, rv.Column)
 }
 
-func (rv RowValue) Columns() []RowValue {
-	return []RowValue{rv}
+func (rv rowValue) Columns() []rowValue {
+	return []rowValue{rv}
 }
 
-func (rv RowValue) Volatility() VolatilityType {
+func (rv rowValue) Volatility() VolatilityType {
 	return Immutable
 }
 
-type StmtMeta struct {
+type stmtMeta struct {
 	MetaType parser.MetaInformation
 }
 
-func (sm StmtMeta) Repr() string {
+func (sm stmtMeta) Repr() string {
 	return fmt.Sprintf("%#v", sm)
 }
 
-func (sm StmtMeta) Columns() []RowValue {
+func (sm stmtMeta) Columns() []rowValue {
 	return nil
 }
 
-func (sm StmtMeta) Volatility() VolatilityType {
+func (sm stmtMeta) Volatility() VolatilityType {
 	return Stable
 }
 
-type RowMeta struct {
+type rowMeta struct {
 	Relation string
 	MetaType parser.MetaInformation
 }
 
-func (rm RowMeta) Repr() string {
+func (rm rowMeta) Repr() string {
 	return fmt.Sprintf("%#v", rm)
 }
 
-func (rm RowMeta) Columns() []RowValue {
+func (rm rowMeta) Columns() []rowValue {
 	return nil
 }
 
-func (rm RowMeta) Volatility() VolatilityType {
+func (rm rowMeta) Volatility() VolatilityType {
 	return Immutable
 }
 
-type NumericLiteral struct {
+type numericLiteral struct {
 	Value int64
 }
 
-func (l NumericLiteral) Repr() string {
+func (l numericLiteral) Repr() string {
 	return fmt.Sprintf("%v", l.Value)
 }
 
-func (l NumericLiteral) Columns() []RowValue {
+func (l numericLiteral) Columns() []rowValue {
 	return nil
 }
 
-func (l NumericLiteral) Volatility() VolatilityType {
+func (l numericLiteral) Volatility() VolatilityType {
 	return Immutable
 }
 
-type FloatLiteral struct {
+type floatLiteral struct {
 	Value float64
 }
 
-func (l FloatLiteral) Repr() string {
+func (l floatLiteral) Repr() string {
 	return fmt.Sprintf("%vf", l.Value)
 }
 
-func (l FloatLiteral) Columns() []RowValue {
+func (l floatLiteral) Columns() []rowValue {
 	return nil
 }
 
-func (l FloatLiteral) Volatility() VolatilityType {
+func (l floatLiteral) Volatility() VolatilityType {
 	return Immutable
 }
 
-type NullLiteral struct {
+type nullLiteral struct {
 }
 
-func (l NullLiteral) Repr() string {
+func (l nullLiteral) Repr() string {
 	return "NULL"
 }
 
-func (l NullLiteral) Columns() []RowValue {
+func (l nullLiteral) Columns() []rowValue {
 	return nil
 }
 
-func (l NullLiteral) Volatility() VolatilityType {
+func (l nullLiteral) Volatility() VolatilityType {
 	return Immutable
 }
 
-type BoolLiteral struct {
+type boolLiteral struct {
 	Value bool
 }
 
-func (l BoolLiteral) Repr() string {
+func (l boolLiteral) Repr() string {
 	return fmt.Sprintf("%v", l.Value)
 }
 
-func (l BoolLiteral) Columns() []RowValue {
+func (l boolLiteral) Columns() []rowValue {
 	return nil
 }
 
-func (l BoolLiteral) Volatility() VolatilityType {
+func (l boolLiteral) Volatility() VolatilityType {
 	return Immutable
 }
 
-type StringLiteral struct {
+type stringLiteral struct {
 	Value string
 }
 
-func (l StringLiteral) Repr() string {
+func (l stringLiteral) Repr() string {
 	return fmt.Sprintf("%s", l.Value)
 }
 
-func (l StringLiteral) Columns() []RowValue {
+func (l stringLiteral) Columns() []rowValue {
 	return nil
 }
 
-func (l StringLiteral) Volatility() VolatilityType {
+func (l stringLiteral) Volatility() VolatilityType {
 	return Immutable
-}
-
-type AggFuncAppAST struct {
-	Function   udf.UDF
-	Expression FlatExpression
 }
