@@ -25,7 +25,7 @@ type UDSFCreator interface {
 	Accept(arity int) bool
 }
 
-// ConvertToUDSFCreator converts a function to
+// ConvertToUDSFCreator converts a function to a UDSFCreator.
 func ConvertToUDSFCreator(function interface{}) (UDSFCreator, error) {
 	t := reflect.TypeOf(function)
 	if t.Kind() != reflect.Func {
@@ -40,7 +40,7 @@ func ConvertToUDSFCreator(function interface{}) (UDSFCreator, error) {
 	}
 
 	if g.hasContext {
-		g.arity -= 1
+		g.arity--
 	}
 	if g.arity == 0 {
 		return nil, errors.New("the function must receive UDSFDeclarer as the first argument")
@@ -51,7 +51,7 @@ func ConvertToUDSFCreator(function interface{}) (UDSFCreator, error) {
 		}
 		return nil, errors.New("the function must receive UDSFDeclarer as the first argument")
 	}
-	g.arity -= 1 // UDSFDeclarer
+	g.arity-- // UDSFDeclarer
 
 	if err := checkUDSFCreatorFuncReturnTypes(t); err != nil {
 		return nil, err
@@ -65,6 +65,8 @@ func ConvertToUDSFCreator(function interface{}) (UDSFCreator, error) {
 	return g, nil
 }
 
+// MustConvertToUDSFCreator converts a function to a UDSFCreator.
+// It panics if there is an error during conversion.
 func MustConvertToUDSFCreator(function interface{}) UDSFCreator {
 	f, err := ConvertToUDSFCreator(function)
 	if err != nil {
