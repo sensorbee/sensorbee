@@ -2,6 +2,8 @@ package core
 
 import (
 	"fmt"
+	"io"
+	"pfi/sensorbee/sensorbee/data"
 	"sync"
 )
 
@@ -28,16 +30,42 @@ import (
 type SharedState interface {
 	// Terminate finalizes the state. The state can no longer be used after
 	// this method is called. This method doesn't have to be idempotent.
-	// Terminate won't be called when Init fails.
 	//
-	// Write method might be called after Terminate method is called. When it
-	// occurs, Write should return an error. Also, Write and Terminate can be
-	// called concurrently.
+	// Write or other methods the actual instance has might be called after
+	// Terminate method is called. When it occurs, they should return an error.
+	// Also, Terminate and them can be called concurrently.
 	Terminate(ctx *Context) error
 }
 
+// SavableSharedState is a SharedState which can be persisted through Save
+// method.
+//
+// Because the best way of implementing Load method depends on each SharedState,
+// it doesn't always have to be provided with Save method.
+type SavableSharedState interface {
+	SharedState
+
+	// Save writes data of the state to a given writer. Save receives parameters
+	// which are used to customize the behavior of the method. Parameters are
+	// defined by each component and there's no common definition.
+	//
+	// Save and other methods can be called concurrently.
+	Save(w io.Writer, params data.Map) error
+}
+
+// PersistentSharedState is a SharedState which can be persisted through Save
+// and Load method.
+type PersistentSharedState interface {
+	SavableSharedState
+
+	// Load overwrites the state with save data. Parameters don't have to be
+	// same as Save's parameters. They can even be completely different.
+	//
+	// Load and other methods including Save can be called concurrently.
+	Load(r io.Reader, params data.Map) error
+}
+
 // TODO: Add MixiableSharedState interface
-// TODO: Add SerializableSharedState (or simply Serializable) to support recovery
 
 // SharedStateRegistry manages SharedState with names assigned to each state.
 type SharedStateRegistry interface {
@@ -54,6 +82,14 @@ type SharedStateRegistry interface {
 	// Get returns a SharedState having the name in the registry. It returns
 	// an error if the registry doesn't have the state.
 	Get(name string) (SharedState, error)
+
+	// Replace replaces the previous SharedState instance with a new instance.
+	// The previous instance is returned on success. It will not be terminated
+	// by the registry and the caller must call Terminate.
+	//
+	// The given SharedState is terminated when the previous state isn't found
+	// or it cannot be replaced somehow.
+	Replace(name string, s SharedState) (SharedState, error)
 
 	// List returns a map containing all SharedState the registry has.
 	// The map returned from this method can safely be modified.
@@ -96,12 +132,26 @@ func (r *defaultSharedStateRegistry) Add(name string, s SharedState) error {
 		return nil
 	}()
 	if err != nil {
-		if err := s.Terminate(r.ctx); err != nil {
-			r.ctx.ErrLog(err).Errorf("Cannot terminate state which couldn't be added to the registry due to name duplication: '%v'", name)
+		if err := r.closeSharedState(s); err != nil {
+			r.ctx.ErrLog(err).WithField("state_name", name).
+				Errorf("Cannot terminate a state which couldn't be added to the registry due to name duplication")
 		}
-		return err
+		return err // This is the original error
 	}
 	return nil
+}
+
+func (r *defaultSharedStateRegistry) closeSharedState(s SharedState) (err error) {
+	defer func() {
+		if e := recover(); e != nil {
+			if er, ok := e.(error); ok {
+				err = er
+			} else {
+				err = fmt.Errorf("SharedState.Terminate panicked: %v", e)
+			}
+		}
+	}()
+	return s.Terminate(r.ctx)
 }
 
 func (r *defaultSharedStateRegistry) Get(name string) (SharedState, error) {
@@ -111,6 +161,21 @@ func (r *defaultSharedStateRegistry) Get(name string) (SharedState, error) {
 		return s, nil
 	}
 	return nil, fmt.Errorf("state '%v' was not found", name)
+}
+
+func (r *defaultSharedStateRegistry) Replace(name string, s SharedState) (SharedState, error) {
+	r.m.Lock()
+	defer r.m.Unlock()
+	prev, ok := r.states[name]
+	if !ok {
+		if err := r.closeSharedState(s); err != nil {
+			r.ctx.ErrLog(err).WithField("state_name", name).
+				Errorf("Cannot terminate a state which couldn't be replaced due to nonexistence of the previous state")
+		}
+		return nil, fmt.Errorf("state '%v' was not found", name)
+	}
+	r.states[name] = s
+	return prev, nil
 }
 
 func (r *defaultSharedStateRegistry) List() (map[string]SharedState, error) {
