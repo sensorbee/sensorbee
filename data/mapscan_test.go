@@ -6,6 +6,31 @@ import (
 	"testing"
 )
 
+// scanMap is a legacy method that only exists to avoid
+// large changes to the tests.
+func scanMap(m Map, p string, v *Value) (err error) {
+	path, err := CompilePath(p)
+	if err != nil {
+		return err
+	}
+	val, err := path.evaluate(m)
+	if err != nil {
+		return err
+	}
+	*v = val
+	return nil
+}
+
+// setInMap is a legacy method that only exists to avoid
+// large changes to the tests.
+func setInMap(m Map, p string, v Value) (err error) {
+	path, err := CompilePath(p)
+	if err != nil {
+		return err
+	}
+	return path.set(m, v)
+}
+
 func TestMapscanDocstrings(t *testing.T) {
 	storeData := Map{
 		"name": String("store name"),
