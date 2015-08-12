@@ -31,7 +31,7 @@ func CanBuildGroupbyExecutionPlan(lp *LogicalPlan, reg udf.FunctionRegistry) boo
 	return lp.GroupingStmt
 }
 
-// groupbyExecutionPlan is a simple plan that follows the
+// NewGroupbyExecutionPlan builds a plan that follows the
 // theoretical processing model. It supports only statements
 // that use aggregation.
 //
@@ -41,7 +41,7 @@ func CanBuildGroupbyExecutionPlan(lp *LogicalPlan, reg udf.FunctionRegistry) boo
 // - perform a SELECT query on that data,
 // - compute the data that need to be emitted by comparison with
 //   the previous run's results.
-func NewGroupbyExecutionPlan(lp *LogicalPlan, reg udf.FunctionRegistry) (ExecutionPlan, error) {
+func NewGroupbyExecutionPlan(lp *LogicalPlan, reg udf.FunctionRegistry) (PhysicalPlan, error) {
 	underlying, err := newStreamRelationStreamExecutionPlan(lp, reg)
 	if err != nil {
 		return nil, err
@@ -190,7 +190,7 @@ func (ep *groupbyExecutionPlan) performQueryOnBuffer() error {
 		result := data.Map(make(map[string]data.Value, len(ep.projections)))
 		// collect input for aggregate functions into an array
 		// within each group
-		for key, _ := range allAggEvaluators {
+		for key := range allAggEvaluators {
 			group.nonAggData[key] = data.Array(group.aggData[key])
 			delete(group.aggData, key)
 		}
