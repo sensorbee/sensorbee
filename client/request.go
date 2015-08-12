@@ -1,11 +1,19 @@
 package client
 
+// Method has a type of HTTP methods.
 type Method int
 
 const (
+	// Get represents GET method.
 	Get Method = iota
+
+	// Post represents POST method.
 	Post
+
+	// Put represents PUT method.
 	Put
+
+	// Delete represents DELETE method.
 	Delete
 )
 
