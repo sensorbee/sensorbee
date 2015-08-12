@@ -94,9 +94,9 @@ func TestSetInMap(t *testing.T) {
 		{"store.owner.name", String("bar foo"), ""},
 		// create parent list
 		{"store.owners[1].nickname", String("ore"), ""},
+		// nested lists
+		{"store.owners[1][2]", String("ore"), ""},
 		/// fails
-		// TODO add support for nested lists
-		{"store.owners[1][2]", String("ore"), "invalid path component: owners[1][2]"},
 		// fail: add element below non-map
 		{"store.name.hoge", Int(13), "cannot access a data.String using key \"hoge\""},
 		// fail: set index in map

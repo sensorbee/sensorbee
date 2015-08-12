@@ -1,11 +1,7 @@
 package data
 
 import (
-	"errors"
-	"fmt"
-	"math"
 	"regexp"
-	"strconv"
 	"unicode"
 )
 
@@ -173,122 +169,9 @@ func scanMap(m Map, p string, v *Value) (err error) {
 // setInMap does basically what is described in the Map.Set documentation.
 // The value at v is written to m at the given path.
 func setInMap(m Map, p string, v Value) (err error) {
-	if p == "" {
-		return errors.New("empty key is not supported")
+	path, err := CompilePath(p)
+	if err != nil {
+		return err
 	}
-	// tempValue will point to the item of the Map that we are
-	// currently investigating
-	var tempValue Value = m
-	var setValueAtCurrentPos func(Value)
-	// loop over the components of the path, like "key" or "hoge[123]"
-	components := split(p)
-	for cIdx, token := range components {
-		last := cIdx == len(components)-1
-		// check that we do indeed have a valid component form
-		matchStr := reArrayPath.FindAllStringSubmatch(token, -1)
-		if len(matchStr) == 0 {
-			return errors.New("invalid path component: " + token)
-		}
-		// get the "before brackets" part of the component
-		submatchStr := matchStr[0]
-		hasKey := submatchStr[1] != ""
-		hasIndex := submatchStr[2] != ""
-		if hasKey {
-			// normally we would fail when trying to access a null element
-			// with a key (like `null["hoge"]`), but in this special situation
-			// we will create a map there so that a "hoge" key can be added
-			if tempValue.Type() == TypeNull {
-				tempValue = Map{}
-				setValueAtCurrentPos(tempValue)
-			}
-			// try to access the current tempValue as a map and
-			// pull out the value therein
-			tempMap, err := tempValue.asMap()
-			if err != nil {
-				return fmt.Errorf("cannot access a %T using key \"%s\"",
-					tempValue, token)
-			}
-			// we need a helper function to write the value at the
-			// current memory position. we do not need it here because
-			// we have access to `tempMap`, but we need it below when
-			// dealing with lists, where we do not have access to
-			// `tempMap` any more and otherwise could only do changes
-			// in-place.
-			k := submatchStr[1]
-			setValueAtCurrentPos = func(v Value) {
-				tempMap[k] = v
-			}
-
-			if last && !hasIndex {
-				// if this is already the last component, we need
-				// to set the value in the map
-				setValueAtCurrentPos(v)
-			} else {
-				// otherwise, we will have to go one level deeper
-				foundValue := tempMap[submatchStr[1]]
-				if foundValue == nil {
-					// create a map for further nesting (this is the
-					// `mkdir -p` behavior)
-					if !hasIndex {
-						setValueAtCurrentPos(Map{})
-					} else {
-						setValueAtCurrentPos(Array{})
-					}
-					foundValue = tempMap[submatchStr[1]]
-				}
-				tempValue = foundValue
-			}
-		}
-		// get array index number
-		if hasIndex {
-			i64, err := strconv.ParseInt(
-				submatchStr[2][1:len(submatchStr[2])-1], 10, 64)
-			if err != nil {
-				return errors.New("invalid array index number: " + token)
-			}
-			if i64 > math.MaxInt32 {
-				return errors.New("overflow index number: " + token)
-			}
-			// normally we would fail when trying to access a null element
-			// with an index (like `null[5]`), but in this special situation
-			// we will create an array there so that elements can be appended
-			if tempValue.Type() == TypeNull {
-				tempValue = Array{}
-				setValueAtCurrentPos(tempValue)
-			}
-			// try to access the current tempValue as an array
-			// and access the value therein
-			tempArr, err := tempValue.asArray()
-			if err != nil {
-				return fmt.Errorf("cannot access a %T using index %d",
-					tempValue, i64)
-			}
-			i := int(i64)
-			// if the array is not long enough ...
-			if i >= len(tempArr) {
-				// ... we reallocate and pad with zeros
-				extArr := make(Array, i+1)
-				for k := range tempArr {
-					extArr[k] = tempArr[k]
-				}
-				for k := len(tempArr); k <= i; k++ {
-					extArr[k] = Null{}
-				}
-				setValueAtCurrentPos(extArr)
-				// update the function to set the item at the current list index
-				setValueAtCurrentPos = func(v Value) {
-					tempArr[i] = v
-				}
-				tempArr = extArr
-			}
-			if last {
-				// if this is already the last component, we need
-				// to set the value in the array
-				tempArr[i] = v
-			} else {
-				tempValue = tempArr[i]
-			}
-		}
-	}
-	return nil
+	return path.Set(m, v)
 }
