@@ -21,6 +21,9 @@ in three phases:
 - MakePhysicalPlan
 */
 
+// LogicalPlan represents a parsed and analyzed version of a SELECT
+// statement. A LogicalPlan as returned by `Analyze` should not contain
+// logical errors such as "... must appear in GROUP BY clause" etc.
 type LogicalPlan struct {
 	GroupingStmt bool
 	EmitterType  parser.Emitter
@@ -32,10 +35,10 @@ type LogicalPlan struct {
 	parser.HavingAST
 }
 
-// ExecutionPlan is a physical interface that is capable of
+// PhysicalPlan is a physical interface that is capable of
 // computing the data that needs to be emitted into an output
 // stream when a new tuple arrives in the input stream.
-type ExecutionPlan interface {
+type PhysicalPlan interface {
 	// Process must be called whenever a new tuple arrives in
 	// the input stream. It will return a list of data.Map
 	// items where each of these items is to be emitted as
@@ -47,6 +50,9 @@ type ExecutionPlan interface {
 	Process(input *core.Tuple) ([]data.Map, error)
 }
 
+// Analyze checks the given SELECT statement for logical errors
+// (references to unknown tables etc.) and creates a LogicalPlan
+// that is internally consistent.
 func Analyze(s parser.SelectStmt, reg udf.FunctionRegistry) (*LogicalPlan, error) {
 	/*
 	   In Spark, this does the following:
@@ -265,9 +271,8 @@ func makeRelationAliases(s *parser.SelectStmt) error {
 		if exists {
 			return fmt.Errorf("cannot use relations '%s' and '%s' with the "+
 				"same alias '%s'", aliasedRel.Name, otherRel.Name, aliasedRel.Alias)
-		} else {
-			relNames[aliasedRel.Alias] = aliasedRel
 		}
+		relNames[aliasedRel.Alias] = aliasedRel
 		newRels[i] = aliasedRel
 	}
 	s.Relations = newRels
@@ -380,8 +385,8 @@ func validateReferences(s *parser.SelectStmt) error {
 			}
 			if !found {
 				prettyRels := make([]string, 0, len(s.Relations))
-				for _, rel_ := range s.Relations {
-					prettyRels = append(prettyRels, fmt.Sprintf("'%s'", rel_.Alias))
+				for _, inRel := range s.Relations {
+					prettyRels = append(prettyRels, fmt.Sprintf("'%s'", inRel.Alias))
 				}
 				prettyRelsStr := strings.Join(prettyRels, ", ")
 				err := fmt.Errorf("cannot reference relation '%s' "+
@@ -396,6 +401,8 @@ func validateReferences(s *parser.SelectStmt) error {
 	return nil
 }
 
+// LogicalOptimize does nothing at the moment. In the future, logical
+// optimizations (evaluation of foldable terms etc.) can be added here.
 func (lp *LogicalPlan) LogicalOptimize() (*LogicalPlan, error) {
 	/*
 	   In Spark, this does the following:
@@ -407,7 +414,9 @@ func (lp *LogicalPlan) LogicalOptimize() (*LogicalPlan, error) {
 	return lp, nil
 }
 
-func (lp *LogicalPlan) MakePhysicalPlan(reg udf.FunctionRegistry) (ExecutionPlan, error) {
+// MakePhysicalPlan creates a physical execution plan that is able to
+// deal with the statement under consideration.
+func (lp *LogicalPlan) MakePhysicalPlan(reg udf.FunctionRegistry) (PhysicalPlan, error) {
 	/*
 	   In Spark, this does the following:
 
@@ -415,7 +424,9 @@ func (lp *LogicalPlan) MakePhysicalPlan(reg udf.FunctionRegistry) (ExecutionPlan
 	   > and generates one or more physical plans, using physical operators
 	   > that match the Spark execution engine.
 	*/
-	if CanBuildDefaultSelectExecutionPlan(lp, reg) {
+	if CanBuildFilterPlan(lp, reg) {
+		return NewFilterPlan(lp, reg)
+	} else if CanBuildDefaultSelectExecutionPlan(lp, reg) {
 		return NewDefaultSelectExecutionPlan(lp, reg)
 	} else if CanBuildGroupbyExecutionPlan(lp, reg) {
 		return NewGroupbyExecutionPlan(lp, reg)

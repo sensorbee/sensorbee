@@ -157,9 +157,8 @@ func newStreamRelationStreamExecutionPlan(lp *LogicalPlan, reg udf.FunctionRegis
 func (ep *streamRelationStreamExecutionPlan) relationKey(rel *parser.AliasedStreamWindowAST) string {
 	if rel.Type == parser.ActualStream {
 		return rel.Name
-	} else {
-		return fmt.Sprintf("%s/%s", rel.Name, rel.Alias)
 	}
+	return fmt.Sprintf("%s/%s", rel.Name, rel.Alias)
 }
 
 // addTupleToBuffer appends the received tuple to all internal buffers that
@@ -175,7 +174,7 @@ func (ep *streamRelationStreamExecutionPlan) addTupleToBuffer(t *core.Tuple) err
 	numAppends := 0
 	for _, rel := range ep.relations {
 		if t.InputName == ep.relationKey(&rel) {
-			numAppends += 1
+			numAppends++
 		}
 	}
 	// if the tuple's input name didn't match any known relation,
@@ -229,7 +228,7 @@ func (ep *streamRelationStreamExecutionPlan) removeOutdatedTuplesFromBuffer(curT
 				var next *list.Element
 				for e := buffer.tuples.Front(); e != nil && i < curBufSize-buffer.windowSize; e = next {
 					next = e.Next()
-					i += 1
+					i++
 					tupCont := e.Value.(*tupleWithDerivedInputRows)
 					// mark input rows that are derived from outdated
 					// tuples for deletion
