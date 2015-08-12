@@ -26,30 +26,28 @@ func TestEvaluators(t *testing.T) {
 		ast := testCase.ast
 		Convey(fmt.Sprintf("Given the AST Expression %v", ast), t, func() {
 
-			Convey("Then an Evaluator can be computed", func() {
+			Convey("When the expressions are evaluated", func() {
 				flatExpr, err := ParserExprToFlatExpr(ast, reg)
 				So(err, ShouldBeNil)
 				eval, err := ExpressionToEvaluator(flatExpr, reg)
 				So(err, ShouldBeNil)
 
-				for i, tc := range testCase.inputs {
-					input, expected := tc.input, tc.expected
-
-					Convey(fmt.Sprintf("And when applied to input %v [%v]", input, i), func() {
+				Convey("Then they should be evaluated correctly", FailureContinues, func() {
+					// Although each test case should have an independent Convey block,
+					// it makes tests 50 times slower. So, all inputs of each testCase
+					// are evaluated within one Convey block, which makes debugging
+					// very difficult.
+					for _, tc := range testCase.inputs {
+						input, expected := tc.input, tc.expected
 						actual, err := eval.Eval(input)
-
-						Convey(fmt.Sprintf("Then the result should be %v", expected), func() {
-							i++
-							if expected == nil {
-								So(err, ShouldNotBeNil)
-							} else {
-								So(err, ShouldBeNil)
-								So(actual, ShouldResemble, expected)
-							}
-						})
-					})
-				}
-
+						if expected == nil {
+							So(err, ShouldNotBeNil)
+						} else {
+							So(err, ShouldBeNil)
+							So(actual, ShouldResemble, expected)
+						}
+					}
+				})
 			})
 		})
 	}
