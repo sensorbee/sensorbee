@@ -5,7 +5,7 @@ import (
 	"net/http"
 )
 
-func ParseRequestJSON(js []byte) (map[string]interface{}, *Error) {
+func parseRequestJSON(js []byte) (map[string]interface{}, *Error) {
 	var parsed map[string]interface{}
 	if err := json.Unmarshal(js, &parsed); err != nil {
 		return nil, NewError(requestBodyParseErrorCode, "Parsing the requested JSON failed. Please check if the JSON is valid.",
@@ -14,11 +14,11 @@ func ParseRequestJSON(js []byte) (map[string]interface{}, *Error) {
 	return parsed, nil
 }
 
-func ParseJSONFromRequestBody(c *Context) (map[string]interface{}, *Error) {
+func parseJSONFromRequestBody(c *Context) (map[string]interface{}, *Error) {
 	body, err := c.Body()
 	if err != nil {
 		return nil, NewError(requestBodyReadErrorCode, "Cannot read the request body.",
 			http.StatusInternalServerError, err)
 	}
-	return ParseRequestJSON(body)
+	return parseRequestJSON(body)
 }

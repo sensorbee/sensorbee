@@ -33,6 +33,8 @@ const (
 	somethingWentWrong = "Something went wrong. Please try again later."
 )
 
+// NewInternalServerError creates an internal server error response having
+// an error information.
 func NewInternalServerError(err error) *Error {
 	return NewError(internalServerErrorCode, somethingWentWrong,
 		http.StatusInternalServerError, err)
@@ -74,6 +76,7 @@ type Error struct {
 	Meta map[string]interface{} `json:"meta"`
 }
 
+// NewError creates a new Error instance.
 func NewError(code string, msg string, status int, err error) *Error {
 	return &Error{
 		Code:    code,
@@ -84,6 +87,7 @@ func NewError(code string, msg string, status int, err error) *Error {
 	}
 }
 
+// SetRequestID set the ID of the current request to Error.
 func (e *Error) SetRequestID(id uint64) {
 	e.RequestID = fmt.Sprint(id)
 }
