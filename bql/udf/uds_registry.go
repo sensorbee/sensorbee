@@ -2,6 +2,7 @@ package udf
 
 import (
 	"fmt"
+	"io"
 	"pfi/sensorbee/sensorbee/core"
 	"pfi/sensorbee/sensorbee/data"
 	"strings"
@@ -13,6 +14,30 @@ type UDSCreator interface {
 	// CreateState creates an instance of the state type. CreateState must not
 	// call core.SharedState.Init.
 	CreateState(ctx *core.Context, params data.Map) (core.SharedState, error)
+}
+
+// UDSLoader loads a User Defined State from saved data. A UDS cannot be loaded
+// if a UDSCreator doesn't implement UDSLoader even if the UDS implements
+// core.PersistentSharedState.
+//
+// When a UDS isn't created yet, UDSLoader.LoadState will be used to load the
+// state and core.PersistentSharedState.Load will not be used.
+//
+// When a UDS is already created or loaded and it implements
+// core.PersistentSharedState, its Load method is called to load a model and
+// UDSLoader.LoadState will not be called. If a UDS doesn't implement
+// core.PersistentSharedState but UDSLoader is provided for its type, then
+// UDSLoader.LoadState creates a new instance and the previous instance is
+// replaced with it, which means loading the UDS could consume twice as much
+// memory as core.PersistentSharedState.Load does. When a UDS doesn't implement
+// core.PersistentSharedState and its UDSCreator doesn't implement UDSLoader,
+// the UDS cannot be loaded.
+type UDSLoader interface {
+	UDSCreator
+
+	// LoadState loads a state from saved data. The saved data can be read from
+	// io.Reader. Parameters given by SET clause are passed as params.
+	LoadState(ctx *core.Context, r io.Reader, params data.Map) (core.SharedState, error)
 }
 
 type udsCreatorFunc func(*core.Context, data.Map) (core.SharedState, error)

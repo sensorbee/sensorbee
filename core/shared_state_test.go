@@ -27,7 +27,8 @@ func (s *stubSharedState) Terminate(ctx *Context) error {
 
 func TestDefaultSharedStateRegistry(t *testing.T) {
 	Convey("Given a default shared state registry", t, func() {
-		r := NewContext(nil).SharedStates
+		ctx := NewContext(nil)
+		r := ctx.SharedStates
 
 		Convey("When adding a state", func() {
 			s := &stubSharedState{}
@@ -51,6 +52,19 @@ func TestDefaultSharedStateRegistry(t *testing.T) {
 				s2, err := r.Get("test_state")
 				So(err, ShouldBeNil)
 				So(s2, ShouldPointTo, s)
+			})
+
+			Convey("Then it can be replaced", func() {
+				prev, err := r.Replace("test_state", &stubSharedState{})
+				So(err, ShouldBeNil)
+				Reset(func() {
+					prev.Terminate(ctx)
+				})
+				So(prev, ShouldPointTo, s)
+
+				Convey("And it shouldn't have been terminated yet", func() {
+					So(s.terminateCnt, ShouldEqual, 0)
+				})
 			})
 
 			Convey("Then it should be listed", func() {
@@ -89,6 +103,41 @@ func TestDefaultSharedStateRegistry(t *testing.T) {
 
 			Convey("Then the returned state should be nil", func() {
 				So(s, ShouldBeNil)
+			})
+		})
+
+		Convey("When replacing a nonexistent state", func() {
+			s := &stubSharedState{}
+			_, err := r.Replace("test_state", s)
+
+			Convey("Then it should fail", func() {
+				So(err, ShouldNotBeNil)
+			})
+
+			Convey("Then the state should be terminated", func() {
+				So(s.terminateCnt, ShouldEqual, 1)
+			})
+		})
+
+		Convey("When replacing fails and the state.Terminate fails", func() {
+			s := &stubSharedState{}
+			s.terminateFailAt = 1
+			_, err := r.Replace("test_state", s)
+
+			Convey("Then it should fail and the error message shouldn't be about the termination", func() {
+				So(err, ShouldNotBeNil)
+				So(err.Error(), ShouldContainSubstring, "was not found")
+			})
+		})
+
+		Convey("When replacing fails and the state.Terminate panics", func() {
+			s := &stubSharedState{}
+			s.terminatePanicAt = 1
+			_, err := r.Replace("test_state", s)
+
+			Convey("Then it should fail and the error message shouldn't be about the termination", func() {
+				So(err, ShouldNotBeNil)
+				So(err.Error(), ShouldContainSubstring, "was not found")
 			})
 		})
 
@@ -153,7 +202,8 @@ func TestDefaultSharedStateRegistry(t *testing.T) {
 }
 
 type countingSharedState struct {
-	cnt int32
+	terminated bool
+	cnt        int32
 }
 
 func (c *countingSharedState) Write(ctx *Context, t *Tuple) error {
@@ -163,6 +213,7 @@ func (c *countingSharedState) Write(ctx *Context, t *Tuple) error {
 }
 
 func (c *countingSharedState) Terminate(ctx *Context) error {
+	c.terminated = true
 	return nil
 }
 
@@ -260,8 +311,16 @@ func TestSharedStateSink(t *testing.T) {
 	}
 
 	Convey("Given a topology and a state registry", t, func() {
-		Convey("When creating shared state sink with non-Writer shared state", func() {
+		Convey("When creating a shared state sink with non-Writer shared state", func() {
 			_, err := NewSharedStateSink(ctx, "test_state")
+
+			Convey("Then it should fail", func() {
+				So(err, ShouldNotBeNil)
+			})
+		})
+
+		Convey("When creating a shared state sink with non-existing state", func() {
+			_, err := NewSharedStateSink(ctx, "no_such_sink")
 
 			Convey("Then it should fail", func() {
 				So(err, ShouldNotBeNil)
@@ -290,6 +349,14 @@ func TestSharedStateSink(t *testing.T) {
 
 				Convey("Then the count should be be incremented", func() {
 					So(counter.cnt, ShouldEqual, 100)
+				})
+			})
+
+			Convey("Then it should be closed", func() {
+				So(sink.Close(ctx), ShouldBeNil)
+
+				Convey("And the state shouldn't be terminated", func() {
+					So(counter.terminated, ShouldBeFalse)
 				})
 			})
 		})
