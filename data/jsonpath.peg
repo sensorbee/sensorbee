@@ -1,0 +1,43 @@
+# compile this with
+# $ peg jsonpath.peg (creates jsonpath.peg.go)
+# using peg from https://github.com/pointlander/peg
+
+package data
+
+import "strings"
+
+type jsonPeg Peg {
+    components []extractor
+}
+
+jsonPath <- jsonPathHead jsonPathNonHead* !.
+
+jsonPathHead <- jsonMapAccessString / jsonMapAccessBracket
+
+jsonPathNonHead <- ('.' jsonMapAccessString) / jsonMapAccessBracket / jsonArrayAccess
+
+jsonMapAccessString <- < [[a-z]] ([[a-z]] / [0-9] / '_')* > {
+        substr := string([]rune(buffer)[begin:end])
+        p.addMapAccess(substr)
+    }
+
+jsonMapAccessBracket <- '[' < StringLiteral > ']'
+
+jsonArrayAccess <- '[' < [0-9]+ > ']' {
+        substr := string([]rune(buffer)[begin:end])
+        p.addArrayAccess(substr)
+    }
+
+StringLiteral <- singleQuotedString / doubleQuotedString
+
+# single quotes within a singleQuotedString must be doubled
+singleQuotedString <- ['] < ("''" / !"'" .)* > ['] {
+        substr := string([]rune(buffer)[begin:end])
+        p.addMapAccess(strings.Replace(substr, "''", "'", -1))
+    }
+
+# double quotes within a doubleQuotedString must be doubled
+doubleQuotedString <- ["] < ('""' / !'"' .)* > ["] {
+        substr := string([]rune(buffer)[begin:end])
+        p.addMapAccess(strings.Replace(substr, "\"\"", "\"", -1))
+    }

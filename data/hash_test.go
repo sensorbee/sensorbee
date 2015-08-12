@@ -114,8 +114,8 @@ func TestHash(t *testing.T) {
 			c["int"] = Float(10.0)
 			m["float"] = Float(3.0)
 			c["float"] = Int(3)
-			So(c.Set("array[3]", Float(10.0)), ShouldBeNil)
-			So(m.Set("map.int", Float(10.0)), ShouldBeNil)
+			So(c.Set(MustCompilePath("array[3]"), Float(10.0)), ShouldBeNil)
+			So(m.Set(MustCompilePath("map.int"), Float(10.0)), ShouldBeNil)
 
 			Convey("Then Hash should return the same value", func() {
 				So(Hash(c), ShouldEqual, Hash(m))
@@ -131,12 +131,12 @@ func TestHash(t *testing.T) {
 			})
 
 			Convey("Then Hash should behave samely when they're in an array", func() {
-				So(c.Set("array[7]", t), ShouldBeNil)
+				So(c.Set(MustCompilePath("array[7]"), t), ShouldBeNil)
 				So(Hash(c), ShouldEqual, Hash(m))
 			})
 
 			Convey("Then Hash should behave samely when they're in a map", func() {
-				So(c.Set("map.timestamp", t), ShouldBeNil)
+				So(c.Set(MustCompilePath("map.timestamp"), t), ShouldBeNil)
 				So(Hash(c), ShouldEqual, Hash(m))
 			})
 		})
@@ -148,12 +148,12 @@ func TestHash(t *testing.T) {
 			})
 
 			Convey("Then NaN in an array should behave samely", func() {
-				So(m.Set("array[0]", Float(math.NaN())), ShouldBeNil)
+				So(m.Set(MustCompilePath("array[0]"), Float(math.NaN())), ShouldBeNil)
 				So(Hash(m), ShouldNotEqual, Hash(m))
 			})
 
 			Convey("Then NaN in a map should behave samely", func() {
-				So(m.Set("map.float", Float(math.NaN())), ShouldBeNil)
+				So(m.Set(MustCompilePath("map.float"), Float(math.NaN())), ShouldBeNil)
 				So(Hash(m), ShouldNotEqual, Hash(m))
 			})
 		})

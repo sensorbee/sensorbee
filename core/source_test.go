@@ -40,7 +40,7 @@ func TestRewindableSource(t *testing.T) {
 
 			Convey("Then status should show that it's waiting for rewind", func() {
 				st := son.Status()
-				v, _ := st.Get("source.waiting_for_rewind")
+				v, _ := st.Get(data.MustCompilePath("source.waiting_for_rewind"))
 				So(v, ShouldEqual, data.True)
 			})
 		})
@@ -104,7 +104,7 @@ func TestRewindableSource(t *testing.T) {
 			Convey("Then it should show that it isn't waiting for rewind", func() {
 				// It's still generating tuples, just the process is being paused.
 				st := son.Status()
-				v, _ := st.Get("source.waiting_for_rewind")
+				v, _ := st.Get(data.MustCompilePath("source.waiting_for_rewind"))
 				So(v, ShouldEqual, data.False)
 			})
 		})

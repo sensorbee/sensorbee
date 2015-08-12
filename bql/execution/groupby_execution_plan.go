@@ -224,7 +224,7 @@ func (ep *groupbyExecutionPlan) performQueryOnBuffer() error {
 			if err != nil {
 				return err
 			}
-			if err := assignOutputValue(result, proj.alias, value); err != nil {
+			if err := assignOutputValue(result, proj.alias, proj.aliasPath, value); err != nil {
 				return err
 			}
 		}
@@ -259,7 +259,7 @@ func (ep *groupbyExecutionPlan) performQueryOnBuffer() error {
 			if err != nil {
 				return err
 			}
-			if err := assignOutputValue(result, proj.alias, value); err != nil {
+			if err := assignOutputValue(result, proj.alias, proj.aliasPath, value); err != nil {
 				return err
 			}
 		}
