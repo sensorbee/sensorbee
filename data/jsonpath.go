@@ -22,7 +22,8 @@ func MustCompilePath(s string) Path {
 	p.Buffer = s
 	p.Init()
 	if err := p.Parse(); err != nil {
-		panic(err.Error())
+		msg := fmt.Sprintf("error parsing '%s' as a JSON Path", s)
+		panic(msg)
 	}
 	p.Execute()
 	return p

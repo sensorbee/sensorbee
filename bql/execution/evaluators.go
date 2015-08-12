@@ -57,23 +57,26 @@ func ExpressionToEvaluator(ast FlatExpression, reg udf.FunctionRegistry) (Evalua
 	switch obj := ast.(type) {
 	case RowMeta:
 		// construct a key for reading as used in setMetadata() for writing
-		metaKey := fmt.Sprintf("%s:meta:%s", obj.Relation, obj.MetaType)
+		metaKey := fmt.Sprintf("['%s:meta:%s']", obj.Relation, obj.MetaType)
 		if obj.MetaType == parser.TimestampMeta {
 			return &timestampCast{&PathAccess{metaKey}}, nil
 		}
 	case StmtMeta:
 		// construct a key for reading as used in setMetadata() for writing
-		metaKey := fmt.Sprintf(":meta:%s", obj.MetaType)
+		metaKey := fmt.Sprintf("[':meta:%s']", obj.MetaType)
 		if obj.MetaType == parser.NowMeta {
 			return &timestampCast{&PathAccess{metaKey}}, nil
 		}
 	case RowValue:
-		// in the current JSON path implementation as per data/mapscan.go,
-		// single quotes in map access strings do not need to be escaped,
-		// so we have to turn a BQL expression like `hoge['foo''bar]` into
-		// a string `hoge['foo'bar']`
-		path := strings.Replace(obj.Column, "''", "'", -1)
-		return &PathAccess{obj.Relation + "." + path}, nil
+		path := obj.Column
+		if obj.Relation != "" {
+			if strings.HasPrefix(path, "[") {
+				path = obj.Relation + path
+			} else {
+				path = obj.Relation + "." + path
+			}
+		}
+		return &PathAccess{path}, nil
 	case AggInputRef:
 		return &PathAccess{obj.Ref}, nil
 	case NullLiteral:

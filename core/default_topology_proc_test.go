@@ -289,7 +289,7 @@ func TestDefaultTopologyTupleProcessing(t *testing.T) {
 func toUpper(ctx *Context, t *Tuple, w Writer) error {
 	x, _ := t.Data.Get("source")
 	s, _ := data.AsString(x)
-	t.Data["to-upper"] = data.String(strings.ToUpper(s))
+	t.Data["to_upper"] = data.String(strings.ToUpper(s))
 	w.Write(ctx, t)
 	return nil
 }
@@ -297,7 +297,7 @@ func toUpper(ctx *Context, t *Tuple, w Writer) error {
 func addSuffix(ctx *Context, t *Tuple, w Writer) error {
 	x, _ := t.Data.Get("source")
 	s, _ := data.AsString(x)
-	t.Data["add-suffix"] = data.String(s + "_1")
+	t.Data["add_suffix"] = data.String(s + "_1")
 	w.Write(ctx, t)
 	return nil
 }
@@ -329,8 +329,8 @@ func (s *customEmitterSource) Stop(ctx *Context) error {
 }
 
 // TupleContentsCollectorSink is a sink that will add all strings found
-// in the "to-upper" field to the uppercaseResults slice, all strings
-// in the "add-suffix" field to the suffixResults slice.
+// in the "to_upper" field to the uppercaseResults slice, all strings
+// in the "add_suffix" field to the suffixResults slice.
 type TupleContentsCollectorSink struct {
 	TupleCollectorSink
 	uppercaseResults []string
@@ -340,13 +340,13 @@ type TupleContentsCollectorSink struct {
 func (s *TupleContentsCollectorSink) Write(ctx *Context, t *Tuple) (err error) {
 	s.TupleCollectorSink.Write(ctx, t)
 
-	x, err := t.Data.Get("to-upper")
+	x, err := t.Data.Get("to_upper")
 	if err == nil {
 		str, _ := data.AsString(x)
 		s.uppercaseResults = append(s.uppercaseResults, str)
 	}
 
-	x, err = t.Data.Get("add-suffix")
+	x, err = t.Data.Get("add_suffix")
 	if err == nil {
 		str, _ := data.AsString(x)
 		s.suffixResults = append(s.suffixResults, str)
