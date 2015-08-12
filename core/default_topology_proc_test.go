@@ -287,7 +287,7 @@ func TestDefaultTopologyTupleProcessing(t *testing.T) {
 }
 
 func toUpper(ctx *Context, t *Tuple, w Writer) error {
-	x, _ := t.Data.Get("source")
+	x, _ := t.Data.Get(data.MustCompilePath("source"))
 	s, _ := data.AsString(x)
 	t.Data["to_upper"] = data.String(strings.ToUpper(s))
 	w.Write(ctx, t)
@@ -295,7 +295,7 @@ func toUpper(ctx *Context, t *Tuple, w Writer) error {
 }
 
 func addSuffix(ctx *Context, t *Tuple, w Writer) error {
-	x, _ := t.Data.Get("source")
+	x, _ := t.Data.Get(data.MustCompilePath("source"))
 	s, _ := data.AsString(x)
 	t.Data["add_suffix"] = data.String(s + "_1")
 	w.Write(ctx, t)
@@ -340,13 +340,13 @@ type TupleContentsCollectorSink struct {
 func (s *TupleContentsCollectorSink) Write(ctx *Context, t *Tuple) (err error) {
 	s.TupleCollectorSink.Write(ctx, t)
 
-	x, err := t.Data.Get("to_upper")
+	x, err := t.Data.Get(data.MustCompilePath("to_upper"))
 	if err == nil {
 		str, _ := data.AsString(x)
 		s.uppercaseResults = append(s.uppercaseResults, str)
 	}
 
-	x, err = t.Data.Get("add_suffix")
+	x, err = t.Data.Get(data.MustCompilePath("add_suffix"))
 	if err == nil {
 		str, _ := data.AsString(x)
 		s.suffixResults = append(s.suffixResults, str)

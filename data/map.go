@@ -95,7 +95,10 @@ func (m Map) Copy() Map {
 // interface's methods.
 //
 // Example:
-//  v, err := map.Get("path")
+//  p, err := CompilePath("path")
+//  if err != nil { ... }
+//  v, err := map.Get(p)
+//  if err != nil { ... }
 //  s, err := v.asString() // cast to String
 //
 // Path Expression Example:
@@ -119,10 +122,8 @@ func (m Map) Copy() Map {
 //  `["store"]["name"]`             -> get "store name"
 //  `["store"]["book"][0]["title"]` -> get "book name"
 //
-func (m Map) Get(path string) (Value, error) {
-	var v Value
-	err := scanMap(m, path, &v)
-	return v, err
+func (m Map) Get(path Path) (Value, error) {
+	return path.Evaluate(m)
 }
 
 // Set sets a value in a structured Map as addressed by the
@@ -135,6 +136,6 @@ func (m Map) Get(path string) (Value, error) {
 // Set returns an error when the path expression is invalid or
 // when one of the intermediate components already exists
 // but is not a map/list.
-func (m Map) Set(path string, val Value) error {
-	return setInMap(m, path, val)
+func (m Map) Set(path Path, val Value) error {
+	return path.Set(m, val)
 }

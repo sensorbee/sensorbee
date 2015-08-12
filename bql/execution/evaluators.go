@@ -59,13 +59,21 @@ func ExpressionToEvaluator(ast FlatExpression, reg udf.FunctionRegistry) (Evalua
 		// construct a key for reading as used in setMetadata() for writing
 		metaKey := fmt.Sprintf("['%s:meta:%s']", obj.Relation, obj.MetaType)
 		if obj.MetaType == parser.TimestampMeta {
-			return &timestampCast{&PathAccess{metaKey}}, nil
+			pa, err := PathAccess(metaKey)
+			if err != nil {
+				return nil, err
+			}
+			return &timestampCast{pa}, nil
 		}
 	case StmtMeta:
 		// construct a key for reading as used in setMetadata() for writing
 		metaKey := fmt.Sprintf("[':meta:%s']", obj.MetaType)
 		if obj.MetaType == parser.NowMeta {
-			return &timestampCast{&PathAccess{metaKey}}, nil
+			pa, err := PathAccess(metaKey)
+			if err != nil {
+				return nil, err
+			}
+			return &timestampCast{pa}, nil
 		}
 	case RowValue:
 		path := obj.Column
@@ -76,9 +84,9 @@ func ExpressionToEvaluator(ast FlatExpression, reg udf.FunctionRegistry) (Evalua
 				path = obj.Relation + "." + path
 			}
 		}
-		return &PathAccess{path}, nil
+		return PathAccess(path)
 	case AggInputRef:
-		return &PathAccess{obj.Ref}, nil
+		return PathAccess(obj.Ref)
 	case NullLiteral:
 		return &NullConstant{}, nil
 	case NumericLiteral:
@@ -270,18 +278,26 @@ func (s *StringConstant) Eval(input data.Value) (data.Value, error) {
 	return data.String(s.value), nil
 }
 
-// PathAccess only works for maps and returns the Value at the given
+// pathAccess only works for maps and returns the Value at the given
 // JSON path.
-type PathAccess struct {
-	path string
+type pathAccess struct {
+	path data.Path
 }
 
-func (fa *PathAccess) Eval(input data.Value) (data.Value, error) {
+func (fa *pathAccess) Eval(input data.Value) (data.Value, error) {
 	aMap, err := data.AsMap(input)
 	if err != nil {
 		return nil, err
 	}
 	return aMap.Get(fa.path)
+}
+
+func PathAccess(s string) (Evaluator, error) {
+	path, err := data.CompilePath(s)
+	if err != nil {
+		return nil, err
+	}
+	return &pathAccess{path}, nil
 }
 
 type typeCast struct {
