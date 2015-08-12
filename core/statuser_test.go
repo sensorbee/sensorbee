@@ -75,7 +75,7 @@ func TestNodeStatus(t *testing.T) {
 
 			Convey("Then it should have the status of the source implementation", func() {
 				So(st["source"], ShouldNotBeNil)
-				v, _ := st.Get("source.test")
+				v, _ := st.Get(data.MustCompilePath("source.test"))
 				So(v, ShouldEqual, "test")
 			})
 
@@ -94,7 +94,7 @@ func TestNodeStatus(t *testing.T) {
 				Convey("And remove_on_stop should be true after enabling it", func() {
 					son.RemoveOnStop()
 					st := son.Status()
-					v, _ := st.Get("behaviors.remove_on_stop")
+					v, _ := st.Get(data.MustCompilePath("behaviors.remove_on_stop"))
 					So(v, ShouldEqual, data.True)
 				})
 			})
@@ -136,7 +136,7 @@ func TestNodeStatus(t *testing.T) {
 
 			Convey("Then it should have the status of the source implementation", func() {
 				So(st["source"], ShouldNotBeNil)
-				v, _ := st.Get("source.test")
+				v, _ := st.Get(data.MustCompilePath("source.test"))
 				So(v, ShouldEqual, "test")
 			})
 		})
@@ -223,7 +223,7 @@ func TestNodeStatus(t *testing.T) {
 				Convey("And graceful_stop should be true after enabling it", func() {
 					bn.EnableGracefulStop()
 					st := bn.Status()
-					v, _ := st.Get("behaviors.graceful_stop")
+					v, _ := st.Get(data.MustCompilePath("behaviors.graceful_stop"))
 					So(v, ShouldEqual, data.True)
 				})
 
@@ -234,7 +234,7 @@ func TestNodeStatus(t *testing.T) {
 				Convey("And remove_on_stop should be true after enabling it", func() {
 					bn.RemoveOnStop()
 					st := bn.Status()
-					v, _ := st.Get("behaviors.remove_on_stop")
+					v, _ := st.Get(data.MustCompilePath("behaviors.remove_on_stop"))
 					So(v, ShouldEqual, data.True)
 				})
 			})
@@ -349,7 +349,7 @@ func TestNodeStatus(t *testing.T) {
 				Convey("And graceful_stop should be true after enabling it", func() {
 					sin.EnableGracefulStop()
 					st := sin.Status()
-					v, _ := st.Get("behaviors.graceful_stop")
+					v, _ := st.Get(data.MustCompilePath("behaviors.graceful_stop"))
 					So(v, ShouldEqual, data.True)
 				})
 
@@ -360,7 +360,7 @@ func TestNodeStatus(t *testing.T) {
 				Convey("And remove_on_stop should be true after enabling it", func() {
 					sin.RemoveOnStop()
 					st := sin.Status()
-					v, _ := st.Get("behaviors.remove_on_stop")
+					v, _ := st.Get(data.MustCompilePath("behaviors.remove_on_stop"))
 					So(v, ShouldEqual, data.True)
 				})
 			})

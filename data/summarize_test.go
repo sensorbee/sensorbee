@@ -25,19 +25,19 @@ func TestSummarize(t *testing.T) {
 			s := summarize(m)
 
 			Convey("Then a blob should be replaced with (blob)", func() {
-				v, err := s.(Map).Get("blob")
+				v, err := s.(Map).Get(MustCompilePath("blob"))
 				So(err, ShouldBeNil)
 				So(v, ShouldEqual, "(blob)")
 			})
 
 			Convey("Then a blob nested in a map should be replaced with (blob)", func() {
-				v, err := s.(Map).Get("map.nested_blob")
+				v, err := s.(Map).Get(MustCompilePath("map.nested_blob"))
 				So(err, ShouldBeNil)
 				So(v, ShouldEqual, "(blob)")
 			})
 
 			Convey("Then a blob nested in an array should be replaced with (blob)", func() {
-				v, err := s.(Map).Get("array[0]")
+				v, err := s.(Map).Get(MustCompilePath("array[0]"))
 				So(err, ShouldBeNil)
 				So(v, ShouldEqual, "(blob)")
 			})

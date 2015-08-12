@@ -27,7 +27,9 @@ func TestMapscanDocstrings(t *testing.T) {
 			`["store"]["book"][0]["title"]`: String("book name"),
 		}
 		for input, expected := range examples {
-			actual, err := m.Get(input)
+			path, err := CompilePath(input)
+			So(err, ShouldBeNil)
+			actual, err := m.Get(path)
 			So(err, ShouldBeNil)
 			So(actual, ShouldResemble, expected)
 		}
@@ -87,13 +89,15 @@ func TestSetInMap(t *testing.T) {
 		for _, testCase := range testCases {
 			tc := testCase
 			Convey(fmt.Sprintf("When setting the value at '%s' to %v", tc.key, tc.val), func() {
-				err := testData.Set(tc.key, tc.val)
+				path, err := CompilePath(tc.key)
+				So(err, ShouldBeNil)
+				err = testData.Set(path, tc.val)
 				if tc.errmsg == "" {
 					Convey("There should be no error", func() {
 						So(err, ShouldBeNil)
 
 						Convey("And Get() should get back the result", func() {
-							getVal, err := testData.Get(tc.key)
+							getVal, err := testData.Get(path)
 							So(err, ShouldBeNil)
 							So(getVal, ShouldResemble, tc.val)
 						})
@@ -316,7 +320,9 @@ func BenchmarkMapAccess(b *testing.B) {
 	}
 	for n := 0; n < b.N; n++ {
 		for input, expected := range examples {
-			actual, err := m.Get(input)
+			path, err := CompilePath(input)
+			So(err, ShouldBeNil)
+			actual, err := m.Get(path)
 			if err != nil {
 				panic(err)
 			}
