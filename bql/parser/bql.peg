@@ -45,7 +45,8 @@ SourceStmt <- CreateSourceStmt / UpdateSourceStmt / DropSourceStmt /
 
 SinkStmt <-   CreateSinkStmt / UpdateSinkStmt / DropSinkStmt
 
-StateStmt <-  CreateStateStmt / UpdateStateStmt / DropStateStmt
+StateStmt <-  CreateStateStmt / UpdateStateStmt / DropStateStmt / LoadStateOrCreateStmt /
+              LoadStateStmt
 
 StreamStmt <- CreateStreamAsSelectUnionStmt / CreateStreamAsSelectStmt / DropStreamStmt /
               InsertIntoSelectStmt / InsertIntoFromStmt
@@ -160,6 +161,16 @@ DropStateStmt <- "DROP" sp "STATE" sp StreamIdentifier {
         p.AssembleDropState()
     }
 
+LoadStateStmt <- "LOAD" sp "STATE" sp StreamIdentifier sp
+                    "TYPE" sp SourceSinkType sp SetOptSpecs {
+        p.AssembleLoadState()
+    }
+
+LoadStateOrCreateStmt <- LoadStateStmt sp
+                    "OR" sp "CREATE" sp "IF" sp "NOT" sp "EXISTS" sp SourceSinkSpecs {
+        p.AssembleLoadStateOrCreate()
+    }
+
 ################################
 ##### STATEMENT COMPONENTS #####
 ################################
@@ -255,6 +266,12 @@ UpdateSourceSinkSpecs <- < "SET" sp SourceSinkParam sp (',' sp SourceSinkParam)*
         p.AssembleSourceSinkSpecs(begin, end)
     }
 
+# If we use UpdateSourceSinkSpecs instead, then AssembleSourceSinkSpecs
+# will not be called if the SET clause is not present.
+SetOptSpecs <- < ("SET" sp SourceSinkParam sp (',' sp SourceSinkParam)*)? > {
+        p.AssembleSourceSinkSpecs(begin, end)
+    }
+
 SourceSinkParam <- SourceSinkParamKey '=' SourceSinkParamVal {
         p.AssembleSourceSinkParam()
     }
@@ -271,7 +288,6 @@ ParamArrayExpr <- < '[' sp (ParamLiteral (',' sp ParamLiteral)*)? sp ','? sp ']'
 PausedOpt <- < (Paused / Unpaused)? > {
         p.EnsureKeywordPresent(begin, end)
     }
-
 
 ##############################
 ##### NESTED EXPRESSIONS #####
