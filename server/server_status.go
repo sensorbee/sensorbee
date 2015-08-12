@@ -18,7 +18,7 @@ type serverStatus struct {
 	*APIContext
 }
 
-func SetUpServerStatusRouter(prefix string, router *web.Router) {
+func setUpServerStatusRouter(prefix string, router *web.Router) {
 	root := router.Subrouter(serverStatus{}, "")
 	root.Get("/runtime_status", (*serverStatus).RuntimeStatus)
 }
