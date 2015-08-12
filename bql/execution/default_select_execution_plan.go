@@ -17,7 +17,7 @@ func CanBuildDefaultSelectExecutionPlan(lp *LogicalPlan, reg udf.FunctionRegistr
 	return !lp.GroupingStmt
 }
 
-// defaultSelectExecutionPlan is a very simple plan that follows the
+// NewDefaultSelectExecutionPlan creates a plan that follows the
 // theoretical processing model. It does not support aggregration.
 //
 // After each tuple arrives,
