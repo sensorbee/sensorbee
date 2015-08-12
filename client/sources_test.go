@@ -3,6 +3,7 @@ package client
 import (
 	. "github.com/smartystreets/goconvey/convey"
 	"net/http"
+	"pfi/sensorbee/sensorbee/data"
 	"pfi/sensorbee/sensorbee/server/response"
 	"pfi/sensorbee/sensorbee/server/testutil"
 	"testing"
@@ -105,7 +106,8 @@ func TestSources(t *testing.T) {
 				})
 
 				Convey("And the response should contain state", func() {
-					_, err := src.Status.Get("output_stats.num_sent_total")
+					path := "output_stats.num_sent_total"
+					_, err := src.Status.Get(data.MustCompilePath(path))
 					So(err, ShouldBeNil)
 				})
 

@@ -57,25 +57,36 @@ func ExpressionToEvaluator(ast FlatExpression, reg udf.FunctionRegistry) (Evalua
 	switch obj := ast.(type) {
 	case RowMeta:
 		// construct a key for reading as used in setMetadata() for writing
-		metaKey := fmt.Sprintf("%s:meta:%s", obj.Relation, obj.MetaType)
+		metaKey := fmt.Sprintf("['%s:meta:%s']", obj.Relation, obj.MetaType)
 		if obj.MetaType == parser.TimestampMeta {
-			return &timestampCast{&PathAccess{metaKey}}, nil
+			pa, err := PathAccess(metaKey)
+			if err != nil {
+				return nil, err
+			}
+			return &timestampCast{pa}, nil
 		}
 	case StmtMeta:
 		// construct a key for reading as used in setMetadata() for writing
-		metaKey := fmt.Sprintf(":meta:%s", obj.MetaType)
+		metaKey := fmt.Sprintf("[':meta:%s']", obj.MetaType)
 		if obj.MetaType == parser.NowMeta {
-			return &timestampCast{&PathAccess{metaKey}}, nil
+			pa, err := PathAccess(metaKey)
+			if err != nil {
+				return nil, err
+			}
+			return &timestampCast{pa}, nil
 		}
 	case RowValue:
-		// in the current JSON path implementation as per data/mapscan.go,
-		// single quotes in map access strings do not need to be escaped,
-		// so we have to turn a BQL expression like `hoge['foo''bar]` into
-		// a string `hoge['foo'bar']`
-		path := strings.Replace(obj.Column, "''", "'", -1)
-		return &PathAccess{obj.Relation + "." + path}, nil
+		path := obj.Column
+		if obj.Relation != "" {
+			if strings.HasPrefix(path, "[") {
+				path = obj.Relation + path
+			} else {
+				path = obj.Relation + "." + path
+			}
+		}
+		return PathAccess(path)
 	case AggInputRef:
-		return &PathAccess{obj.Ref}, nil
+		return PathAccess(obj.Ref)
 	case NullLiteral:
 		return &NullConstant{}, nil
 	case NumericLiteral:
@@ -267,18 +278,26 @@ func (s *StringConstant) Eval(input data.Value) (data.Value, error) {
 	return data.String(s.value), nil
 }
 
-// PathAccess only works for maps and returns the Value at the given
+// pathAccess only works for maps and returns the Value at the given
 // JSON path.
-type PathAccess struct {
-	path string
+type pathAccess struct {
+	path data.Path
 }
 
-func (fa *PathAccess) Eval(input data.Value) (data.Value, error) {
+func (fa *pathAccess) Eval(input data.Value) (data.Value, error) {
 	aMap, err := data.AsMap(input)
 	if err != nil {
 		return nil, err
 	}
 	return aMap.Get(fa.path)
+}
+
+func PathAccess(s string) (Evaluator, error) {
+	path, err := data.CompilePath(s)
+	if err != nil {
+		return nil, err
+	}
+	return &pathAccess{path}, nil
 }
 
 type typeCast struct {

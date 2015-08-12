@@ -77,7 +77,7 @@ func (ep *filterPlan) Process(input *core.Tuple) ([]data.Map, error) {
 		if err != nil {
 			return nil, err
 		}
-		if err := assignOutputValue(result, proj.alias, value); err != nil {
+		if err := assignOutputValue(result, proj.alias, proj.aliasPath, value); err != nil {
 			return nil, err
 		}
 	}

@@ -6,6 +6,31 @@ import (
 	"testing"
 )
 
+// scanMap is a legacy method that only exists to avoid
+// large changes to the tests.
+func scanMap(m Map, p string, v *Value) (err error) {
+	path, err := CompilePath(p)
+	if err != nil {
+		return err
+	}
+	val, err := path.evaluate(m)
+	if err != nil {
+		return err
+	}
+	*v = val
+	return nil
+}
+
+// setInMap is a legacy method that only exists to avoid
+// large changes to the tests.
+func setInMap(m Map, p string, v Value) (err error) {
+	path, err := CompilePath(p)
+	if err != nil {
+		return err
+	}
+	return path.set(m, v)
+}
+
 func TestMapscanDocstrings(t *testing.T) {
 	storeData := Map{
 		"name": String("store name"),
@@ -27,40 +52,10 @@ func TestMapscanDocstrings(t *testing.T) {
 			`["store"]["book"][0]["title"]`: String("book name"),
 		}
 		for input, expected := range examples {
-			actual, err := m.Get(input)
+			path, err := CompilePath(input)
 			So(err, ShouldBeNil)
-			So(actual, ShouldResemble, expected)
-		}
-	})
-
-	Convey("split examples should be correct", t, func() {
-		examples := map[string]interface{}{
-			"store.book[0].title":           []string{"store", "book[0]", "title"},
-			`["store"]["book"][0]["title"]`: []string{"store", "book[0]", "title"},
-		}
-		for input, expected := range examples {
-			actual := split(input)
-			So(actual, ShouldResemble, expected)
-		}
-	})
-
-	Convey("splitBracket examples should be correct", t, func() {
-		examples := map[string]interface{}{
-			`a["hoge"].b`:    "hoge",
-			`a["hoge"][123]`: "hoge[123]",
-		}
-		for input, expected := range examples {
-			actual := splitBracket([]rune(input), 3, '"')
-			So(actual, ShouldResemble, expected)
-		}
-	})
-
-	Convey("getArrayIndex examples should be correct", t, func() {
-		examples := map[string]interface{}{
-			`hoge[123]`: "[123]",
-		}
-		for input, expected := range examples {
-			actual := getArrayIndex([]rune(input), 5)
+			actual, err := m.Get(path)
+			So(err, ShouldBeNil)
 			So(actual, ShouldResemble, expected)
 		}
 	})
@@ -94,9 +89,9 @@ func TestSetInMap(t *testing.T) {
 		{"store.owner.name", String("bar foo"), ""},
 		// create parent list
 		{"store.owners[1].nickname", String("ore"), ""},
+		// nested lists
+		{"store.owners[1][2]", String("ore"), ""},
 		/// fails
-		// TODO add support for nested lists
-		{"store.owners[1][2]", String("ore"), "invalid path component: owners[1][2]"},
 		// fail: add element below non-map
 		{"store.name.hoge", Int(13), "cannot access a data.String using key \"hoge\""},
 		// fail: set index in map
@@ -119,13 +114,15 @@ func TestSetInMap(t *testing.T) {
 		for _, testCase := range testCases {
 			tc := testCase
 			Convey(fmt.Sprintf("When setting the value at '%s' to %v", tc.key, tc.val), func() {
-				err := testData.Set(tc.key, tc.val)
+				path, err := CompilePath(tc.key)
+				So(err, ShouldBeNil)
+				err = testData.Set(path, tc.val)
 				if tc.errmsg == "" {
 					Convey("There should be no error", func() {
 						So(err, ShouldBeNil)
 
 						Convey("And Get() should get back the result", func() {
-							getVal, err := testData.Get(tc.key)
+							getVal, err := testData.Get(path)
 							So(err, ShouldBeNil)
 							So(getVal, ShouldResemble, tc.val)
 						})
@@ -168,7 +165,6 @@ func TestScanMap(t *testing.T) {
 			err := scanMap(testData, "", &v)
 			Convey("Then lookup should fail", func() {
 				So(err, ShouldNotBeNil)
-				So(err.Error(), ShouldEqual, "empty key is not supported")
 			})
 		})
 		Convey("When accessing an invalid string key", func() {
@@ -176,7 +172,6 @@ func TestScanMap(t *testing.T) {
 			err := scanMap(testData, "ab[a", &v)
 			Convey("Then lookup should fail", func() {
 				So(err, ShouldNotBeNil)
-				So(err.Error(), ShouldEqual, "invalid path component: ab[a")
 			})
 		})
 		Convey("When accessing a non-existing key", func() {
@@ -192,7 +187,7 @@ func TestScanMap(t *testing.T) {
 			err := scanMap(testData, "array[2147483648]", &v)
 			Convey("Then lookup should fail", func() {
 				So(err, ShouldNotBeNil)
-				So(err.Error(), ShouldEqual, "overflow index number: array[2147483648]")
+				So(err.Error(), ShouldEqual, "overflow index number: 2147483648")
 			})
 		})
 		Convey("When accessing an invalid array key", func() {
@@ -208,7 +203,6 @@ func TestScanMap(t *testing.T) {
 			err := scanMap(testData, "[0]", &v)
 			Convey("Then lookup should fail", func() {
 				So(err, ShouldNotBeNil)
-				So(err.Error(), ShouldEqual, "cannot access a data.Map using index 0")
 			})
 		})
 		Convey("When accessing an out-of-range index", func() {
@@ -216,7 +210,7 @@ func TestScanMap(t *testing.T) {
 			err := scanMap(testData, "array[2]", &v)
 			Convey("Then lookup should fail", func() {
 				So(err, ShouldNotBeNil)
-				So(err.Error(), ShouldEqual, "out of range access: array[2]")
+				So(err.Error(), ShouldEqual, "out of range access: 2")
 			})
 		})
 
@@ -253,9 +247,6 @@ func TestScanMap(t *testing.T) {
 					`map['nested..string']`: "keywithtwodots",
 					`map['nestedstring]']`:  "keywithbracket",
 					`map['nested"string']`:  "keywithdoublequote",
-					`map['nested'string']`:  "keywithsinglequote",
-					`map[''nestedstring']`:  "keywithsinglequoteA",
-					`map['nestedstring'']`:  "keywithsinglequoteB",
 					`map['nested\"string']`: "keywithescapeddoublequote",
 					`map['nestedstring\']`:  "keywithbackslash",
 					"map['nested\nstring']": "keywithnewline",
@@ -301,8 +292,6 @@ func TestScanMap(t *testing.T) {
 				samples := map[string]string{
 					`['array'][0]`:                    "saysay",
 					`array[0]`:                        "saysay",
-					`array.[0]`:                       "saysay",
-					`array[0].`:                       "saysay",
 					`['arraymap'][0]['mappedstring']`: "boo",
 				}
 				Convey("Then lookup should succeed and match the original value", func() {
@@ -329,7 +318,6 @@ func TestScanMap(t *testing.T) {
 						var v Value
 						err := scanMap(testData, input, &v)
 						So(err, ShouldNotBeNil)
-						So(err.Error(), ShouldEqual, "invalid path component: "+input)
 
 					}
 				})
@@ -338,91 +326,34 @@ func TestScanMap(t *testing.T) {
 	})
 }
 
-func TestGetArrayIndex(t *testing.T) {
-	Convey("Given strings including array index", t, func() {
-		s := "[0]aaa[1]"
-		Convey("Then getArrayIndex returns that index", func() {
-			index1 := getArrayIndex([]rune(s), 1)
-			index2 := getArrayIndex([]rune(s), 7)
-			So(index1, ShouldEqual, "[0]")
-			So(index2, ShouldEqual, "[1]")
-		})
-		Convey("Then getArrayIndex returns an empty string", func() {
-			index1 := getArrayIndex([]rune(s), 0)
-			index2 := getArrayIndex([]rune(s), 2)
-			So(index1, ShouldEqual, "")
-			So(index2, ShouldEqual, "")
-
-		})
-	})
-}
-
-func TestSplitBracket(t *testing.T) {
-	Convey("Given a string that starts with bracket", t, func() {
-		Convey("When the expression is valid", func() {
-			samples := map[string]string{
-				`[""]abc`:       "",
-				`["a"]"]`:       "a",
-				`['a']['`:       "a",
-				`["ab\"]`:       "ab\\",
-				`["a]b"]`:       "a]b",
-				`["a"b"]`:       "a\"b",
-				"a[\"hoge\"].b": "hoge",
-				`a["hog"e"].b`:  "hog\"e",
-				`a["b"][123]`:   "b[123]",
-				`a["b"][]`:      "b",
+func BenchmarkMapAccess(b *testing.B) {
+	m := Map{
+		"store": Map{
+			"name": String("store name"),
+			"book": Array([]Value{
+				Map{
+					"title": String("book name"),
+				},
+			}),
+		},
+	}
+	examples := map[string]interface{}{
+		"store.name":                    String("store name"),
+		"store.book[0].title":           String("book name"),
+		`["store"]["name"]`:             String("store name"),
+		`["store"]["book"][0]["title"]`: String("book name"),
+	}
+	for n := 0; n < b.N; n++ {
+		for input, expected := range examples {
+			path, err := CompilePath(input)
+			So(err, ShouldBeNil)
+			actual, err := m.Get(path)
+			if err != nil {
+				panic(err)
 			}
-			Convey("Then splitBracket() returns the contained string", func() {
-				for input, expected := range samples {
-					from := 2
-					if input[0] == 'a' {
-						from = 3
-					}
-					quote := '"'
-					if input[1] == '\'' {
-						quote = '\''
-					}
-					actual := splitBracket([]rune(input), from, quote)
-					So(actual, ShouldEqual, expected)
-				}
-			})
-		})
-		Convey("When the expression is invalid", func() {
-			samples := []string{
-				`["a`,
-				`['a`,
-				`['a"]`,
-				`["ab']`,
-				`["a]`,
-				`["a"`,
+			if actual != expected {
+				panic("result mismatch")
 			}
-			Convey("Then splitBracket() returns an empty string", func() {
-				for _, input := range samples {
-					quote := '"'
-					if input[1] == '\'' {
-						quote = '\''
-					}
-					actual := splitBracket([]rune(input), 2, quote)
-					So(actual, ShouldEqual, "")
-				}
-			})
-		})
-	})
-}
-
-func TestSplit(t *testing.T) {
-	Convey("Given a path expression", t, func() {
-		samples := map[string][]string{
-			`path1.pa\.th2.[pa]th3["path4"]['path5'][0]path6[0]`: []string{"path1", "pa.th2", "[pa]th3", "path4", "path5[0]", "path6[0]"},
-			`path1..path2.["path3\"].['pat.h4'].path5`:           []string{"path1", "path2", "path3\\", "pat.h4", "path5"},
-			`path1["path1']`:                                     []string{"path1[\"path1']"},
-			`path2['path2"]`:                                     []string{"path2['path2\"]"},
 		}
-		Convey("Then split() returns a proper list of components", func() {
-			for input, expected := range samples {
-				actual := split(input)
-				So(actual, ShouldResemble, expected)
-			}
-		})
-	})
+	}
 }

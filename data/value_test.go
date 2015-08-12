@@ -227,7 +227,7 @@ func TestValue(t *testing.T) {
 
 	Convey("Given a Map with values in it", t, func() {
 		Convey("When accessing a non-existing key", func() {
-			_, getErr := testData.Get("key")
+			_, getErr := testData.Get(MustCompilePath("key"))
 			Convey("Then lookup should fail", func() {
 				So(getErr, ShouldNotBeNil)
 			})
@@ -239,9 +239,11 @@ func TestValue(t *testing.T) {
 				simpleTypes := []string{"bool", "int", "float", "string",
 					"array[0]", "map.string"}
 				for _, typeName := range simpleTypes {
-					a, getErrA := testData.Get(typeName)
+					path, err := CompilePath(typeName)
+					So(err, ShouldBeNil)
+					a, getErrA := testData.Get(path)
 					So(getErrA, ShouldBeNil)
-					b, getErrB := copy.Get(typeName)
+					b, getErrB := copy.Get(path)
 					So(getErrB, ShouldBeNil)
 					// objects should have the same value
 					So(a, ShouldEqual, b)
@@ -251,9 +253,11 @@ func TestValue(t *testing.T) {
 
 				complexTypes := []string{"byte", "time", "null"}
 				for _, typeName := range complexTypes {
-					a, getErrA := testData.Get(typeName)
+					path, err := CompilePath(typeName)
+					So(err, ShouldBeNil)
+					a, getErrA := testData.Get(path)
 					So(getErrA, ShouldBeNil)
-					b, getErrB := copy.Get(typeName)
+					b, getErrB := copy.Get(path)
 					So(getErrB, ShouldBeNil)
 					// objects should have the same value
 					So(a, ShouldResemble, b)
@@ -266,7 +270,7 @@ func TestValue(t *testing.T) {
 
 	Convey("Given a Map with a Bool value in it", t, func() {
 		Convey("When accessing the value by key", func() {
-			x, getErr := testData.Get("bool")
+			x, getErr := testData.Get(MustCompilePath("bool"))
 			Convey("Then the value should exist", func() {
 				So(getErr, ShouldBeNil)
 				Convey("and it should match the original value", func() {
@@ -296,7 +300,7 @@ func TestValue(t *testing.T) {
 
 	Convey("Given a Map with an Int value in it", t, func() {
 		Convey("When accessing the value by key", func() {
-			x, getErr := testData.Get("int")
+			x, getErr := testData.Get(MustCompilePath("int"))
 			Convey("Then the value should exist", func() {
 				So(getErr, ShouldBeNil)
 				Convey("and it should be accessible as an int", func() {
@@ -326,7 +330,7 @@ func TestValue(t *testing.T) {
 
 	Convey("Given a Map with a Float value in it", t, func() {
 		Convey("When accessing the value by key", func() {
-			x, getErr := testData.Get("float")
+			x, getErr := testData.Get(MustCompilePath("float"))
 			Convey("Then the value should exist", func() {
 				So(getErr, ShouldBeNil)
 				Convey("and it should be accessible as a float", func() {
@@ -356,7 +360,7 @@ func TestValue(t *testing.T) {
 
 	Convey("Given a Map with a String value in it", t, func() {
 		Convey("When accessing the value by key", func() {
-			x, getErr := testData.Get("string")
+			x, getErr := testData.Get(MustCompilePath("string"))
 			Convey("Then the value should exist", func() {
 				So(getErr, ShouldBeNil)
 				Convey("and it should match the original value", func() {
@@ -386,7 +390,7 @@ func TestValue(t *testing.T) {
 
 	Convey("Given a Map with a Blob value in it", t, func() {
 		Convey("When accessing the value by key", func() {
-			x, getErr := testData.Get("byte")
+			x, getErr := testData.Get(MustCompilePath("byte"))
 			Convey("Then the value should exist", func() {
 				So(getErr, ShouldBeNil)
 				Convey("and it should match the original value", func() {
@@ -416,7 +420,7 @@ func TestValue(t *testing.T) {
 
 	Convey("Given a Map with a Timestamp value in it", t, func() {
 		Convey("When accessing the value by key", func() {
-			x, getErr := testData.Get("time")
+			x, getErr := testData.Get(MustCompilePath("time"))
 			Convey("Then the value should exist", func() {
 				So(getErr, ShouldBeNil)
 				Convey("and it should match the original value", func() {
@@ -448,7 +452,7 @@ func TestValue(t *testing.T) {
 
 	Convey("Given a Map with an Array value in it", t, func() {
 		Convey("When accessing the value by key", func() {
-			a, getErr := testData.Get("array")
+			a, getErr := testData.Get(MustCompilePath("array"))
 			Convey("Then the value should exist", func() {
 				So(getErr, ShouldBeNil)
 				Convey("and it should match the original array", func() {
@@ -461,7 +465,7 @@ func TestValue(t *testing.T) {
 
 	Convey("Given a Map with an Array value in it", t, func() {
 		Convey("When accessing the first array element by key and index", func() {
-			x, getErr := testData.Get("array[0]")
+			x, getErr := testData.Get(MustCompilePath("array[0]"))
 			Convey("Then the value should exist", func() {
 				So(getErr, ShouldBeNil)
 				Convey("and it should match the original value", func() {
@@ -489,7 +493,7 @@ func TestValue(t *testing.T) {
 		})
 
 		Convey("When accessing the second array element by key and index", func() {
-			x, getErr := testData.Get("array[1]")
+			x, getErr := testData.Get(MustCompilePath("array[1]"))
 			Convey("Then the value should exist", func() {
 				So(getErr, ShouldBeNil)
 				Convey("and it should match the original value", func() {
@@ -501,7 +505,7 @@ func TestValue(t *testing.T) {
 		})
 
 		Convey("When accessing an array element out of bounds", func() {
-			_, getErr := testData.Get("array[2]")
+			_, getErr := testData.Get(MustCompilePath("array[2]"))
 			Convey("Then the lookup should fail", func() {
 				So(getErr, ShouldNotBeNil)
 			})
@@ -510,7 +514,7 @@ func TestValue(t *testing.T) {
 
 	Convey("Given a Map with a Map value in it", t, func() {
 		Convey("When accessing the value by key", func() {
-			m, getErr := testData.Get("map")
+			m, getErr := testData.Get(MustCompilePath("map"))
 			Convey("Then the value should exist", func() {
 				So(getErr, ShouldBeNil)
 				Convey("and it should match the original map", func() {
@@ -525,7 +529,7 @@ func TestValue(t *testing.T) {
 
 	Convey("Given a Map with a Map value in it", t, func() {
 		Convey("When accessing a map element by nested key", func() {
-			x, getErr := testData.Get("map.string")
+			x, getErr := testData.Get(MustCompilePath("map.string"))
 			Convey("Then the value should exist", func() {
 				So(getErr, ShouldBeNil)
 				Convey("and it should match the original value", func() {
@@ -553,7 +557,7 @@ func TestValue(t *testing.T) {
 		})
 
 		Convey("When accessing non-existing map element", func() {
-			_, getErr := testData.Get("map/key")
+			_, getErr := testData.Get(MustCompilePath("map.key"))
 			Convey("Then the lookup should fail", func() {
 				So(getErr, ShouldNotBeNil)
 			})
@@ -562,7 +566,7 @@ func TestValue(t *testing.T) {
 
 	Convey("Given a Map with a Null value in it", t, func() {
 		Convey("When accessing the value by key", func() {
-			x, getErr := testData.Get("null")
+			x, getErr := testData.Get(MustCompilePath("null"))
 			Convey("Then the value should Null type object", func() {
 				So(getErr, ShouldBeNil)
 				So(x.Type(), ShouldEqual, TypeNull)

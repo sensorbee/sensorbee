@@ -9,7 +9,11 @@ import (
 )
 
 func getWithDefault(m data.Map, path string, def data.Value) data.Value {
-	v, err := m.Get(path)
+	p, err := data.CompilePath(path)
+	if err != nil {
+		return def
+	}
+	v, err := m.Get(p)
 	if err != nil {
 		return def
 	}

@@ -278,7 +278,7 @@ func ParserExprToMaybeAggregate(e parser.Expression, aggIdx int, reg udf.Functio
 					// it by a reference to the aggregated list of values
 					h := sha1.New()
 					h.Write([]byte(fmt.Sprintf("%s", expr.Repr())))
-					exprId := "_" + hex.EncodeToString(h.Sum(nil))[:8]
+					exprId := "g_" + hex.EncodeToString(h.Sum(nil))[:8]
 					// For stable or immutable expressions, we compute a reference
 					// string that depends only on the expression's string
 					// representation so that we have to compute and store values

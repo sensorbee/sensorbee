@@ -34,7 +34,7 @@ func TestFlatExpressionConverter(t *testing.T) {
 			[]FlatExpression{RowValue{"", "a"}}}, Volatile, []RowValue{{"", "a"}}},
 		// Aggregate Function Application
 		"count(a)": {FuncAppAST{parser.FuncName("count"),
-			[]FlatExpression{AggInputRef{"_a4839edb"}}}, Volatile, nil},
+			[]FlatExpression{AggInputRef{"g_a4839edb"}}}, Volatile, nil},
 		// Arrays
 		"[]":  {ArrayAST{[]FlatExpression{}}, Immutable, nil},
 		"[2]": {ArrayAST{[]FlatExpression{NumericLiteral{2}}}, Immutable, nil},
