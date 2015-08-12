@@ -123,7 +123,7 @@ func (m Map) Copy() Map {
 //  `["store"]["book"][0]["title"]` -> get "book name"
 //
 func (m Map) Get(path Path) (Value, error) {
-	return path.Evaluate(m)
+	return path.evaluate(m)
 }
 
 // Set sets a value in a structured Map as addressed by the
@@ -137,5 +137,5 @@ func (m Map) Get(path Path) (Value, error) {
 // when one of the intermediate components already exists
 // but is not a map/list.
 func (m Map) Set(path Path, val Value) error {
-	return path.Set(m, val)
+	return path.set(m, val)
 }

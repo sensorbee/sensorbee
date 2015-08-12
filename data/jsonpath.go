@@ -9,8 +9,8 @@ import (
 // return the value stored at the location specified by
 // the Path.
 type Path interface {
-	Evaluate(Map) (Value, error)
-	Set(Map, Value) error
+	evaluate(Map) (Value, error)
+	set(Map, Value) error
 }
 
 // MustCompilePath takes a JSON Path as a string and returns
@@ -42,9 +42,9 @@ func CompilePath(s string) (p Path, err error) {
 	return MustCompilePath(s), nil
 }
 
-// Evaluate returns the entry of the map located at the JSON Path
+// evaluate returns the entry of the map located at the JSON Path
 // represented by this jsonPeg instance.
-func (j *jsonPeg) Evaluate(m Map) (Value, error) {
+func (j *jsonPeg) evaluate(m Map) (Value, error) {
 	// `current` holds the Value into which we descend, the extracted
 	// value is then written to `next` by `c.extract()`. By assigning
 	// `current = next` after `c.extract()` returns, we can go deeper.
@@ -61,11 +61,11 @@ func (j *jsonPeg) Evaluate(m Map) (Value, error) {
 	return current, nil
 }
 
-// Set sets the entry of the map located at the JSON Path represented
+// set sets the entry of the map located at the JSON Path represented
 // by this jsonPeg instance. Missing intermediat children will be created
 // when needed (`mkdir -p` behavior), but if, say, there is an Int located
 // at `foo.bar`, then assigning to `foo.bar.hoge` will fail.
-func (j *jsonPeg) Set(m Map, v Value) error {
+func (j *jsonPeg) set(m Map, v Value) error {
 	if m == nil || m.Type() == TypeNull {
 		return fmt.Errorf("given Map is inaccessible")
 	}
