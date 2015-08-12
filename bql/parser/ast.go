@@ -254,6 +254,44 @@ func (s DropStateStmt) String() string {
 	return strings.Join(str, " ")
 }
 
+type LoadStateStmt struct {
+	Name StreamIdentifier
+	Type SourceSinkType
+	SourceSinkSpecsAST
+}
+
+func (s LoadStateStmt) String() string {
+	str := []string{"LOAD", "STATE", string(s.Name), "TYPE", string(s.Type)}
+	specs := s.SourceSinkSpecsAST.string("SET")
+	if specs != "" {
+		str = append(str, specs)
+	}
+	return strings.Join(str, " ")
+}
+
+type LoadStateOrCreateStmt struct {
+	Name StreamIdentifier
+	Type SourceSinkType
+	Set  SourceSinkSpecsAST
+	With SourceSinkSpecsAST
+}
+
+func (s LoadStateOrCreateStmt) String() string {
+	str := []string{"LOAD", "STATE", string(s.Name), "TYPE", string(s.Type)}
+	specs := s.Set.string("SET")
+	if specs != "" {
+		str = append(str, specs)
+	}
+
+	str = append(str, "OR CREATE IF NOT EXISTS")
+
+	createSpecs := s.With.string("WITH")
+	if createSpecs != "" {
+		str = append(str, createSpecs)
+	}
+	return strings.Join(str, " ")
+}
+
 type EmitterAST struct {
 	EmitterType    Emitter
 	EmitterOptions []interface{}
