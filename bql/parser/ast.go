@@ -292,6 +292,15 @@ func (s LoadStateOrCreateStmt) String() string {
 	return strings.Join(str, " ")
 }
 
+type SaveStateStmt struct {
+	Name StreamIdentifier
+}
+
+func (s SaveStateStmt) String() string {
+	str := []string{"SAVE", "STATE", string(s.Name)}
+	return strings.Join(str, " ")
+}
+
 type EmitterAST struct {
 	EmitterType    Emitter
 	EmitterOptions []interface{}

@@ -492,6 +492,23 @@ func (ps *parseStack) AssembleLoadStateOrCreate() {
 	ps.Push(&se)
 }
 
+// AssembleSaveState takes the topmost elements from the stack,
+// assuming they are components of a SAVE STATE statement, and
+// replaces them by a single SaveStateStmt element.
+//
+//  StreamIdentifier
+//   =>
+//  SaveStateStmt{StreamIdentifier}
+func (ps *parseStack) AssembleSaveState() {
+	// pop the components from the stack in reverse order
+	_name := ps.Pop()
+
+	name := _name.comp.(StreamIdentifier)
+
+	se := ParsedComponent{_name.begin, _name.end, SaveStateStmt{name}}
+	ps.Push(&se)
+}
+
 /* Projections/Columns */
 
 // AssembleEmitter takes the topmost elements from the stack, assuming
