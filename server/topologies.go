@@ -24,7 +24,7 @@ type topologies struct {
 	topology     *bql.TopologyBuilder
 }
 
-func SetUpTopologiesRouter(prefix string, router *web.Router) {
+func setUpTopologiesRouter(prefix string, router *web.Router) {
 	root := router.Subrouter(topologies{}, "/topologies")
 	root.Middleware((*topologies).extractName)
 	// TODO validation (root can validate with regex like "\w+")
@@ -83,7 +83,7 @@ func (tc *topologies) fetchTopology() *bql.TopologyBuilder {
 
 // Create creates a new topology.
 func (tc *topologies) Create(rw web.ResponseWriter, req *web.Request) {
-	js, apiErr := ParseJSONFromRequestBody(tc.Context)
+	js, apiErr := parseJSONFromRequestBody(tc.Context)
 	if apiErr != nil {
 		tc.ErrLog(apiErr.Err).Error("Cannot parse the request json")
 		tc.RenderErrorJSON(apiErr)
@@ -233,7 +233,7 @@ func (tc *topologies) Queries(rw web.ResponseWriter, req *web.Request) {
 		return
 	}
 
-	js, apiErr := ParseJSONFromRequestBody(tc.Context)
+	js, apiErr := parseJSONFromRequestBody(tc.Context)
 	if apiErr != nil {
 		tc.ErrLog(apiErr.Err).Error("Cannot parse the request json")
 		tc.RenderErrorJSON(apiErr)

@@ -41,7 +41,7 @@ func (c *Context) SetLogger(l *logrus.Logger) {
 	c.logger = l
 }
 
-var requestIDCounter uint64 = 0
+var requestIDCounter uint64
 
 func (c *Context) setUpContext(rw web.ResponseWriter, req *web.Request, next web.NextMiddlewareFunc) {
 	c.requestID = atomic.AddUint64(&requestIDCounter, 1)
@@ -69,6 +69,7 @@ func (c *Context) SetTopologyRegistry(r TopologyRegistry) {
 	c.topologies = r
 }
 
+// NotFoundHandler handles 404.
 func (c *Context) NotFoundHandler(rw web.ResponseWriter, req *web.Request) {
 	c.logger.WithFields(logrus.Fields{
 		"method": req.Method,
@@ -146,14 +147,16 @@ func (c *Context) renderJSON(status int, v interface{}) {
 	c.response.WriteHeader(status)
 	_, err = c.response.Write(data)
 	if err != nil {
-		// logging
+		c.ErrLog(err).Error("Cannot write a response")
 	}
 }
 
+// RenderJSON renders a successful result as a JSON.
 func (c *Context) RenderJSON(v interface{}) {
 	c.renderJSON(http.StatusOK, v)
 }
 
+// RenderErrorJSON renders a failing result as a JSON.
 func (c *Context) RenderErrorJSON(e *Error) {
 	e.SetRequestID(c.requestID)
 	c.renderJSON(e.Status, map[string]interface{}{
@@ -277,7 +280,7 @@ func setUpTopologies(logger *logrus.Logger, r TopologyRegistry, conf *config.Con
 		}
 	}()
 
-	for name, _ := range conf.Topologies {
+	for name := range conf.Topologies {
 		logger.WithField("topology", name).Info("Setting up the topology")
 		tb, err := setUpTopology(logger, name, conf)
 		if err != nil {
