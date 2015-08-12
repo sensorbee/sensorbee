@@ -168,7 +168,7 @@ func flattenExpressions(s *parser.SelectStmt, reg udf.FunctionRegistry) (*Logica
 		filterExpr = filterFlatExpr
 	}
 
-	groupCols := make([]RowValue, len(s.GroupList))
+	groupCols := make([]rowValue, len(s.GroupList))
 	flatGroupExprs := make([]FlatExpression, len(s.GroupList))
 	for i, expr := range s.GroupList {
 		// convert the parser Expression to a FlatExpression
@@ -182,7 +182,7 @@ func flattenExpressions(s *parser.SelectStmt, reg udf.FunctionRegistry) (*Logica
 		}
 		// at the moment we only support grouping by single columns,
 		// not expressions
-		col, ok := flatExpr.(RowValue)
+		col, ok := flatExpr.(rowValue)
 		if !ok {
 			err := fmt.Errorf("grouping by expressions is not supported yet")
 			return nil, err
@@ -197,7 +197,7 @@ func flattenExpressions(s *parser.SelectStmt, reg udf.FunctionRegistry) (*Logica
 		for _, expr := range flatProjExprs {
 			// all columns mentioned outside of an aggregate
 			// function must be in the GROUP BY clause
-			if rm, ok := expr.expr.(RowMeta); ok {
+			if rm, ok := expr.expr.(rowMeta); ok {
 				err := fmt.Errorf("using metadata '%s' in GROUP BY statements is "+
 					"not supported yet", rm.MetaType)
 				return nil, err
@@ -282,10 +282,10 @@ func validateReferences(s *parser.SelectStmt) error {
 
 	/* We want to check if we can access all relations properly.
 	   If there is just one input relation, we ask that none of the
-	   RowValue structs has a Relation string different from ""
+	   rowValue structs has a Relation string different from ""
 	   (as in `SELECT col FROM stream`).
 	   If there are multiple input relations, we ask that *all*
-	   RowValue structs have a Relation string that matches one of
+	   rowValue structs have a Relation string that matches one of
 	   the input relations (as in `SELECT a.col, b.col FROM a, b`).
 	*/
 

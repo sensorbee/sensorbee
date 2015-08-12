@@ -14,51 +14,51 @@ func TestFlatExpressionConverter(t *testing.T) {
 	testCases := map[string]struct {
 		e FlatExpression
 		v VolatilityType
-		r []RowValue
+		r []rowValue
 	}{
 		// Base Expressions
-		"true":  {BoolLiteral{true}, Immutable, nil},
-		"NULL":  {NullLiteral{}, Immutable, nil},
-		"a":     {RowValue{"", "a"}, Immutable, []RowValue{{"", "a"}}},
-		"ts()":  {RowMeta{"", parser.TimestampMeta}, Immutable, nil},
-		"now()": {StmtMeta{parser.NowMeta}, Stable, nil},
-		"2":     {NumericLiteral{2}, Immutable, nil},
-		"1.2":   {FloatLiteral{1.2}, Immutable, nil},
-		`'bql'`: {StringLiteral{"bql"}, Immutable, nil},
-		"*":     {WildcardAST{}, Stable, nil},
-		"x:*":   {WildcardAST{"x"}, Stable, nil},
+		"true":  {boolLiteral{true}, Immutable, nil},
+		"NULL":  {nullLiteral{}, Immutable, nil},
+		"a":     {rowValue{"", "a"}, Immutable, []rowValue{{"", "a"}}},
+		"ts()":  {rowMeta{"", parser.TimestampMeta}, Immutable, nil},
+		"now()": {stmtMeta{parser.NowMeta}, Stable, nil},
+		"2":     {numericLiteral{2}, Immutable, nil},
+		"1.2":   {floatLiteral{1.2}, Immutable, nil},
+		`'bql'`: {stringLiteral{"bql"}, Immutable, nil},
+		"*":     {wildcardAST{}, Stable, nil},
+		"x:*":   {wildcardAST{"x"}, Stable, nil},
 		// Type Cast
-		"CAST(2 AS FLOAT)": {TypeCastAST{NumericLiteral{2}, parser.Float}, Immutable, nil},
+		"CAST(2 AS FLOAT)": {typeCastAST{numericLiteral{2}, parser.Float}, Immutable, nil},
 		// Function Application
-		"f(a)": {FuncAppAST{parser.FuncName("f"),
-			[]FlatExpression{RowValue{"", "a"}}}, Volatile, []RowValue{{"", "a"}}},
+		"f(a)": {funcAppAST{parser.FuncName("f"),
+			[]FlatExpression{rowValue{"", "a"}}}, Volatile, []rowValue{{"", "a"}}},
 		// Aggregate Function Application
-		"count(a)": {FuncAppAST{parser.FuncName("count"),
-			[]FlatExpression{AggInputRef{"g_a4839edb"}}}, Volatile, nil},
+		"count(a)": {funcAppAST{parser.FuncName("count"),
+			[]FlatExpression{aggInputRef{"g_a4839edb"}}}, Volatile, nil},
 		// Arrays
-		"[]":  {ArrayAST{[]FlatExpression{}}, Immutable, nil},
-		"[2]": {ArrayAST{[]FlatExpression{NumericLiteral{2}}}, Immutable, nil},
-		"[a, now()]": {ArrayAST{[]FlatExpression{RowValue{"", "a"},
-			StmtMeta{parser.NowMeta}}}, Stable, []RowValue{{"", "a"}}},
-		"[f(a), true]": {ArrayAST{[]FlatExpression{FuncAppAST{parser.FuncName("f"),
-			[]FlatExpression{RowValue{"", "a"}}}, BoolLiteral{true}}}, Volatile, []RowValue{{"", "a"}}},
+		"[]":  {arrayAST{[]FlatExpression{}}, Immutable, nil},
+		"[2]": {arrayAST{[]FlatExpression{numericLiteral{2}}}, Immutable, nil},
+		"[a, now()]": {arrayAST{[]FlatExpression{rowValue{"", "a"},
+			stmtMeta{parser.NowMeta}}}, Stable, []rowValue{{"", "a"}}},
+		"[f(a), true]": {arrayAST{[]FlatExpression{funcAppAST{parser.FuncName("f"),
+			[]FlatExpression{rowValue{"", "a"}}}, boolLiteral{true}}}, Volatile, []rowValue{{"", "a"}}},
 		// Maps
-		"{}":          {MapAST{[]KeyValuePair{}}, Immutable, nil},
-		"{'hoge': 2}": {MapAST{[]KeyValuePair{{"hoge", NumericLiteral{2}}}}, Immutable, nil},
-		"{'a':a, 'now':now()}": {MapAST{[]KeyValuePair{{"a", RowValue{"", "a"}},
-			{"now", StmtMeta{parser.NowMeta}}}}, Stable, []RowValue{{"", "a"}}},
-		"{'f':f(a),'b':true}": {MapAST{[]KeyValuePair{{"f", FuncAppAST{parser.FuncName("f"),
-			[]FlatExpression{RowValue{"", "a"}}}}, {"b", BoolLiteral{true}}}}, Volatile, []RowValue{{"", "a"}}},
+		"{}":          {mapAST{[]keyValuePair{}}, Immutable, nil},
+		"{'hoge': 2}": {mapAST{[]keyValuePair{{"hoge", numericLiteral{2}}}}, Immutable, nil},
+		"{'a':a, 'now':now()}": {mapAST{[]keyValuePair{{"a", rowValue{"", "a"}},
+			{"now", stmtMeta{parser.NowMeta}}}}, Stable, []rowValue{{"", "a"}}},
+		"{'f':f(a),'b':true}": {mapAST{[]keyValuePair{{"f", funcAppAST{parser.FuncName("f"),
+			[]FlatExpression{rowValue{"", "a"}}}}, {"b", boolLiteral{true}}}}, Volatile, []rowValue{{"", "a"}}},
 		// Composed Expressions
-		"a OR 2":    {BinaryOpAST{parser.Or, RowValue{"", "a"}, NumericLiteral{2}}, Immutable, []RowValue{{"", "a"}}},
-		"a IS NULL": {BinaryOpAST{parser.Is, RowValue{"", "a"}, NullLiteral{}}, Immutable, []RowValue{{"", "a"}}},
-		"NOT a":     {UnaryOpAST{parser.Not, RowValue{"", "a"}}, Immutable, []RowValue{{"", "a"}}},
-		"NOT f(a)": {UnaryOpAST{parser.Not, FuncAppAST{parser.FuncName("f"),
-			[]FlatExpression{RowValue{"", "a"}}}}, Volatile, []RowValue{{"", "a"}}},
+		"a OR 2":    {binaryOpAST{parser.Or, rowValue{"", "a"}, numericLiteral{2}}, Immutable, []rowValue{{"", "a"}}},
+		"a IS NULL": {binaryOpAST{parser.Is, rowValue{"", "a"}, nullLiteral{}}, Immutable, []rowValue{{"", "a"}}},
+		"NOT a":     {unaryOpAST{parser.Not, rowValue{"", "a"}}, Immutable, []rowValue{{"", "a"}}},
+		"NOT f(a)": {unaryOpAST{parser.Not, funcAppAST{parser.FuncName("f"),
+			[]FlatExpression{rowValue{"", "a"}}}}, Volatile, []rowValue{{"", "a"}}},
 		// Comparisons
-		"a = 2": {BinaryOpAST{parser.Equal, RowValue{"", "a"}, NumericLiteral{2}}, Immutable, []RowValue{{"", "a"}}},
-		"f(a) = 2": {BinaryOpAST{parser.Equal, FuncAppAST{parser.FuncName("f"),
-			[]FlatExpression{RowValue{"", "a"}}}, NumericLiteral{2}}, Volatile, []RowValue{{"", "a"}}},
+		"a = 2": {binaryOpAST{parser.Equal, rowValue{"", "a"}, numericLiteral{2}}, Immutable, []rowValue{{"", "a"}}},
+		"f(a) = 2": {binaryOpAST{parser.Equal, funcAppAST{parser.FuncName("f"),
+			[]FlatExpression{rowValue{"", "a"}}}, numericLiteral{2}}, Volatile, []rowValue{{"", "a"}}},
 	}
 
 	reg := udf.CopyGlobalUDFRegistry(core.NewContext(nil))

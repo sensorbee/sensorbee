@@ -609,13 +609,13 @@ func TestAggregateChecker(t *testing.T) {
 		// a is no aggregate call, so the `aggrs` list is empty
 		// and the selected expression is transformed normally
 		{"a FROM x [RANGE 1 TUPLES]", "",
-			RowValue{"x", "a"},
+			rowValue{"x", "a"},
 			nil},
 
 		// f(a) is no aggregate call, so the `aggrs` list is empty
 		// and the selected expression is transformed normally
 		{"f(a) FROM x [RANGE 1 TUPLES]", "",
-			FuncAppAST{"f", []FlatExpression{RowValue{"x", "a"}}},
+			funcAppAST{"f", []FlatExpression{rowValue{"x", "a"}}},
 			nil},
 
 		// f(*) is not a valid call, so this should fail
@@ -626,98 +626,98 @@ func TestAggregateChecker(t *testing.T) {
 		// there is an aggregate call `count(a)`, so it is referenced from
 		// the expression list and appears in the `aggrs` list
 		{"count(a) FROM x [RANGE 1 TUPLES]", "",
-			FuncAppAST{"count", []FlatExpression{AggInputRef{"g_f12cd6bc"}}},
+			funcAppAST{"count", []FlatExpression{aggInputRef{"g_f12cd6bc"}}},
 			map[string]FlatExpression{
-				"g_f12cd6bc": RowValue{"x", "a"},
+				"g_f12cd6bc": rowValue{"x", "a"},
 			}},
 
 		// there is an aggregate call `count(*)`, so it is referenced from
 		// the expression list and a constant appears in the `aggrs` list
 		{"count(*) FROM x [RANGE 1 TUPLES]", "",
-			FuncAppAST{"count", []FlatExpression{AggInputRef{"g_356a192b"}}},
+			funcAppAST{"count", []FlatExpression{aggInputRef{"g_356a192b"}}},
 			map[string]FlatExpression{
-				"g_356a192b": NumericLiteral{1},
+				"g_356a192b": numericLiteral{1},
 			}},
 
 		// there is an aggregate call `count(a)`, so it is referenced from
 		// the expression list and appears in the `aggrs` list
 		{"a + count(a) FROM x [RANGE 1 TUPLES] GROUP BY a", "",
-			BinaryOpAST{parser.Plus,
-				RowValue{"x", "a"}, FuncAppAST{"count", []FlatExpression{AggInputRef{"g_f12cd6bc"}}}},
+			binaryOpAST{parser.Plus,
+				rowValue{"x", "a"}, funcAppAST{"count", []FlatExpression{aggInputRef{"g_f12cd6bc"}}}},
 			map[string]FlatExpression{
-				"g_f12cd6bc": RowValue{"x", "a"},
+				"g_f12cd6bc": rowValue{"x", "a"},
 			}},
 
 		// there is an aggregate call `udaf(a+1)`, so it is referenced from
 		// the expression list and appears in the `aggrs` list
 		{"a + udaf(a + 1) FROM x [RANGE 1 TUPLES] GROUP BY a", "",
-			BinaryOpAST{parser.Plus,
-				RowValue{"x", "a"},
-				FuncAppAST{"udaf", []FlatExpression{AggInputRef{"g_2d5e5764"}}}},
+			binaryOpAST{parser.Plus,
+				rowValue{"x", "a"},
+				funcAppAST{"udaf", []FlatExpression{aggInputRef{"g_2d5e5764"}}}},
 			map[string]FlatExpression{
-				"g_2d5e5764": BinaryOpAST{parser.Plus, RowValue{"x", "a"}, NumericLiteral{1}},
+				"g_2d5e5764": binaryOpAST{parser.Plus, rowValue{"x", "a"}, numericLiteral{1}},
 			}},
 
 		// there are two aggregate calls, so both are referenced from the
 		// expression list and there are two entries in the `aggrs` list
 		{"udaf(a + 1) + g(count(a)) FROM x [RANGE 1 TUPLES]", "",
-			BinaryOpAST{parser.Plus,
-				FuncAppAST{"udaf", []FlatExpression{AggInputRef{"g_2d5e5764"}}},
-				FuncAppAST{"g", []FlatExpression{
-					FuncAppAST{"count", []FlatExpression{AggInputRef{"g_f12cd6bc"}}},
+			binaryOpAST{parser.Plus,
+				funcAppAST{"udaf", []FlatExpression{aggInputRef{"g_2d5e5764"}}},
+				funcAppAST{"g", []FlatExpression{
+					funcAppAST{"count", []FlatExpression{aggInputRef{"g_f12cd6bc"}}},
 				}},
 			},
 			map[string]FlatExpression{
-				"g_2d5e5764": BinaryOpAST{parser.Plus,
-					RowValue{"x", "a"},
-					NumericLiteral{1},
+				"g_2d5e5764": binaryOpAST{parser.Plus,
+					rowValue{"x", "a"},
+					numericLiteral{1},
 				},
-				"g_f12cd6bc": RowValue{"x", "a"},
+				"g_f12cd6bc": rowValue{"x", "a"},
 			}},
 
 		{"[udaf(a + 1), 3, g(count(a))] FROM x [RANGE 1 TUPLES]", "",
-			ArrayAST{[]FlatExpression{
-				FuncAppAST{"udaf", []FlatExpression{AggInputRef{"g_2d5e5764"}}},
-				NumericLiteral{3},
-				FuncAppAST{"g", []FlatExpression{
-					FuncAppAST{"count", []FlatExpression{AggInputRef{"g_f12cd6bc"}}},
+			arrayAST{[]FlatExpression{
+				funcAppAST{"udaf", []FlatExpression{aggInputRef{"g_2d5e5764"}}},
+				numericLiteral{3},
+				funcAppAST{"g", []FlatExpression{
+					funcAppAST{"count", []FlatExpression{aggInputRef{"g_f12cd6bc"}}},
 				}},
 			}},
 			map[string]FlatExpression{
-				"g_2d5e5764": BinaryOpAST{parser.Plus,
-					RowValue{"x", "a"},
-					NumericLiteral{1},
+				"g_2d5e5764": binaryOpAST{parser.Plus,
+					rowValue{"x", "a"},
+					numericLiteral{1},
 				},
-				"g_f12cd6bc": RowValue{"x", "a"},
+				"g_f12cd6bc": rowValue{"x", "a"},
 			}},
 
 		{"{'udaf': udaf(a + 1), '3': 3, 'g': g(count(a))} FROM x [RANGE 1 TUPLES]", "",
-			MapAST{[]KeyValuePair{
-				{"udaf", FuncAppAST{"udaf", []FlatExpression{AggInputRef{"g_2d5e5764"}}}},
-				{"3", NumericLiteral{3}},
-				{"g", FuncAppAST{"g", []FlatExpression{
-					FuncAppAST{"count", []FlatExpression{AggInputRef{"g_f12cd6bc"}}},
+			mapAST{[]keyValuePair{
+				{"udaf", funcAppAST{"udaf", []FlatExpression{aggInputRef{"g_2d5e5764"}}}},
+				{"3", numericLiteral{3}},
+				{"g", funcAppAST{"g", []FlatExpression{
+					funcAppAST{"count", []FlatExpression{aggInputRef{"g_f12cd6bc"}}},
 				}}},
 			}},
 			map[string]FlatExpression{
-				"g_2d5e5764": BinaryOpAST{parser.Plus,
-					RowValue{"x", "a"},
-					NumericLiteral{1},
+				"g_2d5e5764": binaryOpAST{parser.Plus,
+					rowValue{"x", "a"},
+					numericLiteral{1},
 				},
-				"g_f12cd6bc": RowValue{"x", "a"},
+				"g_f12cd6bc": rowValue{"x", "a"},
 			}},
 
 		// there are two aggregate calls, but they use the same value,
 		// so the `aggrs` list contains only one entry
 		{"count(a) + g(count(a)) FROM x [RANGE 1 TUPLES]", "",
-			BinaryOpAST{parser.Plus,
-				FuncAppAST{"count", []FlatExpression{AggInputRef{"g_f12cd6bc"}}},
-				FuncAppAST{"g", []FlatExpression{
-					FuncAppAST{"count", []FlatExpression{AggInputRef{"g_f12cd6bc"}}},
+			binaryOpAST{parser.Plus,
+				funcAppAST{"count", []FlatExpression{aggInputRef{"g_f12cd6bc"}}},
+				funcAppAST{"g", []FlatExpression{
+					funcAppAST{"count", []FlatExpression{aggInputRef{"g_f12cd6bc"}}},
 				}},
 			},
 			map[string]FlatExpression{
-				"g_f12cd6bc": RowValue{"x", "a"},
+				"g_f12cd6bc": rowValue{"x", "a"},
 			}},
 
 		{"count(udaf(a)) FROM x [RANGE 1 TUPLES]",
@@ -734,31 +734,31 @@ func TestAggregateChecker(t *testing.T) {
 
 		// various grouping checks
 		{"a FROM x [RANGE 1 TUPLES] GROUP BY a", "",
-			RowValue{"x", "a"},
+			rowValue{"x", "a"},
 			nil},
 
 		{"count(a) FROM x [RANGE 1 TUPLES] GROUP BY a", "",
-			FuncAppAST{"count", []FlatExpression{AggInputRef{"g_f12cd6bc"}}},
+			funcAppAST{"count", []FlatExpression{aggInputRef{"g_f12cd6bc"}}},
 			map[string]FlatExpression{
-				"g_f12cd6bc": RowValue{"x", "a"},
+				"g_f12cd6bc": rowValue{"x", "a"},
 			}},
 
 		{"count(b) FROM x [RANGE 1 TUPLES] GROUP BY a", "",
-			FuncAppAST{"count", []FlatExpression{AggInputRef{"g_77d2dd39"}}},
+			funcAppAST{"count", []FlatExpression{aggInputRef{"g_77d2dd39"}}},
 			map[string]FlatExpression{
-				"g_77d2dd39": RowValue{"x", "b"},
+				"g_77d2dd39": rowValue{"x", "b"},
 			}},
 
 		{"count(b), a FROM x [RANGE 1 TUPLES] GROUP BY a", "",
-			FuncAppAST{"count", []FlatExpression{AggInputRef{"g_77d2dd39"}}}, // just the first one
+			funcAppAST{"count", []FlatExpression{aggInputRef{"g_77d2dd39"}}}, // just the first one
 			map[string]FlatExpression{
-				"g_77d2dd39": RowValue{"x", "b"},
+				"g_77d2dd39": rowValue{"x", "b"},
 			}},
 
 		{"count(b), a, c FROM x [RANGE 1 TUPLES] GROUP BY a, c", "",
-			FuncAppAST{"count", []FlatExpression{AggInputRef{"g_77d2dd39"}}}, // just the first one
+			funcAppAST{"count", []FlatExpression{aggInputRef{"g_77d2dd39"}}}, // just the first one
 			map[string]FlatExpression{
-				"g_77d2dd39": RowValue{"x", "b"},
+				"g_77d2dd39": rowValue{"x", "b"},
 			}},
 
 		{"udaf(x, a) FROM x [RANGE 1 TUPLES] GROUP BY b",
@@ -834,67 +834,67 @@ func TestVolatileAggregateChecker(t *testing.T) {
 		// expression use the same reference string
 		{"count(a) + udaf(a) FROM x [RANGE 1 TUPLES] GROUP BY a", "",
 			[]FlatExpression{
-				BinaryOpAST{parser.Plus,
-					FuncAppAST{"count", []FlatExpression{AggInputRef{"g_f12cd6bc"}}},
-					FuncAppAST{"udaf", []FlatExpression{AggInputRef{"g_f12cd6bc"}}}},
+				binaryOpAST{parser.Plus,
+					funcAppAST{"count", []FlatExpression{aggInputRef{"g_f12cd6bc"}}},
+					funcAppAST{"udaf", []FlatExpression{aggInputRef{"g_f12cd6bc"}}}},
 			},
 			[]map[string]FlatExpression{{
-				"g_f12cd6bc": RowValue{"x", "a"},
+				"g_f12cd6bc": rowValue{"x", "a"},
 			}}},
 
 		// one immutable and one volatile parameter
 		{"count(a) + udaf(f(a)) FROM x [RANGE 1 TUPLES] GROUP BY a", "",
 			[]FlatExpression{
-				BinaryOpAST{parser.Plus,
-					FuncAppAST{"count", []FlatExpression{AggInputRef{"g_f12cd6bc"}}},
-					FuncAppAST{"udaf", []FlatExpression{AggInputRef{"g_2523c3a2_1"}}}},
+				binaryOpAST{parser.Plus,
+					funcAppAST{"count", []FlatExpression{aggInputRef{"g_f12cd6bc"}}},
+					funcAppAST{"udaf", []FlatExpression{aggInputRef{"g_2523c3a2_1"}}}},
 			},
 			[]map[string]FlatExpression{{
-				"g_f12cd6bc":   RowValue{"x", "a"},
-				"g_2523c3a2_1": FuncAppAST{"f", []FlatExpression{RowValue{"x", "a"}}},
+				"g_f12cd6bc":   rowValue{"x", "a"},
+				"g_2523c3a2_1": funcAppAST{"f", []FlatExpression{rowValue{"x", "a"}}},
 			}}},
 
 		// one volatile and one immutable parameter (order reversed)
 		{"udaf(f(a)) + count(a) FROM x [RANGE 1 TUPLES] GROUP BY a", "",
 			[]FlatExpression{
-				BinaryOpAST{parser.Plus,
-					FuncAppAST{"udaf", []FlatExpression{AggInputRef{"g_2523c3a2_0"}}},
-					FuncAppAST{"count", []FlatExpression{AggInputRef{"g_f12cd6bc"}}}},
+				binaryOpAST{parser.Plus,
+					funcAppAST{"udaf", []FlatExpression{aggInputRef{"g_2523c3a2_0"}}},
+					funcAppAST{"count", []FlatExpression{aggInputRef{"g_f12cd6bc"}}}},
 			},
 			[]map[string]FlatExpression{{
-				"g_2523c3a2_0": FuncAppAST{"f", []FlatExpression{RowValue{"x", "a"}}},
-				"g_f12cd6bc":   RowValue{"x", "a"},
+				"g_2523c3a2_0": funcAppAST{"f", []FlatExpression{rowValue{"x", "a"}}},
+				"g_f12cd6bc":   rowValue{"x", "a"},
 			}}},
 
 		// two UDAFs referencing the same volatile expression
 		// use different reference strings
 		{"count(f(a)) + udaf(f(a)) FROM x [RANGE 1 TUPLES] GROUP BY a", "",
 			[]FlatExpression{
-				BinaryOpAST{parser.Plus,
-					FuncAppAST{"count", []FlatExpression{AggInputRef{"g_2523c3a2_0"}}},
-					FuncAppAST{"udaf", []FlatExpression{AggInputRef{"g_2523c3a2_1"}}}},
+				binaryOpAST{parser.Plus,
+					funcAppAST{"count", []FlatExpression{aggInputRef{"g_2523c3a2_0"}}},
+					funcAppAST{"udaf", []FlatExpression{aggInputRef{"g_2523c3a2_1"}}}},
 			},
 			[]map[string]FlatExpression{{
-				"g_2523c3a2_0": FuncAppAST{"f", []FlatExpression{RowValue{"x", "a"}}},
-				"g_2523c3a2_1": FuncAppAST{"f", []FlatExpression{RowValue{"x", "a"}}},
+				"g_2523c3a2_0": funcAppAST{"f", []FlatExpression{rowValue{"x", "a"}}},
+				"g_2523c3a2_1": funcAppAST{"f", []FlatExpression{rowValue{"x", "a"}}},
 			}}},
 
 		// three UDAFs referencing the same volatile expression
 		// from different columns all use different reference strings
 		{"count(f(a)) + udaf(f(a)), udaf(f(a)) FROM x [RANGE 1 TUPLES] GROUP BY a", "",
 			[]FlatExpression{
-				BinaryOpAST{parser.Plus,
-					FuncAppAST{"count", []FlatExpression{AggInputRef{"g_2523c3a2_0"}}},
-					FuncAppAST{"udaf", []FlatExpression{AggInputRef{"g_2523c3a2_1"}}}},
-				FuncAppAST{"udaf", []FlatExpression{AggInputRef{"g_2523c3a2_2"}}},
+				binaryOpAST{parser.Plus,
+					funcAppAST{"count", []FlatExpression{aggInputRef{"g_2523c3a2_0"}}},
+					funcAppAST{"udaf", []FlatExpression{aggInputRef{"g_2523c3a2_1"}}}},
+				funcAppAST{"udaf", []FlatExpression{aggInputRef{"g_2523c3a2_2"}}},
 			},
 			[]map[string]FlatExpression{
 				{
-					"g_2523c3a2_0": FuncAppAST{"f", []FlatExpression{RowValue{"x", "a"}}},
-					"g_2523c3a2_1": FuncAppAST{"f", []FlatExpression{RowValue{"x", "a"}}},
+					"g_2523c3a2_0": funcAppAST{"f", []FlatExpression{rowValue{"x", "a"}}},
+					"g_2523c3a2_1": funcAppAST{"f", []FlatExpression{rowValue{"x", "a"}}},
 				},
 				{
-					"g_2523c3a2_2": FuncAppAST{"f", []FlatExpression{RowValue{"x", "a"}}},
+					"g_2523c3a2_2": funcAppAST{"f", []FlatExpression{rowValue{"x", "a"}}},
 				}}},
 
 		// three UDAFs referencing the same volatile expression
@@ -902,78 +902,78 @@ func TestVolatileAggregateChecker(t *testing.T) {
 		// all use different reference strings
 		{"udaf(f(a), a, f(a)), count(f(a)) + udaf(f(a)) FROM x [RANGE 1 TUPLES] GROUP BY a", "",
 			[]FlatExpression{
-				FuncAppAST{"udaf", []FlatExpression{AggInputRef{"g_2523c3a2_0"},
-					RowValue{"x", "a"}, AggInputRef{"g_2523c3a2_1"}}},
-				BinaryOpAST{parser.Plus,
-					FuncAppAST{"count", []FlatExpression{AggInputRef{"g_2523c3a2_2"}}},
-					FuncAppAST{"udaf", []FlatExpression{AggInputRef{"g_2523c3a2_3"}}}},
+				funcAppAST{"udaf", []FlatExpression{aggInputRef{"g_2523c3a2_0"},
+					rowValue{"x", "a"}, aggInputRef{"g_2523c3a2_1"}}},
+				binaryOpAST{parser.Plus,
+					funcAppAST{"count", []FlatExpression{aggInputRef{"g_2523c3a2_2"}}},
+					funcAppAST{"udaf", []FlatExpression{aggInputRef{"g_2523c3a2_3"}}}},
 			},
 			[]map[string]FlatExpression{
 				{
-					"g_2523c3a2_0": FuncAppAST{"f", []FlatExpression{RowValue{"x", "a"}}},
-					"g_2523c3a2_1": FuncAppAST{"f", []FlatExpression{RowValue{"x", "a"}}},
+					"g_2523c3a2_0": funcAppAST{"f", []FlatExpression{rowValue{"x", "a"}}},
+					"g_2523c3a2_1": funcAppAST{"f", []FlatExpression{rowValue{"x", "a"}}},
 				},
 				{
-					"g_2523c3a2_2": FuncAppAST{"f", []FlatExpression{RowValue{"x", "a"}}},
-					"g_2523c3a2_3": FuncAppAST{"f", []FlatExpression{RowValue{"x", "a"}}},
+					"g_2523c3a2_2": funcAppAST{"f", []FlatExpression{rowValue{"x", "a"}}},
+					"g_2523c3a2_3": funcAppAST{"f", []FlatExpression{rowValue{"x", "a"}}},
 				}}},
 
 		{"udaf(f(a), a, f(a)), [count(f(a)), udaf(f(a))] FROM x [RANGE 1 TUPLES] GROUP BY a", "",
 			[]FlatExpression{
-				FuncAppAST{"udaf", []FlatExpression{AggInputRef{"g_2523c3a2_0"},
-					RowValue{"x", "a"}, AggInputRef{"g_2523c3a2_1"}}},
-				ArrayAST{[]FlatExpression{
-					FuncAppAST{"count", []FlatExpression{AggInputRef{"g_2523c3a2_2"}}},
-					FuncAppAST{"udaf", []FlatExpression{AggInputRef{"g_2523c3a2_3"}}},
+				funcAppAST{"udaf", []FlatExpression{aggInputRef{"g_2523c3a2_0"},
+					rowValue{"x", "a"}, aggInputRef{"g_2523c3a2_1"}}},
+				arrayAST{[]FlatExpression{
+					funcAppAST{"count", []FlatExpression{aggInputRef{"g_2523c3a2_2"}}},
+					funcAppAST{"udaf", []FlatExpression{aggInputRef{"g_2523c3a2_3"}}},
 				}},
 			},
 			[]map[string]FlatExpression{
 				{
-					"g_2523c3a2_0": FuncAppAST{"f", []FlatExpression{RowValue{"x", "a"}}},
-					"g_2523c3a2_1": FuncAppAST{"f", []FlatExpression{RowValue{"x", "a"}}},
+					"g_2523c3a2_0": funcAppAST{"f", []FlatExpression{rowValue{"x", "a"}}},
+					"g_2523c3a2_1": funcAppAST{"f", []FlatExpression{rowValue{"x", "a"}}},
 				},
 				{
-					"g_2523c3a2_2": FuncAppAST{"f", []FlatExpression{RowValue{"x", "a"}}},
-					"g_2523c3a2_3": FuncAppAST{"f", []FlatExpression{RowValue{"x", "a"}}},
+					"g_2523c3a2_2": funcAppAST{"f", []FlatExpression{rowValue{"x", "a"}}},
+					"g_2523c3a2_3": funcAppAST{"f", []FlatExpression{rowValue{"x", "a"}}},
 				}}},
 
 		{"udaf(f(a), a, f(a)), {'c': count(f(a)), 'u': udaf(f(a))} FROM x [RANGE 1 TUPLES] GROUP BY a", "",
 			[]FlatExpression{
-				FuncAppAST{"udaf", []FlatExpression{AggInputRef{"g_2523c3a2_0"},
-					RowValue{"x", "a"}, AggInputRef{"g_2523c3a2_1"}}},
-				MapAST{[]KeyValuePair{
-					{"c", FuncAppAST{"count", []FlatExpression{AggInputRef{"g_2523c3a2_2"}}}},
-					{"u", FuncAppAST{"udaf", []FlatExpression{AggInputRef{"g_2523c3a2_3"}}}},
+				funcAppAST{"udaf", []FlatExpression{aggInputRef{"g_2523c3a2_0"},
+					rowValue{"x", "a"}, aggInputRef{"g_2523c3a2_1"}}},
+				mapAST{[]keyValuePair{
+					{"c", funcAppAST{"count", []FlatExpression{aggInputRef{"g_2523c3a2_2"}}}},
+					{"u", funcAppAST{"udaf", []FlatExpression{aggInputRef{"g_2523c3a2_3"}}}},
 				}},
 			},
 			[]map[string]FlatExpression{
 				{
-					"g_2523c3a2_0": FuncAppAST{"f", []FlatExpression{RowValue{"x", "a"}}},
-					"g_2523c3a2_1": FuncAppAST{"f", []FlatExpression{RowValue{"x", "a"}}},
+					"g_2523c3a2_0": funcAppAST{"f", []FlatExpression{rowValue{"x", "a"}}},
+					"g_2523c3a2_1": funcAppAST{"f", []FlatExpression{rowValue{"x", "a"}}},
 				},
 				{
-					"g_2523c3a2_2": FuncAppAST{"f", []FlatExpression{RowValue{"x", "a"}}},
-					"g_2523c3a2_3": FuncAppAST{"f", []FlatExpression{RowValue{"x", "a"}}},
+					"g_2523c3a2_2": funcAppAST{"f", []FlatExpression{rowValue{"x", "a"}}},
+					"g_2523c3a2_3": funcAppAST{"f", []FlatExpression{rowValue{"x", "a"}}},
 				}}},
 
 		// very weird mixed combination
 		{"udaf(f(a), a, f(a)), count(a), udaf(f(a)) FROM x [RANGE 1 TUPLES] GROUP BY a", "",
 			[]FlatExpression{
-				FuncAppAST{"udaf", []FlatExpression{AggInputRef{"g_2523c3a2_0"},
-					RowValue{"x", "a"}, AggInputRef{"g_2523c3a2_1"}}},
-				FuncAppAST{"count", []FlatExpression{AggInputRef{"g_f12cd6bc"}}},
-				FuncAppAST{"udaf", []FlatExpression{AggInputRef{"g_2523c3a2_3"}}},
+				funcAppAST{"udaf", []FlatExpression{aggInputRef{"g_2523c3a2_0"},
+					rowValue{"x", "a"}, aggInputRef{"g_2523c3a2_1"}}},
+				funcAppAST{"count", []FlatExpression{aggInputRef{"g_f12cd6bc"}}},
+				funcAppAST{"udaf", []FlatExpression{aggInputRef{"g_2523c3a2_3"}}},
 			},
 			[]map[string]FlatExpression{
 				{
-					"g_2523c3a2_0": FuncAppAST{"f", []FlatExpression{RowValue{"x", "a"}}},
-					"g_2523c3a2_1": FuncAppAST{"f", []FlatExpression{RowValue{"x", "a"}}},
+					"g_2523c3a2_0": funcAppAST{"f", []FlatExpression{rowValue{"x", "a"}}},
+					"g_2523c3a2_1": funcAppAST{"f", []FlatExpression{rowValue{"x", "a"}}},
 				},
 				{
-					"g_f12cd6bc": RowValue{"x", "a"},
+					"g_f12cd6bc": rowValue{"x", "a"},
 				},
 				{
-					"g_2523c3a2_3": FuncAppAST{"f", []FlatExpression{RowValue{"x", "a"}}},
+					"g_2523c3a2_3": funcAppAST{"f", []FlatExpression{rowValue{"x", "a"}}},
 				}}},
 	}
 
