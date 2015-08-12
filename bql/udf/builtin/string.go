@@ -195,13 +195,13 @@ func (f *overlayFuncTmpl) Call(ctx *core.Context, args ...data.Value) (val data.
 			return nil, fmt.Errorf("`for` parameter must be at least 0")
 		}
 	}
-	s_runes := []rune(s)
-	if from > int64(len(s_runes)+1) {
-		from = int64(len(s_runes) + 1)
+	sRunes := []rune(s)
+	if from > int64(len(sRunes)+1) {
+		from = int64(len(sRunes) + 1)
 	}
-	result := string(s_runes[:from-1]) + repl
-	if from+length <= int64(len(s_runes)+1) {
-		result += string(s_runes[from-1+length:])
+	result := string(sRunes[:from-1]) + repl
+	if from+length <= int64(len(sRunes)+1) {
+		result += string(sRunes[from-1+length:])
 	}
 	return data.String(result), nil
 }
@@ -266,11 +266,11 @@ func (f *substringFuncTmpl) Call(ctx *core.Context, args ...data.Value) (val dat
 			if from < 1 {
 				return nil, fmt.Errorf("`from` parameter must be at least 1")
 			}
-			s_runes := []rune(str)
-			if from > int64(len(s_runes)+1) {
-				from = int64(len(s_runes) + 1)
+			sRunes := []rune(str)
+			if from > int64(len(sRunes)+1) {
+				from = int64(len(sRunes) + 1)
 			}
-			return data.String(s_runes[from-1:]), nil
+			return data.String(sRunes[from-1:]), nil
 		}
 		return nil, fmt.Errorf("cannot interpret %s as string or integer", args[1])
 	}
@@ -297,15 +297,15 @@ func (f *substringFuncTmpl) Call(ctx *core.Context, args ...data.Value) (val dat
 	if length < 0 {
 		return nil, fmt.Errorf("`for` parameter must be at least 0")
 	}
-	s_runes := []rune(str)
-	if from > int64(len(s_runes)+1) {
-		from = int64(len(s_runes) + 1)
+	sRunes := []rune(str)
+	if from > int64(len(sRunes)+1) {
+		from = int64(len(sRunes) + 1)
 	}
 	maxIdx := length + from
-	if maxIdx > int64(len(s_runes)+1) {
-		maxIdx = int64(len(s_runes) + 1)
+	if maxIdx > int64(len(sRunes)+1) {
+		maxIdx = int64(len(sRunes) + 1)
 	}
-	return data.String(s_runes[from-1 : maxIdx-1]), nil
+	return data.String(sRunes[from-1 : maxIdx-1]), nil
 }
 
 // substringFunc(str, reg) returns the part of `str` matching
