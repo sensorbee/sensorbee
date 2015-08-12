@@ -32,38 +32,6 @@ func TestMapscanDocstrings(t *testing.T) {
 			So(actual, ShouldResemble, expected)
 		}
 	})
-
-	Convey("split examples should be correct", t, func() {
-		examples := map[string]interface{}{
-			"store.book[0].title":           []string{"store", "book[0]", "title"},
-			`["store"]["book"][0]["title"]`: []string{"store", "book[0]", "title"},
-		}
-		for input, expected := range examples {
-			actual := split(input)
-			So(actual, ShouldResemble, expected)
-		}
-	})
-
-	Convey("splitBracket examples should be correct", t, func() {
-		examples := map[string]interface{}{
-			`a["hoge"].b`:    "hoge",
-			`a["hoge"][123]`: "hoge[123]",
-		}
-		for input, expected := range examples {
-			actual := splitBracket([]rune(input), 3, '"')
-			So(actual, ShouldResemble, expected)
-		}
-	})
-
-	Convey("getArrayIndex examples should be correct", t, func() {
-		examples := map[string]interface{}{
-			`hoge[123]`: "[123]",
-		}
-		for input, expected := range examples {
-			actual := getArrayIndex([]rune(input), 5)
-			So(actual, ShouldResemble, expected)
-		}
-	})
 }
 
 func TestSetInMap(t *testing.T) {
@@ -325,95 +293,6 @@ func TestScanMap(t *testing.T) {
 					}
 				})
 			})
-		})
-	})
-}
-
-func TestGetArrayIndex(t *testing.T) {
-	Convey("Given strings including array index", t, func() {
-		s := "[0]aaa[1]"
-		Convey("Then getArrayIndex returns that index", func() {
-			index1 := getArrayIndex([]rune(s), 1)
-			index2 := getArrayIndex([]rune(s), 7)
-			So(index1, ShouldEqual, "[0]")
-			So(index2, ShouldEqual, "[1]")
-		})
-		Convey("Then getArrayIndex returns an empty string", func() {
-			index1 := getArrayIndex([]rune(s), 0)
-			index2 := getArrayIndex([]rune(s), 2)
-			So(index1, ShouldEqual, "")
-			So(index2, ShouldEqual, "")
-
-		})
-	})
-}
-
-func TestSplitBracket(t *testing.T) {
-	Convey("Given a string that starts with bracket", t, func() {
-		Convey("When the expression is valid", func() {
-			samples := map[string]string{
-				`[""]abc`:       "",
-				`["a"]"]`:       "a",
-				`['a']['`:       "a",
-				`["ab\"]`:       "ab\\",
-				`["a]b"]`:       "a]b",
-				`["a"b"]`:       "a\"b",
-				"a[\"hoge\"].b": "hoge",
-				`a["hog"e"].b`:  "hog\"e",
-				`a["b"][123]`:   "b[123]",
-				`a["b"][]`:      "b",
-			}
-			Convey("Then splitBracket() returns the contained string", func() {
-				for input, expected := range samples {
-					from := 2
-					if input[0] == 'a' {
-						from = 3
-					}
-					quote := '"'
-					if input[1] == '\'' {
-						quote = '\''
-					}
-					actual := splitBracket([]rune(input), from, quote)
-					So(actual, ShouldEqual, expected)
-				}
-			})
-		})
-		Convey("When the expression is invalid", func() {
-			samples := []string{
-				`["a`,
-				`['a`,
-				`['a"]`,
-				`["ab']`,
-				`["a]`,
-				`["a"`,
-			}
-			Convey("Then splitBracket() returns an empty string", func() {
-				for _, input := range samples {
-					quote := '"'
-					if input[1] == '\'' {
-						quote = '\''
-					}
-					actual := splitBracket([]rune(input), 2, quote)
-					So(actual, ShouldEqual, "")
-				}
-			})
-		})
-	})
-}
-
-func TestSplit(t *testing.T) {
-	Convey("Given a path expression", t, func() {
-		samples := map[string][]string{
-			`path1.pa\.th2.[pa]th3["path4"]['path5'][0]path6[0]`: []string{"path1", "pa.th2", "[pa]th3", "path4", "path5[0]", "path6[0]"},
-			`path1..path2.["path3\"].['pat.h4'].path5`:           []string{"path1", "path2", "path3\\", "pat.h4", "path5"},
-			`path1["path1']`:                                     []string{"path1[\"path1']"},
-			`path2['path2"]`:                                     []string{"path2['path2\"]"},
-		}
-		Convey("Then split() returns a proper list of components", func() {
-			for input, expected := range samples {
-				actual := split(input)
-				So(actual, ShouldResemble, expected)
-			}
 		})
 	})
 }
