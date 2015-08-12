@@ -270,22 +270,22 @@ func (s LoadStateStmt) String() string {
 }
 
 type LoadStateOrCreateStmt struct {
-	Name StreamIdentifier
-	Type SourceSinkType
-	Set  SourceSinkSpecsAST
-	With SourceSinkSpecsAST
+	Name        StreamIdentifier
+	Type        SourceSinkType
+	LoadSpecs   SourceSinkSpecsAST
+	CreateSpecs SourceSinkSpecsAST
 }
 
 func (s LoadStateOrCreateStmt) String() string {
 	str := []string{"LOAD", "STATE", string(s.Name), "TYPE", string(s.Type)}
-	specs := s.Set.string("SET")
+	specs := s.LoadSpecs.string("SET")
 	if specs != "" {
 		str = append(str, specs)
 	}
 
 	str = append(str, "OR CREATE IF NOT EXISTS")
 
-	createSpecs := s.With.string("WITH")
+	createSpecs := s.CreateSpecs.string("WITH")
 	if createSpecs != "" {
 		str = append(str, createSpecs)
 	}

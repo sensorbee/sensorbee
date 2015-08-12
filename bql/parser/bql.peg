@@ -166,8 +166,7 @@ LoadStateStmt <- "LOAD" sp "STATE" sp StreamIdentifier sp
         p.AssembleLoadState()
     }
 
-LoadStateOrCreateStmt <- "LOAD" sp "STATE" sp StreamIdentifier sp
-                    "TYPE" sp SourceSinkType sp SetOptSpecs sp
+LoadStateOrCreateStmt <- LoadStateStmt sp
                     "OR" sp "CREATE" sp "IF" sp "NOT" sp "EXISTS" sp SourceSinkSpecs {
         p.AssembleLoadStateOrCreate()
     }
@@ -267,6 +266,8 @@ UpdateSourceSinkSpecs <- < "SET" sp SourceSinkParam sp (',' sp SourceSinkParam)*
         p.AssembleSourceSinkSpecs(begin, end)
     }
 
+# If we use UpdateSourceSinkSpecs instead, then AssembleSourceSinkSpecs
+# will not be called if the SET clause is not present.
 SetOptSpecs <- < ("SET" sp SourceSinkParam sp (',' sp SourceSinkParam)*)? > {
         p.AssembleSourceSinkSpecs(begin, end)
     }

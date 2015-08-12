@@ -462,7 +462,7 @@ func (ps *parseStack) AssembleLoadState() {
 	name := _name.comp.(StreamIdentifier)
 
 	s := LoadStateStmt{name, sinkType, specs}
-	se := ParsedComponent{_name.begin, _name.end, s}
+	se := ParsedComponent{_name.begin, _specs.end, s}
 	ps.Push(&se)
 }
 
@@ -479,15 +479,16 @@ func (ps *parseStack) AssembleLoadState() {
 //    SourceSinkSpecsAST, SourceSinkSpecsAST}
 func (ps *parseStack) AssembleLoadStateOrCreate() {
 	// pop the components from the stack in reverse order
-	_createSpecs, _specs, _sinkType, _name := ps.pop4()
+	_createSpecs, _loadStateStmt := ps.pop2()
+	loadStateStmt := _loadStateStmt.comp.(LoadStateStmt)
 
 	createSpecs := _createSpecs.comp.(SourceSinkSpecsAST)
-	specs := _specs.comp.(SourceSinkSpecsAST)
-	sinkType := _sinkType.comp.(SourceSinkType)
-	name := _name.comp.(StreamIdentifier)
+	specs := loadStateStmt.SourceSinkSpecsAST
+	sinkType := loadStateStmt.Type
+	name := loadStateStmt.Name
 
 	s := LoadStateOrCreateStmt{name, sinkType, specs, createSpecs}
-	se := ParsedComponent{_name.begin, _name.end, s}
+	se := ParsedComponent{_loadStateStmt.begin, _createSpecs.end, s}
 	ps.Push(&se)
 }
 
