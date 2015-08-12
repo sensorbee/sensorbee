@@ -443,6 +443,55 @@ func (ps *parseStack) AssembleDropState() {
 	ps.Push(&se)
 }
 
+// AssembleLoadState takes the topmost elements from the stack,
+// assuming they are components of a LOAD STATE statement, and
+// replaces them by a single LoadStateStmt element.
+//
+//  StreamIdentifier
+//  SourceSinkType
+//  SourceSinkSpecsAST
+//   =>
+//  LoadStateStmt{StreamIdentifier, SourceSinkType,
+//    SourceSinkSpecsAST}
+func (ps *parseStack) AssembleLoadState() {
+	// pop the components from the stack in reverse order
+	_specs, _sinkType, _name := ps.pop3()
+
+	specs := _specs.comp.(SourceSinkSpecsAST)
+	sinkType := _sinkType.comp.(SourceSinkType)
+	name := _name.comp.(StreamIdentifier)
+
+	s := LoadStateStmt{name, sinkType, specs}
+	se := ParsedComponent{_name.begin, _specs.end, s}
+	ps.Push(&se)
+}
+
+// AssembleLoadStateOrCreate takes the topmost elements from the stack,
+// assuming they are components of a LOAD STATE OR CREATE statement, and
+// replaces them by a single LoadStateOrCreateStmt element.
+//
+//  StreamIdentifier
+//  SourceSinkType
+//  SourceSinkSpecsAST
+//  SourceSinkSpecsAST
+//   =>
+//  LoadStateOrCreateStmt{StreamIdentifier, SourceSinkType,
+//    SourceSinkSpecsAST, SourceSinkSpecsAST}
+func (ps *parseStack) AssembleLoadStateOrCreate() {
+	// pop the components from the stack in reverse order
+	_createSpecs, _loadStateStmt := ps.pop2()
+	loadStateStmt := _loadStateStmt.comp.(LoadStateStmt)
+
+	createSpecs := _createSpecs.comp.(SourceSinkSpecsAST)
+	specs := loadStateStmt.SourceSinkSpecsAST
+	sinkType := loadStateStmt.Type
+	name := loadStateStmt.Name
+
+	s := LoadStateOrCreateStmt{name, sinkType, specs, createSpecs}
+	se := ParsedComponent{_loadStateStmt.begin, _createSpecs.end, s}
+	ps.Push(&se)
+}
+
 /* Projections/Columns */
 
 // AssembleEmitter takes the topmost elements from the stack, assuming
