@@ -27,7 +27,8 @@ func TestExpressionParser(t *testing.T) {
 			ExpressionsAST{[]Expression{RowValue{"", "a"}}}}}, "f(a)"},
 		"f(*)": {[]Expression{FuncAppAST{FuncName("f"),
 			ExpressionsAST{[]Expression{Wildcard{}}}}}, "f(*)"},
-		"f(x:*)": {nil, ""}, // forbidden
+		"f(x:*)": {[]Expression{FuncAppAST{FuncName("f"),
+			ExpressionsAST{[]Expression{Wildcard{"x"}}}}}, "f(x:*)"},
 		"f(2.1, 'a')": {[]Expression{FuncAppAST{FuncName("f"),
 			ExpressionsAST{[]Expression{FloatLiteral{2.1}, StringLiteral{"a"}}}}}, "f(2.1, 'a')"},
 		// Type Cast
@@ -67,14 +68,16 @@ func TestExpressionParser(t *testing.T) {
 		// Quote checks
 		"['ar''ray']['x::int']": {[]Expression{RowValue{"", "['ar''ray']['x::int']"}}, "['ar''ray']['x::int']"},
 		// Wildcard
-		"*":   {[]Expression{Wildcard{}}, "*"},
-		"x:*": {[]Expression{Wildcard{"x"}}, "x:*"},
+		"*":         {[]Expression{Wildcard{}}, "*"},
+		"x:*":       {[]Expression{Wildcard{"x"}}, "x:*"},
+		"* IS NULL": {nil, ""}, // the wildcard is not a normal Expression!
 		// Array
 		"[]":          {[]Expression{ArrayAST{ExpressionsAST{[]Expression{}}}}, "[]"},
 		"[2]":         {[]Expression{ArrayAST{ExpressionsAST{[]Expression{NumericLiteral{2}}}}}, "[2]"},
 		"[2,]":        {[]Expression{ArrayAST{ExpressionsAST{[]Expression{NumericLiteral{2}}}}}, "[2]"},
 		"[a]":         {[]Expression{ArrayAST{ExpressionsAST{[]Expression{RowValue{"", "a"}}}}}, "[a]"},
 		"[a,]":        {[]Expression{ArrayAST{ExpressionsAST{[]Expression{RowValue{"", "a"}}}}}, "[a]"},
+		"[a,b:*]":     {[]Expression{ArrayAST{ExpressionsAST{[]Expression{RowValue{"", "a"}, Wildcard{"b"}}}}}, "[a, b:*]"},
 		"['hoge',]":   {[]Expression{ArrayAST{ExpressionsAST{[]Expression{StringLiteral{"hoge"}}}}}, "['hoge']"},
 		"x:['hoge',]": {nil, ""}, // an array takes no stream prefix
 		"[a, 2.3]":    {[]Expression{ArrayAST{ExpressionsAST{[]Expression{RowValue{"", "a"}, FloatLiteral{2.3}}}}}, "[a, 2.3]"},
@@ -93,6 +96,8 @@ func TestExpressionParser(t *testing.T) {
 				{"a", ArrayAST{ExpressionsAST{[]Expression{NumericLiteral{2}}}}},
 			}}},
 		}}}, "{'foo':x:a, 'bar':{'a':[2]}}"},
+		"{'a': a:*, 'b': b:*}": {[]Expression{MapAST{[]KeyValuePairAST{
+			{"a", Wildcard{"a"}}, {"b", Wildcard{"b"}}}}}, "{'a':a:*, 'b':b:*}"},
 		// NumericLiteral
 		"2":    {[]Expression{NumericLiteral{2}}, "2"},
 		"-2":   {[]Expression{UnaryOpAST{UnaryMinus, NumericLiteral{2}}}, "-2"},
