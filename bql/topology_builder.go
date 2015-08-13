@@ -200,7 +200,7 @@ func (tb *TopologyBuilder) AddStmt(stmt interface{}) (core.Node, error) {
 		if err != nil {
 			return nil, err
 		}
-		if err := ctx.SharedStates.Add(string(stmt.Name), s); err != nil {
+		if err := ctx.SharedStates.Add(string(stmt.Name), string(stmt.Type), s); err != nil {
 			return nil, err
 		}
 		return nil, nil
