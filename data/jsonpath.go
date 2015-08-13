@@ -17,15 +17,10 @@ type Path interface {
 // an instance of Path representing that JSON Path, or panics
 // if the parameter is not a valid JSON Path.
 func MustCompilePath(s string) Path {
-	// parse the statement
-	p := &jsonPeg{}
-	p.Buffer = s
-	p.Init()
-	if err := p.Parse(); err != nil {
-		msg := fmt.Sprintf("error parsing '%s' as a JSON Path", s)
-		panic(msg)
+	p, err := CompilePath(s)
+	if err != nil {
+		panic(err.Error())
 	}
-	p.Execute()
 	return p
 }
 
@@ -39,7 +34,15 @@ func CompilePath(s string) (p Path, err error) {
 			err = fmt.Errorf("%v", r)
 		}
 	}()
-	return MustCompilePath(s), nil
+	// parse the statement
+	j := &jsonPeg{}
+	j.Buffer = s
+	j.Init()
+	if err := j.Parse(); err != nil {
+		return nil, fmt.Errorf("error parsing '%s' as a JSON Path", s)
+	}
+	j.Execute()
+	return j, nil
 }
 
 // evaluate returns the entry of the map located at the JSON Path
@@ -104,7 +107,12 @@ func (j *jsonPeg) addMapAccess(s string) {
 // string.
 func (j *jsonPeg) addArrayAccess(s string) {
 	i, err := strconv.ParseInt(s, 10, 32)
+	// due to parser configuration, s will always be a numeric string,
+	// but it may overflow int32, so we need a check here.
 	if err != nil {
+		// TODO panic is not the gold standard of error handling, but
+		//      at the moment we have no better way to signal an error
+		//      from within jsonPeg.Execute()
 		panic(fmt.Sprintf("overflow index number: " + s))
 	}
 	j.components = append(j.components, &arrayElementExtractor{int(i)})
