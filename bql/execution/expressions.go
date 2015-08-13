@@ -142,13 +142,6 @@ func ParserExprToFlatExpr(e parser.Expression, reg udf.FunctionRegistry) (FlatEx
 				"in a flat expression", obj.Function)
 			return nil, err
 		}
-		// fail if this uses the "*" parameter
-		for _, ast := range obj.Expressions {
-			if _, ok := ast.(parser.Wildcard); ok {
-				return nil, fmt.Errorf("* can only be used " +
-					"as a parameter in count()")
-			}
-		}
 		// compute child expressions
 		exprs := make([]FlatExpression, len(obj.Expressions))
 		for i, ast := range obj.Expressions {
@@ -249,9 +242,6 @@ func ParserExprToMaybeAggregate(e parser.Expression, aggIdx int, reg udf.Functio
 				if string(obj.Function) == "count" {
 					// replace the wildcard by an always non-null expression
 					obj.Expressions[i] = parser.NumericLiteral{1}
-				} else {
-					return nil, nil, fmt.Errorf("* can only be used " +
-						"as a parameter in count()")
 				}
 			}
 		}
