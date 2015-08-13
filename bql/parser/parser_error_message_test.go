@@ -31,9 +31,9 @@ statement has a syntax error near line 1, symbol 24:
                             ^
 consider to look up the documentation for SelectStmt`,
 		// wrong expression
-		`CREATE STREAM x AS SELECT ISTREAM f(x:*)`: `failed to parse string as BQL statement
+		`CREATE STREAM x AS SELECT ISTREAM 2 + x:*`: `failed to parse string as BQL statement
 statement has a syntax error near line 1, symbol 36:
-  ... AS SELECT ISTREAM f(x:*)
+  ... AS SELECT ISTREAM 2 + x:*
                          ^
 consider to look up the documentation for CreateStreamAsSelectStmt`,
 		`INSERT INTO x SELECT ISTREAM 'Peter's'`: `failed to parse string as BQL statement
