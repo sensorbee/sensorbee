@@ -32,6 +32,8 @@ func TestFlatExpressionConverter(t *testing.T) {
 		// Function Application
 		"f(a)": {funcAppAST{parser.FuncName("f"),
 			[]FlatExpression{rowValue{"", "a"}}}, Volatile, []rowValue{{"", "a"}}},
+		"f(x:*)": {funcAppAST{parser.FuncName("f"),
+			[]FlatExpression{wildcardAST{"x"}}}, Volatile, nil},
 		// Aggregate Function Application
 		"count(a)": {funcAppAST{parser.FuncName("count"),
 			[]FlatExpression{aggInputRef{"g_a4839edb"}}}, Volatile, nil},
@@ -45,6 +47,7 @@ func TestFlatExpressionConverter(t *testing.T) {
 		// Maps
 		"{}":          {mapAST{[]keyValuePair{}}, Immutable, nil},
 		"{'hoge': 2}": {mapAST{[]keyValuePair{{"hoge", numericLiteral{2}}}}, Immutable, nil},
+		"{'a': *}":    {mapAST{[]keyValuePair{{"a", wildcardAST{}}}}, Stable, nil},
 		"{'a':a, 'now':now()}": {mapAST{[]keyValuePair{{"a", rowValue{"", "a"}},
 			{"now", stmtMeta{parser.NowMeta}}}}, Stable, []rowValue{{"", "a"}}},
 		"{'f':f(a),'b':true}": {mapAST{[]keyValuePair{{"f", funcAppAST{parser.FuncName("f"),
