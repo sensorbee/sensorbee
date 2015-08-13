@@ -29,6 +29,10 @@ func TestExpressionParser(t *testing.T) {
 			ExpressionsAST{[]Expression{Wildcard{}}}}}, "f(*)"},
 		"f(x:*)": {[]Expression{FuncAppAST{FuncName("f"),
 			ExpressionsAST{[]Expression{Wildcard{"x"}}}}}, "f(x:*)"},
+		"f(x:* ORDER BY a)": {[]Expression{FuncAppAST{FuncName("f"),
+			ExpressionsAST{[]Expression{Wildcard{"x"}}}}}, "f(x:*)"},
+		"f(x:* ORDER BY a DESC, b ASC)": {[]Expression{FuncAppAST{FuncName("f"),
+			ExpressionsAST{[]Expression{Wildcard{"x"}}}}}, "f(x:*)"},
 		"f(2.1, 'a')": {[]Expression{FuncAppAST{FuncName("f"),
 			ExpressionsAST{[]Expression{FloatLiteral{2.1}, StringLiteral{"a"}}}}}, "f(2.1, 'a')"},
 		// Type Cast

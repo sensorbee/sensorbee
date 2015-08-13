@@ -255,7 +255,7 @@ StreamWindow <- StreamLike sp '[' sp "RANGE" sp Interval sp ']' {
 
 StreamLike <- UDSFFuncApp / Stream
 
-UDSFFuncApp <- FuncApp {
+UDSFFuncApp <- FuncAppWithoutOrderBy {
         p.AssembleUDSFFuncApp()
     }
 
@@ -363,7 +363,14 @@ FuncTypeCast <- < "CAST" sp '(' sp Expression sp "AS" sp Type sp ')' > {
         p.AssembleTypeCast(begin, end)
     }
 
-FuncApp <- Function sp '(' sp FuncParams sp ')' {
+FuncApp <- FuncAppWithOrderBy / FuncAppWithoutOrderBy
+
+FuncAppWithOrderBy <- Function sp '(' sp FuncParams sp ParamsOrder sp ')' {
+        p.AssembleFuncApp()
+    }
+
+FuncAppWithoutOrderBy <- Function sp '(' sp FuncParams < sp > ')' {
+        p.AssembleExpressions(begin, end)
         p.AssembleFuncApp()
     }
 
@@ -371,7 +378,19 @@ FuncParams <- < (ExpressionOrWildcard sp (',' sp ExpressionOrWildcard)*)? > {
         p.AssembleExpressions(begin, end)
     }
 
-ArrayExpr <- < '[' sp (ExpressionOrWildcard (',' sp ExpressionOrWildcard)*)? sp ','? sp ']' > {
+ParamsOrder <- < "ORDER" sp "BY" sp SortedExpression sp (',' sp SortedExpression)* > {
+        p.AssembleExpressions(begin, end)
+    }
+
+SortedExpression <- Expression sp OrderDirectionOpt {
+        p.AssembleSortedExpression()
+    }
+
+OrderDirectionOpt <- < (Ascending / Descending)? > {
+        p.EnsureKeywordPresent(begin, end)
+    }
+
+ArrayExpr <- < '[' sp (ExpressionOrWildcard sp (',' sp ExpressionOrWildcard)*)? sp ','? sp ']' > {
         p.AssembleExpressions(begin, end)
         p.AssembleArray()
     }
@@ -513,6 +532,14 @@ Paused <- < "PAUSED" > {
     }
 
 Unpaused <- < "UNPAUSED" > {
+        p.PushComponent(begin, end, No)
+    }
+
+Ascending <- < "ASC" > {
+        p.PushComponent(begin, end, Yes)
+    }
+
+Descending <- < "DESC" > {
         p.PushComponent(begin, end, No)
     }
 
