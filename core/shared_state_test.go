@@ -32,16 +32,16 @@ func TestDefaultSharedStateRegistry(t *testing.T) {
 
 		Convey("When adding a state", func() {
 			s := &stubSharedState{}
-			So(r.Add("test_state", s), ShouldBeNil)
+			So(r.Add("test_state", "test_state_type", s), ShouldBeNil)
 
 			Convey("Then a state having the same name cannot be added", func() {
-				So(r.Add("test_state", &stubSharedState{}), ShouldNotBeNil)
+				So(r.Add("test_state", "test_state_type", &stubSharedState{}), ShouldNotBeNil)
 			})
 
 			Convey("Then a state which fails on termination and has the same name cannot be added", func() {
 				s2 := &stubSharedState{}
 				s2.terminateFailAt = 1
-				err := r.Add("test_state", s2)
+				err := r.Add("test_state", "test_state_type", s2)
 
 				Convey("And the error should be about the name duplication, not termination failure", func() {
 					So(err.Error(), ShouldContainSubstring, "already has")
@@ -54,8 +54,14 @@ func TestDefaultSharedStateRegistry(t *testing.T) {
 				So(s2, ShouldPointTo, s)
 			})
 
+			Convey("Then Type should return its type name", func() {
+				tn, err := r.Type("test_state")
+				So(err, ShouldBeNil)
+				So(tn, ShouldEqual, "test_state_type")
+			})
+
 			Convey("Then it can be replaced", func() {
-				prev, err := r.Replace("test_state", &stubSharedState{})
+				prev, err := r.Replace("test_state", "test_state_type", &stubSharedState{})
 				So(err, ShouldBeNil)
 				Reset(func() {
 					prev.Terminate(ctx)
@@ -65,6 +71,11 @@ func TestDefaultSharedStateRegistry(t *testing.T) {
 				Convey("And it shouldn't have been terminated yet", func() {
 					So(s.terminateCnt, ShouldEqual, 0)
 				})
+			})
+
+			Convey("Then it cannot be replaced with a wrong type name", func() {
+				_, err := r.Replace("test_state", "wrong_type_name", &stubSharedState{})
+				So(err, ShouldNotBeNil)
 			})
 
 			Convey("Then it should be listed", func() {
@@ -106,9 +117,17 @@ func TestDefaultSharedStateRegistry(t *testing.T) {
 			})
 		})
 
+		Convey("When getting a type name of a nonexistent state", func() {
+			_, err := r.Type("test_state")
+
+			Convey("Then it should fail", func() {
+				So(err, ShouldNotBeNil)
+			})
+		})
+
 		Convey("When replacing a nonexistent state", func() {
 			s := &stubSharedState{}
-			_, err := r.Replace("test_state", s)
+			_, err := r.Replace("test_state", "test_state_type", s)
 
 			Convey("Then it should fail", func() {
 				So(err, ShouldNotBeNil)
@@ -122,7 +141,7 @@ func TestDefaultSharedStateRegistry(t *testing.T) {
 		Convey("When replacing fails and the state.Terminate fails", func() {
 			s := &stubSharedState{}
 			s.terminateFailAt = 1
-			_, err := r.Replace("test_state", s)
+			_, err := r.Replace("test_state", "test_state_type", s)
 
 			Convey("Then it should fail and the error message shouldn't be about the termination", func() {
 				So(err, ShouldNotBeNil)
@@ -133,7 +152,7 @@ func TestDefaultSharedStateRegistry(t *testing.T) {
 		Convey("When replacing fails and the state.Terminate panics", func() {
 			s := &stubSharedState{}
 			s.terminatePanicAt = 1
-			_, err := r.Replace("test_state", s)
+			_, err := r.Replace("test_state", "test_state_type", s)
 
 			Convey("Then it should fail and the error message shouldn't be about the termination", func() {
 				So(err, ShouldNotBeNil)
@@ -153,7 +172,7 @@ func TestDefaultSharedStateRegistry(t *testing.T) {
 		Convey("When removing a state whose termination panics", func() {
 			s := &stubSharedState{}
 			s.terminatePanicAt = 1
-			So(r.Add("test_state", s), ShouldBeNil)
+			So(r.Add("test_state", "test_state_type", s), ShouldBeNil)
 
 			Convey("Then it should panic", func() {
 				So(func() {
@@ -170,7 +189,7 @@ func TestDefaultSharedStateRegistry(t *testing.T) {
 		Convey("When removing a state whose termination fails", func() {
 			s := &stubSharedState{}
 			s.terminateFailAt = 1
-			So(r.Add("test_state", s), ShouldBeNil)
+			So(r.Add("test_state", "test_state_type", s), ShouldBeNil)
 			s2, err := r.Remove("test_state")
 
 			Convey("Then it should fail", func() {
@@ -222,7 +241,7 @@ func TestSharedStateInTopology(t *testing.T) {
 		// Run this test with parallelism 1
 		ctx := NewContext(nil)
 		counter := &countingSharedState{}
-		So(ctx.SharedStates.Add("test_counter", counter), ShouldBeNil)
+		So(ctx.SharedStates.Add("test_counter", "test_counter_type", counter), ShouldBeNil)
 
 		t := NewDefaultTopology(ctx, "test")
 		Reset(func() {
@@ -301,11 +320,11 @@ func TestSharedStateSink(t *testing.T) {
 
 	{
 		s := &stubSharedState{}
-		if err := r.Add("test_state", s); err != nil {
+		if err := r.Add("test_state", "test_state_type", s); err != nil {
 			t.Fatal("Cannot add stub shared state:", err)
 		}
 
-		if err := r.Add("test_counter", counter); err != nil {
+		if err := r.Add("test_counter", "test_counter_type", counter); err != nil {
 			t.Fatal("Cannot add counting shared state:", err)
 		}
 	}
