@@ -1009,11 +1009,12 @@ func (ps *parseStack) AssembleTypeCast(begin int, end int) {
 // them by a single FuncAppAST element.
 //
 //  ExpressionsAST
+//  ExpressionsAST
 //  FuncName
 //   =>
 //  FuncAppAST{FuncName, ExpressionsAST}
 func (ps *parseStack) AssembleFuncApp() {
-	_exprs, _funcName := ps.pop2()
+	_, _exprs, _funcName := ps.pop3()
 
 	// extract and convert the contained structure
 	// (if this fails, this is a fundamental parser bug => panic ok)
@@ -1022,6 +1023,23 @@ func (ps *parseStack) AssembleFuncApp() {
 
 	// assemble the FuncAppAST and push it back
 	ps.PushComponent(_funcName.begin, _exprs.end, FuncAppAST{funcName, exprs})
+}
+
+// AssembleSortedExpression takes the topmost elements from the stack,
+// assuming they are components of an ORDER BY clause, and replaces
+// them by a single SortedExpressionAST element.
+//
+//  BinaryKeyword
+//  Expression
+//   =>
+//  SortedExpressionAST{Expression, BinaryKeyword}
+func (ps *parseStack) AssembleSortedExpression() {
+	_sortOrder, _expr := ps.pop2()
+
+	expr := _expr.comp.(Expression)
+	sortOrder := _sortOrder.comp.(BinaryKeyword)
+
+	ps.PushComponent(_expr.begin, _sortOrder.end, SortedExpressionAST{expr, sortOrder})
 }
 
 // AssembleArray takes the topmost elements from the stack, assuming

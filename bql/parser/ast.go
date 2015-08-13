@@ -673,6 +673,38 @@ func (f FuncAppAST) Foldable() bool {
 	return foldable
 }
 
+func (f FuncAppAST) string() string {
+	return string(f.Function) + "(" + f.ExpressionsAST.string() + ")"
+}
+
+type SortedExpressionAST struct {
+	Expr      Expression
+	Ascending BinaryKeyword
+}
+
+func (s SortedExpressionAST) ReferencedRelations() map[string]bool {
+	return s.Expr.ReferencedRelations()
+}
+
+func (s SortedExpressionAST) RenameReferencedRelation(from, to string) Expression {
+	return SortedExpressionAST{s.Expr.RenameReferencedRelation(from, to),
+		s.Ascending}
+}
+
+func (s SortedExpressionAST) Foldable() bool {
+	return s.Expr.Foldable()
+}
+
+func (s SortedExpressionAST) string() string {
+	ret := s.Expr.string()
+	if s.Ascending == Yes {
+		ret += " ASC"
+	} else if s.Ascending == No {
+		ret += " DESC"
+	}
+	return ret
+}
+
 type ArrayAST struct {
 	ExpressionsAST
 }
@@ -708,10 +740,6 @@ func (a ArrayAST) Foldable() bool {
 
 func (a ArrayAST) string() string {
 	return "[" + a.ExpressionsAST.string() + "]"
-}
-
-func (f FuncAppAST) string() string {
-	return string(f.Function) + "(" + f.ExpressionsAST.string() + ")"
 }
 
 type ExpressionsAST struct {
