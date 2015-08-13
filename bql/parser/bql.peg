@@ -46,7 +46,7 @@ SourceStmt <- CreateSourceStmt / UpdateSourceStmt / DropSourceStmt /
 SinkStmt <-   CreateSinkStmt / UpdateSinkStmt / DropSinkStmt
 
 StateStmt <-  CreateStateStmt / UpdateStateStmt / DropStateStmt / LoadStateOrCreateStmt /
-              LoadStateStmt
+              LoadStateStmt / SaveStateStmt
 
 StreamStmt <- CreateStreamAsSelectUnionStmt / CreateStreamAsSelectStmt / DropStreamStmt /
               InsertIntoSelectStmt / InsertIntoFromStmt
@@ -169,6 +169,10 @@ LoadStateStmt <- "LOAD" sp "STATE" sp StreamIdentifier sp
 LoadStateOrCreateStmt <- LoadStateStmt sp
                     "OR" sp "CREATE" sp "IF" sp "NOT" sp "EXISTS" sp SourceSinkSpecs {
         p.AssembleLoadStateOrCreate()
+    }
+
+SaveStateStmt <- "SAVE" sp "STATE" sp StreamIdentifier {
+        p.AssembleSaveState()
     }
 
 ################################
