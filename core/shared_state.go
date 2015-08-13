@@ -77,19 +77,23 @@ type SharedStateRegistry interface {
 	// Don't add the same instance of SharedState more than once to registries.
 	// Otherwise, Init and Terminate methods of the state will be called
 	// multiple times.
-	Add(name string, s SharedState) error
+	Add(name, typeName string, s SharedState) error
 
 	// Get returns a SharedState having the name in the registry. It returns
 	// an error if the registry doesn't have the state.
 	Get(name string) (SharedState, error)
 
+	// Type returns a type of a SharedState.
+	Type(name string) (string, error)
+
 	// Replace replaces the previous SharedState instance with a new instance.
 	// The previous instance is returned on success. It will not be terminated
-	// by the registry and the caller must call Terminate.
+	// by the registry and the caller must call Terminate. The type name must
+	// be same as the previous state's type name.
 	//
 	// The given SharedState is terminated when the previous state isn't found
 	// or it cannot be replaced somehow.
-	Replace(name string, s SharedState) (SharedState, error)
+	Replace(name, typeName string, s SharedState) (SharedState, error)
 
 	// List returns a map containing all SharedState the registry has.
 	// The map returned from this method can safely be modified.
@@ -107,28 +111,36 @@ type SharedStateRegistry interface {
 	Remove(name string) (SharedState, error)
 }
 
+type defaultSharedStateInfo struct {
+	state    SharedState
+	typeName string
+}
+
 type defaultSharedStateRegistry struct {
 	ctx    *Context
 	m      sync.RWMutex
-	states map[string]SharedState
+	states map[string]*defaultSharedStateInfo
 }
 
 // NewDefaultSharedStateRegistry create a default registry of SharedStates.
 func NewDefaultSharedStateRegistry(ctx *Context) SharedStateRegistry {
 	return &defaultSharedStateRegistry{
 		ctx:    ctx,
-		states: map[string]SharedState{},
+		states: map[string]*defaultSharedStateInfo{},
 	}
 }
 
-func (r *defaultSharedStateRegistry) Add(name string, s SharedState) error {
+func (r *defaultSharedStateRegistry) Add(name, typeName string, s SharedState) error {
 	err := func() error {
 		r.m.Lock()
 		defer r.m.Unlock()
 		if _, ok := r.states[name]; ok {
 			return fmt.Errorf("the registry already has a state '%v'", name)
 		}
-		r.states[name] = s
+		r.states[name] = &defaultSharedStateInfo{
+			state:    s,
+			typeName: typeName,
+		}
 		return nil
 	}()
 	if err != nil {
@@ -158,24 +170,39 @@ func (r *defaultSharedStateRegistry) Get(name string) (SharedState, error) {
 	r.m.RLock()
 	defer r.m.RUnlock()
 	if s, ok := r.states[name]; ok {
-		return s, nil
+		return s.state, nil
 	}
 	return nil, fmt.Errorf("state '%v' was not found", name)
 }
 
-func (r *defaultSharedStateRegistry) Replace(name string, s SharedState) (SharedState, error) {
+func (r *defaultSharedStateRegistry) Type(name string) (string, error) {
+	r.m.RLock()
+	defer r.m.RUnlock()
+	if s, ok := r.states[name]; ok {
+		return s.typeName, nil
+	}
+	return "", fmt.Errorf("state '%v' was not found", name)
+}
+
+func (r *defaultSharedStateRegistry) Replace(name, typeName string, s SharedState) (SharedState, error) {
 	r.m.Lock()
 	defer r.m.Unlock()
 	prev, ok := r.states[name]
-	if !ok {
+	if !ok || prev.typeName != typeName {
 		if err := r.closeSharedState(s); err != nil {
 			r.ctx.ErrLog(err).WithField("state_name", name).
 				Errorf("Cannot terminate a state which couldn't be replaced due to nonexistence of the previous state")
 		}
-		return nil, fmt.Errorf("state '%v' was not found", name)
+		if !ok {
+			return nil, fmt.Errorf("state '%v' was not found", name)
+		}
+		return nil, fmt.Errorf("state '%v' has a different type", name)
 	}
-	r.states[name] = s
-	return prev, nil
+	r.states[name] = &defaultSharedStateInfo{
+		state:    s,
+		typeName: typeName,
+	}
+	return prev.state, nil
 }
 
 func (r *defaultSharedStateRegistry) List() (map[string]SharedState, error) {
@@ -183,7 +210,7 @@ func (r *defaultSharedStateRegistry) List() (map[string]SharedState, error) {
 	defer r.m.RUnlock()
 	m := make(map[string]SharedState, len(r.states))
 	for n, s := range r.states {
-		m[n] = s
+		m[n] = s.state
 	}
 	return m, nil
 }
@@ -194,7 +221,7 @@ func (r *defaultSharedStateRegistry) Remove(name string) (SharedState, error) {
 		defer r.m.Unlock()
 		if s, ok := r.states[name]; ok {
 			delete(r.states, name)
-			return s
+			return s.state
 		}
 		return nil
 	}()
