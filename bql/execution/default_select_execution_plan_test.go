@@ -434,6 +434,27 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 		})
 	})
 
+	Convey("Given a SELECT clause with a wildcard in a map", t, func() {
+		tuples := getTuples(4)
+		s := `CREATE STREAM box AS SELECT ISTREAM {'a': src:*} AS x FROM src [RANGE 2 SECONDS]`
+		plan, err := createDefaultSelectPlan(s, t)
+		So(err, ShouldBeNil)
+
+		Convey("When feeding it with tuples", func() {
+			for idx, inTup := range tuples {
+				out, err := plan.Process(inTup)
+				So(err, ShouldBeNil)
+
+				Convey(fmt.Sprintf("Then those values should appear in %v", idx), func() {
+					So(len(out), ShouldEqual, 1)
+					So(out[0], ShouldResemble,
+						data.Map{"x": data.Map{"a": data.Map{"int": data.Int(idx + 1)}}})
+				})
+			}
+
+		})
+	})
+
 	Convey("Given a SELECT clause with a wildcard and an overriding column", t, func() {
 		tuples := getTuples(4)
 		s := `CREATE STREAM box AS SELECT ISTREAM *, (int-1)*2 AS int FROM src [RANGE 2 SECONDS]`
