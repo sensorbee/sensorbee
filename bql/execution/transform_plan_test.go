@@ -619,8 +619,8 @@ func TestAggregateChecker(t *testing.T) {
 			nil},
 
 		// f(*) is not a valid call, so this should fail
-		{"f(*) FROM x [RANGE 1 TUPLES]", "* can only be used as a parameter in count()",
-			nil,
+		{"f(*) FROM x [RANGE 1 TUPLES]", "",
+			funcAppAST{"f", []FlatExpression{wildcardAST{}}},
 			nil},
 
 		// there is an aggregate call `count(a)`, so it is referenced from
@@ -637,6 +637,14 @@ func TestAggregateChecker(t *testing.T) {
 			funcAppAST{"count", []FlatExpression{aggInputRef{"g_356a192b"}}},
 			map[string]FlatExpression{
 				"g_356a192b": numericLiteral{1},
+			}},
+
+		// there is an aggregate call `udaf(*, 1)`, so it is referenced from
+		// the expression list and a constant appears in the `aggrs` list
+		{"udaf(*, 1) FROM x [RANGE 1 TUPLES]", "",
+			funcAppAST{"udaf", []FlatExpression{aggInputRef{"g_df58248c"}, numericLiteral{1}}},
+			map[string]FlatExpression{
+				"g_df58248c": wildcardAST{},
 			}},
 
 		// there is an aggregate call `count(a)`, so it is referenced from

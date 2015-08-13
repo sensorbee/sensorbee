@@ -929,6 +929,8 @@ func newMapBuilder(names []string, elems []Evaluator) (Evaluator, error) {
 //   {"x": ..., "y": ..., "z": ...}.
 // If there are keys appearing in multiple top-level Maps, then only one
 // of them will appear in the output, but it is undefined which.
+// If the `Relation` member is non-empty, only the Map with that key will
+// be pulled up.
 type wildcard struct {
 	Relation string
 }

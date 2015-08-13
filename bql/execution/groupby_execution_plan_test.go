@@ -802,6 +802,35 @@ func TestAggregateFunctions(t *testing.T) {
 		})
 	})
 
+	Convey("Given a SELECT clause with array_agg and wildcard", t, func() {
+		tuples := getExtTuples()
+
+		s := `CREATE STREAM box AS SELECT RSTREAM array_agg(*) AS result
+			FROM src [RANGE 3 TUPLES] WHERE int > 1`
+		plan, err := createGroupbyPlan(s, t)
+		So(err, ShouldBeNil)
+
+		Convey("When feeding it with tuples", func() {
+			for idx, inTup := range tuples {
+				out, err := plan.Process(inTup)
+				So(err, ShouldBeNil)
+
+				Convey(fmt.Sprintf("Then those values should appear in %v", idx), func() {
+					So(len(out), ShouldEqual, 1)
+
+					if idx == 0 {
+						So(out[0], ShouldResemble, data.Map{"result": data.Null{}})
+					} else if idx == 3 {
+						So(out[0], ShouldResemble, data.Map{"result": data.Array{
+							data.Map{"foo": data.Int(1), "bar": data.String("b"), "int": data.Int(2)},
+							data.Map{"foo": data.Int(2), "bar": data.String("c"), "int": data.Int(3)},
+							data.Map{"foo": data.Int(2), "bar": data.String("d"), "int": data.Int(4)}}})
+					}
+				})
+			}
+		})
+	})
+
 	Convey("Given a SELECT clause with avg", t, func() {
 		tuples := getExtTuples()
 
