@@ -116,6 +116,14 @@ func TestRelationChecker(t *testing.T) {
 			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{a, ts}},
 			WindowedFromAST: singleFrom,
 		}, ""},
+		// SELECT f(a ORDER BY b)  FROM t -> OK
+		{&parser.SelectStmt{
+			ProjectionsAST: parser.ProjectionsAST{[]parser.Expression{
+				parser.FuncAppAST{"f", parser.ExpressionsAST{[]parser.Expression{a}},
+					[]parser.SortedExpressionAST{{b, parser.UnspecifiedKeyword}}},
+			}},
+			WindowedFromAST: singleFrom,
+		}, ""},
 		// SELECT 2        FROM t -> OK
 		{&parser.SelectStmt{
 			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{two}},
@@ -164,6 +172,22 @@ func TestRelationChecker(t *testing.T) {
 		// SELECT a, t:b   FROM t -> NG
 		{&parser.SelectStmt{
 			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{a, tA}},
+			WindowedFromAST: singleFrom,
+		}, "cannot refer to relations"},
+		// SELECT f(a ORDER BY t:b)  FROM t -> NG
+		{&parser.SelectStmt{
+			ProjectionsAST: parser.ProjectionsAST{[]parser.Expression{
+				parser.FuncAppAST{"f", parser.ExpressionsAST{[]parser.Expression{a}},
+					[]parser.SortedExpressionAST{{tB, parser.UnspecifiedKeyword}}},
+			}},
+			WindowedFromAST: singleFrom,
+		}, "cannot refer to relations"},
+		// SELECT f(t:a ORDER BY b)  FROM t -> NG
+		{&parser.SelectStmt{
+			ProjectionsAST: parser.ProjectionsAST{[]parser.Expression{
+				parser.FuncAppAST{"f", parser.ExpressionsAST{[]parser.Expression{tA}},
+					[]parser.SortedExpressionAST{{b, parser.UnspecifiedKeyword}}},
+			}},
 			WindowedFromAST: singleFrom,
 		}, "cannot refer to relations"},
 		// SELECT a, t:*   FROM t -> NG
@@ -618,7 +642,8 @@ func TestAggregateChecker(t *testing.T) {
 			funcAppAST{"f", []FlatExpression{rowValue{"x", "a"}}},
 			nil},
 
-		// f(*) is not a valid call, so this should fail
+		// f(*) is no aggregate call, so the `aggrs` list is empty
+		// and the selected expression is transformed normally
 		{"f(*) FROM x [RANGE 1 TUPLES]", "",
 			funcAppAST{"f", []FlatExpression{wildcardAST{}}},
 			nil},
