@@ -25,11 +25,12 @@ statement has a syntax error near line 1, symbol 8:
                   ^
 consider to look up the documentation for RewindSourceStmt`,
 		// unicode characters
+		// TODO this should be "look up the documentation for SelectStmt"!
 		`SELECT ISTREAM '日本語', b FROM c [RANGE 3 UPLES]`: `failed to parse string as BQL statement
 statement has a syntax error near line 1, symbol 24:
   ...ECT ISTREAM '日本語', b FROM c [RANGE 3 UPLES]
                             ^
-consider to look up the documentation for SelectStmt`,
+consider to look up the documentation for StatementWithoutRest`,
 		// wrong expression
 		`CREATE STREAM x AS SELECT ISTREAM 2 + x:*`: `failed to parse string as BQL statement
 statement has a syntax error near line 1, symbol 36:

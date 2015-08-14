@@ -243,7 +243,7 @@ func TestExpressionParser(t *testing.T) {
 				NumericLiteral{2}}},
 		*/
 		/// Complex/Nested Expressions
-		"(a + 1) % 2 = 0 OR b < 7.1, c": {
+		"(a+ 1) % 2= 0 OR b < 7.1, c": {
 			[]Expression{BinaryOpAST{Or,
 				BinaryOpAST{Equal,
 					BinaryOpAST{Modulo,
@@ -253,8 +253,8 @@ func TestExpressionParser(t *testing.T) {
 				BinaryOpAST{Less, RowValue{"", "b"}, FloatLiteral{7.1}}},
 				RowValue{"", "c"}}, "(a + 1) % 2 = 0 OR b < 7.1, c"},
 		/// Multiple Columns
-		"a, 3.1, false, -2": {[]Expression{RowValue{"", "a"}, FloatLiteral{3.1}, BoolLiteral{false}, UnaryOpAST{UnaryMinus, NumericLiteral{2}}}, "a, 3.1, FALSE, -2"},
-		`'日本語', 13`:         {[]Expression{StringLiteral{"日本語"}, NumericLiteral{13}}, `'日本語', 13`},
+		"a, 3.1, false,-2": {[]Expression{RowValue{"", "a"}, FloatLiteral{3.1}, BoolLiteral{false}, UnaryOpAST{UnaryMinus, NumericLiteral{2}}}, "a, 3.1, FALSE, -2"},
+		`'日本語', 13`:        {[]Expression{StringLiteral{"日本語"}, NumericLiteral{13}}, `'日本語', 13`},
 		"concat(a, 'Pi', 3.1), b": {[]Expression{FuncAppAST{FuncName("concat"), ExpressionsAST{
 			[]Expression{RowValue{"", "a"}, StringLiteral{"Pi"}, FloatLiteral{3.1}}}},
 			RowValue{"", "b"}}, "concat(a, 'Pi', 3.1), b"},
