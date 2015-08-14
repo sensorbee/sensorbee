@@ -206,6 +206,22 @@ func TestFuncAppConversion(t *testing.T) {
 			})
 		})
 
+		Convey("When the function uses the ORDER BY clause", func() {
+			ast := parser.FuncAppAST{parser.FuncName("plusone"),
+				parser.ExpressionsAST{[]parser.Expression{
+					parser.RowValue{"", "a"},
+				}},
+				[]parser.SortedExpressionAST{{parser.RowValue{"", "a"}, parser.Yes}}}
+
+			Convey("Then converting to an Evaluator fails", func() {
+				// we cannot even get the flat expression in that case
+				_, err := ParserExprToFlatExpr(ast, reg)
+				So(err, ShouldNotBeNil)
+				So(err.Error(), ShouldEqual,
+					"you cannot use ORDER BY in non-aggregate function 'plusone'")
+			})
+		})
+
 		Convey("When the now() function is used", func() {
 			ast := parser.FuncAppAST{parser.FuncName("now"),
 				parser.ExpressionsAST{[]parser.Expression{}}, nil}

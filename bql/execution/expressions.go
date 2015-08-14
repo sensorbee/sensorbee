@@ -127,11 +127,8 @@ func ParserExprToFlatExpr(e parser.Expression, reg udf.FunctionRegistry) (FlatEx
 		}
 		return typeCastAST{expr, obj.Target}, nil
 	case parser.FuncAppAST:
-		if len(obj.Ordering) > 0 {
-			return nil, fmt.Errorf("ORDER BY not implemented")
-		}
 		// exception for now()
-		if string(obj.Function) == "now" && len(obj.Expressions) == 0 {
+		if string(obj.Function) == "now" && len(obj.Expressions) == 0 && len(obj.Ordering) == 0 {
 			return stmtMeta{parser.NowMeta}, nil
 		}
 		// look up the function
@@ -143,6 +140,10 @@ func ParserExprToFlatExpr(e parser.Expression, reg udf.FunctionRegistry) (FlatEx
 		if isAggregateFunc(function, len(obj.Expressions)) {
 			err := fmt.Errorf("you cannot use aggregate function '%s' "+
 				"in a flat expression", obj.Function)
+			return nil, err
+		} else if len(obj.Ordering) > 0 {
+			err := fmt.Errorf("you cannot use ORDER BY in non-aggregate "+
+				"function '%s'", obj.Function)
 			return nil, err
 		}
 		// compute child expressions
