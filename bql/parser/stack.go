@@ -1014,15 +1014,24 @@ func (ps *parseStack) AssembleTypeCast(begin int, end int) {
 //   =>
 //  FuncAppAST{FuncName, ExpressionsAST}
 func (ps *parseStack) AssembleFuncApp() {
-	_, _exprs, _funcName := ps.pop3()
+	_ordering, _exprs, _funcName := ps.pop3()
 
 	// extract and convert the contained structure
 	// (if this fails, this is a fundamental parser bug => panic ok)
+	ordering := _ordering.comp.(ExpressionsAST)
 	exprs := _exprs.comp.(ExpressionsAST)
 	funcName := _funcName.comp.(FuncName)
 
+	orderExprs := make([]SortedExpressionAST, len(ordering.Expressions))
+	for i, e := range ordering.Expressions {
+		orderExprs[i] = e.(SortedExpressionAST)
+	}
+	if len(orderExprs) == 0 {
+		orderExprs = nil
+	}
+
 	// assemble the FuncAppAST and push it back
-	ps.PushComponent(_funcName.begin, _exprs.end, FuncAppAST{funcName, exprs})
+	ps.PushComponent(_funcName.begin, _exprs.end, FuncAppAST{funcName, exprs, orderExprs})
 }
 
 // AssembleSortedExpression takes the topmost elements from the stack,

@@ -638,11 +638,17 @@ func (u TypeCastAST) string() string {
 type FuncAppAST struct {
 	Function FuncName
 	ExpressionsAST
+	Ordering []SortedExpressionAST
 }
 
 func (f FuncAppAST) ReferencedRelations() map[string]bool {
 	rels := map[string]bool{}
 	for _, expr := range f.Expressions {
+		for rel := range expr.ReferencedRelations() {
+			rels[rel] = true
+		}
+	}
+	for _, expr := range f.Ordering {
 		for rel := range expr.ReferencedRelations() {
 			rels[rel] = true
 		}
@@ -655,13 +661,22 @@ func (f FuncAppAST) RenameReferencedRelation(from, to string) Expression {
 	for i, expr := range f.Expressions {
 		newExprs[i] = expr.RenameReferencedRelation(from, to)
 	}
-	return FuncAppAST{f.Function, ExpressionsAST{newExprs}}
+	newOrderExprs := make([]SortedExpressionAST, len(f.Ordering))
+	for i, expr := range f.Ordering {
+		newOrderExprs[i] = expr.RenameReferencedRelation(from, to).(SortedExpressionAST)
+	}
+	return FuncAppAST{f.Function, ExpressionsAST{newExprs}, newOrderExprs}
 }
 
 func (f FuncAppAST) Foldable() bool {
 	foldable := true
 	// now() is not evaluable outside of some execution context
 	if string(f.Function) == "now" && len(f.Expressions) == 0 {
+		return false
+	}
+	// if there is a ORDER BY clause, then this is definitely an
+	// aggregate function and therefore not foldable
+	if len(f.Ordering) > 0 {
 		return false
 	}
 	for _, expr := range f.Expressions {
@@ -674,7 +689,15 @@ func (f FuncAppAST) Foldable() bool {
 }
 
 func (f FuncAppAST) string() string {
-	return string(f.Function) + "(" + f.ExpressionsAST.string() + ")"
+	s := string(f.Function) + "(" + f.ExpressionsAST.string()
+	if len(f.Ordering) > 0 {
+		orderStrings := make([]string, len(f.Ordering))
+		for i, expr := range f.Ordering {
+			orderStrings[i] = expr.string()
+		}
+		s += " ORDER BY " + strings.Join(orderStrings, ", ")
+	}
+	return s + ")"
 }
 
 type SortedExpressionAST struct {

@@ -131,13 +131,13 @@ func TestFoldableExecution(t *testing.T) {
 		{parser.TypeCastAST{parser.NumericLiteral{7}, parser.Float},
 			true, data.Float(7.0)},
 		{parser.FuncAppAST{parser.FuncName("now"),
-			parser.ExpressionsAST{[]parser.Expression{}}},
+			parser.ExpressionsAST{[]parser.Expression{}}, nil},
 			false, nil},
 		{parser.FuncAppAST{parser.FuncName("plusone"),
-			parser.ExpressionsAST{[]parser.Expression{parser.RowValue{"", "a"}}}},
+			parser.ExpressionsAST{[]parser.Expression{parser.RowValue{"", "a"}}}, nil},
 			false, nil},
 		{parser.FuncAppAST{parser.FuncName("plusone"),
-			parser.ExpressionsAST{[]parser.Expression{parser.NumericLiteral{7}}}},
+			parser.ExpressionsAST{[]parser.Expression{parser.NumericLiteral{7}}}, nil},
 			true, data.Int(8)},
 		{parser.ArrayAST{parser.ExpressionsAST{[]parser.Expression{parser.RowValue{"", "a"}}}},
 			false, nil},
@@ -182,7 +182,7 @@ func TestFuncAppConversion(t *testing.T) {
 			ast := parser.FuncAppAST{parser.FuncName("plusone"),
 				parser.ExpressionsAST{[]parser.Expression{
 					parser.RowValue{"", "a"},
-				}}}
+				}}, nil}
 
 			Convey("Then we obtain an evaluatable funcApp", func() {
 				flatExpr, err := ParserExprToFlatExpr(ast, reg)
@@ -197,7 +197,7 @@ func TestFuncAppConversion(t *testing.T) {
 			ast := parser.FuncAppAST{parser.FuncName("fun"),
 				parser.ExpressionsAST{[]parser.Expression{
 					parser.RowValue{"", "a"},
-				}}}
+				}}, nil}
 
 			Convey("Then converting to an Evaluator fails", func() {
 				// we cannot even get the flat expression in that case
@@ -208,7 +208,7 @@ func TestFuncAppConversion(t *testing.T) {
 
 		Convey("When the now() function is used", func() {
 			ast := parser.FuncAppAST{parser.FuncName("now"),
-				parser.ExpressionsAST{[]parser.Expression{}}}
+				parser.ExpressionsAST{[]parser.Expression{}}, nil}
 
 			Convey("Then we obtain an evaluatable timestampCast", func() {
 				flatExpr, err := ParserExprToFlatExpr(ast, reg)
@@ -1369,7 +1369,7 @@ func getTestCases() []struct {
 		},
 		/// Function Application
 		{parser.FuncAppAST{parser.FuncName("plusone"),
-			parser.ExpressionsAST{[]parser.Expression{parser.RowValue{"", "a"}}}},
+			parser.ExpressionsAST{[]parser.Expression{parser.RowValue{"", "a"}}}, nil},
 			// NB. This only tests the behavior of funcApp.Eval.
 			// It does *not* test the function registry, mismatch
 			// in parameter counts or any particular function.
@@ -1420,7 +1420,7 @@ func getTestCases() []struct {
 		// Using now() should find the timestamp at the
 		// correct position
 		{parser.FuncAppAST{parser.FuncName("now"),
-			parser.ExpressionsAST{[]parser.Expression{}}},
+			parser.ExpressionsAST{[]parser.Expression{}}, nil},
 			[]evalTest{
 				// not a map:
 				{data.Int(17), nil},
@@ -1500,7 +1500,7 @@ func getTestCases() []struct {
 			},
 		},
 		{parser.FuncAppAST{parser.FuncName("maplen"),
-			parser.ExpressionsAST{[]parser.Expression{parser.Wildcard{}}}},
+			parser.ExpressionsAST{[]parser.Expression{parser.Wildcard{}}}, nil},
 			[]evalTest{
 				// not a map:
 				{data.Int(17), nil},
@@ -1517,7 +1517,7 @@ func getTestCases() []struct {
 			},
 		},
 		{parser.FuncAppAST{parser.FuncName("maplen"),
-			parser.ExpressionsAST{[]parser.Expression{parser.Wildcard{"a"}}}},
+			parser.ExpressionsAST{[]parser.Expression{parser.Wildcard{"a"}}}, nil},
 			[]evalTest{
 				// not a map:
 				{data.Int(17), nil},
