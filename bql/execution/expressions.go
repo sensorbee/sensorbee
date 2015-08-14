@@ -127,6 +127,9 @@ func ParserExprToFlatExpr(e parser.Expression, reg udf.FunctionRegistry) (FlatEx
 		}
 		return typeCastAST{expr, obj.Target}, nil
 	case parser.FuncAppAST:
+		if len(obj.Ordering) > 0 {
+			return nil, fmt.Errorf("ORDER BY not implemented")
+		}
 		// exception for now()
 		if string(obj.Function) == "now" && len(obj.Expressions) == 0 {
 			return stmtMeta{parser.NowMeta}, nil
@@ -227,6 +230,9 @@ func ParserExprToMaybeAggregate(e parser.Expression, aggIdx int, reg udf.Functio
 		}
 		return typeCastAST{expr, obj.Target}, agg, nil
 	case parser.FuncAppAST:
+		if len(obj.Ordering) > 0 {
+			return nil, nil, fmt.Errorf("ORDER BY not implemented")
+		}
 		// exception for now()
 		if string(obj.Function) == "now" && len(obj.Expressions) == 0 {
 			return stmtMeta{parser.NowMeta}, nil, nil
