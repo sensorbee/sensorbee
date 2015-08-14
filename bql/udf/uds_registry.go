@@ -18,19 +18,19 @@ type UDSCreator interface {
 
 // UDSLoader loads a User Defined State from saved data. A UDS cannot be loaded
 // if a UDSCreator doesn't implement UDSLoader even if the UDS implements
-// core.PersistentSharedState.
+// core.LoadableSharedState.
 //
 // When a UDS isn't created yet, UDSLoader.LoadState will be used to load the
-// state and core.PersistentSharedState.Load will not be used.
+// state and core.LoadableSharedState.Load will not be used.
 //
 // When a UDS is already created or loaded and it implements
-// core.PersistentSharedState, its Load method is called to load a model and
+// core.LoadableSharedState, its Load method is called to load a model and
 // UDSLoader.LoadState will not be called. If a UDS doesn't implement
-// core.PersistentSharedState but UDSLoader is provided for its type, then
+// core.LoadableSharedState but UDSLoader is provided for its type, then
 // UDSLoader.LoadState creates a new instance and the previous instance is
 // replaced with it, which means loading the UDS could consume twice as much
-// memory as core.PersistentSharedState.Load does. When a UDS doesn't implement
-// core.PersistentSharedState and its UDSCreator doesn't implement UDSLoader,
+// memory as core.LoadableSharedState.Load does. When a UDS doesn't implement
+// core.LoadableSharedState and its UDSCreator doesn't implement UDSLoader,
 // the UDS cannot be loaded.
 type UDSLoader interface {
 	UDSCreator
