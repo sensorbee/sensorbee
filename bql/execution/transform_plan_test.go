@@ -753,6 +753,27 @@ func TestAggregateChecker(t *testing.T) {
 				"g_f12cd6bc": rowValue{"x", "a"},
 			}},
 
+		// order by a value that is already in the aggregate variables
+		{"count(a ORDER BY a ASC) FROM x [RANGE 1 TUPLES]", "",
+			aggregateInputSorter{
+				funcAppAST{"count", []FlatExpression{aggInputRef{"g_f12cd6bc"}}},
+				[]sortExpression{sortExpression{aggInputRef{"g_f12cd6bc"}, true}},
+			},
+			map[string]FlatExpression{
+				"g_f12cd6bc": rowValue{"x", "a"},
+			}},
+
+		// order by a value that is not in the aggregate variables
+		{"count(a ORDER BY b DESC) FROM x [RANGE 1 TUPLES]", "",
+			aggregateInputSorter{
+				funcAppAST{"count", []FlatExpression{aggInputRef{"g_f12cd6bc"}}},
+				[]sortExpression{sortExpression{aggInputRef{"g_77d2dd39"}, false}},
+			},
+			map[string]FlatExpression{
+				"g_f12cd6bc": rowValue{"x", "a"},
+				"g_77d2dd39": rowValue{"x", "b"},
+			}},
+
 		{"count(udaf(a)) FROM x [RANGE 1 TUPLES]",
 			"aggregate functions cannot be nested", nil, nil},
 
@@ -906,6 +927,20 @@ func TestVolatileAggregateChecker(t *testing.T) {
 				binaryOpAST{parser.Plus,
 					funcAppAST{"count", []FlatExpression{aggInputRef{"g_2523c3a2_0"}}},
 					funcAppAST{"udaf", []FlatExpression{aggInputRef{"g_2523c3a2_1"}}}},
+			},
+			[]map[string]FlatExpression{{
+				"g_2523c3a2_0": funcAppAST{"f", []FlatExpression{rowValue{"x", "a"}}},
+				"g_2523c3a2_1": funcAppAST{"f", []FlatExpression{rowValue{"x", "a"}}},
+			}}},
+
+		// one UDAF referencing the same volatile expression in parameter
+		// and GROUP BY uses different reference strings
+		{"count(f(a) ORDER BY f(a)) FROM x [RANGE 1 TUPLES] GROUP BY a", "",
+			[]FlatExpression{
+				aggregateInputSorter{
+					funcAppAST{"count", []FlatExpression{aggInputRef{"g_2523c3a2_0"}}},
+					[]sortExpression{sortExpression{aggInputRef{"g_2523c3a2_1"}, true}},
+				},
 			},
 			[]map[string]FlatExpression{{
 				"g_2523c3a2_0": funcAppAST{"f", []FlatExpression{rowValue{"x", "a"}}},
