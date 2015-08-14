@@ -53,9 +53,9 @@ type SavableSharedState interface {
 	Save(w io.Writer, params data.Map) error
 }
 
-// PersistentSharedState is a SharedState which can be persisted through Save
+// LoadableSharedState is a SharedState which can be persisted through Save
 // and Load method.
-type PersistentSharedState interface {
+type LoadableSharedState interface {
 	SavableSharedState
 
 	// Load overwrites the state with save data. Parameters don't have to be
