@@ -50,7 +50,7 @@ type SavableSharedState interface {
 	// defined by each component and there's no common definition.
 	//
 	// Save and other methods can be called concurrently.
-	Save(w io.Writer, params data.Map) error
+	Save(ctx *Context, w io.Writer, params data.Map) error
 }
 
 // LoadableSharedState is a SharedState which can be persisted through Save
@@ -62,7 +62,7 @@ type LoadableSharedState interface {
 	// same as Save's parameters. They can even be completely different.
 	//
 	// Load and other methods including Save can be called concurrently.
-	Load(r io.Reader, params data.Map) error
+	Load(ctx *Context, r io.Reader, params data.Map) error
 }
 
 // TODO: Add MixiableSharedState interface
