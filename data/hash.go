@@ -123,6 +123,98 @@ func Equal(v1 Value, v2 Value) bool {
 	}
 }
 
+// Less computes whether v1 is less than v2 in a way consistent with `Equal`.
+// It can be used, for example, with the functions of the sort package.
+// The rules for sorting are as follows:
+// - When the types are different:
+//   Null < Bool < Int/Float < String < Blob < Timestamp < Array < Map
+// - When the type is the same:
+//   - Null: always false
+//   - Bool: false < true
+//   - Int/Float: usual < comparison; Ints and Floats can also be compared
+//   - String: usual < comparison
+//   - Timestamp: value as returned by Time.Before()
+//   - Blob, Array, Map: shorter collections are less than longer collections;
+//     when length is equal hash values are compared
+func Less(v1 Value, v2 Value) bool {
+	lType := v1.Type()
+	rType := v2.Type()
+	// cases in which we need a value comparison
+	if lType == rType || // same type
+		(lType == TypeFloat && rType == TypeInt) || // float vs. int
+		(lType == TypeInt && rType == TypeFloat) { // int vs. float
+	} else {
+		// here we fall back to type comparison
+		return lType < rType
+	}
+
+	switch lType {
+	case TypeNull:
+		return false
+
+	case TypeBool:
+		lhs, _ := v1.asBool()
+		rhs, _ := v2.asBool()
+		return !lhs && rhs
+
+	case TypeInt:
+		lhs, _ := v1.asInt()
+		if rType == TypeFloat {
+			rhs, _ := v2.asFloat()
+			return float64(lhs) < rhs
+		}
+		rhs, _ := v2.asInt()
+		return lhs < rhs
+
+	case TypeFloat:
+		lhs, _ := v1.asFloat()
+		if rType == TypeInt {
+			rhs, _ := v2.asInt()
+			return lhs < float64(rhs)
+		}
+		rhs, _ := v2.asFloat()
+		return lhs < rhs
+
+	case TypeString:
+		lhs, _ := v1.asString()
+		rhs, _ := v2.asString()
+		return lhs < rhs
+
+	case TypeBlob:
+		lhs, _ := v1.asBlob()
+		rhs, _ := v2.asBlob()
+		if len(lhs) == len(rhs) {
+			return Hash(v1) < Hash(v2)
+		}
+		return len(lhs) < len(rhs)
+
+	case TypeTimestamp:
+		lhs, _ := v1.asTimestamp()
+		rhs, _ := v2.asTimestamp()
+		return lhs.Before(rhs)
+
+	case TypeArray:
+		lhs, _ := v1.asArray()
+		rhs, _ := v2.asArray()
+		if len(lhs) == len(rhs) {
+			return Hash(v1) < Hash(v2)
+		}
+		return len(lhs) < len(rhs)
+
+	case TypeMap:
+		lhs, _ := v1.asMap()
+		rhs, _ := v2.asMap()
+		if len(lhs) == len(rhs) {
+			return Hash(v1) < Hash(v2)
+		}
+		return len(lhs) < len(rhs)
+
+	default:
+		// no such case, though
+		return false
+	}
+}
+
 func appendInt32(b []byte, t TypeID, i int32) []byte {
 	i *= 16777619 // multiply fnv.prime32 due to the same reason as appendInt64
 	return append(b, byte(t),
