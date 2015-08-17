@@ -8,6 +8,7 @@ import (
 	"pfi/sensorbee/sensorbee/core"
 	"pfi/sensorbee/sensorbee/data"
 	"reflect"
+	"sort"
 	"strings"
 )
 
@@ -198,6 +199,8 @@ func ExpressionToEvaluator(ast FlatExpression, reg udf.FunctionRegistry) (Evalua
 			evals[i] = eval
 		}
 		return FuncApp(fName, f, reg.Context(), evals), nil
+	case aggregateInputSorter:
+		return newSortedInputAggFuncApp(obj.funcAppAST, obj.ID, obj.Ordering, reg)
 	case arrayAST:
 		// compute child Evaluators
 		evals := make([]Evaluator, len(obj.Expressions))
@@ -872,6 +875,157 @@ func FuncApp(name string, f udf.UDF, ctx *core.Context, params []Evaluator) Eval
 	paramValues := make([]reflect.Value, len(params)+1)
 	paramValues[0] = reflect.ValueOf(ctx)
 	return &funcApp{name, fVal, params, paramValues}
+}
+
+/// Aggregate Function with Sorted Input
+
+type sortEvaluator struct {
+	eval      Evaluator
+	ascending bool
+}
+
+type sortedInputAggFuncApp struct {
+	f         Evaluator
+	inOutKeys map[string]string
+	ordering  []sortEvaluator
+}
+
+func (s *sortedInputAggFuncApp) Eval(input data.Value) (v data.Value, err error) {
+	// catch panic (e.g., in called function)
+	defer func() {
+		if r := recover(); r != nil {
+			v = nil
+			err = fmt.Errorf("evaluating %v paniced: %s", s.f, r)
+		}
+	}()
+	inputMap, err := data.AsMap(input)
+	if err != nil {
+		return nil, err
+	}
+	// extract the arrays that contain the data that the sort is based on
+	if len(s.ordering) == 0 {
+		return nil, fmt.Errorf("order definition must not be empty")
+	}
+	sortData := make([]sortArray, len(s.ordering))
+	for i, sortEval := range s.ordering {
+		val, err := sortEval.eval.Eval(input)
+		if err != nil {
+			return nil, fmt.Errorf("could not get data for sorting: %s", err.Error())
+		}
+		arr, err := data.AsArray(val)
+		if err != nil {
+			return nil, err
+		}
+		sortData[i] = sortArray{arr, sortEval.ascending}
+	}
+
+	// sort an array of indexes, then write the actual data to a new array
+	// using the sorted index array
+	indexes := make([]int, len(sortData[0].values))
+	for i := range indexes {
+		indexes[i] = i
+	}
+	// sort the index array
+	is := &indexSlice{indexes, sortData}
+	sort.Sort(is)
+
+	// now use the sorted index array to write a sorted copy of the data
+	for unsortedKey, sortedKey := range s.inOutKeys {
+		unsortedData, ok := inputMap[unsortedKey]
+		if !ok {
+			return nil, fmt.Errorf("there was no unsorted data with key '%s'", unsortedKey)
+		}
+		unsortedArr, err := data.AsArray(unsortedData)
+		if err != nil {
+			return nil, err
+		}
+		if len(unsortedArr) != len(indexes) {
+			return nil, fmt.Errorf("aggregate data with key '%s' had bad length (%d, not %d)",
+				unsortedKey, len(unsortedArr), len(indexes))
+		}
+		sortedArr := make(data.Array, len(unsortedArr))
+		for i := range unsortedArr {
+			sortedArr[i] = unsortedArr[indexes[i]]
+		}
+		inputMap[sortedKey] = sortedArr
+	}
+
+	return s.f.Eval(input)
+}
+
+func newSortedInputAggFuncApp(obj funcAppAST, id string, ordering []sortExpression, reg udf.FunctionRegistry) (Evaluator, error) {
+	// We may have a function call as complex as
+	//  f(a, b, c ORDER BY d ASC, e DESC)
+	// where a and c are aggregate parameters but b is not.
+	//
+	// The Eval() call will get input data like
+	//   data.Map{"stream": data.Map{"a": data.Int(1)},
+	//            "g_ahash": data.Array{data.Int(1), data.Int(2)},
+	//            "g_chash": data.Array{data.Int(3), data.Int(4)},
+	//            "g_dhash": data.Array{data.Int(5), data.Int(6)},
+	//            "g_ehash": data.Array{data.Int(7), data.Int(8)}}
+	//
+	// With the above function clause, we have that obj.Expressions[0] and
+	// obj.Expressions[2] are aggInputRef structs and b is something else.
+	// Also, ordering is {{aggInputRef, true}, {aggInputRef, false}}.
+	//
+	// How can we call f with a sorted version of the arrays named
+	// g_ahash and g_chash?
+	// 1) If we sort them in-place, there may be trouble if there is
+	//    another function g(a ORDER BY d DESC) which needs a different
+	//    ordering.
+	// 2) Another approach is to add a sorted version of the array,
+	//    suffixed with some unique string, so that the Map looks like
+	//     data.Map{"stream": data.Map{"a": data.Int(1)},
+	//              "g_ahash":     data.Array{data.Int(1), data.Int(2)},
+	//              "g_ahash_abc": data.Array{data.Int(2), data.Int(1)},
+	//              "g_chash":     data.Array{data.Int(3), data.Int(4)},
+	//              "g_chash_abc": data.Array{data.Int(4), data.Int(3)},
+	//              "g_dhash":     data.Array{data.Int(5), data.Int(6)},
+	//              "g_ehash":     data.Array{data.Int(7), data.Int(8)}}
+	//    and then change the evaluators computed from obj.Expressions[0]
+	//    and obj.Expressions[2] to use these sorted versions.
+	// The second approach may not provide optimal performance, but it
+	// avoids weird side effects when using multiple aggregates.
+
+	if len(ordering) == 0 {
+		return nil, fmt.Errorf("order definition must not be empty")
+	}
+	sortEvals := make([]sortEvaluator, len(ordering))
+	for i, sortExpr := range ordering {
+		e, err := ExpressionToEvaluator(sortExpr.Value, reg)
+		if err != nil {
+			return nil, err
+		}
+		sortEvals[i] = sortEvaluator{e, sortExpr.Ascending}
+	}
+
+	// lookup function in function registry
+	// (the registry will decide if the requested function
+	// is callable with the given number of arguments).
+	fName := string(obj.Function)
+	f, err := reg.Lookup(fName, len(obj.Expressions))
+	if err != nil {
+		return nil, err
+	}
+	// compute child Evaluators
+	inOutKeys := map[string]string{}
+	evals := make([]Evaluator, len(obj.Expressions))
+	for i, ast := range obj.Expressions {
+		if inputRef, ok := ast.(aggInputRef); ok {
+			newRef := inputRef.Ref + "_" + id
+			ast = aggInputRef{newRef}
+			inOutKeys[inputRef.Ref] = newRef
+		}
+		eval, err := ExpressionToEvaluator(ast, reg)
+		if err != nil {
+			return nil, err
+		}
+		evals[i] = eval
+	}
+	backendFun := FuncApp(fName, f, reg.Context(), evals)
+
+	return &sortedInputAggFuncApp{backendFun, inOutKeys, sortEvals}, nil
 }
 
 /// JSON-like data structures

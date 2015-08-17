@@ -131,13 +131,13 @@ func TestFoldableExecution(t *testing.T) {
 		{parser.TypeCastAST{parser.NumericLiteral{7}, parser.Float},
 			true, data.Float(7.0)},
 		{parser.FuncAppAST{parser.FuncName("now"),
-			parser.ExpressionsAST{[]parser.Expression{}}},
+			parser.ExpressionsAST{[]parser.Expression{}}, nil},
 			false, nil},
 		{parser.FuncAppAST{parser.FuncName("plusone"),
-			parser.ExpressionsAST{[]parser.Expression{parser.RowValue{"", "a"}}}},
+			parser.ExpressionsAST{[]parser.Expression{parser.RowValue{"", "a"}}}, nil},
 			false, nil},
 		{parser.FuncAppAST{parser.FuncName("plusone"),
-			parser.ExpressionsAST{[]parser.Expression{parser.NumericLiteral{7}}}},
+			parser.ExpressionsAST{[]parser.Expression{parser.NumericLiteral{7}}}, nil},
 			true, data.Int(8)},
 		{parser.ArrayAST{parser.ExpressionsAST{[]parser.Expression{parser.RowValue{"", "a"}}}},
 			false, nil},
@@ -182,7 +182,7 @@ func TestFuncAppConversion(t *testing.T) {
 			ast := parser.FuncAppAST{parser.FuncName("plusone"),
 				parser.ExpressionsAST{[]parser.Expression{
 					parser.RowValue{"", "a"},
-				}}}
+				}}, nil}
 
 			Convey("Then we obtain an evaluatable funcApp", func() {
 				flatExpr, err := ParserExprToFlatExpr(ast, reg)
@@ -197,7 +197,7 @@ func TestFuncAppConversion(t *testing.T) {
 			ast := parser.FuncAppAST{parser.FuncName("fun"),
 				parser.ExpressionsAST{[]parser.Expression{
 					parser.RowValue{"", "a"},
-				}}}
+				}}, nil}
 
 			Convey("Then converting to an Evaluator fails", func() {
 				// we cannot even get the flat expression in that case
@@ -206,9 +206,25 @@ func TestFuncAppConversion(t *testing.T) {
 			})
 		})
 
+		Convey("When the function uses the ORDER BY clause", func() {
+			ast := parser.FuncAppAST{parser.FuncName("plusone"),
+				parser.ExpressionsAST{[]parser.Expression{
+					parser.RowValue{"", "a"},
+				}},
+				[]parser.SortedExpressionAST{{parser.RowValue{"", "a"}, parser.Yes}}}
+
+			Convey("Then converting to an Evaluator fails", func() {
+				// we cannot even get the flat expression in that case
+				_, err := ParserExprToFlatExpr(ast, reg)
+				So(err, ShouldNotBeNil)
+				So(err.Error(), ShouldEqual,
+					"you cannot use ORDER BY in non-aggregate function 'plusone'")
+			})
+		})
+
 		Convey("When the now() function is used", func() {
 			ast := parser.FuncAppAST{parser.FuncName("now"),
-				parser.ExpressionsAST{[]parser.Expression{}}}
+				parser.ExpressionsAST{[]parser.Expression{}}, nil}
 
 			Convey("Then we obtain an evaluatable timestampCast", func() {
 				flatExpr, err := ParserExprToFlatExpr(ast, reg)
@@ -219,6 +235,247 @@ func TestFuncAppConversion(t *testing.T) {
 			})
 		})
 	})
+}
+
+func TestAggFuncAppConversion(t *testing.T) {
+	reg := udf.CopyGlobalUDFRegistry(core.NewContext(nil))
+
+	toString := udf.UnaryFunc(func(ctx *core.Context, v data.Value) (data.Value, error) {
+		return data.String(v.String()), nil
+	})
+	reg.Register("f", toString)
+
+	testCases := []struct {
+		bql           string
+		expectedError string
+		expr          FlatExpression
+		aggrs         map[string]FlatExpression
+		inputs        []evalTest
+	}{
+		// order by a value that is already in the aggregate variables
+		{"array_agg(a ORDER BY a ASC) FROM x [RANGE 1 TUPLES]", "",
+			aggregateInputSorter{
+				funcAppAST{"array_agg", []FlatExpression{aggInputRef{"g_f12cd6bc"}}},
+				[]sortExpression{sortExpression{aggInputRef{"g_f12cd6bc"}, true}},
+				"ccd0ef22",
+			},
+			map[string]FlatExpression{
+				"g_f12cd6bc": rowValue{"x", "a"},
+			},
+			[]evalTest{
+				// not a map:
+				{data.Int(17), nil},
+				// map does not contain the correct key
+				{data.Map{"a": data.Array{data.Int(1), data.Int(2)}}, nil},
+				// map does not contain an array at that position
+				{data.Map{"g_f12cd6bc": data.Int(17)}, nil},
+				// correct input
+				{data.Map{"g_f12cd6bc": data.Array{data.Int(1), data.Int(2)}},
+					data.Array{data.Int(1), data.Int(2)}},
+				{data.Map{"g_f12cd6bc": data.Array{data.Int(3), data.Int(1), data.Int(2)}},
+					data.Array{data.Int(1), data.Int(2), data.Int(3)}},
+				{data.Map{"g_f12cd6bc": data.Array{data.Int(3), data.Int(2), data.Int(1)}},
+					data.Array{data.Int(1), data.Int(2), data.Int(3)}},
+			},
+		},
+
+		// order by a value that is not in the aggregate variables
+		{"array_agg(a ORDER BY b DESC) FROM x [RANGE 1 TUPLES]", "",
+			aggregateInputSorter{
+				funcAppAST{"array_agg", []FlatExpression{aggInputRef{"g_f12cd6bc"}}},
+				[]sortExpression{sortExpression{aggInputRef{"g_77d2dd39"}, false}},
+				"d7196f56",
+			},
+			map[string]FlatExpression{
+				"g_f12cd6bc": rowValue{"x", "a"},
+				"g_77d2dd39": rowValue{"x", "b"},
+			},
+			[]evalTest{
+				// not a map:
+				{data.Int(17), nil},
+				// map does not contain all correct keys
+				{data.Map{"a": data.Array{data.Int(1), data.Int(2)}}, nil},
+				{data.Map{"g_f12cd6bc": data.Array{data.Int(1), data.Int(2)},
+					"a": data.Array{data.Int(1), data.Int(2)}}, nil},
+				{data.Map{"g_77d2dd39": data.Array{data.Int(1), data.Int(2)},
+					"a": data.Array{data.Int(1), data.Int(2)}}, nil},
+				// map does not contain an array at that position
+				{data.Map{"g_f12cd6bc": data.Array{data.Int(1), data.Int(2)},
+					"g_77d2dd39": data.Int(17)}, nil},
+				{data.Map{"g_f12cd6bc": data.Int(17),
+					"g_77d2dd39": data.Array{data.Int(1), data.Int(2)}}, nil},
+				// correct input
+				{data.Map{"g_f12cd6bc": data.Array{data.Int(1), data.Int(2)},
+					"g_77d2dd39": data.Array{data.Int(1), data.Int(2)}},
+					data.Array{data.Int(2), data.Int(1)}},
+				{data.Map{"g_f12cd6bc": data.Array{data.Int(3), data.Int(1), data.Int(2)},
+					"g_77d2dd39": data.Array{data.Int(5), data.Int(6), data.Int(4)}},
+					data.Array{data.Int(1), data.Int(3), data.Int(2)}},
+				{data.Map{"g_f12cd6bc": data.Array{data.Int(3), data.Int(1), data.Int(2)},
+					"g_77d2dd39": data.Array{data.String("5"), data.Int(6), data.Int(4)}},
+					data.Array{data.Int(3), data.Int(1), data.Int(2)}},
+			},
+		},
+
+		// order by multiple values
+		{"array_agg(a ORDER BY b DESC, a) FROM x [RANGE 1 TUPLES]", "",
+			aggregateInputSorter{
+				funcAppAST{"array_agg", []FlatExpression{aggInputRef{"g_f12cd6bc"}}},
+				[]sortExpression{sortExpression{aggInputRef{"g_77d2dd39"}, false},
+					sortExpression{aggInputRef{"g_f12cd6bc"}, true}},
+				"24925706",
+			},
+			map[string]FlatExpression{
+				"g_f12cd6bc": rowValue{"x", "a"},
+				"g_77d2dd39": rowValue{"x", "b"},
+			},
+			[]evalTest{
+				// not a map:
+				{data.Int(17), nil},
+				// map does not contain all correct keys
+				{data.Map{"a": data.Array{data.Int(1), data.Int(2)}}, nil},
+				{data.Map{"g_f12cd6bc": data.Array{data.Int(1), data.Int(2)},
+					"a": data.Array{data.Int(1), data.Int(2)}}, nil},
+				{data.Map{"g_77d2dd39": data.Array{data.Int(1), data.Int(2)},
+					"a": data.Array{data.Int(1), data.Int(2)}}, nil},
+				// map does not contain an array at that position
+				{data.Map{"g_f12cd6bc": data.Array{data.Int(1), data.Int(2)},
+					"g_77d2dd39": data.Int(17)}, nil},
+				{data.Map{"g_f12cd6bc": data.Int(17),
+					"g_77d2dd39": data.Array{data.Int(1), data.Int(2)}}, nil},
+				// correct input
+				{data.Map{"g_f12cd6bc": data.Array{data.Int(1), data.Int(2)},
+					"g_77d2dd39": data.Array{data.Int(1), data.Int(2)}},
+					data.Array{data.Int(2), data.Int(1)}},
+				{data.Map{"g_f12cd6bc": data.Array{data.Int(1), data.Int(2), data.Int(3)},
+					"g_77d2dd39": data.Array{data.Int(5), data.Int(6), data.Int(5)}},
+					data.Array{data.Int(2), data.Int(1), data.Int(3)}},
+			},
+		},
+
+		// use two different sorting orders for the same column
+		{"array_agg(a ORDER BY b DESC)::string || array_agg(a ORDER BY b ASC)::string FROM x [RANGE 1 TUPLES]", "",
+			binaryOpAST{parser.Concat,
+				typeCastAST{
+					aggregateInputSorter{
+						funcAppAST{"array_agg",
+							[]FlatExpression{aggInputRef{Ref: "g_f12cd6bc"}}},
+						[]sortExpression{sortExpression{aggInputRef{"g_77d2dd39"},
+							false}},
+						"d7196f56"},
+					parser.String},
+				typeCastAST{
+					aggregateInputSorter{
+						funcAppAST{"array_agg",
+							[]FlatExpression{aggInputRef{Ref: "g_f12cd6bc"}}},
+						[]sortExpression{sortExpression{aggInputRef{"g_77d2dd39"},
+							true}},
+						"cd35e18d"},
+					parser.String},
+			},
+			map[string]FlatExpression{
+				"g_f12cd6bc": rowValue{"x", "a"},
+				"g_77d2dd39": rowValue{"x", "b"},
+			},
+			[]evalTest{
+				// not a map:
+				{data.Int(17), nil},
+				// map does not contain all correct keys
+				{data.Map{"a": data.Array{data.Int(1), data.Int(2)}}, nil},
+				{data.Map{"g_f12cd6bc": data.Array{data.Int(1), data.Int(2)},
+					"a": data.Array{data.Int(1), data.Int(2)}}, nil},
+				{data.Map{"g_77d2dd39": data.Array{data.Int(1), data.Int(2)},
+					"a": data.Array{data.Int(1), data.Int(2)}}, nil},
+				// map does not contain an array at that position
+				{data.Map{"g_f12cd6bc": data.Array{data.Int(1), data.Int(2)},
+					"g_77d2dd39": data.Int(17)}, nil},
+				{data.Map{"g_f12cd6bc": data.Int(17),
+					"g_77d2dd39": data.Array{data.Int(1), data.Int(2)}}, nil},
+				// correct input
+				{data.Map{"g_f12cd6bc": data.Array{data.Int(1), data.Int(2)},
+					"g_77d2dd39": data.Array{data.Int(3), data.Int(4)}},
+					data.String("data.Array{2, 1}data.Array{1, 2}")},
+			},
+		},
+
+		// order by a volatile expression
+		{"array_agg(f(a) ORDER BY f(a)) FROM x [RANGE 1 TUPLES] GROUP BY a", "",
+			aggregateInputSorter{
+				funcAppAST{"array_agg", []FlatExpression{aggInputRef{"g_2523c3a2_0"}}},
+				[]sortExpression{sortExpression{aggInputRef{"g_2523c3a2_1"}, true}},
+				"cf2e24d7",
+			},
+			map[string]FlatExpression{
+				"g_2523c3a2_0": funcAppAST{"f", []FlatExpression{rowValue{"x", "a"}}},
+				"g_2523c3a2_1": funcAppAST{"f", []FlatExpression{rowValue{"x", "a"}}},
+			},
+			[]evalTest{
+				// not a map:
+				{data.Int(17), nil},
+				// map does not contain all correct keys
+				{data.Map{"a": data.Array{data.Int(1), data.Int(2)}}, nil},
+				{data.Map{"g_2523c3a2_0": data.Array{data.Int(1), data.Int(2)},
+					"a": data.Array{data.Int(1), data.Int(2)}}, nil},
+				{data.Map{"g_2523c3a2_1": data.Array{data.Int(1), data.Int(2)},
+					"a": data.Array{data.Int(1), data.Int(2)}}, nil},
+				// map does not contain an array at that position
+				{data.Map{"g_2523c3a2_0": data.Array{data.Int(1), data.Int(2)},
+					"g_2523c3a2_1": data.Int(17)}, nil},
+				{data.Map{"g_2523c3a2_0": data.Int(17),
+					"g_2523c3a2_1": data.Array{data.Int(1), data.Int(2)}}, nil},
+				// correct input
+				{data.Map{"g_2523c3a2_0": data.Array{data.Int(1), data.Int(2)},
+					"g_2523c3a2_1": data.Array{data.Int(4), data.Int(3)}},
+					data.Array{data.Int(2), data.Int(1)}},
+			},
+		},
+	}
+
+	for _, testCase := range testCases {
+		testCase := testCase
+
+		Convey(fmt.Sprintf("Given the statement", testCase.bql), t, func() {
+			p := parser.New()
+			stmt := "CREATE STREAM x AS SELECT ISTREAM " + testCase.bql
+			astUnchecked, _, err := p.ParseStmt(stmt)
+			So(err, ShouldBeNil)
+			So(astUnchecked, ShouldHaveSameTypeAs, parser.CreateStreamAsSelectStmt{})
+			ast := astUnchecked.(parser.CreateStreamAsSelectStmt).Select
+
+			Convey("When we analyze it", func() {
+				logPlan, err := Analyze(ast, reg)
+				expectedError := testCase.expectedError
+				if expectedError == "" {
+					Convey("There is no error", func() {
+						So(err, ShouldBeNil)
+						So(len(logPlan.Projections), ShouldBeGreaterThanOrEqualTo, 1)
+						proj := logPlan.Projections[0]
+						So(proj.expr, ShouldResemble, testCase.expr)
+						So(proj.aggrInputs, ShouldResemble, testCase.aggrs)
+
+						eval, err := ExpressionToEvaluator(proj.expr, reg)
+						So(err, ShouldBeNil)
+						Convey("And the test cases should work", func() {
+							for _, tc := range testCase.inputs {
+								res, err := eval.Eval(tc.input)
+								if tc.expected == nil {
+									So(err, ShouldNotBeNil)
+								} else {
+									So(err, ShouldBeNil)
+									So(res, ShouldResemble, tc.expected)
+								}
+							}
+						})
+					})
+				} else {
+					Convey("There is an error", func() {
+						So(err, ShouldNotBeNil)
+						So(err.Error(), ShouldStartWith, expectedError)
+					})
+				}
+			})
+		})
+	}
 }
 
 var (
@@ -1369,7 +1626,7 @@ func getTestCases() []struct {
 		},
 		/// Function Application
 		{parser.FuncAppAST{parser.FuncName("plusone"),
-			parser.ExpressionsAST{[]parser.Expression{parser.RowValue{"", "a"}}}},
+			parser.ExpressionsAST{[]parser.Expression{parser.RowValue{"", "a"}}}, nil},
 			// NB. This only tests the behavior of funcApp.Eval.
 			// It does *not* test the function registry, mismatch
 			// in parameter counts or any particular function.
@@ -1420,7 +1677,7 @@ func getTestCases() []struct {
 		// Using now() should find the timestamp at the
 		// correct position
 		{parser.FuncAppAST{parser.FuncName("now"),
-			parser.ExpressionsAST{[]parser.Expression{}}},
+			parser.ExpressionsAST{[]parser.Expression{}}, nil},
 			[]evalTest{
 				// not a map:
 				{data.Int(17), nil},
@@ -1500,7 +1757,7 @@ func getTestCases() []struct {
 			},
 		},
 		{parser.FuncAppAST{parser.FuncName("maplen"),
-			parser.ExpressionsAST{[]parser.Expression{parser.Wildcard{}}}},
+			parser.ExpressionsAST{[]parser.Expression{parser.Wildcard{}}}, nil},
 			[]evalTest{
 				// not a map:
 				{data.Int(17), nil},
@@ -1517,7 +1774,7 @@ func getTestCases() []struct {
 			},
 		},
 		{parser.FuncAppAST{parser.FuncName("maplen"),
-			parser.ExpressionsAST{[]parser.Expression{parser.Wildcard{"a"}}}},
+			parser.ExpressionsAST{[]parser.Expression{parser.Wildcard{"a"}}}, nil},
 			[]evalTest{
 				// not a map:
 				{data.Int(17), nil},

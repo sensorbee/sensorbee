@@ -116,6 +116,14 @@ func TestRelationChecker(t *testing.T) {
 			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{a, ts}},
 			WindowedFromAST: singleFrom,
 		}, ""},
+		// SELECT f(a ORDER BY b)  FROM t -> OK
+		{&parser.SelectStmt{
+			ProjectionsAST: parser.ProjectionsAST{[]parser.Expression{
+				parser.FuncAppAST{"f", parser.ExpressionsAST{[]parser.Expression{a}},
+					[]parser.SortedExpressionAST{{b, parser.UnspecifiedKeyword}}},
+			}},
+			WindowedFromAST: singleFrom,
+		}, ""},
 		// SELECT 2        FROM t -> OK
 		{&parser.SelectStmt{
 			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{two}},
@@ -164,6 +172,22 @@ func TestRelationChecker(t *testing.T) {
 		// SELECT a, t:b   FROM t -> NG
 		{&parser.SelectStmt{
 			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{a, tA}},
+			WindowedFromAST: singleFrom,
+		}, "cannot refer to relations"},
+		// SELECT f(a ORDER BY t:b)  FROM t -> NG
+		{&parser.SelectStmt{
+			ProjectionsAST: parser.ProjectionsAST{[]parser.Expression{
+				parser.FuncAppAST{"f", parser.ExpressionsAST{[]parser.Expression{a}},
+					[]parser.SortedExpressionAST{{tB, parser.UnspecifiedKeyword}}},
+			}},
+			WindowedFromAST: singleFrom,
+		}, "cannot refer to relations"},
+		// SELECT f(t:a ORDER BY b)  FROM t -> NG
+		{&parser.SelectStmt{
+			ProjectionsAST: parser.ProjectionsAST{[]parser.Expression{
+				parser.FuncAppAST{"f", parser.ExpressionsAST{[]parser.Expression{tA}},
+					[]parser.SortedExpressionAST{{b, parser.UnspecifiedKeyword}}},
+			}},
 			WindowedFromAST: singleFrom,
 		}, "cannot refer to relations"},
 		// SELECT a, t:*   FROM t -> NG
@@ -618,7 +642,8 @@ func TestAggregateChecker(t *testing.T) {
 			funcAppAST{"f", []FlatExpression{rowValue{"x", "a"}}},
 			nil},
 
-		// f(*) is not a valid call, so this should fail
+		// f(*) is no aggregate call, so the `aggrs` list is empty
+		// and the selected expression is transformed normally
 		{"f(*) FROM x [RANGE 1 TUPLES]", "",
 			funcAppAST{"f", []FlatExpression{wildcardAST{}}},
 			nil},
@@ -726,6 +751,48 @@ func TestAggregateChecker(t *testing.T) {
 			},
 			map[string]FlatExpression{
 				"g_f12cd6bc": rowValue{"x", "a"},
+			}},
+
+		// order by a value that is already in the aggregate variables
+		{"count(a ORDER BY a ASC) FROM x [RANGE 1 TUPLES]", "",
+			aggregateInputSorter{
+				funcAppAST{"count", []FlatExpression{aggInputRef{"g_f12cd6bc"}}},
+				[]sortExpression{sortExpression{aggInputRef{"g_f12cd6bc"}, true}},
+				"ccd0ef22",
+			},
+			map[string]FlatExpression{
+				"g_f12cd6bc": rowValue{"x", "a"},
+			}},
+
+		// order by a value that is not in the aggregate variables
+		{"count(a ORDER BY b DESC) FROM x [RANGE 1 TUPLES]", "",
+			aggregateInputSorter{
+				funcAppAST{"count", []FlatExpression{aggInputRef{"g_f12cd6bc"}}},
+				[]sortExpression{sortExpression{aggInputRef{"g_77d2dd39"}, false}},
+				"d7196f56",
+			},
+			map[string]FlatExpression{
+				"g_f12cd6bc": rowValue{"x", "a"},
+				"g_77d2dd39": rowValue{"x", "b"},
+			}},
+
+		// use two different sorting orders
+		{"count(a ORDER BY b DESC) + count(a ORDER BY b ASC) FROM x [RANGE 1 TUPLES]", "",
+			binaryOpAST{parser.Plus,
+				aggregateInputSorter{
+					funcAppAST{"count", []FlatExpression{aggInputRef{"g_f12cd6bc"}}},
+					[]sortExpression{sortExpression{aggInputRef{"g_77d2dd39"}, false}},
+					"d7196f56",
+				},
+				aggregateInputSorter{
+					funcAppAST{"count", []FlatExpression{aggInputRef{"g_f12cd6bc"}}},
+					[]sortExpression{sortExpression{aggInputRef{"g_77d2dd39"}, true}},
+					"cd35e18d",
+				},
+			},
+			map[string]FlatExpression{
+				"g_f12cd6bc": rowValue{"x", "a"},
+				"g_77d2dd39": rowValue{"x", "b"},
 			}},
 
 		{"count(udaf(a)) FROM x [RANGE 1 TUPLES]",
@@ -881,6 +948,21 @@ func TestVolatileAggregateChecker(t *testing.T) {
 				binaryOpAST{parser.Plus,
 					funcAppAST{"count", []FlatExpression{aggInputRef{"g_2523c3a2_0"}}},
 					funcAppAST{"udaf", []FlatExpression{aggInputRef{"g_2523c3a2_1"}}}},
+			},
+			[]map[string]FlatExpression{{
+				"g_2523c3a2_0": funcAppAST{"f", []FlatExpression{rowValue{"x", "a"}}},
+				"g_2523c3a2_1": funcAppAST{"f", []FlatExpression{rowValue{"x", "a"}}},
+			}}},
+
+		// one UDAF referencing the same volatile expression in parameter
+		// and GROUP BY uses different reference strings
+		{"count(f(a) ORDER BY f(a)) FROM x [RANGE 1 TUPLES] GROUP BY a", "",
+			[]FlatExpression{
+				aggregateInputSorter{
+					funcAppAST{"count", []FlatExpression{aggInputRef{"g_2523c3a2_0"}}},
+					[]sortExpression{sortExpression{aggInputRef{"g_2523c3a2_1"}, true}},
+					"cf2e24d7",
+				},
 			},
 			[]map[string]FlatExpression{{
 				"g_2523c3a2_0": funcAppAST{"f", []FlatExpression{rowValue{"x", "a"}}},

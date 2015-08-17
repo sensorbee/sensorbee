@@ -9,12 +9,13 @@ func TestAssembleFuncApp(t *testing.T) {
 	Convey("Given a parseStack", t, func() {
 		ps := parseStack{}
 
-		Convey("When the stack contains two correct items", func() {
+		Convey("When the stack contains three correct items", func() {
 			ps.PushComponent(0, 6, Raw{"PRE"})
 			ps.PushComponent(6, 7, FuncName("add"))
 			ps.PushComponent(7, 8, ExpressionsAST{[]Expression{
 				NumericLiteral{2},
 				RowValue{"", "a"}}})
+			ps.PushComponent(8, 8, ExpressionsAST{nil})
 			ps.AssembleFuncApp()
 
 			Convey("Then AssembleFuncApp replaces them with a new item", func() {
