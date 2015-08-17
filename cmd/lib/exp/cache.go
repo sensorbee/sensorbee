@@ -15,6 +15,7 @@ type CacheEntry struct {
 	NodeName  string    `json:"node_name,omitempty"`
 	Hash      string    `json:"hash"`
 	Stmt      string    `json:"stmt"`
+	States    []string  `json:"states"`
 	Timestamp time.Time `json:"timestamp"`
 }
 
@@ -72,7 +73,17 @@ func SaveCacheToFile(cache *Cache, filename string) error {
 
 // CacheFilename computes the filename from a cache entry.
 func CacheFilename(ent *CacheEntry) string {
-	return fmt.Sprintf("%v-%v-%v.jsonl", ent.NodeName, ent.Timestamp.Format("20060102150405"), ent.Hash[:8])
+	return CacheFilenameWithName(ent, ent.NodeName, "jsonl")
+}
+
+func StateCacheFilename(ent *CacheEntry, stateName string) string {
+	return CacheFilenameWithName(ent, stateName, "state")
+}
+
+// CacheFilenameWithNodeName computes the filename from a cache entry with a
+// custom node name.
+func CacheFilenameWithName(ent *CacheEntry, name, ext string) string {
+	return fmt.Sprintf("%v-%v-%v.%v", name, ent.Timestamp.Format("20060102150405"), ent.Hash[:8], ext)
 }
 
 // Add adds a CacheEntry.
