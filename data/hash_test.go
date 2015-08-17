@@ -186,9 +186,163 @@ func TestEquality(t *testing.T) {
 						So(de, ShouldEqual, he)
 					}
 				})
+
+				Convey("Then the results of Equal and Less should be consistent", func() {
+					if he {
+						So(Less(left, right) || Less(right, left), ShouldBeFalse)
+					} else {
+						if i == 6 { // NaN
+							if right.Type() == TypeInt || right.Type() == TypeFloat {
+								So(Less(left, right), ShouldBeFalse)
+								So(Less(right, left), ShouldBeFalse)
+							}
+						} else if j == 6 { // NaN
+							if left.Type() == TypeInt || left.Type() == TypeFloat {
+								So(Less(left, right), ShouldBeFalse)
+								So(Less(right, left), ShouldBeFalse)
+							}
+						} else {
+							// if the values are not equal, exactly one of them should be less
+							So(Less(left, right), ShouldNotEqual, Less(right, left))
+						}
+					}
+				})
 			})
 		}
 	}
+}
+
+func TestLess(t *testing.T) {
+	now := time.Now()
+	later := time.Now()
+
+	ltTestCases := []struct {
+		l    Value
+		r    Value
+		less bool
+	}{
+		{Null{}, Null{}, false}, // equal
+		{Null{}, Bool(true), true},
+		{Null{}, Int(1), true},
+		{Null{}, Float(3.14), true},
+		{Null{}, String("hoge"), true},
+		{Null{}, Blob("hello"), true},
+		{Null{}, Timestamp(now), true},
+		{Null{}, Array{Int(1)}, true},
+		{Null{}, Map{"a": Int(1)}, true},
+		{Bool(true), Null{}, false},
+		{Bool(false), Bool(false), false}, // equal
+		{Bool(true), Bool(false), false},
+		{Bool(false), Bool(true), true},
+		{Bool(true), Bool(true), false},
+		{Bool(true), Int(1), true},
+		{Bool(true), Float(3.14), true},
+		{Bool(true), String("hoge"), true},
+		{Bool(true), Blob("hello"), true},
+		{Bool(true), Timestamp(now), true},
+		{Bool(true), Array{Int(1)}, true},
+		{Bool(true), Map{"a": Int(1)}, true},
+		{Int(1), Null{}, false},
+		{Int(1), Bool(true), false},
+		{Int(1), Int(1), false}, // equal
+		{Int(1), Int(2), true},
+		{Int(2), Int(1), false},
+		{Int(1), Float(1.0), false},
+		{Int(1), Float(-3.14), false},
+		{Int(1), Float(3.14), true},
+		{Int(1), String("hoge"), true},
+		{Int(1), Blob("hello"), true},
+		{Int(1), Timestamp(now), true},
+		{Int(1), Array{Int(1)}, true},
+		{Int(1), Map{"a": Int(1)}, true},
+		{Float(3.14), Null{}, false},
+		{Float(3.14), Bool(true), false},
+		{Float(3.14), Int(1), false},
+		{Float(3.14), Int(4), true},
+		{Float(3.14), Float(3.14), false}, // equal
+		{Float(3.14), Float(2.14), false},
+		{Float(3.14), Float(4.14), true},
+		{Float(3.14), String("hoge"), true},
+		{Float(3.14), Blob("hello"), true},
+		{Float(3.14), Timestamp(now), true},
+		{Float(3.14), Array{Int(1)}, true},
+		{Float(3.14), Map{"a": Int(1)}, true},
+		{String("hoge"), Null{}, false},
+		{String("hoge"), Bool(true), false},
+		{String("hoge"), Int(1), false},
+		{String("hoge"), Float(3.14), false},
+		{String("hoge"), String("hoge"), false}, // equal
+		{String("hoge"), String("a"), false},
+		{String("hoge"), String("k"), true},
+		{String("hoge"), Blob("hello"), true},
+		{String("hoge"), Timestamp(now), true},
+		{String("hoge"), Array{Int(1)}, true},
+		{String("hoge"), Map{"a": Int(1)}, true},
+		{Blob("hello"), Null{}, false},
+		{Blob("hello"), Bool(true), false},
+		{Blob("hello"), Int(1), false},
+		{Blob("hello"), Float(3.14), false},
+		{Blob("hello"), String("hoge"), false},
+		{Blob("hello"), Blob("hello"), false}, // equal
+		{Blob("hello"), Blob("a"), false},     // more bytes
+		{Blob("hello"), Blob("abcdef"), true}, // less bytes
+		{Blob("hello"), Blob("hallo"), false}, // hash is smaller
+		{Blob("hello"), Blob("abcde"), true},  // hash is larger
+		{Blob("hello"), Timestamp(now), true},
+		{Blob("hello"), Array{Int(1)}, true},
+		{Blob("hello"), Map{"a": Int(1)}, true},
+		{Timestamp(now), Null{}, false},
+		{Timestamp(now), Bool(true), false},
+		{Timestamp(now), Int(1), false},
+		{Timestamp(now), Float(3.14), false},
+		{Timestamp(now), String("hoge"), false},
+		{Timestamp(now), Blob("hello"), false},
+		{Timestamp(now), Timestamp(now), false},
+		{Timestamp(now), Timestamp(later), true},
+		{Timestamp(later), Timestamp(now), false},
+		{Timestamp(now), Array{Int(1)}, true},
+		{Timestamp(now), Map{"a": Int(1)}, true},
+		{Array{Int(1)}, Null{}, false},
+		{Array{Int(1)}, Bool(true), false},
+		{Array{Int(1)}, Int(1), false},
+		{Array{Int(1)}, Float(3.14), false},
+		{Array{Int(1)}, String("hoge"), false},
+		{Array{Int(1)}, Blob("hello"), false},
+		{Array{Int(1)}, Timestamp(now), false},
+		{Array{Int(1)}, Array{Int(1)}, false},         // equal
+		{Array{Int(1)}, Array{Int(1), Int(2)}, true},  // less entries
+		{Array{Int(1), Int(2)}, Array{Int(1)}, false}, // more entries
+		{Array{Int(1)}, Array{Int(6)}, true},          // hash is smaller
+		{Array{Int(1)}, Array{Int(2)}, false},         // hash is larger
+		{Array{Int(1)}, Map{"a": Int(1)}, true},
+		{Map{"a": Int(1)}, Null{}, false},
+		{Map{"a": Int(1)}, Bool(true), false},
+		{Map{"a": Int(1)}, Int(1), false},
+		{Map{"a": Int(1)}, Float(3.14), false},
+		{Map{"a": Int(1)}, String("hoge"), false},
+		{Map{"a": Int(1)}, Blob("hello"), false},
+		{Map{"a": Int(1)}, Timestamp(now), false},
+		{Map{"a": Int(1)}, Array{Int(1)}, false},
+		{Map{"a": Int(1)}, Map{"a": Int(1)}, false},              // equal
+		{Map{"a": Int(1)}, Map{"a": Int(1), "b": Int(2)}, true},  // less entries
+		{Map{"a": Int(1), "b": Int(2)}, Map{"a": Int(1)}, false}, // more entries
+		{Map{"a": Int(1)}, Map{"a": Int(8)}, true},               // hash is smaller
+		{Map{"a": Int(1)}, Map{"a": Int(3)}, false},              // hash is larger
+	}
+
+	Convey("When comparing a < b", t, func() {
+		Convey("Then the result should be correct in all cases", func() {
+			for _, tc := range ltTestCases {
+				So(Less(tc.l, tc.r), ShouldEqual, tc.less)
+				if tc.less {
+					So(Less(tc.r, tc.l), ShouldNotEqual, tc.less)
+				} else if Equal(tc.l, tc.r) {
+					So(Less(tc.r, tc.l), ShouldEqual, tc.less)
+				}
+
+			}
+		})
+	})
 }
 
 func BenchmarkDeepEqual(b *testing.B) {
