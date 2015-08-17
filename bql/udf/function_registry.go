@@ -53,6 +53,7 @@ func VariadicFunc(f func(*core.Context, ...data.Value) (data.Value, error)) UDF 
 	}
 }
 
+// Func creates a UDF that accepts `arity` many data.Value parameters.
 func Func(f func(*core.Context, ...data.Value) (data.Value, error), arity int) UDF {
 	return &function{
 		f:     f,
@@ -60,6 +61,7 @@ func Func(f func(*core.Context, ...data.Value) (data.Value, error), arity int) U
 	}
 }
 
+// NullaryFunc creates a UDF that takes no parameters (except the Context).
 func NullaryFunc(f func(*core.Context) (data.Value, error)) UDF {
 	genFunc := func(ctx *core.Context, vs ...data.Value) (data.Value, error) {
 		if len(vs) != 0 {
@@ -70,6 +72,7 @@ func NullaryFunc(f func(*core.Context) (data.Value, error)) UDF {
 	return Func(genFunc, 0)
 }
 
+// UnaryFunc creates a UDF that takes one data.Value parameter.
 func UnaryFunc(f func(*core.Context, data.Value) (data.Value, error)) UDF {
 	genFunc := func(ctx *core.Context, vs ...data.Value) (data.Value, error) {
 		if len(vs) != 1 {
@@ -80,6 +83,7 @@ func UnaryFunc(f func(*core.Context, data.Value) (data.Value, error)) UDF {
 	return Func(genFunc, 1)
 }
 
+// BinaryFunc creates a UDF that takes two data.Value parameters.
 func BinaryFunc(f func(*core.Context, data.Value, data.Value) (data.Value, error)) UDF {
 	genFunc := func(ctx *core.Context, vs ...data.Value) (data.Value, error) {
 		if len(vs) != 2 {
@@ -90,6 +94,7 @@ func BinaryFunc(f func(*core.Context, data.Value, data.Value) (data.Value, error
 	return Func(genFunc, 2)
 }
 
+// TernaryFunc creates a UDF that takes three data.Value parameters.
 func TernaryFunc(f func(*core.Context, data.Value, data.Value, data.Value) (data.Value, error)) UDF {
 	genFunc := func(ctx *core.Context, vs ...data.Value) (data.Value, error) {
 		if len(vs) != 3 {
@@ -136,6 +141,8 @@ type defaultFunctionRegistry struct {
 	funcs map[string]UDF
 }
 
+// NewDefaultFunctionRegistry returns a new instance of the default
+// FunctionRegistry implementation.
 func NewDefaultFunctionRegistry(ctx *core.Context) FunctionManager {
 	reg := &defaultFunctionRegistry{
 		ctx:   ctx,

@@ -1,6 +1,7 @@
 package execution
 
 import (
+	"fmt"
 	"pfi/sensorbee/sensorbee/bql/udf"
 	"pfi/sensorbee/sensorbee/core"
 	"pfi/sensorbee/sensorbee/data"
@@ -16,7 +17,7 @@ func CanBuildDefaultSelectExecutionPlan(lp *LogicalPlan, reg udf.FunctionRegistr
 	return !lp.GroupingStmt
 }
 
-// defaultSelectExecutionPlan is a very simple plan that follows the
+// NewDefaultSelectExecutionPlan creates a plan that follows the
 // theoretical processing model. It does not support aggregration.
 //
 // After each tuple arrives,
@@ -25,7 +26,7 @@ func CanBuildDefaultSelectExecutionPlan(lp *LogicalPlan, reg udf.FunctionRegistr
 // - perform a SELECT query on that data,
 // - compute the data that need to be emitted by comparison with
 //   the previous run's results.
-func NewDefaultSelectExecutionPlan(lp *LogicalPlan, reg udf.FunctionRegistry) (ExecutionPlan, error) {
+func NewDefaultSelectExecutionPlan(lp *LogicalPlan, reg udf.FunctionRegistry) (PhysicalPlan, error) {
 	underlying, err := newStreamRelationStreamExecutionPlan(lp, reg)
 	if err != nil {
 		return nil, err
@@ -43,8 +44,8 @@ func (ep *defaultSelectExecutionPlan) Process(input *core.Tuple) ([]data.Map, er
 	return ep.process(input, ep.performQueryOnBuffer)
 }
 
-// performQueryOnBuffer executes a SELECT query on the data of the tuples
-// currently stored in the buffer. The query results (which is a set of
+// performQueryOnBuffer computes the projections of a SELECT query on the data
+// stored in `ep.filteredInputRows`. The query results (which is a set of
 // data.Value, not core.Tuple) is stored in ep.curResults. The data
 // that was stored in ep.curResults before this method was called is
 // moved to ep.prevResults. Note that the order of values in ep.curResults
@@ -54,9 +55,6 @@ func (ep *defaultSelectExecutionPlan) Process(input *core.Tuple) ([]data.Map, er
 // the same as before the call (so that the next run performs as
 // if no error had happened), but the contents of ep.curResults are
 // undefined.
-//
-// Currently performQueryOnBuffer can only perform SELECT ... WHERE ...
-// queries without aggregate functions, GROUP BY, or HAVING clauses.
 func (ep *defaultSelectExecutionPlan) performQueryOnBuffer() error {
 	// reuse the allocated memory
 	output := ep.prevResults[0:0]
@@ -77,60 +75,46 @@ func (ep *defaultSelectExecutionPlan) performQueryOnBuffer() error {
 		ep.prevResults = output
 	}
 
-	// we need to make a cross product of the data in all buffers,
-	// combine it to get an input like
-	//  {"streamA": {data}, "streamB": {data}, "streamC": {data}}
-	// and then run filter/projections on each of this items
-
-	dataHolder := data.Map{}
-
-	// function to evaluate filter on the input data and -- if the filter does
-	// not exist or evaluates to true -- compute the projections and store
+	// function to compute the projection values and store
 	// the result in the `output` slice
-	evalItem := func(d data.Map) error {
-		// evaluate filter condition and convert to bool
-		if ep.filter != nil {
-			filterResult, err := ep.filter.Eval(d)
+	evalItem := func(io *inputRowWithCachedResult) error {
+		// if we have a cached result, use this
+		if io.cache != nil {
+			cachedResults, err := data.AsMap(io.cache)
 			if err != nil {
-				return err
+				return fmt.Errorf("cached data was not a map: %v", io.cache)
 			}
-			filterResultBool, err := data.ToBool(filterResult)
-			if err != nil {
-				return err
-			}
-			// if it evaluated to false, do not further process this tuple
-			// (ToBool also evalutes the NULL value to false, so we don't
-			// need to treat this specially)
-			if !filterResultBool {
-				return nil
-			}
+			output = append(output, resultRow{row: cachedResults, hash: io.hash})
+			return nil
 		}
 		// otherwise, compute all the expressions
+		d := *io.input
 		result := data.Map(make(map[string]data.Value, len(ep.projections)))
 		for _, proj := range ep.projections {
 			value, err := proj.evaluator.Eval(d)
 			if err != nil {
 				return err
 			}
-			if err := assignOutputValue(result, proj.alias, value); err != nil {
+			if err := assignOutputValue(result, proj.alias, proj.aliasPath, value); err != nil {
 				return err
 			}
 		}
-		output = append(output, result)
+		// update the fields of the input data for the next iteration
+		io.cache = result
+		io.hash = data.Hash(io.cache)
+		// since we have no grouping etc., "output data" = "cached data"
+		// and "hash of output data" = "hash of cached data"
+		output = append(output, resultRow{row: result, hash: io.hash})
 		return nil
 	}
 
-	// Note: `ep.buffers` is a map, so iterating over its keys may yield
-	// different results in every run of the program. We cannot expect
-	// a consistent order in which evalItem is run on the items of the
-	// cartesian product.
-	allStreams := make([]string, 0, len(ep.buffers))
-	for key := range ep.buffers {
-		allStreams = append(allStreams, key)
-	}
-	if err := ep.processCartesianProduct(dataHolder, allStreams, evalItem); err != nil {
-		rollback()
-		return err
+	// compute the output for each item in ep.filteredInputRows
+	for e := ep.filteredInputRows.Front(); e != nil; e = e.Next() {
+		item := e.Value.(*inputRowWithCachedResult)
+		if err := evalItem(item); err != nil {
+			rollback()
+			return err
+		}
 	}
 
 	ep.curResults = output

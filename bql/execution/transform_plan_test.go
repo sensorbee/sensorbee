@@ -61,13 +61,13 @@ func TestRelationChecker(t *testing.T) {
 	c := parser.RowValue{"", "c"}
 	wc := parser.Wildcard{}
 	ts := parser.RowMeta{"", parser.TimestampMeta}
-	t_a := parser.RowValue{"t", "a"}
-	t_b := parser.RowValue{"t", "b"}
-	t_c := parser.RowValue{"t", "c"}
-	t_wc := parser.Wildcard{"t"}
-	t_ts := parser.RowMeta{"t", parser.TimestampMeta}
-	x_a := parser.RowValue{"x", "a"}
-	x_b := parser.RowValue{"x", "b"}
+	tA := parser.RowValue{"t", "a"}
+	tB := parser.RowValue{"t", "b"}
+	tC := parser.RowValue{"t", "c"}
+	tWc := parser.Wildcard{"t"}
+	tTs := parser.RowMeta{"t", parser.TimestampMeta}
+	xA := parser.RowValue{"x", "a"}
+	xB := parser.RowValue{"x", "b"}
 
 	testCases := []analyzeTest{
 		// SELECT a   -> NG
@@ -88,15 +88,15 @@ func TestRelationChecker(t *testing.T) {
 		}, "need at least one relation to select from"},
 		// SELECT t:a -> NG
 		{&parser.SelectStmt{
-			ProjectionsAST: parser.ProjectionsAST{[]parser.Expression{t_a}},
+			ProjectionsAST: parser.ProjectionsAST{[]parser.Expression{tA}},
 		}, "need at least one relation to select from"},
 		// SELECT t:ts() -> NG
 		{&parser.SelectStmt{
-			ProjectionsAST: parser.ProjectionsAST{[]parser.Expression{t_ts}},
+			ProjectionsAST: parser.ProjectionsAST{[]parser.Expression{tTs}},
 		}, "need at least one relation to select from"},
 		// SELECT t:*   -> NG
 		{&parser.SelectStmt{
-			ProjectionsAST: parser.ProjectionsAST{[]parser.Expression{t_wc}},
+			ProjectionsAST: parser.ProjectionsAST{[]parser.Expression{tWc}},
 		}, "need at least one relation to select from"},
 
 		////////// FROM (single input relation) //////////////
@@ -133,57 +133,57 @@ func TestRelationChecker(t *testing.T) {
 		}, ""},
 		// SELECT t:a      FROM t -> OK
 		{&parser.SelectStmt{
-			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{t_a}},
+			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{tA}},
 			WindowedFromAST: singleFrom,
 		}, ""},
 		// SELECT t:a, t:b FROM t -> OK
 		{&parser.SelectStmt{
-			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{t_a, t_b}},
+			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{tA, tB}},
 			WindowedFromAST: singleFrom,
 		}, ""},
 		// SELECT t:a, t:* FROM t -> OK
 		{&parser.SelectStmt{
-			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{t_a, t_wc}},
+			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{tA, tWc}},
 			WindowedFromAST: singleFrom,
 		}, ""},
 		// SELECT t:a, t:ts() FROM t -> OK
 		{&parser.SelectStmt{
-			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{t_a, t_ts}},
+			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{tA, tTs}},
 			WindowedFromAST: singleFrom,
 		}, ""},
 		// SELECT 2, t:a   FROM t -> OK
 		{&parser.SelectStmt{
-			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{two, t_a}},
+			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{two, tA}},
 			WindowedFromAST: singleFrom,
 		}, ""},
 		// SELECT t:*      FROM t -> OK
 		{&parser.SelectStmt{
-			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{t_wc}},
+			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{tWc}},
 			WindowedFromAST: singleFrom,
 		}, ""},
 		// SELECT a, t:b   FROM t -> NG
 		{&parser.SelectStmt{
-			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{a, t_a}},
+			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{a, tA}},
 			WindowedFromAST: singleFrom,
 		}, "cannot refer to relations"},
 		// SELECT a, t:*   FROM t -> NG
 		{&parser.SelectStmt{
-			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{a, t_wc}},
+			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{a, tWc}},
 			WindowedFromAST: singleFrom,
 		}, "cannot refer to relations"},
 		// SELECT t:a, *   FROM t -> OK (this is special about the wildcard!!)
 		{&parser.SelectStmt{
-			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{t_a, wc}},
+			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{tA, wc}},
 			WindowedFromAST: singleFrom,
 		}, ""},
 		// SELECT a, t:ts() FROM t -> NG
 		{&parser.SelectStmt{
-			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{a, t_ts}},
+			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{a, tTs}},
 			WindowedFromAST: singleFrom,
 		}, "cannot refer to relations"},
 		// SELECT x:a      FROM t -> NG
 		{&parser.SelectStmt{
-			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{x_a}},
+			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{xA}},
 			WindowedFromAST: singleFrom,
 		}, "cannot refer to relation 'x' when using only 't'"},
 
@@ -203,7 +203,7 @@ func TestRelationChecker(t *testing.T) {
 		}, ""},
 		// SELECT t:a FROM t WHERE 2   -> OK
 		{&parser.SelectStmt{
-			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{t_a}},
+			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{tA}},
 			WindowedFromAST: singleFrom,
 			FilterAST:       parser.FilterAST{two},
 		}, ""},
@@ -227,13 +227,13 @@ func TestRelationChecker(t *testing.T) {
 		}, ""},
 		// SELECT t:a FROM t WHERE b   -> NG
 		{&parser.SelectStmt{
-			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{t_wc}},
+			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{tWc}},
 			WindowedFromAST: singleFrom,
 			FilterAST:       parser.FilterAST{b},
 		}, "cannot refer to relations"},
 		// SELECT t:* FROM t WHERE b   -> NG
 		{&parser.SelectStmt{
-			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{t_a}},
+			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{tA}},
 			WindowedFromAST: singleFrom,
 			FilterAST:       parser.FilterAST{b},
 		}, "cannot refer to relations"},
@@ -241,31 +241,31 @@ func TestRelationChecker(t *testing.T) {
 		{&parser.SelectStmt{
 			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{a}},
 			WindowedFromAST: singleFrom,
-			FilterAST:       parser.FilterAST{t_b},
+			FilterAST:       parser.FilterAST{tB},
 		}, "cannot refer to relations"},
 		// SELECT *   FROM t WHERE t:b -> OK (this is special about wildcard!)
 		{&parser.SelectStmt{
 			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{wc}},
 			WindowedFromAST: singleFrom,
-			FilterAST:       parser.FilterAST{t_b},
+			FilterAST:       parser.FilterAST{tB},
 		}, ""},
 		// SELECT 2   FROM t WHERE t:b -> OK
 		{&parser.SelectStmt{
 			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{two}},
 			WindowedFromAST: singleFrom,
-			FilterAST:       parser.FilterAST{t_b},
+			FilterAST:       parser.FilterAST{tB},
 		}, ""},
 		// SELECT t:a FROM t WHERE t:b -> OK
 		{&parser.SelectStmt{
-			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{t_a}},
+			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{tA}},
 			WindowedFromAST: singleFrom,
-			FilterAST:       parser.FilterAST{t_b},
+			FilterAST:       parser.FilterAST{tB},
 		}, ""},
 		// SELECT 2   FROM t WHERE x:b -> NG
 		{&parser.SelectStmt{
 			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{two}},
 			WindowedFromAST: singleFrom,
-			FilterAST:       parser.FilterAST{x_b},
+			FilterAST:       parser.FilterAST{xB},
 		}, "cannot refer to relation 'x' when using only 't'"},
 
 		////////// GROUP BY //////////////
@@ -284,7 +284,7 @@ func TestRelationChecker(t *testing.T) {
 		}, ""},
 		// SELECT t:a FROM t GROUP BY 2        -> OK
 		{&parser.SelectStmt{
-			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{t_a}},
+			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{tA}},
 			WindowedFromAST: singleFrom,
 			GroupingAST:     parser.GroupingAST{[]parser.Expression{two}},
 		}, ""},
@@ -308,7 +308,7 @@ func TestRelationChecker(t *testing.T) {
 		}, ""},
 		// SELECT t:a FROM t GROUP BY b        -> NG
 		{&parser.SelectStmt{
-			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{t_a}},
+			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{tA}},
 			WindowedFromAST: singleFrom,
 			GroupingAST:     parser.GroupingAST{[]parser.Expression{b}},
 		}, "cannot refer to relations"},
@@ -316,37 +316,37 @@ func TestRelationChecker(t *testing.T) {
 		{&parser.SelectStmt{
 			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{a}},
 			WindowedFromAST: singleFrom,
-			GroupingAST:     parser.GroupingAST{[]parser.Expression{t_b}},
+			GroupingAST:     parser.GroupingAST{[]parser.Expression{tB}},
 		}, "cannot refer to relations"},
 		// SELECT 2   FROM t GROUP BY t:b      -> OK
 		{&parser.SelectStmt{
 			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{two}},
 			WindowedFromAST: singleFrom,
-			GroupingAST:     parser.GroupingAST{[]parser.Expression{t_b}},
+			GroupingAST:     parser.GroupingAST{[]parser.Expression{tB}},
 		}, ""},
 		// SELECT t:a FROM t GROUP BY t:b      -> OK
 		{&parser.SelectStmt{
-			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{t_a}},
+			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{tA}},
 			WindowedFromAST: singleFrom,
-			GroupingAST:     parser.GroupingAST{[]parser.Expression{t_b}},
+			GroupingAST:     parser.GroupingAST{[]parser.Expression{tB}},
 		}, ""},
 		// SELECT t:a FROM t GROUP BY t:b, t:c -> OK
 		{&parser.SelectStmt{
-			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{t_a}},
+			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{tA}},
 			WindowedFromAST: singleFrom,
-			GroupingAST:     parser.GroupingAST{[]parser.Expression{t_b, t_c}},
+			GroupingAST:     parser.GroupingAST{[]parser.Expression{tB, tC}},
 		}, ""},
 		// SELECT t:a FROM t GROUP BY b, t:b   -> NG (same table with multiple aliases)
 		{&parser.SelectStmt{
-			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{t_a}},
+			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{tA}},
 			WindowedFromAST: singleFrom,
-			GroupingAST:     parser.GroupingAST{[]parser.Expression{b, t_b}},
+			GroupingAST:     parser.GroupingAST{[]parser.Expression{b, tB}},
 		}, "cannot refer to relations"},
 		// SELECT 2   FROM t GROUP BY x:b      -> NG
 		{&parser.SelectStmt{
 			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{two}},
 			WindowedFromAST: singleFrom,
-			GroupingAST:     parser.GroupingAST{[]parser.Expression{x_b}},
+			GroupingAST:     parser.GroupingAST{[]parser.Expression{xB}},
 		}, "cannot refer to relation 'x' when using only 't'"},
 
 		////////// HAVING //////////////
@@ -365,7 +365,7 @@ func TestRelationChecker(t *testing.T) {
 		}, ""},
 		// SELECT t:a FROM t HAVING 2   -> OK
 		{&parser.SelectStmt{
-			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{t_a}},
+			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{tA}},
 			WindowedFromAST: singleFrom,
 			HavingAST:       parser.HavingAST{two},
 		}, ""},
@@ -383,28 +383,28 @@ func TestRelationChecker(t *testing.T) {
 		}, ""},
 		// SELECT t:a FROM t HAVING b   -> OK
 		{&parser.SelectStmt{
-			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{t_a}},
+			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{tA}},
 			WindowedFromAST: singleFrom,
 			HavingAST:       parser.HavingAST{b},
 		}, "cannot refer to relations"},
 		// SELECT t:a FROM t HAVING t:b   -> OK
 		{&parser.SelectStmt{
-			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{t_a}},
+			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{tA}},
 			WindowedFromAST: singleFrom,
-			HavingAST:       parser.HavingAST{t_b},
+			HavingAST:       parser.HavingAST{tB},
 		}, ""},
 		// SELECT a   FROM t HAVING t:b -> NG
 		{&parser.SelectStmt{
 			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{a}},
 			WindowedFromAST: singleFrom,
-			HavingAST:       parser.HavingAST{t_b},
+			HavingAST:       parser.HavingAST{tB},
 		}, "cannot refer to relations"},
 	}
 
 	emitterTestCases := []analyzeTest{
 		// SELECT ISTREAM                                      a FROM t -> OK
 		{&parser.SelectStmt{
-			EmitterAST:      parser.EmitterAST{parser.Istream},
+			EmitterAST:      parser.EmitterAST{parser.Istream, nil},
 			ProjectionsAST:  parser.ProjectionsAST{[]parser.Expression{a}},
 			WindowedFromAST: singleFrom,
 		}, ""},
@@ -417,7 +417,7 @@ func TestRelationChecker(t *testing.T) {
 		selectAst := testCase.input
 
 		Convey(fmt.Sprintf("Given the AST %+v", selectAst), t, func() {
-			emitter := parser.EmitterAST{parser.Istream}
+			emitter := parser.EmitterAST{parser.Istream, nil}
 			if selectAst.EmitterType != parser.UnspecifiedEmitter {
 				emitter = selectAst.EmitterAST
 			}
@@ -466,7 +466,7 @@ func TestRelationChecker(t *testing.T) {
 				myFrom = selectAst.WindowedFromAST
 			}
 			ast := parser.SelectStmt{
-				EmitterAST:      parser.EmitterAST{parser.Istream},
+				EmitterAST:      parser.EmitterAST{parser.Istream, nil},
 				ProjectionsAST:  selectAst.ProjectionsAST,
 				WindowedFromAST: myFrom,
 				FilterAST:       selectAst.FilterAST,
@@ -565,7 +565,7 @@ func TestRelationAliasing(t *testing.T) {
 
 		Convey(fmt.Sprintf("Given the AST %+v", selectAst), t, func() {
 			ast := parser.SelectStmt{
-				EmitterAST:      parser.EmitterAST{parser.Istream},
+				EmitterAST:      parser.EmitterAST{parser.Istream, nil},
 				ProjectionsAST:  selectAst.ProjectionsAST,
 				WindowedFromAST: selectAst.WindowedFromAST,
 			}
@@ -609,115 +609,123 @@ func TestAggregateChecker(t *testing.T) {
 		// a is no aggregate call, so the `aggrs` list is empty
 		// and the selected expression is transformed normally
 		{"a FROM x [RANGE 1 TUPLES]", "",
-			RowValue{"x", "a"},
+			rowValue{"x", "a"},
 			nil},
 
 		// f(a) is no aggregate call, so the `aggrs` list is empty
 		// and the selected expression is transformed normally
 		{"f(a) FROM x [RANGE 1 TUPLES]", "",
-			FuncAppAST{"f", []FlatExpression{RowValue{"x", "a"}}},
+			funcAppAST{"f", []FlatExpression{rowValue{"x", "a"}}},
 			nil},
 
 		// f(*) is not a valid call, so this should fail
-		{"f(*) FROM x [RANGE 1 TUPLES]", "* can only be used as a parameter in count()",
-			nil,
+		{"f(*) FROM x [RANGE 1 TUPLES]", "",
+			funcAppAST{"f", []FlatExpression{wildcardAST{}}},
 			nil},
 
 		// there is an aggregate call `count(a)`, so it is referenced from
 		// the expression list and appears in the `aggrs` list
 		{"count(a) FROM x [RANGE 1 TUPLES]", "",
-			FuncAppAST{"count", []FlatExpression{AggInputRef{"_f12cd6bc"}}},
+			funcAppAST{"count", []FlatExpression{aggInputRef{"g_f12cd6bc"}}},
 			map[string]FlatExpression{
-				"_f12cd6bc": RowValue{"x", "a"},
+				"g_f12cd6bc": rowValue{"x", "a"},
 			}},
 
 		// there is an aggregate call `count(*)`, so it is referenced from
 		// the expression list and a constant appears in the `aggrs` list
 		{"count(*) FROM x [RANGE 1 TUPLES]", "",
-			FuncAppAST{"count", []FlatExpression{AggInputRef{"_356a192b"}}},
+			funcAppAST{"count", []FlatExpression{aggInputRef{"g_356a192b"}}},
 			map[string]FlatExpression{
-				"_356a192b": NumericLiteral{1},
+				"g_356a192b": numericLiteral{1},
+			}},
+
+		// there is an aggregate call `udaf(*, 1)`, so it is referenced from
+		// the expression list and a constant appears in the `aggrs` list
+		{"udaf(*, 1) FROM x [RANGE 1 TUPLES]", "",
+			funcAppAST{"udaf", []FlatExpression{aggInputRef{"g_df58248c"}, numericLiteral{1}}},
+			map[string]FlatExpression{
+				"g_df58248c": wildcardAST{},
 			}},
 
 		// there is an aggregate call `count(a)`, so it is referenced from
 		// the expression list and appears in the `aggrs` list
 		{"a + count(a) FROM x [RANGE 1 TUPLES] GROUP BY a", "",
-			BinaryOpAST{parser.Plus,
-				RowValue{"x", "a"}, FuncAppAST{"count", []FlatExpression{AggInputRef{"_f12cd6bc"}}}},
+			binaryOpAST{parser.Plus,
+				rowValue{"x", "a"}, funcAppAST{"count", []FlatExpression{aggInputRef{"g_f12cd6bc"}}}},
 			map[string]FlatExpression{
-				"_f12cd6bc": RowValue{"x", "a"},
+				"g_f12cd6bc": rowValue{"x", "a"},
 			}},
 
 		// there is an aggregate call `udaf(a+1)`, so it is referenced from
 		// the expression list and appears in the `aggrs` list
 		{"a + udaf(a + 1) FROM x [RANGE 1 TUPLES] GROUP BY a", "",
-			BinaryOpAST{parser.Plus,
-				RowValue{"x", "a"},
-				FuncAppAST{"udaf", []FlatExpression{AggInputRef{"_2d5e5764"}}}},
+			binaryOpAST{parser.Plus,
+				rowValue{"x", "a"},
+				funcAppAST{"udaf", []FlatExpression{aggInputRef{"g_2d5e5764"}}}},
 			map[string]FlatExpression{
-				"_2d5e5764": BinaryOpAST{parser.Plus, RowValue{"x", "a"}, NumericLiteral{1}},
+				"g_2d5e5764": binaryOpAST{parser.Plus, rowValue{"x", "a"}, numericLiteral{1}},
 			}},
 
 		// there are two aggregate calls, so both are referenced from the
 		// expression list and there are two entries in the `aggrs` list
 		{"udaf(a + 1) + g(count(a)) FROM x [RANGE 1 TUPLES]", "",
-			BinaryOpAST{parser.Plus,
-				FuncAppAST{"udaf", []FlatExpression{AggInputRef{"_2d5e5764"}}},
-				FuncAppAST{"g", []FlatExpression{
-					FuncAppAST{"count", []FlatExpression{AggInputRef{"_f12cd6bc"}}},
+			binaryOpAST{parser.Plus,
+				funcAppAST{"udaf", []FlatExpression{aggInputRef{"g_2d5e5764"}}},
+				funcAppAST{"g", []FlatExpression{
+					funcAppAST{"count", []FlatExpression{aggInputRef{"g_f12cd6bc"}}},
 				}},
 			},
 			map[string]FlatExpression{
-				"_2d5e5764": BinaryOpAST{parser.Plus,
-					RowValue{"x", "a"},
-					NumericLiteral{1},
+				"g_2d5e5764": binaryOpAST{parser.Plus,
+					rowValue{"x", "a"},
+					numericLiteral{1},
 				},
-				"_f12cd6bc": RowValue{"x", "a"},
+				"g_f12cd6bc": rowValue{"x", "a"},
 			}},
 
 		{"[udaf(a + 1), 3, g(count(a))] FROM x [RANGE 1 TUPLES]", "",
-			ArrayAST{[]FlatExpression{
-				FuncAppAST{"udaf", []FlatExpression{AggInputRef{"_2d5e5764"}}},
-				NumericLiteral{3},
-				FuncAppAST{"g", []FlatExpression{
-					FuncAppAST{"count", []FlatExpression{AggInputRef{"_f12cd6bc"}}},
+			arrayAST{[]FlatExpression{
+				funcAppAST{"udaf", []FlatExpression{aggInputRef{"g_2d5e5764"}}},
+				numericLiteral{3},
+				funcAppAST{"g", []FlatExpression{
+					funcAppAST{"count", []FlatExpression{aggInputRef{"g_f12cd6bc"}}},
 				}},
 			}},
 			map[string]FlatExpression{
-				"_2d5e5764": BinaryOpAST{parser.Plus,
-					RowValue{"x", "a"},
-					NumericLiteral{1},
+				"g_2d5e5764": binaryOpAST{parser.Plus,
+					rowValue{"x", "a"},
+					numericLiteral{1},
 				},
-				"_f12cd6bc": RowValue{"x", "a"},
+				"g_f12cd6bc": rowValue{"x", "a"},
 			}},
 
 		{"{'udaf': udaf(a + 1), '3': 3, 'g': g(count(a))} FROM x [RANGE 1 TUPLES]", "",
-			MapAST{[]KeyValuePair{
-				{"udaf", FuncAppAST{"udaf", []FlatExpression{AggInputRef{"_2d5e5764"}}}},
-				{"3", NumericLiteral{3}},
-				{"g", FuncAppAST{"g", []FlatExpression{
-					FuncAppAST{"count", []FlatExpression{AggInputRef{"_f12cd6bc"}}},
+			mapAST{[]keyValuePair{
+				{"udaf", funcAppAST{"udaf", []FlatExpression{aggInputRef{"g_2d5e5764"}}}},
+				{"3", numericLiteral{3}},
+				{"g", funcAppAST{"g", []FlatExpression{
+					funcAppAST{"count", []FlatExpression{aggInputRef{"g_f12cd6bc"}}},
 				}}},
 			}},
 			map[string]FlatExpression{
-				"_2d5e5764": BinaryOpAST{parser.Plus,
-					RowValue{"x", "a"},
-					NumericLiteral{1},
+				"g_2d5e5764": binaryOpAST{parser.Plus,
+					rowValue{"x", "a"},
+					numericLiteral{1},
 				},
-				"_f12cd6bc": RowValue{"x", "a"},
+				"g_f12cd6bc": rowValue{"x", "a"},
 			}},
 
 		// there are two aggregate calls, but they use the same value,
 		// so the `aggrs` list contains only one entry
 		{"count(a) + g(count(a)) FROM x [RANGE 1 TUPLES]", "",
-			BinaryOpAST{parser.Plus,
-				FuncAppAST{"count", []FlatExpression{AggInputRef{"_f12cd6bc"}}},
-				FuncAppAST{"g", []FlatExpression{
-					FuncAppAST{"count", []FlatExpression{AggInputRef{"_f12cd6bc"}}},
+			binaryOpAST{parser.Plus,
+				funcAppAST{"count", []FlatExpression{aggInputRef{"g_f12cd6bc"}}},
+				funcAppAST{"g", []FlatExpression{
+					funcAppAST{"count", []FlatExpression{aggInputRef{"g_f12cd6bc"}}},
 				}},
 			},
 			map[string]FlatExpression{
-				"_f12cd6bc": RowValue{"x", "a"},
+				"g_f12cd6bc": rowValue{"x", "a"},
 			}},
 
 		{"count(udaf(a)) FROM x [RANGE 1 TUPLES]",
@@ -734,31 +742,31 @@ func TestAggregateChecker(t *testing.T) {
 
 		// various grouping checks
 		{"a FROM x [RANGE 1 TUPLES] GROUP BY a", "",
-			RowValue{"x", "a"},
+			rowValue{"x", "a"},
 			nil},
 
 		{"count(a) FROM x [RANGE 1 TUPLES] GROUP BY a", "",
-			FuncAppAST{"count", []FlatExpression{AggInputRef{"_f12cd6bc"}}},
+			funcAppAST{"count", []FlatExpression{aggInputRef{"g_f12cd6bc"}}},
 			map[string]FlatExpression{
-				"_f12cd6bc": RowValue{"x", "a"},
+				"g_f12cd6bc": rowValue{"x", "a"},
 			}},
 
 		{"count(b) FROM x [RANGE 1 TUPLES] GROUP BY a", "",
-			FuncAppAST{"count", []FlatExpression{AggInputRef{"_77d2dd39"}}},
+			funcAppAST{"count", []FlatExpression{aggInputRef{"g_77d2dd39"}}},
 			map[string]FlatExpression{
-				"_77d2dd39": RowValue{"x", "b"},
+				"g_77d2dd39": rowValue{"x", "b"},
 			}},
 
 		{"count(b), a FROM x [RANGE 1 TUPLES] GROUP BY a", "",
-			FuncAppAST{"count", []FlatExpression{AggInputRef{"_77d2dd39"}}}, // just the first one
+			funcAppAST{"count", []FlatExpression{aggInputRef{"g_77d2dd39"}}}, // just the first one
 			map[string]FlatExpression{
-				"_77d2dd39": RowValue{"x", "b"},
+				"g_77d2dd39": rowValue{"x", "b"},
 			}},
 
 		{"count(b), a, c FROM x [RANGE 1 TUPLES] GROUP BY a, c", "",
-			FuncAppAST{"count", []FlatExpression{AggInputRef{"_77d2dd39"}}}, // just the first one
+			funcAppAST{"count", []FlatExpression{aggInputRef{"g_77d2dd39"}}}, // just the first one
 			map[string]FlatExpression{
-				"_77d2dd39": RowValue{"x", "b"},
+				"g_77d2dd39": rowValue{"x", "b"},
 			}},
 
 		{"udaf(x, a) FROM x [RANGE 1 TUPLES] GROUP BY b",
@@ -781,12 +789,12 @@ func TestAggregateChecker(t *testing.T) {
 		testCase := testCase
 
 		Convey(fmt.Sprintf("Given the statement", testCase.bql), t, func() {
-			p := parser.NewBQLParser()
+			p := parser.New()
 			stmt := "CREATE STREAM x AS SELECT ISTREAM " + testCase.bql
-			ast_, _, err := p.ParseStmt(stmt)
+			astUnchecked, _, err := p.ParseStmt(stmt)
 			So(err, ShouldBeNil)
-			So(ast_, ShouldHaveSameTypeAs, parser.CreateStreamAsSelectStmt{})
-			ast := ast_.(parser.CreateStreamAsSelectStmt).Select
+			So(astUnchecked, ShouldHaveSameTypeAs, parser.CreateStreamAsSelectStmt{})
+			ast := astUnchecked.(parser.CreateStreamAsSelectStmt).Select
 
 			Convey("When we analyze it", func() {
 				logPlan, err := Analyze(ast, reg)
@@ -834,67 +842,67 @@ func TestVolatileAggregateChecker(t *testing.T) {
 		// expression use the same reference string
 		{"count(a) + udaf(a) FROM x [RANGE 1 TUPLES] GROUP BY a", "",
 			[]FlatExpression{
-				BinaryOpAST{parser.Plus,
-					FuncAppAST{"count", []FlatExpression{AggInputRef{"_f12cd6bc"}}},
-					FuncAppAST{"udaf", []FlatExpression{AggInputRef{"_f12cd6bc"}}}},
+				binaryOpAST{parser.Plus,
+					funcAppAST{"count", []FlatExpression{aggInputRef{"g_f12cd6bc"}}},
+					funcAppAST{"udaf", []FlatExpression{aggInputRef{"g_f12cd6bc"}}}},
 			},
 			[]map[string]FlatExpression{{
-				"_f12cd6bc": RowValue{"x", "a"},
+				"g_f12cd6bc": rowValue{"x", "a"},
 			}}},
 
 		// one immutable and one volatile parameter
 		{"count(a) + udaf(f(a)) FROM x [RANGE 1 TUPLES] GROUP BY a", "",
 			[]FlatExpression{
-				BinaryOpAST{parser.Plus,
-					FuncAppAST{"count", []FlatExpression{AggInputRef{"_f12cd6bc"}}},
-					FuncAppAST{"udaf", []FlatExpression{AggInputRef{"_2523c3a2_1"}}}},
+				binaryOpAST{parser.Plus,
+					funcAppAST{"count", []FlatExpression{aggInputRef{"g_f12cd6bc"}}},
+					funcAppAST{"udaf", []FlatExpression{aggInputRef{"g_2523c3a2_1"}}}},
 			},
 			[]map[string]FlatExpression{{
-				"_f12cd6bc":   RowValue{"x", "a"},
-				"_2523c3a2_1": FuncAppAST{"f", []FlatExpression{RowValue{"x", "a"}}},
+				"g_f12cd6bc":   rowValue{"x", "a"},
+				"g_2523c3a2_1": funcAppAST{"f", []FlatExpression{rowValue{"x", "a"}}},
 			}}},
 
 		// one volatile and one immutable parameter (order reversed)
 		{"udaf(f(a)) + count(a) FROM x [RANGE 1 TUPLES] GROUP BY a", "",
 			[]FlatExpression{
-				BinaryOpAST{parser.Plus,
-					FuncAppAST{"udaf", []FlatExpression{AggInputRef{"_2523c3a2_0"}}},
-					FuncAppAST{"count", []FlatExpression{AggInputRef{"_f12cd6bc"}}}},
+				binaryOpAST{parser.Plus,
+					funcAppAST{"udaf", []FlatExpression{aggInputRef{"g_2523c3a2_0"}}},
+					funcAppAST{"count", []FlatExpression{aggInputRef{"g_f12cd6bc"}}}},
 			},
 			[]map[string]FlatExpression{{
-				"_2523c3a2_0": FuncAppAST{"f", []FlatExpression{RowValue{"x", "a"}}},
-				"_f12cd6bc":   RowValue{"x", "a"},
+				"g_2523c3a2_0": funcAppAST{"f", []FlatExpression{rowValue{"x", "a"}}},
+				"g_f12cd6bc":   rowValue{"x", "a"},
 			}}},
 
 		// two UDAFs referencing the same volatile expression
 		// use different reference strings
 		{"count(f(a)) + udaf(f(a)) FROM x [RANGE 1 TUPLES] GROUP BY a", "",
 			[]FlatExpression{
-				BinaryOpAST{parser.Plus,
-					FuncAppAST{"count", []FlatExpression{AggInputRef{"_2523c3a2_0"}}},
-					FuncAppAST{"udaf", []FlatExpression{AggInputRef{"_2523c3a2_1"}}}},
+				binaryOpAST{parser.Plus,
+					funcAppAST{"count", []FlatExpression{aggInputRef{"g_2523c3a2_0"}}},
+					funcAppAST{"udaf", []FlatExpression{aggInputRef{"g_2523c3a2_1"}}}},
 			},
 			[]map[string]FlatExpression{{
-				"_2523c3a2_0": FuncAppAST{"f", []FlatExpression{RowValue{"x", "a"}}},
-				"_2523c3a2_1": FuncAppAST{"f", []FlatExpression{RowValue{"x", "a"}}},
+				"g_2523c3a2_0": funcAppAST{"f", []FlatExpression{rowValue{"x", "a"}}},
+				"g_2523c3a2_1": funcAppAST{"f", []FlatExpression{rowValue{"x", "a"}}},
 			}}},
 
 		// three UDAFs referencing the same volatile expression
 		// from different columns all use different reference strings
 		{"count(f(a)) + udaf(f(a)), udaf(f(a)) FROM x [RANGE 1 TUPLES] GROUP BY a", "",
 			[]FlatExpression{
-				BinaryOpAST{parser.Plus,
-					FuncAppAST{"count", []FlatExpression{AggInputRef{"_2523c3a2_0"}}},
-					FuncAppAST{"udaf", []FlatExpression{AggInputRef{"_2523c3a2_1"}}}},
-				FuncAppAST{"udaf", []FlatExpression{AggInputRef{"_2523c3a2_2"}}},
+				binaryOpAST{parser.Plus,
+					funcAppAST{"count", []FlatExpression{aggInputRef{"g_2523c3a2_0"}}},
+					funcAppAST{"udaf", []FlatExpression{aggInputRef{"g_2523c3a2_1"}}}},
+				funcAppAST{"udaf", []FlatExpression{aggInputRef{"g_2523c3a2_2"}}},
 			},
 			[]map[string]FlatExpression{
 				{
-					"_2523c3a2_0": FuncAppAST{"f", []FlatExpression{RowValue{"x", "a"}}},
-					"_2523c3a2_1": FuncAppAST{"f", []FlatExpression{RowValue{"x", "a"}}},
+					"g_2523c3a2_0": funcAppAST{"f", []FlatExpression{rowValue{"x", "a"}}},
+					"g_2523c3a2_1": funcAppAST{"f", []FlatExpression{rowValue{"x", "a"}}},
 				},
 				{
-					"_2523c3a2_2": FuncAppAST{"f", []FlatExpression{RowValue{"x", "a"}}},
+					"g_2523c3a2_2": funcAppAST{"f", []FlatExpression{rowValue{"x", "a"}}},
 				}}},
 
 		// three UDAFs referencing the same volatile expression
@@ -902,78 +910,78 @@ func TestVolatileAggregateChecker(t *testing.T) {
 		// all use different reference strings
 		{"udaf(f(a), a, f(a)), count(f(a)) + udaf(f(a)) FROM x [RANGE 1 TUPLES] GROUP BY a", "",
 			[]FlatExpression{
-				FuncAppAST{"udaf", []FlatExpression{AggInputRef{"_2523c3a2_0"},
-					RowValue{"x", "a"}, AggInputRef{"_2523c3a2_1"}}},
-				BinaryOpAST{parser.Plus,
-					FuncAppAST{"count", []FlatExpression{AggInputRef{"_2523c3a2_2"}}},
-					FuncAppAST{"udaf", []FlatExpression{AggInputRef{"_2523c3a2_3"}}}},
+				funcAppAST{"udaf", []FlatExpression{aggInputRef{"g_2523c3a2_0"},
+					rowValue{"x", "a"}, aggInputRef{"g_2523c3a2_1"}}},
+				binaryOpAST{parser.Plus,
+					funcAppAST{"count", []FlatExpression{aggInputRef{"g_2523c3a2_2"}}},
+					funcAppAST{"udaf", []FlatExpression{aggInputRef{"g_2523c3a2_3"}}}},
 			},
 			[]map[string]FlatExpression{
 				{
-					"_2523c3a2_0": FuncAppAST{"f", []FlatExpression{RowValue{"x", "a"}}},
-					"_2523c3a2_1": FuncAppAST{"f", []FlatExpression{RowValue{"x", "a"}}},
+					"g_2523c3a2_0": funcAppAST{"f", []FlatExpression{rowValue{"x", "a"}}},
+					"g_2523c3a2_1": funcAppAST{"f", []FlatExpression{rowValue{"x", "a"}}},
 				},
 				{
-					"_2523c3a2_2": FuncAppAST{"f", []FlatExpression{RowValue{"x", "a"}}},
-					"_2523c3a2_3": FuncAppAST{"f", []FlatExpression{RowValue{"x", "a"}}},
+					"g_2523c3a2_2": funcAppAST{"f", []FlatExpression{rowValue{"x", "a"}}},
+					"g_2523c3a2_3": funcAppAST{"f", []FlatExpression{rowValue{"x", "a"}}},
 				}}},
 
 		{"udaf(f(a), a, f(a)), [count(f(a)), udaf(f(a))] FROM x [RANGE 1 TUPLES] GROUP BY a", "",
 			[]FlatExpression{
-				FuncAppAST{"udaf", []FlatExpression{AggInputRef{"_2523c3a2_0"},
-					RowValue{"x", "a"}, AggInputRef{"_2523c3a2_1"}}},
-				ArrayAST{[]FlatExpression{
-					FuncAppAST{"count", []FlatExpression{AggInputRef{"_2523c3a2_2"}}},
-					FuncAppAST{"udaf", []FlatExpression{AggInputRef{"_2523c3a2_3"}}},
+				funcAppAST{"udaf", []FlatExpression{aggInputRef{"g_2523c3a2_0"},
+					rowValue{"x", "a"}, aggInputRef{"g_2523c3a2_1"}}},
+				arrayAST{[]FlatExpression{
+					funcAppAST{"count", []FlatExpression{aggInputRef{"g_2523c3a2_2"}}},
+					funcAppAST{"udaf", []FlatExpression{aggInputRef{"g_2523c3a2_3"}}},
 				}},
 			},
 			[]map[string]FlatExpression{
 				{
-					"_2523c3a2_0": FuncAppAST{"f", []FlatExpression{RowValue{"x", "a"}}},
-					"_2523c3a2_1": FuncAppAST{"f", []FlatExpression{RowValue{"x", "a"}}},
+					"g_2523c3a2_0": funcAppAST{"f", []FlatExpression{rowValue{"x", "a"}}},
+					"g_2523c3a2_1": funcAppAST{"f", []FlatExpression{rowValue{"x", "a"}}},
 				},
 				{
-					"_2523c3a2_2": FuncAppAST{"f", []FlatExpression{RowValue{"x", "a"}}},
-					"_2523c3a2_3": FuncAppAST{"f", []FlatExpression{RowValue{"x", "a"}}},
+					"g_2523c3a2_2": funcAppAST{"f", []FlatExpression{rowValue{"x", "a"}}},
+					"g_2523c3a2_3": funcAppAST{"f", []FlatExpression{rowValue{"x", "a"}}},
 				}}},
 
 		{"udaf(f(a), a, f(a)), {'c': count(f(a)), 'u': udaf(f(a))} FROM x [RANGE 1 TUPLES] GROUP BY a", "",
 			[]FlatExpression{
-				FuncAppAST{"udaf", []FlatExpression{AggInputRef{"_2523c3a2_0"},
-					RowValue{"x", "a"}, AggInputRef{"_2523c3a2_1"}}},
-				MapAST{[]KeyValuePair{
-					{"c", FuncAppAST{"count", []FlatExpression{AggInputRef{"_2523c3a2_2"}}}},
-					{"u", FuncAppAST{"udaf", []FlatExpression{AggInputRef{"_2523c3a2_3"}}}},
+				funcAppAST{"udaf", []FlatExpression{aggInputRef{"g_2523c3a2_0"},
+					rowValue{"x", "a"}, aggInputRef{"g_2523c3a2_1"}}},
+				mapAST{[]keyValuePair{
+					{"c", funcAppAST{"count", []FlatExpression{aggInputRef{"g_2523c3a2_2"}}}},
+					{"u", funcAppAST{"udaf", []FlatExpression{aggInputRef{"g_2523c3a2_3"}}}},
 				}},
 			},
 			[]map[string]FlatExpression{
 				{
-					"_2523c3a2_0": FuncAppAST{"f", []FlatExpression{RowValue{"x", "a"}}},
-					"_2523c3a2_1": FuncAppAST{"f", []FlatExpression{RowValue{"x", "a"}}},
+					"g_2523c3a2_0": funcAppAST{"f", []FlatExpression{rowValue{"x", "a"}}},
+					"g_2523c3a2_1": funcAppAST{"f", []FlatExpression{rowValue{"x", "a"}}},
 				},
 				{
-					"_2523c3a2_2": FuncAppAST{"f", []FlatExpression{RowValue{"x", "a"}}},
-					"_2523c3a2_3": FuncAppAST{"f", []FlatExpression{RowValue{"x", "a"}}},
+					"g_2523c3a2_2": funcAppAST{"f", []FlatExpression{rowValue{"x", "a"}}},
+					"g_2523c3a2_3": funcAppAST{"f", []FlatExpression{rowValue{"x", "a"}}},
 				}}},
 
 		// very weird mixed combination
 		{"udaf(f(a), a, f(a)), count(a), udaf(f(a)) FROM x [RANGE 1 TUPLES] GROUP BY a", "",
 			[]FlatExpression{
-				FuncAppAST{"udaf", []FlatExpression{AggInputRef{"_2523c3a2_0"},
-					RowValue{"x", "a"}, AggInputRef{"_2523c3a2_1"}}},
-				FuncAppAST{"count", []FlatExpression{AggInputRef{"_f12cd6bc"}}},
-				FuncAppAST{"udaf", []FlatExpression{AggInputRef{"_2523c3a2_3"}}},
+				funcAppAST{"udaf", []FlatExpression{aggInputRef{"g_2523c3a2_0"},
+					rowValue{"x", "a"}, aggInputRef{"g_2523c3a2_1"}}},
+				funcAppAST{"count", []FlatExpression{aggInputRef{"g_f12cd6bc"}}},
+				funcAppAST{"udaf", []FlatExpression{aggInputRef{"g_2523c3a2_3"}}},
 			},
 			[]map[string]FlatExpression{
 				{
-					"_2523c3a2_0": FuncAppAST{"f", []FlatExpression{RowValue{"x", "a"}}},
-					"_2523c3a2_1": FuncAppAST{"f", []FlatExpression{RowValue{"x", "a"}}},
+					"g_2523c3a2_0": funcAppAST{"f", []FlatExpression{rowValue{"x", "a"}}},
+					"g_2523c3a2_1": funcAppAST{"f", []FlatExpression{rowValue{"x", "a"}}},
 				},
 				{
-					"_f12cd6bc": RowValue{"x", "a"},
+					"g_f12cd6bc": rowValue{"x", "a"},
 				},
 				{
-					"_2523c3a2_3": FuncAppAST{"f", []FlatExpression{RowValue{"x", "a"}}},
+					"g_2523c3a2_3": funcAppAST{"f", []FlatExpression{rowValue{"x", "a"}}},
 				}}},
 	}
 
@@ -981,12 +989,12 @@ func TestVolatileAggregateChecker(t *testing.T) {
 		testCase := testCase
 
 		Convey(fmt.Sprintf("Given the statement", testCase.bql), t, func() {
-			p := parser.NewBQLParser()
+			p := parser.New()
 			stmt := "CREATE STREAM x AS SELECT ISTREAM " + testCase.bql
-			ast_, _, err := p.ParseStmt(stmt)
+			astUnchecked, _, err := p.ParseStmt(stmt)
 			So(err, ShouldBeNil)
-			So(ast_, ShouldHaveSameTypeAs, parser.CreateStreamAsSelectStmt{})
-			ast := ast_.(parser.CreateStreamAsSelectStmt).Select
+			So(astUnchecked, ShouldHaveSameTypeAs, parser.CreateStreamAsSelectStmt{})
+			ast := astUnchecked.(parser.CreateStreamAsSelectStmt).Select
 
 			Convey("When we analyze it", func() {
 				logPlan, err := Analyze(ast, reg)

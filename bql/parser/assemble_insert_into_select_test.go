@@ -11,6 +11,7 @@ func TestAssembleInsertIntoSelect(t *testing.T) {
 		Convey("When the stack contains the correct SELECT items with a Interval specification", func() {
 			ps.PushComponent(4, 5, StreamIdentifier("x"))
 			ps.PushComponent(5, 6, Istream)
+			ps.AssembleEmitterOptions(6, 6)
 			ps.AssembleEmitter()
 			ps.PushComponent(6, 7, RowValue{"", "a"})
 			ps.PushComponent(7, 8, RowValue{"", "b"})
@@ -77,6 +78,7 @@ func TestAssembleInsertIntoSelect(t *testing.T) {
 		Convey("When the stack contains a wrong item", func() {
 			ps.PushComponent(4, 5, StreamIdentifier("x"))
 			ps.PushComponent(5, 6, Istream)
+			ps.AssembleEmitterOptions(6, 6)
 			ps.AssembleEmitter()
 			ps.PushComponent(6, 7, RowValue{"", "a"})
 			ps.PushComponent(7, 8, RowValue{"", "b"})
@@ -138,6 +140,10 @@ func TestAssembleInsertIntoSelect(t *testing.T) {
 				So(comp.GroupList[0], ShouldResemble, RowValue{"", "f"})
 				So(comp.GroupList[1], ShouldResemble, RowValue{"", "g"})
 				So(comp.Having, ShouldResemble, RowValue{"", "h"})
+
+				Convey("And String() should return the original statement", func() {
+					So(comp.String(), ShouldEqual, p.Buffer)
+				})
 			})
 		})
 	})

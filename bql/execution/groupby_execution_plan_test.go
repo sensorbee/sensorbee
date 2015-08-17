@@ -9,10 +9,11 @@ import (
 	"pfi/sensorbee/sensorbee/core"
 	"pfi/sensorbee/sensorbee/data"
 	"testing"
+	"time"
 )
 
-func createGroupbyPlan(s string, t *testing.T) (ExecutionPlan, error) {
-	p := parser.NewBQLParser()
+func createGroupbyPlan(s string, t *testing.T) (PhysicalPlan, error) {
+	p := parser.New()
 	reg := udf.CopyGlobalUDFRegistry(core.NewContext(nil))
 	reg.Register("udaf", &dummyAggregate{})
 	_stmt, _, err := p.ParseStmt(s)
@@ -801,6 +802,35 @@ func TestAggregateFunctions(t *testing.T) {
 		})
 	})
 
+	Convey("Given a SELECT clause with array_agg and wildcard", t, func() {
+		tuples := getExtTuples()
+
+		s := `CREATE STREAM box AS SELECT RSTREAM array_agg(*) AS result
+			FROM src [RANGE 3 TUPLES] WHERE int > 1`
+		plan, err := createGroupbyPlan(s, t)
+		So(err, ShouldBeNil)
+
+		Convey("When feeding it with tuples", func() {
+			for idx, inTup := range tuples {
+				out, err := plan.Process(inTup)
+				So(err, ShouldBeNil)
+
+				Convey(fmt.Sprintf("Then those values should appear in %v", idx), func() {
+					So(len(out), ShouldEqual, 1)
+
+					if idx == 0 {
+						So(out[0], ShouldResemble, data.Map{"result": data.Null{}})
+					} else if idx == 3 {
+						So(out[0], ShouldResemble, data.Map{"result": data.Array{
+							data.Map{"foo": data.Int(1), "bar": data.String("b"), "int": data.Int(2)},
+							data.Map{"foo": data.Int(2), "bar": data.String("c"), "int": data.Int(3)},
+							data.Map{"foo": data.Int(2), "bar": data.String("d"), "int": data.Int(4)}}})
+					}
+				})
+			}
+		})
+	})
+
 	Convey("Given a SELECT clause with avg", t, func() {
 		tuples := getExtTuples()
 
@@ -1009,4 +1039,147 @@ func TestAggregateFunctions(t *testing.T) {
 			}
 		})
 	})
+}
+
+func createGroupbyPlan2(s string) (PhysicalPlan, error) {
+	p := parser.New()
+	reg := udf.CopyGlobalUDFRegistry(core.NewContext(nil))
+	reg.Register("udaf", &dummyAggregate{})
+	_stmt, _, err := p.ParseStmt(s)
+	if err != nil {
+		return nil, err
+	}
+	stmt := _stmt.(parser.CreateStreamAsSelectStmt).Select
+	logicalPlan, err := Analyze(stmt, reg)
+	if err != nil {
+		return nil, err
+	}
+	canBuild := CanBuildGroupbyExecutionPlan(logicalPlan, reg)
+	if !canBuild {
+		err := fmt.Errorf("groupByExecutionPlan cannot be used for statement: %s", s)
+		return nil, err
+	}
+	return NewGroupbyExecutionPlan(logicalPlan, reg)
+}
+
+func BenchmarkGroupingExecution(b *testing.B) {
+	s := `CREATE STREAM box AS SELECT RSTREAM foo, count(int) FROM src [RANGE 5 TUPLES] GROUP BY foo`
+	plan, err := createGroupbyPlan2(s)
+	if err != nil {
+		panic(err.Error())
+	}
+	tmplTup := core.Tuple{
+		Data:          data.Map{"int": data.Int(-1)},
+		InputName:     "src",
+		Timestamp:     time.Date(2015, time.April, 10, 10, 23, 0, 0, time.UTC),
+		ProcTimestamp: time.Date(2015, time.April, 10, 10, 24, 0, 0, time.UTC),
+		BatchID:       7,
+	}
+	for n := 0; n < b.N; n++ {
+		inTup := tmplTup.Copy()
+		inTup.Data["int"] = data.Int(n)
+		inTup.Data["foo"] = data.Int(n % 2)
+		_, err := plan.Process(inTup)
+		if err != nil {
+			panic(err.Error())
+		}
+	}
+}
+
+func BenchmarkGroupingTimeBasedExecution(b *testing.B) {
+	s := `CREATE STREAM box AS SELECT RSTREAM foo, count(int) FROM src [RANGE 5 SECONDS] GROUP BY foo`
+	plan, err := createGroupbyPlan2(s)
+	if err != nil {
+		panic(err.Error())
+	}
+	tmplTup := core.Tuple{
+		Data:          data.Map{"int": data.Int(-1)},
+		InputName:     "src",
+		Timestamp:     time.Date(2015, time.April, 10, 10, 23, 0, 0, time.UTC),
+		ProcTimestamp: time.Date(2015, time.April, 10, 10, 24, 0, 0, time.UTC),
+		BatchID:       7,
+	}
+	for n := 0; n < b.N; n++ {
+		inTup := tmplTup.Copy()
+		inTup.Data["int"] = data.Int(n)
+		inTup.Data["foo"] = data.Int(n % 2)
+		inTup.Timestamp = inTup.Timestamp.Add(time.Duration(n) * time.Second)
+		_, err := plan.Process(inTup)
+		if err != nil {
+			panic(err.Error())
+		}
+	}
+}
+
+func BenchmarkLargeGroupExecution(b *testing.B) {
+	s := `CREATE STREAM box AS SELECT RSTREAM foo, count(int) FROM src [RANGE 50 TUPLES] GROUP BY foo`
+	plan, err := createGroupbyPlan2(s)
+	if err != nil {
+		panic(err.Error())
+	}
+	tmplTup := core.Tuple{
+		Data:          data.Map{"int": data.Int(-1)},
+		InputName:     "src",
+		Timestamp:     time.Date(2015, time.April, 10, 10, 23, 0, 0, time.UTC),
+		ProcTimestamp: time.Date(2015, time.April, 10, 10, 24, 0, 0, time.UTC),
+		BatchID:       7,
+	}
+	for n := 0; n < b.N; n++ {
+		inTup := tmplTup.Copy()
+		inTup.Data["int"] = data.Int(n)
+		inTup.Data["foo"] = data.Int(n % 3)
+		_, err := plan.Process(inTup)
+		if err != nil {
+			panic(err.Error())
+		}
+	}
+}
+
+func BenchmarkLargeGroupTimeBasedExecution(b *testing.B) {
+	s := `CREATE STREAM box AS SELECT RSTREAM foo, count(int) FROM src [RANGE 50 SECONDS] GROUP BY foo`
+	plan, err := createGroupbyPlan2(s)
+	if err != nil {
+		panic(err.Error())
+	}
+	tmplTup := core.Tuple{
+		Data:          data.Map{"int": data.Int(-1)},
+		InputName:     "src",
+		Timestamp:     time.Date(2015, time.April, 10, 10, 23, 0, 0, time.UTC),
+		ProcTimestamp: time.Date(2015, time.April, 10, 10, 24, 0, 0, time.UTC),
+		BatchID:       7,
+	}
+	for n := 0; n < b.N; n++ {
+		inTup := tmplTup.Copy()
+		inTup.Data["int"] = data.Int(n)
+		inTup.Data["foo"] = data.Int(n % 3)
+		inTup.Timestamp = inTup.Timestamp.Add(time.Duration(n) * time.Second)
+		_, err := plan.Process(inTup)
+		if err != nil {
+			panic(err.Error())
+		}
+	}
+}
+
+func BenchmarkComplicatedGroupExecution(b *testing.B) {
+	s := `CREATE STREAM box AS SELECT RSTREAM foo, udaf(int, foo) FROM src [RANGE 10 TUPLES] GROUP BY foo`
+	plan, err := createGroupbyPlan2(s)
+	if err != nil {
+		panic(err.Error())
+	}
+	tmplTup := core.Tuple{
+		Data:          data.Map{"int": data.Int(-1)},
+		InputName:     "src",
+		Timestamp:     time.Date(2015, time.April, 10, 10, 23, 0, 0, time.UTC),
+		ProcTimestamp: time.Date(2015, time.April, 10, 10, 24, 0, 0, time.UTC),
+		BatchID:       7,
+	}
+	for n := 0; n < b.N; n++ {
+		inTup := tmplTup.Copy()
+		inTup.Data["int"] = data.Int(n)
+		inTup.Data["foo"] = data.Int(n % 3)
+		_, err := plan.Process(inTup)
+		if err != nil {
+			panic(err.Error())
+		}
+	}
 }

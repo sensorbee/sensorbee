@@ -10,6 +10,7 @@ import (
 
 type aliasedEvaluator struct {
 	alias        string
+	aliasPath    data.Path
 	evaluator    Evaluator
 	hasAggregate bool
 	aggrEvals    map[string]Evaluator
@@ -44,7 +45,14 @@ func prepareProjections(projections []aliasedExpression, reg udf.FunctionRegistr
 				aggrEvals[key] = aggrEval
 			}
 		}
-		output[i] = aliasedEvaluator{proj.alias, plan, containsAggregate, aggrEvals}
+		var path data.Path
+		if proj.alias != "*" && proj.alias != ":having:" {
+			path, err = data.CompilePath(proj.alias)
+			if err != nil {
+				return nil, err
+			}
+		}
+		output[i] = aliasedEvaluator{proj.alias, path, plan, containsAggregate, aggrEvals}
 	}
 	return output, nil
 }
@@ -75,7 +83,7 @@ func prepareGroupList(groupList []FlatExpression, reg udf.FunctionRegistry) ([]E
 // is transformed into
 //   {"alias": {"col_1": ..., "col_2": ...},
 //    "alias:meta:TS": (timestamp of the given tuple)}
-// so that the Evaluator created from a RowMeta AST struct works correctly.
+// so that the Evaluator created from a parser.RowMeta AST struct works correctly.
 func setMetadata(where data.Map, alias string, t *core.Tuple) {
 	// this key format is also used in ExpressionToEvaluator()
 	tsKey := fmt.Sprintf("%s:meta:%s", alias, parser.TimestampMeta)
@@ -83,11 +91,13 @@ func setMetadata(where data.Map, alias string, t *core.Tuple) {
 }
 
 // assignOutputValue writes the given Value `value` to the given
-// Map `where` using the given key.
-// If the key is "*" and the value is itself a Map, its contents
+// Map `where` using the given `path`.
+// If the `key` is "*" and the value is itself a Map, its contents
 // will be "pulled up" and directly assigned to `where` (not
 // nested) in order to provide wildcard functionality.
-func assignOutputValue(where data.Map, key string, value data.Value) error {
+func assignOutputValue(where data.Map, key string, path data.Path, value data.Value) error {
+	// TODO this wildcard thing should be solved differently, we
+	//      should get rid of the legacy `key` parameter
 	if key == "*" {
 		valMap, err := data.AsMap(value)
 		if err != nil {
@@ -97,7 +107,10 @@ func assignOutputValue(where data.Map, key string, value data.Value) error {
 			where[k] = v
 		}
 	} else {
-		return where.Set(key, value)
+		if path == nil {
+			return fmt.Errorf("trying to assign output column '%s', path was nil", key)
+		}
+		return where.Set(path, value)
 	}
 	return nil
 }

@@ -6,8 +6,11 @@ import (
 	"time"
 )
 
+// Map is a map of Values. It can be assigned to Value interface. Only
+// string keys are allowed.
 type Map map[string]Value
 
+// Type returns TypeID of Map. It's always TypeMap.
 func (m Map) Type() TypeID {
 	return TypeMap
 }
@@ -48,6 +51,7 @@ func (m Map) clone() Value {
 	return m.Copy()
 }
 
+// String returns JSON representation of a Map.
 func (m Map) String() string {
 	// the String return value is defined via the
 	// default JSON serialization
@@ -58,6 +62,7 @@ func (m Map) String() string {
 	return string(bytes)
 }
 
+// UnmarshalJSON reconstructs a Map from JSON.
 func (m *Map) UnmarshalJSON(data []byte) error {
 	var j map[string]interface{}
 	if err := json.Unmarshal(data, &j); err != nil {
@@ -72,6 +77,8 @@ func (m *Map) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// Copy performs deep copy of a Map. The Map returned from this method can
+// safely be modified without affecting the original.
 func (m Map) Copy() Map {
 	out := make(map[string]Value, len(m))
 	for key, val := range m {
@@ -88,7 +95,10 @@ func (m Map) Copy() Map {
 // interface's methods.
 //
 // Example:
-//  v, err := map.Get("path")
+//  p, err := CompilePath("path")
+//  if err != nil { ... }
+//  v, err := map.Get(p)
+//  if err != nil { ... }
 //  s, err := v.asString() // cast to String
 //
 // Path Expression Example:
@@ -112,10 +122,8 @@ func (m Map) Copy() Map {
 //  `["store"]["name"]`             -> get "store name"
 //  `["store"]["book"][0]["title"]` -> get "book name"
 //
-func (m Map) Get(path string) (Value, error) {
-	var v Value
-	err := scanMap(m, path, &v)
-	return v, err
+func (m Map) Get(path Path) (Value, error) {
+	return path.evaluate(m)
 }
 
 // Set sets a value in a structured Map as addressed by the
@@ -128,6 +136,6 @@ func (m Map) Get(path string) (Value, error) {
 // Set returns an error when the path expression is invalid or
 // when one of the intermediate components already exists
 // but is not a map/list.
-func (m Map) Set(path string, val Value) error {
-	return setInMap(m, path, val)
+func (m Map) Set(path Path, val Value) error {
+	return path.set(m, val)
 }

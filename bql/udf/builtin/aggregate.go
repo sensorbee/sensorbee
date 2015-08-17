@@ -118,11 +118,11 @@ var avgFunc udf.UDF = &singleParamAggFunc{
 			if item.Type() == data.TypeInt {
 				i, _ := data.AsInt(item)
 				sum += float64(i)
-				count += 1
+				count++
 			} else if item.Type() == data.TypeFloat {
 				f, _ := data.AsFloat(item)
 				sum += f
-				count += 1
+				count++
 			} else if item.Type() == data.TypeNull {
 				continue
 			} else {
@@ -255,6 +255,8 @@ var jsonObjectAggFunc udf.UDF = &twoParamAggFunc{
 			} else if key.Type() == data.TypeNull {
 				return nil, fmt.Errorf("key is null but value (%s) is not", value)
 			} else {
+				// DO NOT outdent this block, even if golint recommends it,
+				// or we will never reach the next iteration
 				return nil, fmt.Errorf("cannot interpret %s (%T) as a string",
 					key, key)
 			}
@@ -276,31 +278,55 @@ var maxFunc udf.UDF = &singleParamAggFunc{
 		if len(arr) == 0 {
 			return data.Null{}, nil
 		}
+		// deal with the case of leading nulls and only nulls
+		firstNonNull := -1
+		for i, item := range arr {
+			if item.Type() != data.TypeNull {
+				firstNonNull = i
+				break
+			}
+		}
+		if firstNonNull == -1 {
+			return data.Null{}, nil
+		}
+		// if we have timestamp-shaped data
+		if arr[firstNonNull].Type() == data.TypeTimestamp {
+			maxTime, _ := data.AsTimestamp(arr[firstNonNull])
+			for _, item := range arr[firstNonNull:] {
+				if item.Type() == data.TypeTimestamp {
+					t, _ := data.AsTimestamp(item)
+					if maxTime.Sub(t).Seconds() < 0 {
+						maxTime = t
+					}
+				} else if item.Type() == data.TypeNull {
+					continue
+				} else {
+					return nil, fmt.Errorf("cannot interpret %s (%T) as a timestamp",
+						item, item)
+				}
+			}
+			return data.Timestamp(maxTime), nil
+		}
+		// else: numeric
 		maxFloat := -float64(math.MaxFloat64)
 		maxInt := int64(math.MinInt64)
-		onlyNulls := true
-		for _, item := range arr {
+		for _, item := range arr[firstNonNull:] {
 			if item.Type() == data.TypeInt {
 				i, _ := data.AsInt(item)
 				if i > maxInt {
 					maxInt = i
 				}
-				onlyNulls = false
 			} else if item.Type() == data.TypeFloat {
 				f, _ := data.AsFloat(item)
 				if f > maxFloat {
 					maxFloat = f
 				}
-				onlyNulls = false
 			} else if item.Type() == data.TypeNull {
 				continue
 			} else {
 				return nil, fmt.Errorf("cannot interpret %s (%T) as a number",
 					item, item)
 			}
-		}
-		if onlyNulls {
-			return data.Null{}, nil
 		}
 		if float64(maxInt) >= maxFloat {
 			return data.Int(maxInt), nil
@@ -322,31 +348,55 @@ var minFunc udf.UDF = &singleParamAggFunc{
 		if len(arr) == 0 {
 			return data.Null{}, nil
 		}
+		// deal with the case of leading nulls and only nulls
+		firstNonNull := -1
+		for i, item := range arr {
+			if item.Type() != data.TypeNull {
+				firstNonNull = i
+				break
+			}
+		}
+		if firstNonNull == -1 {
+			return data.Null{}, nil
+		}
+		// if we have timestamp-shaped data
+		if arr[firstNonNull].Type() == data.TypeTimestamp {
+			minTime, _ := data.AsTimestamp(arr[firstNonNull])
+			for _, item := range arr[firstNonNull:] {
+				if item.Type() == data.TypeTimestamp {
+					t, _ := data.AsTimestamp(item)
+					if minTime.Sub(t).Seconds() > 0 {
+						minTime = t
+					}
+				} else if item.Type() == data.TypeNull {
+					continue
+				} else {
+					return nil, fmt.Errorf("cannot interpret %s (%T) as a timestamp",
+						item, item)
+				}
+			}
+			return data.Timestamp(minTime), nil
+		}
+		// else: numeric
 		minFloat := float64(math.MaxFloat64)
 		minInt := int64(math.MaxInt64)
-		onlyNulls := true
-		for _, item := range arr {
+		for _, item := range arr[firstNonNull:] {
 			if item.Type() == data.TypeInt {
 				i, _ := data.AsInt(item)
 				if i < minInt {
 					minInt = i
 				}
-				onlyNulls = false
 			} else if item.Type() == data.TypeFloat {
 				f, _ := data.AsFloat(item)
 				if f < minFloat {
 					minFloat = f
 				}
-				onlyNulls = false
 			} else if item.Type() == data.TypeNull {
 				continue
 			} else {
 				return nil, fmt.Errorf("cannot interpret %s (%T) as a number",
 					item, item)
 			}
-		}
-		if onlyNulls {
-			return data.Null{}, nil
 		}
 		if float64(minInt) <= minFloat {
 			return data.Int(minInt), nil

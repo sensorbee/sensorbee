@@ -286,7 +286,7 @@ func (f *arityDispatcher) Call(ctx *core.Context, args ...data.Value) (data.Valu
 	return nil, fmt.Errorf("function does not support %d arguments", len(args))
 }
 
-var intId = func(a int64) int64 { return a }
+var intIdentity = func(a int64) int64 { return a }
 
 // absFunc computes the absolute value of a number.
 // See also: math.Abs.
@@ -321,7 +321,7 @@ var cbrtFunc udf.UDF = &floatValuedSingleParamNumericFunc{
 // Note: This function returns a Float for Float input in order
 // to avoid truncation when converting to Int.
 var ceilFunc udf.UDF = &typePreservingSingleParamNumericFunc{
-	intFun:   intId,
+	intFun:   intIdentity,
 	floatFun: math.Ceil,
 }
 
@@ -378,7 +378,7 @@ var expFunc udf.UDF = &floatValuedSingleParamNumericFunc{
 // Note: This function returns a Float for Float input in order
 // to avoid truncation when converting to Int.
 var floorFunc udf.UDF = &typePreservingSingleParamNumericFunc{
-	intFun:   intId,
+	intFun:   intIdentity,
 	floatFun: math.Floor,
 }
 
@@ -474,7 +474,7 @@ var radiansFunc udf.UDF = &floatValuedSingleParamNumericFunc{
 // Note: This function returns a Float for Float input in order
 // to avoid truncation when converting to Int.
 var roundFunc udf.UDF = &typePreservingSingleParamNumericFunc{
-	intFun: intId,
+	intFun: intIdentity,
 	floatFun: func(a float64) float64 {
 		if a < 0 {
 			return math.Ceil(a - 0.5)
@@ -529,7 +529,7 @@ var sqrtFunc udf.UDF = &floatValuedSingleParamNumericFunc{
 // Note: This function returns a Float for Float input in order
 // to avoid truncation when converting to Int.
 var truncFunc udf.UDF = &typePreservingSingleParamNumericFunc{
-	intFun: intId,
+	intFun: intIdentity,
 	floatFun: func(a float64) float64 {
 		if a < 0 {
 			return math.Ceil(a)

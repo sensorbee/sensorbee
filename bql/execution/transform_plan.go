@@ -21,20 +21,24 @@ in three phases:
 - MakePhysicalPlan
 */
 
+// LogicalPlan represents a parsed and analyzed version of a SELECT
+// statement. A LogicalPlan as returned by `Analyze` should not contain
+// logical errors such as "... must appear in GROUP BY clause" etc.
 type LogicalPlan struct {
 	GroupingStmt bool
-	parser.EmitterAST
-	Projections []aliasedExpression
+	EmitterType  parser.Emitter
+	EmitterLimit int64
+	Projections  []aliasedExpression
 	parser.WindowedFromAST
 	Filter    FlatExpression
 	GroupList []FlatExpression
 	parser.HavingAST
 }
 
-// ExecutionPlan is a physical interface that is capable of
+// PhysicalPlan is a physical interface that is capable of
 // computing the data that needs to be emitted into an output
 // stream when a new tuple arrives in the input stream.
-type ExecutionPlan interface {
+type PhysicalPlan interface {
 	// Process must be called whenever a new tuple arrives in
 	// the input stream. It will return a list of data.Map
 	// items where each of these items is to be emitted as
@@ -46,6 +50,9 @@ type ExecutionPlan interface {
 	Process(input *core.Tuple) ([]data.Map, error)
 }
 
+// Analyze checks the given SELECT statement for logical errors
+// (references to unknown tables etc.) and creates a LogicalPlan
+// that is internally consistent.
 func Analyze(s parser.SelectStmt, reg udf.FunctionRegistry) (*LogicalPlan, error) {
 	/*
 	   In Spark, this does the following:
@@ -167,7 +174,7 @@ func flattenExpressions(s *parser.SelectStmt, reg udf.FunctionRegistry) (*Logica
 		filterExpr = filterFlatExpr
 	}
 
-	groupCols := make([]RowValue, len(s.GroupList))
+	groupCols := make([]rowValue, len(s.GroupList))
 	flatGroupExprs := make([]FlatExpression, len(s.GroupList))
 	for i, expr := range s.GroupList {
 		// convert the parser Expression to a FlatExpression
@@ -181,7 +188,7 @@ func flattenExpressions(s *parser.SelectStmt, reg udf.FunctionRegistry) (*Logica
 		}
 		// at the moment we only support grouping by single columns,
 		// not expressions
-		col, ok := flatExpr.(RowValue)
+		col, ok := flatExpr.(rowValue)
 		if !ok {
 			err := fmt.Errorf("grouping by expressions is not supported yet")
 			return nil, err
@@ -196,7 +203,7 @@ func flattenExpressions(s *parser.SelectStmt, reg udf.FunctionRegistry) (*Logica
 		for _, expr := range flatProjExprs {
 			// all columns mentioned outside of an aggregate
 			// function must be in the GROUP BY clause
-			if rm, ok := expr.expr.(RowMeta); ok {
+			if rm, ok := expr.expr.(rowMeta); ok {
 				err := fmt.Errorf("using metadata '%s' in GROUP BY statements is "+
 					"not supported yet", rm.MetaType)
 				return nil, err
@@ -220,9 +227,26 @@ func flattenExpressions(s *parser.SelectStmt, reg udf.FunctionRegistry) (*Logica
 		}
 	}
 
+	// validate the emitter parameters
+	emitLimit := int64(-1)
+	for _, opt := range s.EmitterAST.EmitterOptions {
+		switch obj := opt.(type) {
+		default:
+			return nil, fmt.Errorf("unknown emitter options: %+v", obj)
+		case parser.EmitterLimit:
+			l := obj.Limit
+			if l < 0 {
+				return nil, fmt.Errorf("LIMIT parameter must have a "+
+					"positive value, not %d", l)
+			}
+			emitLimit = l
+		}
+	}
+
 	return &LogicalPlan{
 		groupingMode,
-		s.EmitterAST,
+		s.EmitterAST.EmitterType,
+		emitLimit,
 		flatProjExprs,
 		s.WindowedFromAST,
 		filterExpr,
@@ -247,9 +271,8 @@ func makeRelationAliases(s *parser.SelectStmt) error {
 		if exists {
 			return fmt.Errorf("cannot use relations '%s' and '%s' with the "+
 				"same alias '%s'", aliasedRel.Name, otherRel.Name, aliasedRel.Alias)
-		} else {
-			relNames[aliasedRel.Alias] = aliasedRel
 		}
+		relNames[aliasedRel.Alias] = aliasedRel
 		newRels[i] = aliasedRel
 	}
 	s.Relations = newRels
@@ -264,10 +287,10 @@ func validateReferences(s *parser.SelectStmt) error {
 
 	/* We want to check if we can access all relations properly.
 	   If there is just one input relation, we ask that none of the
-	   RowValue structs has a Relation string different from ""
+	   rowValue structs has a Relation string different from ""
 	   (as in `SELECT col FROM stream`).
 	   If there are multiple input relations, we ask that *all*
-	   RowValue structs have a Relation string that matches one of
+	   rowValue structs have a Relation string that matches one of
 	   the input relations (as in `SELECT a.col, b.col FROM a, b`).
 	*/
 
@@ -362,8 +385,8 @@ func validateReferences(s *parser.SelectStmt) error {
 			}
 			if !found {
 				prettyRels := make([]string, 0, len(s.Relations))
-				for _, rel_ := range s.Relations {
-					prettyRels = append(prettyRels, fmt.Sprintf("'%s'", rel_.Alias))
+				for _, inRel := range s.Relations {
+					prettyRels = append(prettyRels, fmt.Sprintf("'%s'", inRel.Alias))
 				}
 				prettyRelsStr := strings.Join(prettyRels, ", ")
 				err := fmt.Errorf("cannot reference relation '%s' "+
@@ -378,6 +401,8 @@ func validateReferences(s *parser.SelectStmt) error {
 	return nil
 }
 
+// LogicalOptimize does nothing at the moment. In the future, logical
+// optimizations (evaluation of foldable terms etc.) can be added here.
 func (lp *LogicalPlan) LogicalOptimize() (*LogicalPlan, error) {
 	/*
 	   In Spark, this does the following:
@@ -389,7 +414,9 @@ func (lp *LogicalPlan) LogicalOptimize() (*LogicalPlan, error) {
 	return lp, nil
 }
 
-func (lp *LogicalPlan) MakePhysicalPlan(reg udf.FunctionRegistry) (ExecutionPlan, error) {
+// MakePhysicalPlan creates a physical execution plan that is able to
+// deal with the statement under consideration.
+func (lp *LogicalPlan) MakePhysicalPlan(reg udf.FunctionRegistry) (PhysicalPlan, error) {
 	/*
 	   In Spark, this does the following:
 
@@ -397,8 +424,8 @@ func (lp *LogicalPlan) MakePhysicalPlan(reg udf.FunctionRegistry) (ExecutionPlan
 	   > and generates one or more physical plans, using physical operators
 	   > that match the Spark execution engine.
 	*/
-	if CanBuildFilterIstreamPlan(lp, reg) {
-		return NewFilterIstreamPlan(lp, reg)
+	if CanBuildFilterPlan(lp, reg) {
+		return NewFilterPlan(lp, reg)
 	} else if CanBuildDefaultSelectExecutionPlan(lp, reg) {
 		return NewDefaultSelectExecutionPlan(lp, reg)
 	} else if CanBuildGroupbyExecutionPlan(lp, reg) {

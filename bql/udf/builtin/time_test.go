@@ -17,21 +17,21 @@ func TestClockTimestampFunc(t *testing.T) {
 	Convey(fmt.Sprintf("Given the %s function", name), t, func() {
 		Convey("Then a call should return a timestamp", func() {
 
-			actual_1, err := f.Call(nil)
+			actual1, err := f.Call(nil)
 			So(err, ShouldBeNil)
-			So(actual_1, ShouldHaveSameTypeAs, data.Timestamp{})
+			So(actual1, ShouldHaveSameTypeAs, data.Timestamp{})
 
 			Convey("And the location should be UTC", func() {
 
-				t1, _ := data.AsTimestamp(actual_1)
+				t1, _ := data.AsTimestamp(actual1)
 				So(t1.Location(), ShouldPointTo, time.UTC)
 
 				Convey("And the times of two calls should differ", func() {
 
-					actual_2, err := f.Call(nil)
+					actual2, err := f.Call(nil)
 					So(err, ShouldBeNil)
-					So(actual_2, ShouldHaveSameTypeAs, data.Timestamp{})
-					So(actual_1, ShouldNotResemble, actual_2)
+					So(actual2, ShouldHaveSameTypeAs, data.Timestamp{})
+					So(actual1, ShouldNotResemble, actual2)
 				})
 			})
 		})
@@ -95,10 +95,10 @@ func TestBinaryDateFuncs(t *testing.T) {
 						Convey(fmt.Sprintf("Then the result should be %s", tc.expected), func() {
 							So(err, ShouldBeNil)
 							if val.Type() == data.TypeFloat && tc.expected.Type() == data.TypeFloat {
-								f_actual, _ := data.AsFloat(val)
-								f_expected, _ := data.AsFloat(tc.expected)
-								if math.IsNaN(f_expected) {
-									So(math.IsNaN(f_actual), ShouldBeTrue)
+								fActual, _ := data.AsFloat(val)
+								fExpected, _ := data.AsFloat(tc.expected)
+								if math.IsNaN(fExpected) {
+									So(math.IsNaN(fActual), ShouldBeTrue)
 								} else {
 									So(val, ShouldAlmostEqual, tc.expected, 0.0000001)
 								}

@@ -443,6 +443,72 @@ func (ps *parseStack) AssembleDropState() {
 	ps.Push(&se)
 }
 
+// AssembleLoadState takes the topmost elements from the stack,
+// assuming they are components of a LOAD STATE statement, and
+// replaces them by a single LoadStateStmt element.
+//
+//  StreamIdentifier
+//  SourceSinkType
+//  SourceSinkSpecsAST
+//   =>
+//  LoadStateStmt{StreamIdentifier, SourceSinkType,
+//    SourceSinkSpecsAST}
+func (ps *parseStack) AssembleLoadState() {
+	// pop the components from the stack in reverse order
+	_specs, _sinkType, _name := ps.pop3()
+
+	specs := _specs.comp.(SourceSinkSpecsAST)
+	sinkType := _sinkType.comp.(SourceSinkType)
+	name := _name.comp.(StreamIdentifier)
+
+	s := LoadStateStmt{name, sinkType, specs}
+	se := ParsedComponent{_name.begin, _specs.end, s}
+	ps.Push(&se)
+}
+
+// AssembleLoadStateOrCreate takes the topmost elements from the stack,
+// assuming they are components of a LOAD STATE OR CREATE statement, and
+// replaces them by a single LoadStateOrCreateStmt element.
+//
+//  StreamIdentifier
+//  SourceSinkType
+//  SourceSinkSpecsAST
+//  SourceSinkSpecsAST
+//   =>
+//  LoadStateOrCreateStmt{StreamIdentifier, SourceSinkType,
+//    SourceSinkSpecsAST, SourceSinkSpecsAST}
+func (ps *parseStack) AssembleLoadStateOrCreate() {
+	// pop the components from the stack in reverse order
+	_createSpecs, _loadStateStmt := ps.pop2()
+	loadStateStmt := _loadStateStmt.comp.(LoadStateStmt)
+
+	createSpecs := _createSpecs.comp.(SourceSinkSpecsAST)
+	specs := loadStateStmt.SourceSinkSpecsAST
+	sinkType := loadStateStmt.Type
+	name := loadStateStmt.Name
+
+	s := LoadStateOrCreateStmt{name, sinkType, specs, createSpecs}
+	se := ParsedComponent{_loadStateStmt.begin, _createSpecs.end, s}
+	ps.Push(&se)
+}
+
+// AssembleSaveState takes the topmost elements from the stack,
+// assuming they are components of a SAVE STATE statement, and
+// replaces them by a single SaveStateStmt element.
+//
+//  StreamIdentifier
+//   =>
+//  SaveStateStmt{StreamIdentifier}
+func (ps *parseStack) AssembleSaveState() {
+	// pop the components from the stack in reverse order
+	_name := ps.Pop()
+
+	name := _name.comp.(StreamIdentifier)
+
+	se := ParsedComponent{_name.begin, _name.end, SaveStateStmt{name}}
+	ps.Push(&se)
+}
+
 /* Projections/Columns */
 
 // AssembleEmitter takes the topmost elements from the stack, assuming
@@ -455,11 +521,46 @@ func (ps *parseStack) AssembleDropState() {
 //  EmitterAST{Emitter}
 func (ps *parseStack) AssembleEmitter() {
 	// pop the components from the stack in reverse order
-	_emitter := ps.Pop()
+	_options, _emitter := ps.pop2()
 
 	emitter := _emitter.comp.(Emitter)
+	options := _options.comp.([]interface{})
 
-	ps.PushComponent(_emitter.begin, _emitter.end, EmitterAST{emitter})
+	ps.PushComponent(_emitter.begin, _options.end, EmitterAST{emitter, options})
+}
+
+// AssembleEmitterOptions takes the elements from the stack that
+// correspond to the input[begin:end] string and pushes a slice
+// with all of them back to the stack.
+//
+//  Any
+//  Any
+//  Any
+//   =>
+//  []{Any, Any, Any}
+func (ps *parseStack) AssembleEmitterOptions(begin int, end int) {
+	elems := ps.collectElements(begin, end)
+	if len(elems) == 0 {
+		elems = nil
+	}
+	// push the grouped list back
+	ps.PushComponent(begin, end, elems)
+}
+
+// AssembleEmitterLimit takes the topmost elements from the stack,
+// assuming they are components of a emitter LIMIT option, and replaces
+// them by a single EmitterLimit element.
+//
+//  NumericLiteral
+//  ...
+//   =>
+//  EmitterLimit{NumericLiteral}
+func (ps *parseStack) AssembleEmitterLimit() {
+	_limit := ps.Pop()
+
+	limit := _limit.comp.(NumericLiteral)
+
+	ps.PushComponent(_limit.begin, _limit.end, EmitterLimit{limit.Value})
 }
 
 // AssembleProjections takes the elements from the stack that
@@ -753,19 +854,31 @@ func (ps *parseStack) AssembleSourceSinkSpecs(begin int, end int) {
 func (ps *parseStack) AssembleSourceSinkParam() {
 	_value, _key := ps.pop2()
 
-	var value data.Value
-	switch lit := _value.comp.(type) {
-	default:
-		panic(fmt.Sprintf("cannot deal with a %T here", lit))
-	case StringLiteral:
-		value = data.String(lit.Value)
-	case BoolLiteral:
-		value = data.Bool(lit.Value)
-	case NumericLiteral:
-		value = data.Int(lit.Value)
-	case FloatLiteral:
-		value = data.Float(lit.Value)
+	var toValue func(obj interface{}) data.Value
+	toValue = func(obj interface{}) data.Value {
+		var value data.Value
+		switch lit := obj.(type) {
+		default:
+			panic(fmt.Sprintf("cannot deal with a %T here", lit))
+		case StringLiteral:
+			value = data.String(lit.Value)
+		case BoolLiteral:
+			value = data.Bool(lit.Value)
+		case NumericLiteral:
+			value = data.Int(lit.Value)
+		case FloatLiteral:
+			value = data.Float(lit.Value)
+		case ArrayAST:
+			arr := make(data.Array, len(lit.Expressions))
+			for i, item := range lit.Expressions {
+				arr[i] = toValue(item)
+			}
+			value = arr
+		}
+		return value
 	}
+
+	value := toValue(_value.comp)
 	key := _key.comp.(SourceSinkParamKey)
 
 	ss := SourceSinkParamAST{key, value}

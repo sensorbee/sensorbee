@@ -6,8 +6,10 @@ import (
 	"time"
 )
 
+// Float is a 64-bit floating point number. It can be assigned to Value interface.
 type Float float64
 
+// Type returns TypeID of Float. It's always TypeFloat.
 func (f Float) Type() TypeID {
 	return TypeFloat
 }
@@ -48,12 +50,14 @@ func (f Float) clone() Value {
 	return Float(f)
 }
 
+// MarshalJSON marshals a Float to JSON. NaN and Inf will be encoded as null.
 func (f Float) MarshalJSON() ([]byte, error) {
 	// the JSON serialization is defined via the String()
 	// return value as defined below
 	return []byte(f.String()), nil
 }
 
+// String returns JSON representation of a Float. NaN and Inf will be encoded as null.
 func (f Float) String() string {
 	fl := float64(f)
 	// "NaN and Infinity regardless of sign are represented

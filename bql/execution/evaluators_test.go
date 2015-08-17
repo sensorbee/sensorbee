@@ -26,30 +26,28 @@ func TestEvaluators(t *testing.T) {
 		ast := testCase.ast
 		Convey(fmt.Sprintf("Given the AST Expression %v", ast), t, func() {
 
-			Convey("Then an Evaluator can be computed", func() {
+			Convey("When the expressions are evaluated", func() {
 				flatExpr, err := ParserExprToFlatExpr(ast, reg)
 				So(err, ShouldBeNil)
 				eval, err := ExpressionToEvaluator(flatExpr, reg)
 				So(err, ShouldBeNil)
 
-				for i, tc := range testCase.inputs {
-					input, expected := tc.input, tc.expected
-
-					Convey(fmt.Sprintf("And when applied to input %v [%v]", input, i), func() {
+				Convey("Then they should be evaluated correctly", FailureContinues, func() {
+					// Although each test case should have an independent Convey block,
+					// it makes tests 50 times slower. So, all inputs of each testCase
+					// are evaluated within one Convey block, which makes debugging
+					// very difficult.
+					for _, tc := range testCase.inputs {
+						input, expected := tc.input, tc.expected
 						actual, err := eval.Eval(input)
-
-						Convey(fmt.Sprintf("Then the result should be %v", expected), func() {
-							i++
-							if expected == nil {
-								So(err, ShouldNotBeNil)
-							} else {
-								So(err, ShouldBeNil)
-								So(actual, ShouldResemble, expected)
-							}
-						})
-					})
-				}
-
+						if expected == nil {
+							So(err, ShouldNotBeNil)
+						} else {
+							So(err, ShouldBeNil)
+							So(actual, ShouldResemble, expected)
+						}
+					}
+				})
 			})
 		})
 	}
@@ -223,10 +221,10 @@ func TestFuncAppConversion(t *testing.T) {
 	})
 }
 
-// PlusOne is an example function that adds one to int and float Values.
-// It panics if the input is Null and returns an error for any other
-// type.
 var (
+	// PlusOne is an example function that adds one to int and float Values.
+	// It panics if the input is Null and returns an error for any other
+	// type.
 	PlusOne = udf.VariadicFunc(func(ctx *core.Context, vs ...data.Value) (data.Value, error) {
 		if len(vs) != 1 {
 			err := fmt.Errorf("cannot use %d parameters for unary function", len(vs))
@@ -244,6 +242,15 @@ var (
 		}
 		return nil, fmt.Errorf("cannot add 1 to %v", v)
 	})
+	// MapLen is an example function that computes the length of a Map.
+	// It returns an error if the input value is not a Map.
+	MapLen = udf.UnaryFunc(func(ctx *core.Context, v data.Value) (data.Value, error) {
+		m, err := data.AsMap(v)
+		if err != nil {
+			return nil, err
+		}
+		return data.Int(len(m)), nil
+	})
 )
 
 // testFuncRegistry returns the PlusOne function above for any parameter.
@@ -258,6 +265,8 @@ func (tfr *testFuncRegistry) Context() *core.Context {
 func (tfr *testFuncRegistry) Lookup(name string, arity int) (udf.UDF, error) {
 	if name == "plusone" {
 		return PlusOne, nil
+	} else if name == "maplen" && arity == 1 {
+		return MapLen, nil
 	}
 	return nil, fmt.Errorf("no such function: %s", name)
 }
@@ -1421,6 +1430,108 @@ func getTestCases() []struct {
 				{data.Map{":meta:NOW": data.Int(17)}, nil},
 				// key present and correct type
 				{data.Map{":meta:NOW": data.Timestamp(now)}, data.Timestamp(now)},
+			},
+		},
+		/// Wildcard
+		{parser.Wildcard{},
+			[]evalTest{
+				// not a map:
+				{data.Int(17), nil},
+				// a map, but elements are not maps
+				{data.Map{"a": data.Int(17)}, nil},
+				{data.Map{"a": data.Map{"b": data.Int(3)}, "b": data.Int(17)}, nil},
+				// a map and the subelement is a map
+				{data.Map{"a": data.Map{"b": data.Int(3)}},
+					data.Map{"b": data.Int(3)}},
+				{data.Map{"a": data.Map{"b": data.Int(3)}, ":meta:NOW": data.Int(17)},
+					data.Map{"b": data.Int(3)}},
+				{data.Map{"a": data.Map{"b": data.Int(3)}, "c": data.Map{"d": data.Int(4)}},
+					data.Map{"b": data.Int(3), "d": data.Int(4)}},
+			}},
+		{parser.Wildcard{"a"},
+			[]evalTest{
+				// not a map:
+				{data.Int(17), nil},
+				// key not present
+				{data.Map{"x": data.Map{"b": data.Int(3)}}, nil},
+				// a map, but elements are not maps
+				{data.Map{"a": data.Int(17)}, nil},
+				// a map and the subelement is a map
+				{data.Map{"a": data.Map{"b": data.Int(3)}},
+					data.Map{"b": data.Int(3)}},
+				{data.Map{"a": data.Map{"b": data.Int(3)}, ":meta:NOW": data.Int(17)},
+					data.Map{"b": data.Int(3)}},
+				{data.Map{"a": data.Map{"b": data.Int(3)}, "c": data.Map{"d": data.Int(4)}},
+					data.Map{"b": data.Int(3)}},
+			}},
+		{parser.ArrayAST{parser.ExpressionsAST{[]parser.Expression{parser.NumericLiteral{2},
+			parser.Wildcard{}}}},
+			[]evalTest{
+				// not a map:
+				{data.Int(17), nil},
+				// a map, but elements are not maps
+				{data.Map{"a": data.Int(17)}, nil},
+				{data.Map{"a": data.Map{"b": data.Int(3)}, "b": data.Int(17)}, nil},
+				// a map and the subelement is a map
+				{data.Map{"a": data.Map{"b": data.Int(3)}},
+					data.Array{data.Int(2), data.Map{"b": data.Int(3)}}},
+				{data.Map{"a": data.Map{"b": data.Int(3)}, ":meta:NOW": data.Int(17)},
+					data.Array{data.Int(2), data.Map{"b": data.Int(3)}}},
+				{data.Map{"a": data.Map{"b": data.Int(3)}, "c": data.Map{"d": data.Int(4)}},
+					data.Array{data.Int(2), data.Map{"b": data.Int(3), "d": data.Int(4)}}},
+			},
+		},
+		{parser.MapAST{[]parser.KeyValuePairAST{{"two", parser.NumericLiteral{2}},
+			{"x", parser.Wildcard{"a"}}}},
+			[]evalTest{
+				// not a map:
+				{data.Int(17), nil},
+				// key not present
+				{data.Map{"x": data.Map{"b": data.Int(3)}}, nil},
+				// a map, but elements are not maps
+				{data.Map{"a": data.Int(17)}, nil},
+				// a map and the subelement is a map
+				{data.Map{"a": data.Map{"b": data.Int(3)}},
+					data.Map{"two": data.Int(2), "x": data.Map{"b": data.Int(3)}}},
+				{data.Map{"a": data.Map{"b": data.Int(3)}, ":meta:NOW": data.Int(17)},
+					data.Map{"two": data.Int(2), "x": data.Map{"b": data.Int(3)}}},
+				{data.Map{"a": data.Map{"b": data.Int(3)}, "c": data.Map{"d": data.Int(4)}},
+					data.Map{"two": data.Int(2), "x": data.Map{"b": data.Int(3)}}},
+			},
+		},
+		{parser.FuncAppAST{parser.FuncName("maplen"),
+			parser.ExpressionsAST{[]parser.Expression{parser.Wildcard{}}}},
+			[]evalTest{
+				// not a map:
+				{data.Int(17), nil},
+				// a map, but elements are not maps
+				{data.Map{"a": data.Int(17)}, nil},
+				{data.Map{"a": data.Map{"b": data.Int(3)}, "b": data.Int(17)}, nil},
+				// a map and the subelement is a map
+				{data.Map{"a": data.Map{"b": data.Int(3)}},
+					data.Int(1)},
+				{data.Map{"a": data.Map{"b": data.Int(3)}, ":meta:NOW": data.Int(17)},
+					data.Int(1)},
+				{data.Map{"a": data.Map{"b": data.Int(3)}, "c": data.Map{"d": data.Int(4)}},
+					data.Int(2)},
+			},
+		},
+		{parser.FuncAppAST{parser.FuncName("maplen"),
+			parser.ExpressionsAST{[]parser.Expression{parser.Wildcard{"a"}}}},
+			[]evalTest{
+				// not a map:
+				{data.Int(17), nil},
+				// key not present
+				{data.Map{"x": data.Map{"b": data.Int(3)}}, nil},
+				// a map, but elements are not maps
+				{data.Map{"a": data.Int(17)}, nil},
+				// a map and the subelement is a map
+				{data.Map{"a": data.Map{"b": data.Int(3)}},
+					data.Int(1)},
+				{data.Map{"a": data.Map{"b": data.Int(3)}, ":meta:NOW": data.Int(17)},
+					data.Int(1)},
+				{data.Map{"a": data.Map{"b": data.Int(3)}, "c": data.Map{"d": data.Int(4)}},
+					data.Int(1)},
 			},
 		},
 	}

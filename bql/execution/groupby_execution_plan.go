@@ -1,6 +1,7 @@
 package execution
 
 import (
+	"fmt"
 	"pfi/sensorbee/sensorbee/bql/udf"
 	"pfi/sensorbee/sensorbee/core"
 	"pfi/sensorbee/sensorbee/data"
@@ -30,7 +31,7 @@ func CanBuildGroupbyExecutionPlan(lp *LogicalPlan, reg udf.FunctionRegistry) boo
 	return lp.GroupingStmt
 }
 
-// groupbyExecutionPlan is a simple plan that follows the
+// NewGroupbyExecutionPlan builds a plan that follows the
 // theoretical processing model. It supports only statements
 // that use aggregation.
 //
@@ -40,7 +41,7 @@ func CanBuildGroupbyExecutionPlan(lp *LogicalPlan, reg udf.FunctionRegistry) boo
 // - perform a SELECT query on that data,
 // - compute the data that need to be emitted by comparison with
 //   the previous run's results.
-func NewGroupbyExecutionPlan(lp *LogicalPlan, reg udf.FunctionRegistry) (ExecutionPlan, error) {
+func NewGroupbyExecutionPlan(lp *LogicalPlan, reg udf.FunctionRegistry) (PhysicalPlan, error) {
 	underlying, err := newStreamRelationStreamExecutionPlan(lp, reg)
 	if err != nil {
 		return nil, err
@@ -58,8 +59,8 @@ func (ep *groupbyExecutionPlan) Process(input *core.Tuple) ([]data.Map, error) {
 	return ep.process(input, ep.performQueryOnBuffer)
 }
 
-// performQueryOnBuffer executes a SELECT query on the data of the tuples
-// currently stored in the buffer. The query results (which is a set of
+// performQueryOnBuffer computes the projections of a SELECT query on the data
+// stored in `ep.filteredInputRows`. The query results (which is a set of
 // data.Value, not core.Tuple) is stored in ep.curResults. The data
 // that was stored in ep.curResults before this method was called is
 // moved to ep.prevResults. Note that the order of values in ep.curResults
@@ -69,9 +70,6 @@ func (ep *groupbyExecutionPlan) Process(input *core.Tuple) ([]data.Map, error) {
 // the same as before the call (so that the next run performs as
 // if no error had happened), but the contents of ep.curResults are
 // undefined.
-//
-// Currently performQueryOnBuffer can only perform SELECT ... WHERE ...
-// queries without aggregate functions, GROUP BY, or HAVING clauses.
 func (ep *groupbyExecutionPlan) performQueryOnBuffer() error {
 	// reuse the allocated memory
 	output := ep.prevResults[0:0]
@@ -113,8 +111,7 @@ func (ep *groupbyExecutionPlan) performQueryOnBuffer() error {
 	// groupValues in the `groups`map. if there is no such
 	// group, a new one is created and a copy of the given map
 	// is used as a representative of this group's values.
-	findOrCreateGroup := func(groupValues []data.Value, d data.Map) (*tmpGroupData, error) {
-		groupHash := data.Hash(data.Array(groupValues))
+	findOrCreateGroup := func(groupValues []data.Value, groupHash data.HashValue, nonGroupValues data.Map) (*tmpGroupData, error) {
 		// find the correct group
 		group, exists := groups[groupHash]
 		// if there is no such group, create one
@@ -127,7 +124,7 @@ func (ep *groupbyExecutionPlan) performQueryOnBuffer() error {
 				// a representative set of values for this group for later evaluation
 				// TODO actually we don't need the whole map,
 				//      just the parts common to the whole group
-				d.Copy(),
+				nonGroupValues.Copy(),
 			}
 			// initialize the map with the aggregate function inputs
 			for _, proj := range ep.projections {
@@ -144,51 +141,34 @@ func (ep *groupbyExecutionPlan) performQueryOnBuffer() error {
 		return group, nil
 	}
 
-	// we need to make a cross product of the data in all buffers,
-	// combine it to get an input like
-	//  {"streamA": {data}, "streamB": {data}, "streamC": {data}}
-	// and then run filter/projections on each of this items
-
-	dataHolder := data.Map{}
-
-	// function to evaluate filter on the input data and do the computations
-	// that are required on each input tuple. (those computations differ
-	// depending on whether we are in grouping mode or not.)
-	evalItem := func(d data.Map) error {
-		// evaluate filter condition and convert to bool
-		if ep.filter != nil {
-			filterResult, err := ep.filter.Eval(d)
+	// function to compute the grouping expressions and store the
+	// input for aggregate functions in the correct group.
+	evalItem := func(io *inputRowWithCachedResult) error {
+		var itemGroupValues data.Array
+		// if we have a cached result, use this
+		if io.cache != nil {
+			cachedGroupValues, err := data.AsArray(io.cache)
 			if err != nil {
-				return err
+				return fmt.Errorf("cached data was not an array: %v", io.cache)
 			}
-			filterResultBool, err := data.ToBool(filterResult)
-			if err != nil {
-				return err
+			itemGroupValues = cachedGroupValues
+		} else {
+			// otherwise, compute the expressions in the GROUP BY to find
+			// the correct group to append to
+			itemGroupValues = make([]data.Value, len(ep.groupList))
+			for i, eval := range ep.groupList {
+				// ordinary "flat" expression
+				value, err := eval.Eval(*io.input)
+				if err != nil {
+					return err
+				}
+				itemGroupValues[i] = value
 			}
-			// if it evaluated to false, do not further process this tuple
-			// (ToBool also evalutes the NULL value to false, so we don't
-			// need to treat this specially)
-			if !filterResultBool {
-				return nil
-			}
+			io.cache = itemGroupValues
+			io.hash = data.Hash(io.cache)
 		}
 
-		// now compute the expressions in the GROUP BY to find the correct
-		// group to append to
-		// TODO there is actually no need to allocate this array again
-		//      and again, or even have an array since we can update the
-		//      group's hash value incrementally
-		itemGroupValues := make([]data.Value, len(ep.groupList))
-		for i, eval := range ep.groupList {
-			// ordinary "flat" expression
-			value, err := eval.Eval(d)
-			if err != nil {
-				return err
-			}
-			itemGroupValues[i] = value
-		}
-
-		itemGroup, err := findOrCreateGroup(itemGroupValues, d)
+		itemGroup, err := findOrCreateGroup(itemGroupValues, io.hash, *io.input)
 		if err != nil {
 			return err
 		}
@@ -196,7 +176,7 @@ func (ep *groupbyExecutionPlan) performQueryOnBuffer() error {
 		// now compute all the input data for the aggregate functions,
 		// e.g. for `SELECT count(a) + max(b/2)`, compute `a` and `b/2`
 		for key, agg := range allAggEvaluators {
-			value, err := agg.Eval(d)
+			value, err := agg.Eval(*io.input)
 			if err != nil {
 				return err
 			}
@@ -210,7 +190,7 @@ func (ep *groupbyExecutionPlan) performQueryOnBuffer() error {
 		result := data.Map(make(map[string]data.Value, len(ep.projections)))
 		// collect input for aggregate functions into an array
 		// within each group
-		for key, _ := range allAggEvaluators {
+		for key := range allAggEvaluators {
 			group.nonAggData[key] = data.Array(group.aggData[key])
 			delete(group.aggData, key)
 		}
@@ -244,11 +224,11 @@ func (ep *groupbyExecutionPlan) performQueryOnBuffer() error {
 			if err != nil {
 				return err
 			}
-			if err := assignOutputValue(result, proj.alias, value); err != nil {
+			if err := assignOutputValue(result, proj.alias, proj.aliasPath, value); err != nil {
 				return err
 			}
 		}
-		output = append(output, result)
+		output = append(output, resultRow{row: result, hash: data.Hash(result)})
 		return nil
 	}
 
@@ -279,25 +259,21 @@ func (ep *groupbyExecutionPlan) performQueryOnBuffer() error {
 			if err != nil {
 				return err
 			}
-			if err := assignOutputValue(result, proj.alias, value); err != nil {
+			if err := assignOutputValue(result, proj.alias, proj.aliasPath, value); err != nil {
 				return err
 			}
 		}
-		output = append(output, result)
+		output = append(output, resultRow{row: result, hash: data.Hash(result)})
 		return nil
 	}
 
-	// Note: `ep.buffers` is a map, so iterating over its keys may yield
-	// different results in every run of the program. We cannot expect
-	// a consistent order in which evalItem is run on the items of the
-	// cartesian product.
-	allStreams := make([]string, 0, len(ep.buffers))
-	for key := range ep.buffers {
-		allStreams = append(allStreams, key)
-	}
-	if err := ep.processCartesianProduct(dataHolder, allStreams, evalItem); err != nil {
-		rollback()
-		return err
+	// compute the output for each item in ep.filteredInputRows
+	for e := ep.filteredInputRows.Front(); e != nil; e = e.Next() {
+		item := e.Value.(*inputRowWithCachedResult)
+		if err := evalItem(item); err != nil {
+			rollback()
+			return err
+		}
 	}
 
 	// if we arrive here, then the input for the aggregation functions

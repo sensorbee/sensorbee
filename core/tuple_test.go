@@ -32,9 +32,11 @@ func TestTuple(t *testing.T) {
 		simpleTypes := []string{"bool", "int", "float", "string",
 			"array[0]", "map.string"}
 		for _, typeName := range simpleTypes {
-			a, getErrA := t.Data.Get(typeName)
+			path, err := data.CompilePath(typeName)
+			So(err, ShouldBeNil)
+			a, getErrA := t.Data.Get(path)
 			So(getErrA, ShouldBeNil)
-			b, getErrB := t.Data.Get(typeName)
+			b, getErrB := t.Data.Get(path)
 			So(getErrB, ShouldBeNil)
 			// objects should have the same value
 			So(a, ShouldEqual, b)
@@ -44,9 +46,11 @@ func TestTuple(t *testing.T) {
 
 		complexTypes := []string{"byte", "time"}
 		for _, typeName := range complexTypes {
-			a, getErrA := t.Data.Get(typeName)
+			path, err := data.CompilePath(typeName)
+			So(err, ShouldBeNil)
+			a, getErrA := t.Data.Get(path)
 			So(getErrA, ShouldBeNil)
-			b, getErrB := t.Data.Get(typeName)
+			b, getErrB := t.Data.Get(path)
 			So(getErrB, ShouldBeNil)
 			// objects should have the same value
 			So(a, ShouldResemble, b)

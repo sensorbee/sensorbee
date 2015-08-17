@@ -29,8 +29,8 @@ func getTuples(num int) []*core.Tuple {
 	return tuples
 }
 
-func createDefaultSelectPlan(s string, t *testing.T) (ExecutionPlan, error) {
-	p := parser.NewBQLParser()
+func createDefaultSelectPlan(s string, t *testing.T) (PhysicalPlan, error) {
+	p := parser.New()
 	reg := udf.CopyGlobalUDFRegistry(core.NewContext(nil))
 	_stmt, _, err := p.ParseStmt(s)
 	if err != nil {
@@ -65,7 +65,9 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 				So(err, ShouldBeNil)
 
 				Convey(fmt.Sprintf("Then that constant should appear in %v", idx), func() {
-					if idx == 0 {
+					if idx <= 2 {
+						// items should be emitted as the number of
+						// rows increases
 						So(len(out), ShouldEqual, 1)
 						So(out[0], ShouldResemble,
 							data.Map{"col_1": data.Float(2.0), "col_2": data.Bool(true),
@@ -115,21 +117,17 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 				So(err, ShouldBeNil)
 
 				Convey(fmt.Sprintf("Then those values should appear in %v", idx), func() {
-					var prevTime data.Value = nil
 					if idx == 0 {
 						So(len(out), ShouldEqual, 1)
 						So(out[0]["int"], ShouldEqual, data.Int(1))
 						So(out[0]["now"], ShouldHaveSameTypeAs, data.Timestamp{})
-						prevTime = out[0]["now"]
 					} else if idx == 1 {
-						So(len(out), ShouldEqual, 2)
-						So(out[0]["int"], ShouldEqual, data.Int(1))
+						So(len(out), ShouldEqual, 1)
+						// the result of now() and clock_timestamp() does
+						// not change for the previous tuple after it was
+						// emitted, so it is not emitted via ISTREAM
+						So(out[0]["int"], ShouldEqual, data.Int(2))
 						So(out[0]["now"], ShouldHaveSameTypeAs, data.Timestamp{})
-						So(out[1]["int"], ShouldEqual, data.Int(2))
-						So(out[1]["now"], ShouldHaveSameTypeAs, data.Timestamp{})
-						So(out[1]["now"], ShouldResemble, out[0]["now"])
-						So(out[1]["now"], ShouldNotResemble, prevTime)
-						So(out[0]["t"], ShouldNotResemble, out[1]["t"])
 					}
 				})
 			}
@@ -290,7 +288,9 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 				So(err, ShouldBeNil)
 
 				Convey(fmt.Sprintf("Then the null operations should be correct %v", idx), func() {
-					if idx == 0 {
+					if idx <= 2 {
+						// items should be emitted as the number of
+						// rows increases
 						So(len(out), ShouldEqual, 1)
 						So(out[0], ShouldResemble,
 							data.Map{"col_1": data.Bool(true), "col_2": data.Null{}})
@@ -428,6 +428,27 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 					So(len(out), ShouldEqual, 1)
 					So(out[0], ShouldResemble,
 						data.Map{"int": data.Int(idx + 1)})
+				})
+			}
+
+		})
+	})
+
+	Convey("Given a SELECT clause with a wildcard in a map", t, func() {
+		tuples := getTuples(4)
+		s := `CREATE STREAM box AS SELECT ISTREAM {'a': src:*} AS x FROM src [RANGE 2 SECONDS]`
+		plan, err := createDefaultSelectPlan(s, t)
+		So(err, ShouldBeNil)
+
+		Convey("When feeding it with tuples", func() {
+			for idx, inTup := range tuples {
+				out, err := plan.Process(inTup)
+				So(err, ShouldBeNil)
+
+				Convey(fmt.Sprintf("Then those values should appear in %v", idx), func() {
+					So(len(out), ShouldEqual, 1)
+					So(out[0], ShouldResemble,
+						data.Map{"x": data.Map{"a": data.Map{"int": data.Int(idx + 1)}}})
 				})
 			}
 
@@ -663,7 +684,7 @@ func TestDefaultSelectExecutionPlanEmitters(t *testing.T) {
 					// In the idx==1 run, the window contains item 0 and item 1,
 					// the latter is broken, therefore the query fails.
 					// In the idx==2 run, the window contains item 1 and item 2,
-					// the latter is broken, therefore the query fails.
+					// the former is broken, therefore the query fails.
 					Convey(fmt.Sprintf("Then there should be an error for a queries in %v", idx), func() {
 						So(err, ShouldNotBeNil)
 					})
@@ -677,6 +698,68 @@ func TestDefaultSelectExecutionPlanEmitters(t *testing.T) {
 						So(out[0], ShouldResemble,
 							data.Map{"int": data.Int(idx)})
 						So(out[1], ShouldResemble,
+							data.Map{"int": data.Int(idx + 1)})
+					})
+				} else {
+					// In later runs, we have recovered from the error in item 1
+					// and emit one item per run as normal.
+					Convey(fmt.Sprintf("Then those values should appear in %v", idx), func() {
+						So(err, ShouldBeNil)
+						So(len(out), ShouldEqual, 1)
+						So(out[0], ShouldResemble,
+							data.Map{"int": data.Int(idx + 1)})
+					})
+				}
+			}
+
+		})
+	})
+
+	Convey("Given a WHERE clause with a column that does not exist in one tuple (ISTREAM)", t, func() {
+		tuples := getTuples(6)
+		// remove the selected key from one tuple
+		delete(tuples[1].Data, "int")
+
+		s := `CREATE STREAM box AS SELECT ISTREAM int FROM src [RANGE 2 TUPLES] WHERE int > 0`
+		plan, err := createDefaultSelectPlan(s, t)
+		So(err, ShouldBeNil)
+
+		Convey("When feeding it with tuples", func() {
+			for idx, inTup := range tuples {
+				out, err := plan.Process(inTup)
+
+				if idx == 0 {
+					// In the idx==0 run, the window contains only item 0.
+					// That item is fine, no problem.
+					Convey(fmt.Sprintf("Then those values should appear in %v", idx), func() {
+						So(err, ShouldBeNil)
+						So(len(out), ShouldEqual, 1)
+						So(out[0], ShouldResemble,
+							data.Map{"int": data.Int(idx + 1)})
+					})
+				} else if idx == 1 {
+					// In the idx==1 run, the window contains item 0 and item 1,
+					// the latter is broken, therefore the query fails.
+					Convey(fmt.Sprintf("Then there should be an error for a queries in %v", idx), func() {
+						So(err, ShouldNotBeNil)
+					})
+				} else if idx == 2 {
+					// In the idx==2 run, the window contains item 1 and item 2,
+					// only the latter is evaluated so there is no problem.
+					Convey(fmt.Sprintf("Then those values should appear in %v", idx), func() {
+						So(err, ShouldBeNil)
+						So(len(out), ShouldEqual, 1)
+						So(out[0], ShouldResemble,
+							data.Map{"int": data.Int(idx + 1)})
+					})
+				} else if idx == 3 {
+					// In the idx==3 run, the window contains item 2 and item 3.
+					// Both items are fine and have not been emitted before, so
+					// both are emitted now.
+					Convey(fmt.Sprintf("Then those values should appear in %v", idx), func() {
+						So(err, ShouldBeNil)
+						So(len(out), ShouldEqual, 1)
+						So(out[0], ShouldResemble,
 							data.Map{"int": data.Int(idx + 1)})
 					})
 				} else {
@@ -961,8 +1044,12 @@ func TestDefaultSelectExecutionPlanEmitters(t *testing.T) {
 				So(len(output), ShouldEqual, 4)
 				So(len(output[0]), ShouldEqual, 1)
 				So(output[0][0], ShouldResemble, data.Map{"a": data.Int(2)})
-				So(len(output[1]), ShouldEqual, 0)
-				So(len(output[2]), ShouldEqual, 0)
+				// items should be emitted as (long as) the number of
+				// rows increases
+				So(len(output[1]), ShouldEqual, 1)
+				So(output[1][0], ShouldResemble, data.Map{"a": data.Int(2)})
+				So(len(output[2]), ShouldEqual, 1)
+				So(output[1][0], ShouldResemble, data.Map{"a": data.Int(2)})
 				So(len(output[3]), ShouldEqual, 0)
 			})
 
@@ -1017,7 +1104,10 @@ func TestDefaultSelectExecutionPlanEmitters(t *testing.T) {
 				So(len(output), ShouldEqual, 4)
 				So(len(output[0]), ShouldEqual, 1)
 				So(output[0][0], ShouldResemble, data.Map{"a": data.Int(2)})
-				So(len(output[1]), ShouldEqual, 0)
+				// items should be emitted as (long as) the number of
+				// rows increases
+				So(len(output[1]), ShouldEqual, 1)
+				So(output[1][0], ShouldResemble, data.Map{"a": data.Int(2)})
 				So(len(output[2]), ShouldEqual, 0)
 				So(len(output[3]), ShouldEqual, 0)
 			})
@@ -1154,6 +1244,38 @@ func TestDefaultSelectExecutionPlanEmitters(t *testing.T) {
 				So(output[2][0], ShouldResemble, data.Map{"a": data.Int(1)})
 				So(len(output[3]), ShouldEqual, 1)
 				So(output[3][0], ShouldResemble, data.Map{"a": data.Int(2)})
+			})
+
+		})
+	})
+
+	Convey("Given a DSTREAM emitter selecting a column (varying multiplicities) and a 2 TUPLES window", t, func() {
+		tuples := getTuples(6)
+		tuples[1].Data["int"] = data.Int(1)
+		s := `CREATE STREAM box AS SELECT DSTREAM int AS a FROM src [RANGE 2 TUPLES]`
+		plan, err := createDefaultSelectPlan(s, t)
+		So(err, ShouldBeNil)
+
+		Convey("When feeding it with tuples", func() {
+			output := [][]data.Map{}
+			for _, inTup := range tuples {
+				out, err := plan.Process(inTup)
+				So(err, ShouldBeNil)
+				output = append(output, out)
+			}
+
+			Convey("Then items dropped from state should be emitted", func() {
+				So(len(output), ShouldEqual, 6)
+				So(len(output[0]), ShouldEqual, 0)
+				So(len(output[1]), ShouldEqual, 0)
+				So(len(output[2]), ShouldEqual, 1)
+				So(output[2][0], ShouldResemble, data.Map{"a": data.Int(1)})
+				So(len(output[3]), ShouldEqual, 1)
+				So(output[3][0], ShouldResemble, data.Map{"a": data.Int(1)})
+				So(len(output[3]), ShouldEqual, 1)
+				So(output[4][0], ShouldResemble, data.Map{"a": data.Int(3)})
+				So(len(output[3]), ShouldEqual, 1)
+				So(output[5][0], ShouldResemble, data.Map{"a": data.Int(4)})
 			})
 
 		})
@@ -1630,4 +1752,209 @@ func TestDefaultSelectExecutionPlanJoin(t *testing.T) {
 			}
 		})
 	})
+
+	Convey("Given a self-self-join with a join condition", t, func() {
+		tuples := getTuples(8)
+		// rearrange the tuples
+		for i, t := range tuples {
+			t.InputName = "src"
+			t.Data["x"] = data.String(fmt.Sprintf("x%d", i))
+		}
+		s := `CREATE STREAM box AS SELECT ISTREAM src1:x AS l, src2:x AS r, src3:x AS x ` +
+			`FROM src [RANGE 2 TUPLES] AS src1, src [RANGE 2 TUPLES] AS src2, src [RANGE 3 TUPLES] AS src3 ` +
+			`WHERE src1:int + 1 = src2:int AND src2:int = src3:int + 1`
+		plan, err := createDefaultSelectPlan(s, t)
+		So(err, ShouldBeNil)
+
+		Convey("When feeding it with tuples", func() {
+			for idx, inTup := range tuples {
+				out, err := plan.Process(inTup)
+				So(err, ShouldBeNil)
+				// sort the output by the "l" and then the "r" key before
+				// checking if it resembles the expected value
+				sort.Sort(tupleList(out))
+
+				Convey(fmt.Sprintf("Then joined values should appear in %v", idx), func() {
+					if idx == 0 {
+						// join condition fails
+						So(len(out), ShouldEqual, 0)
+					} else {
+						So(len(out), ShouldEqual, 1)
+						So(out[0], ShouldResemble, data.Map{
+							"l": data.String(fmt.Sprintf("x%d", idx-1)), // int: x
+							"r": data.String(fmt.Sprintf("x%d", idx)),   // int: x+1
+							"x": data.String(fmt.Sprintf("x%d", idx-1)), // int: x
+						})
+					}
+				})
+			}
+		})
+	})
+}
+
+func createDefaultSelectPlan2(s string) (PhysicalPlan, error) {
+	p := parser.New()
+	reg := udf.CopyGlobalUDFRegistry(core.NewContext(nil))
+	_stmt, _, err := p.ParseStmt(s)
+	if err != nil {
+		return nil, err
+	}
+	stmt := _stmt.(parser.CreateStreamAsSelectStmt).Select
+	logicalPlan, err := Analyze(stmt, reg)
+	if err != nil {
+		return nil, err
+	}
+	canBuild := CanBuildDefaultSelectExecutionPlan(logicalPlan, reg)
+	if !canBuild {
+		err := fmt.Errorf("defaultSelectExecutionPlan cannot be used for statement: %s", s)
+		return nil, err
+	}
+	return NewDefaultSelectExecutionPlan(logicalPlan, reg)
+}
+
+func BenchmarkNormalExecution(b *testing.B) {
+	s := `CREATE STREAM box AS SELECT ISTREAM cast(3+4-6+1 as float), 3.0::int*4/2+1=7.0,
+			null, [2.0,3] = [2,3.0] FROM src [RANGE 5 TUPLES]`
+	plan, err := createDefaultSelectPlan2(s)
+	if err != nil {
+		panic(err.Error())
+	}
+	tmplTup := core.Tuple{
+		Data:          data.Map{"int": data.Int(-1)},
+		InputName:     "src",
+		Timestamp:     time.Date(2015, time.April, 10, 10, 23, 0, 0, time.UTC),
+		ProcTimestamp: time.Date(2015, time.April, 10, 10, 24, 0, 0, time.UTC),
+		BatchID:       7,
+	}
+	for n := 0; n < b.N; n++ {
+		inTup := tmplTup.Copy()
+		inTup.Data["int"] = data.Int(n)
+		_, err := plan.Process(inTup)
+		if err != nil {
+			panic(err.Error())
+		}
+	}
+}
+
+func BenchmarkNormalExecutionBigWindow(b *testing.B) {
+	s := `CREATE STREAM box AS SELECT ISTREAM cast(3+4-6+1 as float), 3.0::int*4/2+1=7.0,
+			null, [2.0,3] = [2,3.0] FROM src [RANGE 50 TUPLES]`
+	plan, err := createDefaultSelectPlan2(s)
+	if err != nil {
+		panic(err.Error())
+	}
+	tmplTup := core.Tuple{
+		Data:          data.Map{"int": data.Int(-1)},
+		InputName:     "src",
+		Timestamp:     time.Date(2015, time.April, 10, 10, 23, 0, 0, time.UTC),
+		ProcTimestamp: time.Date(2015, time.April, 10, 10, 24, 0, 0, time.UTC),
+		BatchID:       7,
+	}
+	for n := 0; n < b.N; n++ {
+		inTup := tmplTup.Copy()
+		inTup.Data["int"] = data.Int(n)
+		_, err := plan.Process(inTup)
+		if err != nil {
+			panic(err.Error())
+		}
+	}
+}
+
+func BenchmarkTimeBasedExecution(b *testing.B) {
+	s := `CREATE STREAM box AS SELECT ISTREAM cast(3+4-6+1 as float), 3.0::int*4/2+1=7.0,
+			null, [2.0,3] = [2,3.0] FROM src [RANGE 5 SECONDS]`
+	plan, err := createDefaultSelectPlan2(s)
+	if err != nil {
+		panic(err.Error())
+	}
+	tmplTup := core.Tuple{
+		Data:          data.Map{"int": data.Int(-1)},
+		InputName:     "src",
+		Timestamp:     time.Date(2015, time.April, 10, 10, 23, 0, 0, time.UTC),
+		ProcTimestamp: time.Date(2015, time.April, 10, 10, 24, 0, 0, time.UTC),
+		BatchID:       7,
+	}
+	for n := 0; n < b.N; n++ {
+		inTup := tmplTup.Copy()
+		inTup.Data["int"] = data.Int(n)
+		inTup.Timestamp = inTup.Timestamp.Add(time.Duration(n) * time.Second)
+		_, err := plan.Process(inTup)
+		if err != nil {
+			panic(err.Error())
+		}
+	}
+}
+
+func BenchmarkTimeBasedExecutionBigWindow(b *testing.B) {
+	s := `CREATE STREAM box AS SELECT ISTREAM cast(3+4-6+1 as float), 3.0::int*4/2+1=7.0,
+			null, [2.0,3] = [2,3.0] FROM src [RANGE 50 SECONDS]`
+	plan, err := createDefaultSelectPlan2(s)
+	if err != nil {
+		panic(err.Error())
+	}
+	tmplTup := core.Tuple{
+		Data:          data.Map{"int": data.Int(-1)},
+		InputName:     "src",
+		Timestamp:     time.Date(2015, time.April, 10, 10, 23, 0, 0, time.UTC),
+		ProcTimestamp: time.Date(2015, time.April, 10, 10, 24, 0, 0, time.UTC),
+		BatchID:       7,
+	}
+	for n := 0; n < b.N; n++ {
+		inTup := tmplTup.Copy()
+		inTup.Data["int"] = data.Int(n)
+		inTup.Timestamp = inTup.Timestamp.Add(time.Duration(n) * time.Second)
+		_, err := plan.Process(inTup)
+		if err != nil {
+			panic(err.Error())
+		}
+	}
+}
+
+func BenchmarkWithWhere(b *testing.B) {
+	s := `CREATE STREAM box AS SELECT ISTREAM cast(3+4-6+1 as float), 3.0::int*4/2+1=7.0,
+			null, [2.0,3] = [2,3.0] FROM src [RANGE 5 TUPLES] WHERE int % 2 = 0`
+	plan, err := createDefaultSelectPlan2(s)
+	if err != nil {
+		panic(err.Error())
+	}
+	tmplTup := core.Tuple{
+		Data:          data.Map{"int": data.Int(-1)},
+		InputName:     "src",
+		Timestamp:     time.Date(2015, time.April, 10, 10, 23, 0, 0, time.UTC),
+		ProcTimestamp: time.Date(2015, time.April, 10, 10, 24, 0, 0, time.UTC),
+		BatchID:       7,
+	}
+	for n := 0; n < b.N; n++ {
+		inTup := tmplTup.Copy()
+		inTup.Data["int"] = data.Int(n)
+		_, err := plan.Process(inTup)
+		if err != nil {
+			panic(err.Error())
+		}
+	}
+}
+
+func BenchmarkNormalJoin(b *testing.B) {
+	s := `CREATE STREAM box AS SELECT ISTREAM left:int, right:int
+	FROM src [RANGE 5 TUPLES] AS left, src [RANGE 5 TUPLES] AS right
+	WHERE left:int - right:int < 2`
+	plan, err := createDefaultSelectPlan2(s)
+	if err != nil {
+		panic(err.Error())
+	}
+	tmplTup := core.Tuple{
+		Data:          data.Map{"int": data.Int(-1)},
+		InputName:     "src",
+		Timestamp:     time.Date(2015, time.April, 10, 10, 23, 0, 0, time.UTC),
+		ProcTimestamp: time.Date(2015, time.April, 10, 10, 24, 0, 0, time.UTC),
+		BatchID:       7,
+	}
+	for n := 0; n < b.N; n++ {
+		inTup := tmplTup.Copy()
+		inTup.Data["int"] = data.Int(n)
+		_, err := plan.Process(inTup)
+		if err != nil {
+			panic(err.Error())
+		}
+	}
 }

@@ -1,70 +1,163 @@
 package data
 
 import (
-	"bytes"
 	"fmt"
 	. "github.com/smartystreets/goconvey/convey"
 	"math"
 	"reflect"
 	"testing"
+	"time"
 )
 
 var testCases = []struct {
-	input    Value
-	expected string
+	input Value
 }{
 	// Blob
-	{Blob(""), "B0:"},
-	{Blob("hoge"), "B4:hoge"},
-	{Blob("日本語"), "B9:日本語"},
+	{Blob("")},
+	{Blob("hoge")},
+	{Blob("日本語")},
 	// Bool
-	{Bool(false), "b0"},
-	{Bool(true), "b1"},
+	{Bool(false)},
+	{Bool(true)},
 	// Float
-	{Float(2.34), "n2.34;"},
-	{Float(math.NaN()), "nNaN;"},
-	{Float(math.Inf(-1)), "n-Inf;"},
-	{Float(2.000000000000000000000000000000000000000000000000000000000001), "n2;"},
-	{Float(2.0), "n2;"},
-	{Float(0.0), "n0;"},
-	{Float(-0.0), "n0;"},
+	{Float(2.34)},
+	{Float(math.NaN())}, // NaN == NaN is false
+	{Float(math.Inf(-1))},
+	{Float(2.000000000000000000000000000000000000000000000000000000000001)},
+	{Float(2.0)},
+	{Float(0.0)},
+	{Float(-0.0)},
 	// Int
-	{Int(2), "n2;"}, // same as Float(2.0)
-	{Int(-6), "n-6;"},
+	{Int(2)}, // same as Float(2.0)
+	{Int(-6)},
 	// Null
-	{Null{}, "N"},
+	{Null{}},
 	// String
-	{String(""), "s0:"},
-	{String("hoge"), "s4:hoge"},
-	{String("日本語"), "s9:日本語"},
+	{String("")},
+	{String("hoge")},
+	{String("日本語")},
 	// Timestamp
-	{Timestamp{}, "t20:0001-01-01T00:00:00Z"},
+	{Timestamp{}},
 	// Array
-	{Array{}, "a0:"},
-	{Array{String("hoge")}, "a1:s4:hoge"},
-	{Array{Int(2), Float(3.0)}, "a2:n2;n3;"},
-	{Array{Float(2.0), Int(3)}, "a2:n2;n3;"},
-	{Array{Int(-6), Array{String("hoge")}}, "a2:n-6;a1:s4:hoge"},
+	{Array{}},
+	{Array{String("hoge")}},
+	{Array{Int(2), Float(3.0)}},
+	{Array{Float(2.0), Int(3)}},
+	{Array{Int(-6), Array{String("hoge")}}},
 	// Map
-	{Map{}, "m0:"},
-	{Map{"hoge": String("hoge")}, "m1:s4:hoges4:hoge"},
-	{Map{"a": Int(2), "b": Float(3.0)}, "m2:s1:an2;s1:bn3;"},
-	{Map{"b": Int(3), "a": Float(2.0)}, "m2:s1:an2;s1:bn3;"},
-	{Map{"i": Int(-6), "xy": Map{"h": String("hoge")}}, "m2:s1:in-6;s2:xym1:s1:hs4:hoge"},
+	{Map{}},
+	{Map{"hoge": String("hoge")}},
+	{Map{"a": Int(2), "b": Float(3.0)}},
+	{Map{"b": Int(3), "a": Float(2.0)}},
+	{Map{"b": Int(3), "a": Float(2.5)}},
+	{Map{"i": Int(-6), "xy": Map{"h": String("hoge")}}},
 }
 
-func TestUpdateHash(t *testing.T) {
-	for _, testCase := range testCases {
-		testCase := testCase
-		Convey(fmt.Sprintf("When serializing %#v", testCase.input), t, func() {
-			var b bytes.Buffer
-			updateHash(testCase.input, &b)
+func TestHash(t *testing.T) {
+	now := time.Now()
+	for now.Nanosecond()%1000 == 999 {
+		now = time.Now()
+	}
 
-			Convey(fmt.Sprintf("Then the result should be %s", testCase.expected), func() {
-				So(b.String(), ShouldEqual, testCase.expected)
+	Convey("Given a map containing all types", t, func() {
+		m := Map{
+			"null":      Null{},
+			"true":      True,
+			"false":     False,
+			"int":       Int(10),
+			"float":     Float(2.5),
+			"string":    String("hoge"),
+			"blob":      Blob("hoge"),
+			"timestamp": Timestamp(now),
+			"array": Array{Null{}, True, False, Int(10), Float(2.5), String("hoge"),
+				Blob("hoge"), Timestamp(now), Array{Null{}, True, False, Int(10), Float(2.5), String("hoge")},
+				Map{
+					"null":   Null{},
+					"true":   True,
+					"false":  False,
+					"int":    Int(10),
+					"float":  Float(2.5),
+					"string": String("hoge"),
+				},
+			},
+			"map": Map{
+				"null":      Null{},
+				"true":      True,
+				"false":     False,
+				"int":       Int(10),
+				"float":     Float(2.5),
+				"string":    String("hoge"),
+				"blob":      Blob("hoge"),
+				"timestamp": Timestamp(now),
+				"array": Array{Null{}, True, False, Int(10), Float(2.5), String("hoge"),
+					Blob("hoge"), Timestamp(now), Array{Null{}, True, False, Int(10), Float(2.5), String("hoge")},
+					Map{
+						"null":   Null{},
+						"true":   True,
+						"false":  False,
+						"int":    Int(10),
+						"float":  Float(2.5),
+						"string": String("hoge"),
+					},
+				},
+			},
+		}
+
+		Convey("When a map doesn't contain something invalid", func() {
+			Convey("Then Hash should always return the same value", func() {
+				So(Hash(m), ShouldEqual, Hash(m))
 			})
 		})
-	}
+
+		Convey("When comparing a float having an integer value to int and vice vasa", func() {
+			c := m.Copy()
+			c["int"] = Float(10.0)
+			m["float"] = Float(3.0)
+			c["float"] = Int(3)
+			So(c.Set(MustCompilePath("array[3]"), Float(10.0)), ShouldBeNil)
+			So(m.Set(MustCompilePath("map.int"), Float(10.0)), ShouldBeNil)
+
+			Convey("Then Hash should return the same value", func() {
+				So(Hash(c), ShouldEqual, Hash(m))
+			})
+		})
+
+		Convey("When comparing timestamps whose differences are less than 1us", func() {
+			t := Timestamp(now.Add(1))
+			c := m.Copy()
+			Convey("Then Hash should return the same value", func() {
+				c["timestamp"] = t
+				So(Hash(c), ShouldEqual, Hash(m))
+			})
+
+			Convey("Then Hash should behave samely when they're in an array", func() {
+				So(c.Set(MustCompilePath("array[7]"), t), ShouldBeNil)
+				So(Hash(c), ShouldEqual, Hash(m))
+			})
+
+			Convey("Then Hash should behave samely when they're in a map", func() {
+				So(c.Set(MustCompilePath("map.timestamp"), t), ShouldBeNil)
+				So(Hash(c), ShouldEqual, Hash(m))
+			})
+		})
+
+		Convey("When a map contains NaN", func() {
+			Convey("Then Hash should alwasy return different values", func() {
+				m["nan"] = Float(math.NaN())
+				So(Hash(m), ShouldNotEqual, Hash(m))
+			})
+
+			Convey("Then NaN in an array should behave samely", func() {
+				So(m.Set(MustCompilePath("array[0]"), Float(math.NaN())), ShouldBeNil)
+				So(Hash(m), ShouldNotEqual, Hash(m))
+			})
+
+			Convey("Then NaN in a map should behave samely", func() {
+				So(m.Set(MustCompilePath("map.float"), Float(math.NaN())), ShouldBeNil)
+				So(Hash(m), ShouldNotEqual, Hash(m))
+			})
+		})
+	})
 }
 
 func TestEquality(t *testing.T) {
@@ -83,9 +176,7 @@ func TestEquality(t *testing.T) {
 						// array
 						((i == 21 && j == 22) || (j == 21 && i == 22)) ||
 						// map
-						((i == 26 && j == 27) || (j == 26 && i == 27)) ||
-						// NaN
-						(i == 6 && j == 6) {
+						((i == 26 && j == 27) || (j == 26 && i == 27)) {
 						So(de, ShouldBeFalse)
 						So(he, ShouldBeTrue)
 					} else {
@@ -117,5 +208,37 @@ func BenchmarkEqual(b *testing.B) {
 				Equal(tc1.input, tc2.input)
 			}
 		}
+	}
+}
+
+func BenchmarkHash(b *testing.B) {
+	var h HashValue
+	for n := 0; n < b.N; n++ {
+		for _, tc := range testCases {
+			h += Hash(tc.input)
+		}
+	}
+}
+
+func BenchmarkHashLargeMap(b *testing.B) {
+	nested := Map{}
+	prefixes := []string{"hoge", "moge", "fuga", "pfn", "sensorbee"}
+	for i := 0; i < 2500; i++ {
+		p := fmt.Sprintf("%v%v", prefixes[i%len(prefixes)], i+1)
+
+		nested[p+"int"] = Int(((-2 * (i % 2)) + 1) * i)
+		nested[p+"float"] = Float(math.Exp(math.Pow(float64(i), 0.3)))
+		nested[p+"string"] = String("hogehogehogehogehogehogehgoehoge")
+		nested[p+"timestamp"] = Timestamp(time.Now().AddDate(0, 0, i))
+	}
+	m := Map{}
+	for i := 0; i < 10; i++ {
+		m[fmt.Sprint(i+1)] = nested.Copy()
+	}
+	b.ResetTimer()
+
+	var h HashValue
+	for n := 0; n < b.N; n++ {
+		h += Hash(m)
 	}
 }

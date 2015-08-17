@@ -55,38 +55,49 @@ func EvaluateFoldable(expr parser.Expression, reg udf.FunctionRegistry) (data.Va
 // input Value.
 func ExpressionToEvaluator(ast FlatExpression, reg udf.FunctionRegistry) (Evaluator, error) {
 	switch obj := ast.(type) {
-	case RowMeta:
+	case rowMeta:
 		// construct a key for reading as used in setMetadata() for writing
-		metaKey := fmt.Sprintf("%s:meta:%s", obj.Relation, obj.MetaType)
+		metaKey := fmt.Sprintf("['%s:meta:%s']", obj.Relation, obj.MetaType)
 		if obj.MetaType == parser.TimestampMeta {
-			return &timestampCast{&PathAccess{metaKey}}, nil
+			pa, err := newPathAccess(metaKey)
+			if err != nil {
+				return nil, err
+			}
+			return &timestampCast{pa}, nil
 		}
-	case StmtMeta:
+	case stmtMeta:
 		// construct a key for reading as used in setMetadata() for writing
-		metaKey := fmt.Sprintf(":meta:%s", obj.MetaType)
+		metaKey := fmt.Sprintf("[':meta:%s']", obj.MetaType)
 		if obj.MetaType == parser.NowMeta {
-			return &timestampCast{&PathAccess{metaKey}}, nil
+			pa, err := newPathAccess(metaKey)
+			if err != nil {
+				return nil, err
+			}
+			return &timestampCast{pa}, nil
 		}
-	case RowValue:
-		// in the current JSON path implementation as per data/mapscan.go,
-		// single quotes in map access strings do not need to be escaped,
-		// so we have to turn a BQL expression like `hoge['foo''bar]` into
-		// a string `hoge['foo'bar']`
-		path := strings.Replace(obj.Column, "''", "'", -1)
-		return &PathAccess{obj.Relation + "." + path}, nil
-	case AggInputRef:
-		return &PathAccess{obj.Ref}, nil
-	case NullLiteral:
-		return &NullConstant{}, nil
-	case NumericLiteral:
-		return &IntConstant{obj.Value}, nil
-	case FloatLiteral:
-		return &FloatConstant{obj.Value}, nil
-	case BoolLiteral:
-		return &BoolConstant{obj.Value}, nil
-	case StringLiteral:
-		return &StringConstant{obj.Value}, nil
-	case BinaryOpAST:
+	case rowValue:
+		path := obj.Column
+		if obj.Relation != "" {
+			if strings.HasPrefix(path, "[") {
+				path = obj.Relation + path
+			} else {
+				path = obj.Relation + "." + path
+			}
+		}
+		return newPathAccess(path)
+	case aggInputRef:
+		return newPathAccess(obj.Ref)
+	case nullLiteral:
+		return &nullConstant{}, nil
+	case numericLiteral:
+		return &intConstant{obj.Value}, nil
+	case floatLiteral:
+		return &floatConstant{obj.Value}, nil
+	case boolLiteral:
+		return &boolConstant{obj.Value}, nil
+	case stringLiteral:
+		return &stringConstant{obj.Value}, nil
+	case binaryOpAST:
 		// recurse
 		left, err := ExpressionToEvaluator(obj.Left, reg)
 		if err != nil {
@@ -103,47 +114,47 @@ func ExpressionToEvaluator(ast FlatExpression, reg udf.FunctionRegistry) (Evalua
 			err := fmt.Errorf("don't know how to evaluate binary operation %v", obj.Op)
 			return nil, err
 		case parser.Or:
-			return &Or{bo}, nil
+			return &or{bo}, nil
 		case parser.And:
-			return &And{bo}, nil
+			return &and{bo}, nil
 		case parser.Equal:
-			return Equal(bo), nil
+			return newEqual(bo), nil
 		case parser.Less:
-			return Less(bo), nil
+			return newLess(bo), nil
 		case parser.LessOrEqual:
-			return LessOrEqual(bo), nil
+			return newLessOrEqual(bo), nil
 		case parser.Greater:
-			return Greater(bo), nil
+			return newGreater(bo), nil
 		case parser.GreaterOrEqual:
-			return GreaterOrEqual(bo), nil
+			return newGreaterOrnewEqual(bo), nil
 		case parser.NotEqual:
-			return Not(Equal(bo)), nil
+			return newNot(newEqual(bo)), nil
 		case parser.Concat:
-			return &Concat{bo}, nil
+			return &concat{bo}, nil
 		case parser.Is:
 			// at the moment there is only NULL allowed after IS,
 			// but maybe we want to allow other types later on
-			if obj.Right == (NullLiteral{}) {
-				return IsNull(left), nil
+			if obj.Right == (nullLiteral{}) {
+				return newIsNull(left), nil
 			}
 		case parser.IsNot:
 			// at the moment there is only NULL allowed after IS NOT,
 			// but maybe we want to allow other types later on
-			if obj.Right == (NullLiteral{}) {
-				return Not(IsNull(left)), nil
+			if obj.Right == (nullLiteral{}) {
+				return newNot(newIsNull(left)), nil
 			}
 		case parser.Plus:
-			return Plus(bo), nil
+			return newPlus(bo), nil
 		case parser.Minus:
-			return Minus(bo), nil
+			return newMinus(bo), nil
 		case parser.Multiply:
-			return Multiply(bo), nil
+			return newMultiply(bo), nil
 		case parser.Divide:
-			return Divide(bo), nil
+			return newDivide(bo), nil
 		case parser.Modulo:
-			return Modulo(bo), nil
+			return newModulo(bo), nil
 		}
-	case UnaryOpAST:
+	case unaryOpAST:
 		// recurse
 		expr, err := ExpressionToEvaluator(obj.Expr, reg)
 		if err != nil {
@@ -155,20 +166,20 @@ func ExpressionToEvaluator(ast FlatExpression, reg udf.FunctionRegistry) (Evalua
 			err := fmt.Errorf("don't know how to evaluate unary operation %v", obj.Op)
 			return nil, err
 		case parser.Not:
-			return Not(expr), nil
+			return newNot(expr), nil
 		case parser.UnaryMinus:
 			// implement negation as multiplication with -1
-			bo := binOp{expr, &IntConstant{-1}}
-			return Multiply(bo), nil
+			bo := binOp{expr, &intConstant{-1}}
+			return newMultiply(bo), nil
 		}
-	case TypeCastAST:
+	case typeCastAST:
 		// recurse
 		expr, err := ExpressionToEvaluator(obj.Expr, reg)
 		if err != nil {
 			return nil, err
 		}
-		return TypeCast(expr, obj.Target)
-	case FuncAppAST:
+		return newTypeCast(expr, obj.Target)
+	case funcAppAST:
 		// lookup function in function registry
 		// (the registry will decide if the requested function
 		// is callable with the given number of arguments).
@@ -187,7 +198,7 @@ func ExpressionToEvaluator(ast FlatExpression, reg udf.FunctionRegistry) (Evalua
 			evals[i] = eval
 		}
 		return FuncApp(fName, f, reg.Context(), evals), nil
-	case ArrayAST:
+	case arrayAST:
 		// compute child Evaluators
 		evals := make([]Evaluator, len(obj.Expressions))
 		for i, ast := range obj.Expressions {
@@ -197,8 +208,8 @@ func ExpressionToEvaluator(ast FlatExpression, reg udf.FunctionRegistry) (Evalua
 			}
 			evals[i] = eval
 		}
-		return ArrayBuilder(evals), nil
-	case MapAST:
+		return newArrayBuilder(evals), nil
+	case mapAST:
 		// compute child Evaluators
 		names := make([]string, len(obj.Entries))
 		evals := make([]Evaluator, len(obj.Entries))
@@ -210,75 +221,83 @@ func ExpressionToEvaluator(ast FlatExpression, reg udf.FunctionRegistry) (Evalua
 			evals[i] = eval
 			names[i] = pair.Key
 		}
-		return MapBuilder(names, evals)
-	case WildcardAST:
-		return &Wildcard{obj.Relation}, nil
+		return newMapBuilder(names, evals)
+	case wildcardAST:
+		return &wildcard{obj.Relation}, nil
 	}
 	err := fmt.Errorf("don't know how to evaluate type %#v", ast)
 	return nil, err
 }
 
-// NullConstant always returns the same null value, independent
+// nullConstant always returns the same null value, independent
 // of the input.
-type NullConstant struct {
+type nullConstant struct {
 }
 
-func (n *NullConstant) Eval(input data.Value) (data.Value, error) {
+func (n *nullConstant) Eval(input data.Value) (data.Value, error) {
 	return data.Null{}, nil
 }
 
-// IntConstant always returns the same integer value, independent
+// intConstant always returns the same integer value, independent
 // of the input.
-type IntConstant struct {
+type intConstant struct {
 	value int64
 }
 
-func (i *IntConstant) Eval(input data.Value) (data.Value, error) {
+func (i *intConstant) Eval(input data.Value) (data.Value, error) {
 	return data.Int(i.value), nil
 }
 
-// FloatConstant always returns the same float value, independent
+// floatConstant always returns the same float value, independent
 // of the input.
-type FloatConstant struct {
+type floatConstant struct {
 	value float64
 }
 
-func (f *FloatConstant) Eval(input data.Value) (data.Value, error) {
+func (f *floatConstant) Eval(input data.Value) (data.Value, error) {
 	return data.Float(f.value), nil
 }
 
-// BoolConstant always returns the same boolean value, independent
+// boolConstant always returns the same boolean value, independent
 // of the input.
-type BoolConstant struct {
+type boolConstant struct {
 	value bool
 }
 
-func (b *BoolConstant) Eval(input data.Value) (data.Value, error) {
+func (b *boolConstant) Eval(input data.Value) (data.Value, error) {
 	return data.Bool(b.value), nil
 }
 
-// StringConstant always returns the same string value, independent
+// stringConstant always returns the same string value, independent
 // of the input.
-type StringConstant struct {
+type stringConstant struct {
 	value string
 }
 
-func (s *StringConstant) Eval(input data.Value) (data.Value, error) {
+func (s *stringConstant) Eval(input data.Value) (data.Value, error) {
 	return data.String(s.value), nil
 }
 
-// PathAccess only works for maps and returns the Value at the given
+// pathAccess only works for maps and returns the Value at the given
 // JSON path.
-type PathAccess struct {
-	path string
+type pathAccess struct {
+	path data.Path
 }
 
-func (fa *PathAccess) Eval(input data.Value) (data.Value, error) {
+func (fa *pathAccess) Eval(input data.Value) (data.Value, error) {
 	aMap, err := data.AsMap(input)
 	if err != nil {
 		return nil, err
 	}
 	return aMap.Get(fa.path)
+}
+
+func newPathAccess(s string) (Evaluator, error) {
+	path, err := data.CompilePath(s)
+	if err != nil {
+		return nil, err
+	}
+	return &pathAccess{path}, nil
 }
 
 type typeCast struct {
@@ -294,7 +313,7 @@ func (t *typeCast) Eval(input data.Value) (data.Value, error) {
 	return t.converter(val)
 }
 
-func TypeCast(e Evaluator, t parser.Type) (Evaluator, error) {
+func newTypeCast(e Evaluator, t parser.Type) (Evaluator, error) {
 	switch t {
 	case parser.Bool:
 		conv := func(v data.Value) (data.Value, error) {
@@ -389,11 +408,11 @@ func (bo *binOp) evalLeftAndRight(input data.Value) (data.Value, data.Value, err
 
 /// Binary Logical Operations
 
-type Or struct {
+type or struct {
 	binOp
 }
 
-func (o *Or) Eval(input data.Value) (data.Value, error) {
+func (o *or) Eval(input data.Value) (data.Value, error) {
 	leftRes, err := o.left.Eval(input)
 	if err != nil {
 		return nil, err
@@ -418,7 +437,9 @@ func (o *Or) Eval(input data.Value) (data.Value, error) {
 		}
 		// NULL OR false => NULL
 		return data.Null{}, nil
-	} else {
+	}
+	// indent the block below for symmetry reasons
+	{
 		leftBool, err := data.ToBool(leftRes)
 		if err != nil {
 			return nil, err
@@ -449,11 +470,11 @@ func (o *Or) Eval(input data.Value) (data.Value, error) {
 	}
 }
 
-type And struct {
+type and struct {
 	binOp
 }
 
-func (a *And) Eval(input data.Value) (data.Value, error) {
+func (a *and) Eval(input data.Value) (data.Value, error) {
 	leftRes, err := a.left.Eval(input)
 	if err != nil {
 		return nil, err
@@ -478,7 +499,9 @@ func (a *And) Eval(input data.Value) (data.Value, error) {
 		}
 		// NULL AND false => false
 		return data.Bool(false), nil
-	} else {
+	}
+	// indent the block below for symmetry reasons
+	{
 		leftBool, err := data.ToBool(leftRes)
 		if err != nil {
 			return nil, err
@@ -531,7 +554,7 @@ func (n *not) Eval(input data.Value) (data.Value, error) {
 	return data.Bool(!negBool), nil
 }
 
-func Not(e Evaluator) Evaluator {
+func newNot(e Evaluator) Evaluator {
 	return &not{e}
 }
 
@@ -559,7 +582,7 @@ func (cbo *compBinOp) Eval(input data.Value) (data.Value, error) {
 	return data.Bool(res), nil
 }
 
-func Equal(bo binOp) Evaluator {
+func newEqual(bo binOp) Evaluator {
 	cmpOp := func(leftVal data.Value, rightVal data.Value) (bool, error) {
 		return data.Equal(leftVal, rightVal), nil
 
@@ -567,7 +590,7 @@ func Equal(bo binOp) Evaluator {
 	return &compBinOp{bo, cmpOp}
 }
 
-func Less(bo binOp) Evaluator {
+func newLess(bo binOp) Evaluator {
 	cmpOp := func(leftVal data.Value, rightVal data.Value) (bool, error) {
 		leftType := leftVal.Type()
 		rightType := rightVal.Type()
@@ -617,20 +640,20 @@ func Less(bo binOp) Evaluator {
 	return &compBinOp{bo, cmpOp}
 }
 
-func LessOrEqual(bo binOp) Evaluator {
-	return &Or{binOp{Less(bo), Equal(bo)}}
+func newLessOrEqual(bo binOp) Evaluator {
+	return &or{binOp{newLess(bo), newEqual(bo)}}
 }
 
-func Greater(bo binOp) Evaluator {
-	return Not(LessOrEqual(bo))
+func newGreater(bo binOp) Evaluator {
+	return newNot(newLessOrEqual(bo))
 }
 
-func GreaterOrEqual(bo binOp) Evaluator {
-	return Not(Less(bo))
+func newGreaterOrnewEqual(bo binOp) Evaluator {
+	return newNot(newLess(bo))
 }
 
-func NotEqual(bo binOp) Evaluator {
-	return Not(Equal(bo))
+func newNotEqual(bo binOp) Evaluator {
+	return newNot(newEqual(bo))
 }
 
 /// A Unary Comparison Operation
@@ -647,7 +670,7 @@ func (n *isNull) Eval(input data.Value) (data.Value, error) {
 	return data.Bool(val.Type() == data.TypeNull), nil
 }
 
-func IsNull(e Evaluator) Evaluator {
+func newIsNull(e Evaluator) Evaluator {
 	return &isNull{e}
 }
 
@@ -713,7 +736,7 @@ func (nbo *numBinOp) Eval(input data.Value) (v data.Value, err error) {
 	return nil, stdErr
 }
 
-func Plus(bo binOp) Evaluator {
+func newPlus(bo binOp) Evaluator {
 	// we do not check for overflows
 	intOp := func(a, b int64) int64 {
 		return a + b
@@ -724,7 +747,7 @@ func Plus(bo binOp) Evaluator {
 	return &numBinOp{bo, "add", intOp, floatOp}
 }
 
-func Minus(bo binOp) Evaluator {
+func newMinus(bo binOp) Evaluator {
 	// we do not check for overflows
 	intOp := func(a, b int64) int64 {
 		return a - b
@@ -735,7 +758,7 @@ func Minus(bo binOp) Evaluator {
 	return &numBinOp{bo, "subtract", intOp, floatOp}
 }
 
-func Multiply(bo binOp) Evaluator {
+func newMultiply(bo binOp) Evaluator {
 	// we do not check for overflows
 	intOp := func(a, b int64) int64 {
 		return a * b
@@ -746,7 +769,7 @@ func Multiply(bo binOp) Evaluator {
 	return &numBinOp{bo, "multiply", intOp, floatOp}
 }
 
-func Divide(bo binOp) Evaluator {
+func newDivide(bo binOp) Evaluator {
 	// we do not check for overflows
 	intOp := func(a, b int64) int64 {
 		return a / b
@@ -757,7 +780,7 @@ func Divide(bo binOp) Evaluator {
 	return &numBinOp{bo, "divide", intOp, floatOp}
 }
 
-func Modulo(bo binOp) Evaluator {
+func newModulo(bo binOp) Evaluator {
 	intOp := func(a, b int64) int64 {
 		return a % b
 	}
@@ -769,11 +792,11 @@ func Modulo(bo binOp) Evaluator {
 
 /// Other Binary Operations
 
-type Concat struct {
+type concat struct {
 	binOp
 }
 
-func (nbo *Concat) Eval(input data.Value) (v data.Value, err error) {
+func (nbo *concat) Eval(input data.Value) (v data.Value, err error) {
 	defer func() {
 		// catch panic from (say) integer division by 0
 		if r := recover(); r != nil {
@@ -870,7 +893,7 @@ func (a *arrayBuilder) Eval(input data.Value) (v data.Value, err error) {
 	return data.Array(results), nil
 }
 
-func ArrayBuilder(elems []Evaluator) Evaluator {
+func newArrayBuilder(elems []Evaluator) Evaluator {
 	return &arrayBuilder{elems}
 }
 
@@ -892,25 +915,27 @@ func (m *mapBuilder) Eval(input data.Value) (v data.Value, err error) {
 	return results, nil
 }
 
-func MapBuilder(names []string, elems []Evaluator) (Evaluator, error) {
+func newMapBuilder(names []string, elems []Evaluator) (Evaluator, error) {
 	if len(names) != len(elems) {
 		return nil, fmt.Errorf("number of keys and values does not match")
 	}
 	return &mapBuilder{names, elems}, nil
 }
 
-// Wildcard only works on Maps, assumes that the elements which do not contain
+// wildcard only works on Maps, assumes that the elements which do not contain
 // ":meta:" are also Maps and pulls them up one level, so
 //   {"a": {"x": ...}, "a:meta:ts": ..., "b": {"y": ..., "z": ...}}
 // becomes
 //   {"x": ..., "y": ..., "z": ...}.
 // If there are keys appearing in multiple top-level Maps, then only one
 // of them will appear in the output, but it is undefined which.
-type Wildcard struct {
+// If the `Relation` member is non-empty, only the Map with that key will
+// be pulled up.
+type wildcard struct {
 	Relation string
 }
 
-func (w *Wildcard) Eval(input data.Value) (data.Value, error) {
+func (w *wildcard) Eval(input data.Value) (data.Value, error) {
 	aMap, err := data.AsMap(input)
 	if err != nil {
 		return nil, err
