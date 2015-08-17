@@ -758,6 +758,7 @@ func TestAggregateChecker(t *testing.T) {
 			aggregateInputSorter{
 				funcAppAST{"count", []FlatExpression{aggInputRef{"g_f12cd6bc"}}},
 				[]sortExpression{sortExpression{aggInputRef{"g_f12cd6bc"}, true}},
+				"ccd0ef22",
 			},
 			map[string]FlatExpression{
 				"g_f12cd6bc": rowValue{"x", "a"},
@@ -768,6 +769,26 @@ func TestAggregateChecker(t *testing.T) {
 			aggregateInputSorter{
 				funcAppAST{"count", []FlatExpression{aggInputRef{"g_f12cd6bc"}}},
 				[]sortExpression{sortExpression{aggInputRef{"g_77d2dd39"}, false}},
+				"d7196f56",
+			},
+			map[string]FlatExpression{
+				"g_f12cd6bc": rowValue{"x", "a"},
+				"g_77d2dd39": rowValue{"x", "b"},
+			}},
+
+		// use two different sorting orders
+		{"count(a ORDER BY b DESC) + count(a ORDER BY b ASC) FROM x [RANGE 1 TUPLES]", "",
+			binaryOpAST{parser.Plus,
+				aggregateInputSorter{
+					funcAppAST{"count", []FlatExpression{aggInputRef{"g_f12cd6bc"}}},
+					[]sortExpression{sortExpression{aggInputRef{"g_77d2dd39"}, false}},
+					"d7196f56",
+				},
+				aggregateInputSorter{
+					funcAppAST{"count", []FlatExpression{aggInputRef{"g_f12cd6bc"}}},
+					[]sortExpression{sortExpression{aggInputRef{"g_77d2dd39"}, true}},
+					"cd35e18d",
+				},
 			},
 			map[string]FlatExpression{
 				"g_f12cd6bc": rowValue{"x", "a"},
@@ -940,6 +961,7 @@ func TestVolatileAggregateChecker(t *testing.T) {
 				aggregateInputSorter{
 					funcAppAST{"count", []FlatExpression{aggInputRef{"g_2523c3a2_0"}}},
 					[]sortExpression{sortExpression{aggInputRef{"g_2523c3a2_1"}, true}},
+					"cf2e24d7",
 				},
 			},
 			[]map[string]FlatExpression{{
