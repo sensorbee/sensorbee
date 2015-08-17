@@ -802,6 +802,39 @@ func TestAggregateFunctions(t *testing.T) {
 		})
 	})
 
+	Convey("Given a SELECT clause with array_agg and ORDER BY", t, func() {
+		tuples := getExtTuples()
+
+		s := `CREATE STREAM box AS SELECT RSTREAM array_agg(int ORDER BY bar DESC) AS result
+			FROM src [RANGE 3 TUPLES] WHERE int > 1`
+		plan, err := createGroupbyPlan(s, t)
+		So(err, ShouldBeNil)
+
+		Convey("When feeding it with tuples", func() {
+			for idx, inTup := range tuples {
+				out, err := plan.Process(inTup)
+				So(err, ShouldBeNil)
+
+				Convey(fmt.Sprintf("Then those values should appear in %v", idx), func() {
+					So(len(out), ShouldEqual, 1)
+
+					if idx == 0 {
+						So(out[0], ShouldResemble, data.Map{"result": data.Null{}})
+					} else if idx == 1 {
+						So(out[0], ShouldResemble, data.Map{"result": data.Array{
+							data.Int(2)}})
+					} else if idx == 2 {
+						So(out[0], ShouldResemble, data.Map{"result": data.Array{
+							data.Int(3), data.Int(2)}})
+					} else if idx == 3 {
+						So(out[0], ShouldResemble, data.Map{"result": data.Array{
+							data.Int(4), data.Int(3), data.Int(2)}})
+					}
+				})
+			}
+		})
+	})
+
 	Convey("Given a SELECT clause with array_agg and wildcard", t, func() {
 		tuples := getExtTuples()
 
@@ -1008,6 +1041,36 @@ func TestAggregateFunctions(t *testing.T) {
 						So(out[0], ShouldResemble, data.Map{"result": data.Null{}})
 					} else if idx == 3 {
 						So(out[0], ShouldResemble, data.Map{"result": data.String("b, c, d")})
+					}
+				})
+			}
+		})
+	})
+
+	Convey("Given a SELECT clause with string_agg and ORDER BY", t, func() {
+		tuples := getExtTuples()
+
+		s := `CREATE STREAM box AS SELECT RSTREAM string_agg(bar, ', ' ORDER BY int % 2, bar DESC) AS result
+			FROM src [RANGE 3 TUPLES] WHERE int > 1`
+		plan, err := createGroupbyPlan(s, t)
+		So(err, ShouldBeNil)
+
+		Convey("When feeding it with tuples", func() {
+			for idx, inTup := range tuples {
+				out, err := plan.Process(inTup)
+				So(err, ShouldBeNil)
+
+				Convey(fmt.Sprintf("Then those values should appear in %v", idx), func() {
+					So(len(out), ShouldEqual, 1)
+
+					if idx == 0 {
+						So(out[0], ShouldResemble, data.Map{"result": data.Null{}})
+					} else if idx == 1 {
+						So(out[0], ShouldResemble, data.Map{"result": data.String("b")})
+					} else if idx == 2 {
+						So(out[0], ShouldResemble, data.Map{"result": data.String("b, c")})
+					} else if idx == 3 {
+						So(out[0], ShouldResemble, data.Map{"result": data.String("d, b, c")})
 					}
 				})
 			}

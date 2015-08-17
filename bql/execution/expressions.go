@@ -290,50 +290,60 @@ func ParserExprToMaybeAggregate(e parser.Expression, aggIdx int, reg udf.Functio
 					exprs[i] = expr
 				}
 			}
-			ordering := make([]sortExpression, len(obj.Ordering))
-			// also add all the expressions in obj.Ordering to the list
-			// of aggregate values to be computed
-			for i, sortExpr := range obj.Ordering {
-				// this expression must be flat, there must not be other aggregates
-				expr, err := ParserExprToFlatExpr(sortExpr.Expr, reg)
-				if err != nil {
-					// return a prettier error message
-					if strings.HasPrefix(err.Error(), "you cannot use aggregate") {
-						err = fmt.Errorf("aggregate functions cannot be used in ORDER BY")
+
+			// deal with ORDER BY specifications
+			if len(obj.Ordering) > 0 {
+				ordering := make([]sortExpression, len(obj.Ordering))
+				// we need a string that uniquely identifies this ordering in order
+				// to allow `SELECT f(a ORDER BY b), f(a ORDER BY c)`
+				orderHash := sha1.New()
+				// also add all the expressions in obj.Ordering to the list
+				// of aggregate values to be computed
+				for i, sortExpr := range obj.Ordering {
+					// this expression must be flat, there must not be other aggregates
+					expr, err := ParserExprToFlatExpr(sortExpr.Expr, reg)
+					if err != nil {
+						// return a prettier error message
+						if strings.HasPrefix(err.Error(), "you cannot use aggregate") {
+							err = fmt.Errorf("aggregate functions cannot be used in ORDER BY")
+						}
+						return nil, nil, err
 					}
-					return nil, nil, err
+					// we will replace this value by a reference to the
+					// aggregated list of values
+					h := sha1.New()
+					h.Write([]byte(fmt.Sprintf("%s", expr.Repr())))
+					orderHash.Write([]byte(fmt.Sprintf("%s", expr.Repr())))
+					exprID := "g_" + hex.EncodeToString(h.Sum(nil))[:8]
+					// For stable or immutable expressions, we compute a reference
+					// string that depends only on the expression's string
+					// representation so that we have to compute and store values
+					// only once per row (e.g., for `sum(a)/count(a)`).
+					// For volatile expressions (e.g., `sum(random())/avg(random())`)
+					// we add a numeric suffix that represents the index
+					// of this aggregate in the whole projection list.
+					if expr.Volatility() == Volatile {
+						exprID += fmt.Sprintf("_%d", aggIdx+len(returnAgg))
+					}
+					// remember the information about exprID and the order direction
+					ascending := true
+					if sortExpr.Ascending == parser.No {
+						ascending = false
+						orderHash.Write([]byte(" DESC"))
+					}
+					orderHash.Write([]byte(","))
+					ordering[i] = sortExpression{
+						aggInputRef{exprID}, ascending,
+					}
+					returnAgg[exprID] = expr
 				}
-				// we will replace this value by a reference to the
-				// aggregated list of values
-				h := sha1.New()
-				h.Write([]byte(fmt.Sprintf("%s", expr.Repr())))
-				exprID := "g_" + hex.EncodeToString(h.Sum(nil))[:8]
-				// For stable or immutable expressions, we compute a reference
-				// string that depends only on the expression's string
-				// representation so that we have to compute and store values
-				// only once per row (e.g., for `sum(a)/count(a)`).
-				// For volatile expressions (e.g., `sum(random())/avg(random())`)
-				// we add a numeric suffix that represents the index
-				// of this aggregate in the whole projection list.
-				if expr.Volatility() == Volatile {
-					exprID += fmt.Sprintf("_%d", aggIdx+len(returnAgg))
-				}
-				// remember the information about exprID and the order direction
-				ascending := true
-				if sortExpr.Ascending == parser.No {
-					ascending = false
-				}
-				ordering[i] = sortExpression{
-					aggInputRef{exprID}, ascending,
-				}
-				returnAgg[exprID] = expr
-			}
-			if len(ordering) > 0 {
 				return aggregateInputSorter{
 					funcAppAST{obj.Function, exprs},
 					ordering,
+					hex.EncodeToString(orderHash.Sum(nil))[:8],
 				}, returnAgg, nil
 			}
+
 		} else {
 			for i, ast := range obj.Expressions {
 				expr, agg, err := ParserExprToMaybeAggregate(ast, aggIdx, reg)
@@ -541,6 +551,7 @@ type sortExpression struct {
 type aggregateInputSorter struct {
 	funcAppAST
 	Ordering []sortExpression
+	ID       string
 }
 
 func (a aggregateInputSorter) Repr() string {
