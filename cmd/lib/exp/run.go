@@ -1,6 +1,7 @@
 package exp
 
 import (
+	"bufio"
 	"crypto/sha256"
 	"fmt"
 	"github.com/codegangsta/cli"
@@ -9,7 +10,9 @@ import (
 	"os"
 	"pfi/sensorbee/sensorbee/bql"
 	"pfi/sensorbee/sensorbee/bql/parser"
+	"pfi/sensorbee/sensorbee/bql/udf"
 	"pfi/sensorbee/sensorbee/core"
+	"pfi/sensorbee/sensorbee/data"
 	"time"
 )
 
@@ -206,7 +209,12 @@ func execute(cache *Cache, stmts *Statements, ith int) error {
 	if err := executeTarget(t, ent, curStmt, resumeAll); err != nil {
 		return err
 	}
-	// TODO: save all states after running the statement.
+
+	// Because state can be changed through various statements, they have to
+	// be saved on each state execution.
+	if err := saveStates(t, ent); err != nil {
+		return err
+	}
 	cache.Add(ent)
 	return nil
 }
@@ -217,6 +225,7 @@ func setUpTopology(tb *bql.TopologyBuilder, cache *Cache, stmts *Statements, ith
 	if err != nil {
 		return nil, fmt.Errorf(`cannot get input information of the statement "%v": %v`, curStmt, err)
 	}
+	latestEnt := cache.Get(ith - 1) // this can be nil
 
 	if len(inputs) > 1 {
 		// TODO: reduce number of steps that execute goes back due to JOIN.
@@ -226,15 +235,26 @@ func setUpTopology(tb *bql.TopologyBuilder, cache *Cache, stmts *Statements, ith
 
 		// TODO: add option to perform JOIN using cache without thinking processing lag.
 
-		// Currently the topology has to be restarted from the beginning.
-		// INSERT INTO statement runs again and it might cause undesired change
-		// on UDSs.
 		var pausedSrcs []string
 		for i := 0; i < ith; i++ {
 			stmt := stmts.Stmts[i]
-			// TODO: all CREATE STATE statements should be replaced with Load.
-			if n, err := tb.AddStmt(stmt.Stmt); err != nil {
-				return nil, fmt.Errorf(`cannot add a statement "%v": %v`, stmt, err)
+			if stmt.IsInsertStatement() {
+				// Although INSERT INTO might change UDSs, UDSs are cached on
+				// each execution of a statement. Therefore, they don't have to
+				// be run again. However, it means a UDF which modify UDSs can
+				// result in a confusing behavior due to duplicated evaluation.
+				continue
+			}
+
+			if stmt.IsCreateStateStatement() {
+				if err := setUpState(tb, latestEnt, stmt); err != nil {
+					return nil, err
+				}
+				continue
+			}
+
+			if n, err := addStmt(tb, stmt); err != nil {
+				return nil, err
 			} else if n != nil && n.Type() == core.NTSource {
 				pausedSrcs = append(pausedSrcs, n.Name())
 			}
@@ -247,9 +267,16 @@ func setUpTopology(tb *bql.TopologyBuilder, cache *Cache, stmts *Statements, ith
 		if stmt.IsDataSourceNodeQuery() || stmt.IsInsertStatement() {
 			continue
 		}
-		// TODO: all CREATE STATE statements should be replaced with Load.
-		if _, err := tb.AddStmt(stmt.Stmt); err != nil {
-			return nil, fmt.Errorf(`cannot add a statement "%v": %v`, stmt, err)
+
+		if stmt.IsCreateStateStatement() {
+			if err := setUpState(tb, latestEnt, stmt); err != nil {
+				return nil, err
+			}
+			continue
+		}
+
+		if _, err := addStmt(tb, stmt); err != nil {
+			return nil, err
 		}
 	}
 
@@ -272,6 +299,57 @@ func setUpTopology(tb *bql.TopologyBuilder, cache *Cache, stmts *Statements, ith
 		return nil, fmt.Errorf("canoot add a source for a cache file: %v", err)
 	}
 	return []string{ent.NodeName}, nil
+}
+
+func addStmt(tb *bql.TopologyBuilder, stmt *Statement) (core.Node, error) {
+	n, err := tb.AddStmt(stmt.Stmt)
+	if err != nil {
+		return nil, fmt.Errorf(`cannot add a statement "%v": %v`, stmt, err)
+	}
+	return n, nil
+}
+
+// setUpState tries to load a saved state from the latest cache.
+func setUpState(tb *bql.TopologyBuilder, latestEnt *CacheEntry, stmt *Statement) error {
+	if latestEnt == nil { // the first entry
+		_, err := addStmt(tb, stmt)
+		return err
+	}
+
+	name := string(stmt.Stmt.(parser.CreateStateStmt).Name)
+	typeName := string(stmt.Stmt.(parser.CreateStateStmt).Type)
+	for _, n := range latestEnt.States {
+		if name != n {
+			continue
+		}
+
+		c, err := tb.UDSCreators.Lookup(typeName)
+		if err != nil {
+			return fmt.Errorf("cannot find the creator of the UDS type '%v': %v", typeName, err)
+		}
+		l, ok := c.(udf.UDSLoader)
+		if !ok {
+			break
+		}
+
+		err = func() error {
+			fn := StateCacheFilename(latestEnt, name)
+			f, err := os.Open(fn)
+			if err != nil {
+				return fmt.Errorf("cannot open the cache file of the UDS '%v': %v", err)
+			}
+			defer f.Close()
+			r := bufio.NewReader(f)
+			s, err := l.LoadState(tb.Topology().Context(), r, data.Map{}) // TODO: support loading parameters
+			if err != nil {
+				return fmt.Errorf("cannot load the saved UDS '%v' from the cache: %v", name, err)
+			}
+			return tb.Topology().Context().SharedStates.Add(name, typeName, s)
+		}()
+		return err
+	}
+	_, err := addStmt(tb, stmt)
+	return err
 }
 
 func executeTarget(t core.Topology, ent *CacheEntry, stmt *Statement, resumeAll func() error) error {
@@ -304,6 +382,39 @@ func executeTarget(t core.Topology, ent *CacheEntry, stmt *Statement, resumeAll 
 		}
 		s.StopOnDisconnect()
 		s.State().Wait(core.TSStopped)
+	}
+	return nil
+}
+
+func saveStates(t core.Topology, ent *CacheEntry) error {
+	states, err := t.Context().SharedStates.List()
+	if err != nil {
+		return fmt.Errorf("cannot list created UDSs: %v", err)
+	}
+	for name, state := range states {
+		s, ok := state.(core.SavableSharedState)
+		if !ok {
+			continue
+		}
+
+		err := func() error {
+			fn := StateCacheFilename(ent, name)
+			f, err := os.OpenFile(fn, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+			if err != nil {
+				return fmt.Errorf("cannot create a cache file for a UDS '%v': %v", fn, err)
+			}
+			defer f.Close()
+
+			w := bufio.NewWriter(f)
+			if err := s.Save(t.Context(), w, data.Map{}); err != nil {
+				return err
+			}
+			return w.Flush()
+		}()
+		if err != nil {
+			return err
+		}
+		ent.States = append(ent.States, name)
 	}
 	return nil
 }

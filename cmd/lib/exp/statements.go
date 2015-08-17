@@ -21,11 +21,13 @@ type Statement struct {
 //	* SELECT (CREATE STREAM is supported)
 //	* UPDATE SOURCE/SINK/STATE
 //	* DROP SOURCE/STREAM/SINK/STATE
+//	* SAVE/LOAD STATE (they are automatically saved)
 func NewStatement(s interface{}) (*Statement, error) {
 	switch s.(type) {
 	case parser.SelectStmt, parser.SelectUnionStmt,
 		parser.UpdateSourceStmt, parser.UpdateSinkStmt, parser.UpdateStateStmt,
-		parser.DropSourceStmt, parser.DropStreamStmt, parser.DropSinkStmt, parser.DropStateStmt:
+		parser.DropSourceStmt, parser.DropStreamStmt, parser.DropSinkStmt, parser.DropStateStmt,
+		parser.SaveStateStmt, parser.LoadStateStmt, parser.LoadStateOrCreateStmt:
 		return nil, fmt.Errorf("statement isn't supported by sensorbee exp command: %v", s)
 	}
 
@@ -177,6 +179,17 @@ func (s *Statement) IsDataSourceNodeQuery() bool {
 func (s *Statement) IsInsertStatement() bool {
 	switch s.Stmt.(type) {
 	case parser.InsertIntoFromStmt, parser.InsertIntoSelectStmt:
+		return true
+	}
+	return false
+}
+
+// IsCreateStateStatement returns true when the statement is CREATE STATE.
+// Because LOAD STATE isn't supported by the command, it only check if the
+// statement is CREATE STATE.
+func (s *Statement) IsCreateStateStatement() bool {
+	switch s.Stmt.(type) {
+	case parser.CreateStateStmt:
 		return true
 	}
 	return false
