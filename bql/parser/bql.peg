@@ -28,13 +28,13 @@ type bqlPegBackend Peg {
 # Either a statement followed by a semicolon plus maybe some
 # other arbitrary stuff (probably other statements), or a
 # statement without a semicolon that is not followed by anything.
-SingleStatement <- sp (StatementWithRest / StatementWithoutRest) !.
+SingleStatement <- spOpt (StatementWithRest / StatementWithoutRest) !.
 
-StatementWithRest <- < Statement sp ';' sp > .* {
+StatementWithRest <- < Statement spOpt ';' spOpt > .* {
         p.IncludeTrailingWhitespace(begin, end)
     }
 
-StatementWithoutRest <- < Statement sp > {
+StatementWithoutRest <- < Statement spOpt > {
         p.IncludeTrailingWhitespace(begin, end)
     }
 
@@ -51,18 +51,18 @@ StateStmt <-  CreateStateStmt / UpdateStateStmt / DropStateStmt / LoadStateOrCre
 StreamStmt <- CreateStreamAsSelectUnionStmt / CreateStreamAsSelectStmt / DropStreamStmt /
               InsertIntoSelectStmt / InsertIntoFromStmt
 
-SelectStmt <- "SELECT" sp
-              Emitter sp
-              Projections sp
-              WindowedFrom sp
-              Filter sp
-              Grouping sp
-              Having sp
+SelectStmt <- "SELECT"
+              Emitter
+              Projections
+              WindowedFrom
+              Filter
+              Grouping
+              Having
               {
         p.AssembleSelect()
     }
 
-SelectUnionStmt <- < SelectStmt ("UNION" sp "ALL" sp SelectStmt)+ > {
+SelectUnionStmt <- < SelectStmt (sp "UNION" sp "ALL" sp SelectStmt)+ > {
         p.AssembleSelectUnion(begin, end)
     }
 
@@ -82,41 +82,41 @@ CreateStreamAsSelectUnionStmt <- "CREATE" sp "STREAM" sp
         p.AssembleCreateStreamAsSelectUnion()
     }
 
-CreateSourceStmt <- "CREATE" sp PausedOpt sp "SOURCE" sp
+CreateSourceStmt <- "CREATE" PausedOpt sp "SOURCE" sp
                     StreamIdentifier sp
-                    "TYPE" sp SourceSinkType sp
+                    "TYPE" sp SourceSinkType
                     SourceSinkSpecs {
         p.AssembleCreateSource()
     }
 
 CreateSinkStmt <- "CREATE" sp "SINK" sp
                     StreamIdentifier sp
-                    "TYPE" sp SourceSinkType sp
+                    "TYPE" sp SourceSinkType
                     SourceSinkSpecs {
         p.AssembleCreateSink()
     }
 
 CreateStateStmt <- "CREATE" sp "STATE" sp
                     StreamIdentifier sp
-                    "TYPE" sp SourceSinkType sp
+                    "TYPE" sp SourceSinkType
                     SourceSinkSpecs {
         p.AssembleCreateState()
     }
 
 UpdateStateStmt <- "UPDATE" sp "STATE" sp
-                    StreamIdentifier sp
+                    StreamIdentifier
                     UpdateSourceSinkSpecs {
         p.AssembleUpdateState()
     }
 
 UpdateSourceStmt <- "UPDATE" sp "SOURCE" sp
-                    StreamIdentifier sp
+                    StreamIdentifier
                     UpdateSourceSinkSpecs {
         p.AssembleUpdateSource()
     }
 
 UpdateSinkStmt <- "UPDATE" sp "SINK" sp
-                    StreamIdentifier sp
+                    StreamIdentifier
                     UpdateSourceSinkSpecs {
         p.AssembleUpdateSink()
     }
@@ -162,12 +162,12 @@ DropStateStmt <- "DROP" sp "STATE" sp StreamIdentifier {
     }
 
 LoadStateStmt <- "LOAD" sp "STATE" sp StreamIdentifier sp
-                    "TYPE" sp SourceSinkType sp SetOptSpecs {
+                    "TYPE" sp SourceSinkType SetOptSpecs {
         p.AssembleLoadState()
     }
 
 LoadStateOrCreateStmt <- LoadStateStmt sp
-                    "OR" sp "CREATE" sp "IF" sp "NOT" sp "EXISTS" sp SourceSinkSpecs {
+                    "OR" sp "CREATE" sp "IF" sp "NOT" sp "EXISTS" SourceSinkSpecs {
         p.AssembleLoadStateOrCreate()
     }
 
@@ -179,11 +179,11 @@ SaveStateStmt <- "SAVE" sp "STATE" sp StreamIdentifier {
 ##### STATEMENT COMPONENTS #####
 ################################
 
-Emitter <- (ISTREAM / DSTREAM / RSTREAM) sp EmitterOptions {
+Emitter <- sp (ISTREAM / DSTREAM / RSTREAM) EmitterOptions {
         p.AssembleEmitter()
     }
 
-EmitterOptions <- < ('[' sp EmitterLimit sp ']')? > {
+EmitterOptions <- < (spOpt '[' spOpt EmitterLimit spOpt ']')? > {
         p.AssembleEmitterOptions(begin, end)
     }
 
@@ -191,7 +191,7 @@ EmitterLimit <- 'LIMIT' sp NumericLiteral {
         p.AssembleEmitterLimit()
     }
 
-Projections <- < Projection sp (',' sp Projection)* > {
+Projections <- < sp Projection (spOpt ',' spOpt Projection)* > {
         p.AssembleProjections(begin, end)
     }
 
@@ -201,7 +201,7 @@ AliasExpression <- ExpressionOrWildcard sp "AS" sp TargetIdentifier {
         p.AssembleAlias()
     }
 
-WindowedFrom <- < ("FROM" sp Relations sp)? > {
+WindowedFrom <- < (sp "FROM" sp Relations)? > {
         // This is *always* executed, even if there is no
         // FROM clause present in the statement.
         p.AssembleWindowedFrom(begin, end)
@@ -217,23 +217,23 @@ TuplesInterval <- NumericLiteral sp TUPLES {
         p.AssembleInterval()
     }
 
-Relations <- RelationLike sp (',' sp RelationLike)*
+Relations <- RelationLike (spOpt ',' spOpt RelationLike)*
 
-Filter <- < ("WHERE" sp Expression)? > {
+Filter <- < (sp "WHERE" sp Expression)? > {
         // This is *always* executed, even if there is no
         // WHERE clause present in the statement.
         p.AssembleFilter(begin, end)
     }
 
-Grouping <- < ("GROUP" sp "BY" sp GroupList)? > {
+Grouping <- < (sp "GROUP" sp "BY" sp GroupList)? > {
         // This is *always* executed, even if there is no
         // GROUP BY clause present in the statement.
         p.AssembleGrouping(begin, end)
     }
 
-GroupList <- Expression sp (',' sp Expression)*
+GroupList <- Expression (spOpt ',' spOpt Expression)*
 
-Having <- < ("HAVING" sp Expression)? > {
+Having <- < (sp "HAVING" sp Expression)? > {
         // This is *always* executed, even if there is no
         // HAVING clause present in the statement.
         p.AssembleHaving(begin, end)
@@ -249,27 +249,27 @@ AliasedStreamWindow <- StreamWindow sp "AS" sp Identifier {
         p.AssembleAliasedStreamWindow()
     }
 
-StreamWindow <- StreamLike sp '[' sp "RANGE" sp Interval sp ']' {
+StreamWindow <- StreamLike spOpt '[' spOpt "RANGE" sp Interval spOpt ']' {
         p.AssembleStreamWindow()
     }
 
 StreamLike <- UDSFFuncApp / Stream
 
-UDSFFuncApp <- FuncApp {
+UDSFFuncApp <- FuncAppWithoutOrderBy {
         p.AssembleUDSFFuncApp()
     }
 
-SourceSinkSpecs <- < ("WITH" sp SourceSinkParam sp (',' sp SourceSinkParam)*)? > {
+SourceSinkSpecs <- < (sp "WITH" sp SourceSinkParam (spOpt ',' spOpt SourceSinkParam)*)? > {
         p.AssembleSourceSinkSpecs(begin, end)
     }
 
-UpdateSourceSinkSpecs <- < "SET" sp SourceSinkParam sp (',' sp SourceSinkParam)* > {
+UpdateSourceSinkSpecs <- < sp "SET" sp SourceSinkParam (spOpt ',' spOpt SourceSinkParam)* > {
         p.AssembleSourceSinkSpecs(begin, end)
     }
 
 # If we use UpdateSourceSinkSpecs instead, then AssembleSourceSinkSpecs
 # will not be called if the SET clause is not present.
-SetOptSpecs <- < ("SET" sp SourceSinkParam sp (',' sp SourceSinkParam)*)? > {
+SetOptSpecs <- < (sp "SET" sp SourceSinkParam (spOpt ',' spOpt SourceSinkParam)*)? > {
         p.AssembleSourceSinkSpecs(begin, end)
     }
 
@@ -281,12 +281,12 @@ SourceSinkParamVal <- ParamLiteral / ParamArrayExpr
 
 ParamLiteral <- BooleanLiteral / Literal
 
-ParamArrayExpr <- < '[' sp (ParamLiteral (',' sp ParamLiteral)*)? sp ','? sp ']' > {
+ParamArrayExpr <- < '[' spOpt (ParamLiteral (',' spOpt ParamLiteral)*)? spOpt ','? spOpt ']' > {
         p.AssembleExpressions(begin, end)
         p.AssembleArray()
     }
 
-PausedOpt <- < (Paused / Unpaused)? > {
+PausedOpt <- < (sp (Paused / Unpaused))? > {
         p.EnsureKeywordPresent(begin, end)
     }
 
@@ -307,11 +307,12 @@ ExpressionOrWildcard <- Wildcard / Expression
 
 Expression <- orExpr
 
-orExpr <- < andExpr sp (Or sp andExpr)* > {
+# OR, AND, NOT need a hard space around them
+orExpr <- < andExpr (sp Or sp andExpr)* > {
         p.AssembleBinaryOperation(begin, end)
     }
 
-andExpr <- < notExpr sp (And sp notExpr)* > {
+andExpr <- < notExpr (sp And sp notExpr)* > {
         p.AssembleBinaryOperation(begin, end)
     }
 
@@ -319,36 +320,39 @@ notExpr <- < (Not sp)? comparisonExpr > {
         p.AssembleUnaryPrefixOperation(begin, end)
     }
 
-comparisonExpr <- < otherOpExpr sp (ComparisonOp sp otherOpExpr)? > {
+# =, || etc. take an optional space
+comparisonExpr <- < otherOpExpr (spOpt ComparisonOp spOpt otherOpExpr)? > {
         p.AssembleBinaryOperation(begin, end)
     }
 
-otherOpExpr <- < isExpr sp (OtherOp sp isExpr sp)* > {
+otherOpExpr <- < isExpr (spOpt OtherOp spOpt isExpr)* > {
         p.AssembleBinaryOperation(begin, end)
     }
 
-isExpr <- < termExpr sp (IsOp sp NullLiteral)? > {
+# IS needs a hard space
+isExpr <- < termExpr (sp IsOp sp NullLiteral)? > {
         p.AssembleBinaryOperation(begin, end)
     }
 
-termExpr <- < productExpr sp (PlusMinusOp sp productExpr sp)* > {
+# +, -, * etc. take an optional space
+termExpr <- < productExpr (spOpt PlusMinusOp spOpt productExpr)* > {
         p.AssembleBinaryOperation(begin, end)
     }
 
-productExpr <- < minusExpr sp (MultDivOp sp minusExpr sp)* > {
+productExpr <- < minusExpr (spOpt MultDivOp spOpt minusExpr)* > {
         p.AssembleBinaryOperation(begin, end)
     }
 
-minusExpr <- < (UnaryMinus sp)? castExpr > {
+minusExpr <- < (UnaryMinus spOpt)? castExpr > {
         p.AssembleUnaryPrefixOperation(begin, end)
     }
 
-castExpr <- < baseExpr (sp '::' sp Type)? > {
+castExpr <- < baseExpr (spOpt '::' spOpt Type)? > {
         p.AssembleTypeCast(begin, end)
     }
 
 baseExpr <-
-    ('(' sp Expression sp ')') /
+    ('(' spOpt Expression spOpt ')') /
     MapExpr /
     BooleanLiteral /
     NullLiteral /
@@ -359,28 +363,47 @@ baseExpr <-
     ArrayExpr /
     Literal
 
-FuncTypeCast <- < "CAST" sp '(' sp Expression sp "AS" sp Type sp ')' > {
+FuncTypeCast <- < "CAST" spOpt '(' spOpt Expression sp "AS" sp Type spOpt ')' > {
         p.AssembleTypeCast(begin, end)
     }
 
-FuncApp <- Function sp '(' sp FuncParams sp ')' {
+FuncApp <- FuncAppWithOrderBy / FuncAppWithoutOrderBy
+
+FuncAppWithOrderBy <- Function spOpt '(' spOpt FuncParams sp ParamsOrder spOpt ')' {
         p.AssembleFuncApp()
     }
 
-FuncParams <- < (ExpressionOrWildcard sp (',' sp ExpressionOrWildcard)*)? > {
+FuncAppWithoutOrderBy <- Function spOpt '(' spOpt FuncParams < spOpt > ')' {
+        p.AssembleExpressions(begin, end)
+        p.AssembleFuncApp()
+    }
+
+FuncParams <- < (ExpressionOrWildcard (spOpt ',' spOpt ExpressionOrWildcard)*)? > {
         p.AssembleExpressions(begin, end)
     }
 
-ArrayExpr <- < '[' sp (ExpressionOrWildcard (',' sp ExpressionOrWildcard)*)? sp ','? sp ']' > {
+ParamsOrder <- < "ORDER" sp "BY" sp SortedExpression (spOpt ',' spOpt SortedExpression)* > {
+        p.AssembleExpressions(begin, end)
+    }
+
+SortedExpression <- Expression OrderDirectionOpt {
+        p.AssembleSortedExpression()
+    }
+
+OrderDirectionOpt <- < (sp (Ascending / Descending))? > {
+        p.EnsureKeywordPresent(begin, end)
+    }
+
+ArrayExpr <- < '[' spOpt (ExpressionOrWildcard (spOpt ',' spOpt ExpressionOrWildcard)*)? spOpt ','? spOpt ']' > {
         p.AssembleExpressions(begin, end)
         p.AssembleArray()
     }
 
-MapExpr <- < '{' sp (KeyValuePair (',' sp KeyValuePair)*)? sp '}' > {
+MapExpr <- < '{' spOpt (KeyValuePair (spOpt ',' spOpt KeyValuePair)*)? spOpt '}' > {
         p.AssembleMap(begin, end)
     }
 
-KeyValuePair <- < StringLiteral sp ':' sp ExpressionOrWildcard > {
+KeyValuePair <- < StringLiteral spOpt ':' spOpt ExpressionOrWildcard > {
         p.AssembleKeyValuePair()
     }
 
@@ -516,6 +539,14 @@ Unpaused <- < "UNPAUSED" > {
         p.PushComponent(begin, end, No)
     }
 
+Ascending <- < "ASC" > {
+        p.PushComponent(begin, end, Yes)
+    }
+
+Descending <- < "DESC" > {
+        p.PushComponent(begin, end, No)
+    }
+
 Type <- Bool / Int / Float / String / Blob / Timestamp / Array / Map
 
 Bool <- < "bool" > {
@@ -646,7 +677,11 @@ jsonMapAccessBracket <- '[' ['] ("''" / !"'" .)* ['] ']'
 
 jsonArrayAccess <- '[' [0-9]+ ']'
 
-sp <- ( ' ' / '\t' / '\n' / '\r' / comment / finalComment )*
+spElem <- ( ' ' / '\t' / '\n' / '\r' / comment / finalComment )
+
+sp <- spElem+
+
+spOpt <- spElem*
 
 # Note: we need a negative-lookahead *and then* need to eat
 # one character, or we will have infinite recursion.

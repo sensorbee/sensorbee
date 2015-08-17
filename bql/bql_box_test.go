@@ -301,7 +301,7 @@ func TestBasicBQLBoxUnionCapability(t *testing.T) {
 	Convey("Given a UNION over three disjoint streams in BQL", t, func() {
 		s := "CREATE STREAM box AS " +
 			"SELECT ISTREAM int, 'a' AS x FROM source [RANGE 1 TUPLES] WHERE int = 0 " +
-			"UNION ALL SELECT ISTREAM int, 'b' AS y FROM source [RANGE 1 TUPLES] WHERE int = 1" +
+			"UNION ALL SELECT ISTREAM int, 'b' AS y FROM source [RANGE 1 TUPLES] WHERE int = 1 " +
 			"UNION ALL SELECT ISTREAM int, 'c' AS z FROM source [RANGE 1 TUPLES] WHERE int >= 2"
 		tb, err := setupTopology(s, false)
 		So(err, ShouldBeNil)

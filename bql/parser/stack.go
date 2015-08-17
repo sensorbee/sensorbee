@@ -1009,19 +1009,46 @@ func (ps *parseStack) AssembleTypeCast(begin int, end int) {
 // them by a single FuncAppAST element.
 //
 //  ExpressionsAST
+//  ExpressionsAST
 //  FuncName
 //   =>
 //  FuncAppAST{FuncName, ExpressionsAST}
 func (ps *parseStack) AssembleFuncApp() {
-	_exprs, _funcName := ps.pop2()
+	_ordering, _exprs, _funcName := ps.pop3()
 
 	// extract and convert the contained structure
 	// (if this fails, this is a fundamental parser bug => panic ok)
+	ordering := _ordering.comp.(ExpressionsAST)
 	exprs := _exprs.comp.(ExpressionsAST)
 	funcName := _funcName.comp.(FuncName)
 
+	orderExprs := make([]SortedExpressionAST, len(ordering.Expressions))
+	for i, e := range ordering.Expressions {
+		orderExprs[i] = e.(SortedExpressionAST)
+	}
+	if len(orderExprs) == 0 {
+		orderExprs = nil
+	}
+
 	// assemble the FuncAppAST and push it back
-	ps.PushComponent(_funcName.begin, _exprs.end, FuncAppAST{funcName, exprs})
+	ps.PushComponent(_funcName.begin, _exprs.end, FuncAppAST{funcName, exprs, orderExprs})
+}
+
+// AssembleSortedExpression takes the topmost elements from the stack,
+// assuming they are components of an ORDER BY clause, and replaces
+// them by a single SortedExpressionAST element.
+//
+//  BinaryKeyword
+//  Expression
+//   =>
+//  SortedExpressionAST{Expression, BinaryKeyword}
+func (ps *parseStack) AssembleSortedExpression() {
+	_sortOrder, _expr := ps.pop2()
+
+	expr := _expr.comp.(Expression)
+	sortOrder := _sortOrder.comp.(BinaryKeyword)
+
+	ps.PushComponent(_expr.begin, _sortOrder.end, SortedExpressionAST{expr, sortOrder})
 }
 
 // AssembleArray takes the topmost elements from the stack, assuming
