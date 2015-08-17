@@ -15,10 +15,38 @@ type UDSFCreator interface {
 	// arguments passed to the UDSF in a BQL statement. The caller will call
 	// UDSF.Terminate when the UDSF becomes unnecessary.
 	//
-	// UDSF must have at least one input from existing stream. A UDSF having no
-	// input should be implemented as core.Source and created via CREATE SOURCE
-	// statement. Creating a UDSF which acts like a Source might be going to
-	// be supported in the future version.
+	// When a UDSF needs inputs from other sources or streams, call Input method
+	// of UDSFDeclarer. For example let's assume there's a UDSF below:
+	//
+	//	func createMyUDSF(decl udf.UDSFDeclarer, input1, input2 string) (udf.UDSF, error) {
+	//		...
+	//		decl.Input(input1, &udf.UDSFInputConfig{
+	//			InputName: "custom_input_name_1",
+	//		})
+	//		decl.Input(input2, &udf.UDSFInputConfig{
+	//			InputName: "custom_input_name_2",
+	//		})
+	//		...
+	//	}
+	//
+	//	func init() {
+	//		udf.MustRegisterGlobalUDSFCreator("my_udsf",
+	//			udf.MustConvertToUDSFCreator(createMyUDSF))
+	//	}
+	//
+	// Then a user can specify input stream by the following statement:
+	//
+	//	CREATE STREAM stream1 AS SELECT ...;
+	//	CREATE STREAM stream2 AS SELECT ...;
+	//	CREATE STREAM join_by_udsf
+	//	  SELECT RSTREAM * FROM my_udsf('stream1', 'stream2') [RANGE 1 TUPLES];
+	//
+	// In this example, my_udsf receives two streams: stream1 and stream2
+	// created in advance.
+	//
+	// A UDSF doesn't have to have an input. For example, there can be a UDSF
+	// which generates sequential numbers and doesn't depend on any stream.
+	// Such UDSFs will be run as the source mode. See UDSF for more details.
 	CreateUDSF(ctx *core.Context, decl UDSFDeclarer, args ...data.Value) (UDSF, error)
 
 	// Accept returns true if the UDSF supports the given arity.
@@ -166,21 +194,37 @@ func (g *genericUDSFCreator) accept(arity int) error {
 //
 // UDSF doesn't have Init method because initialization should be done in
 // UDSFCreator.CreateUDSF.
+//
+// There're two kinds of processing modes of UDSFs: stream mode and source mode.
+// A UDSF is processed in the stream mode when it has at least one input stream.
+// Otherwise, the UDSF is processed in the source mode. Process and Terminate
+// methods change their behavior based on the mode. See documentation of each
+// method for details.
 type UDSF interface {
-	// Process sends a tuple to the UDSF. This method must not block and
-	// return immediately after it finished processing the received tuple.
+	// Process sends a tuple to the UDSF.
+	//
+	// When the UDSF is running in the stream mode, this method must not block
+	// and return immediately after it finished processing the received tuple.
+	// It is called everytime a tuple is received from streams. It behaves just
+	// like core.Box.
+	//
+	// When the UDSF is running in the source mode, this method is only called
+	// once. It can block until it generates all tuples or Terminate method
+	// is called. A tuple passed to this method in the source mode doesn't
+	// contain anything meaningful. It behaves like core.Source although the
+	// interface is like core.Box.
 	Process(ctx *core.Context, t *core.Tuple, w core.Writer) error
 
 	// Terminate terminates the UDSF. Resources allocated when the UDSF is
-	// created by UDFSCreator should be released in this method.
+	// created by UDFSCreator should be released in this method. Also, when
+	// the UDSF is running in the source mode, Process method must return as
+	// soon as Terminate is called.
 	Terminate(ctx *core.Context) error
 }
 
 // UDSFDeclarer allow UDSFs to customize their behavior.
 type UDSFDeclarer interface {
-	// Input adds an input from an existing stream. A UDSF doesn't have to
-	// have an input. For example, there can be a UDSF which generates
-	// sequential numbers and doesn't depend on any stream.
+	// Input adds an input from an existing stream.
 	Input(name string, config *UDSFInputConfig) error
 
 	// ListInputs returns all inputs declared by a UDSF. The caller can safely
