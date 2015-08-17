@@ -38,7 +38,8 @@ type SharedState interface {
 }
 
 // SavableSharedState is a SharedState which can be persisted through Save
-// method.
+// method. Providing forward/backward compatibility of the saved file format
+// is the responsibility of the author of the state.
 //
 // Because the best way of implementing Load method depends on each SharedState,
 // it doesn't always have to be provided with Save method.
@@ -60,6 +61,8 @@ type LoadableSharedState interface {
 
 	// Load overwrites the state with save data. Parameters don't have to be
 	// same as Save's parameters. They can even be completely different.
+	// There MUST NOT be a required parameter. Values of required parameters
+	// should be saved with the state itself.
 	//
 	// Load and other methods including Save can be called concurrently.
 	Load(ctx *Context, r io.Reader, params data.Map) error

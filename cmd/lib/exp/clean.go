@@ -58,10 +58,19 @@ func runClean(c *cli.Context) {
 }
 
 func removeCacheFile(ent *CacheEntry) error {
-	fn := CacheFilename(ent)
-	if err := os.Remove(fn); err != nil {
-		if !os.IsNotExist(err) {
-			return fmt.Errorf("cannot remove a cache file '%v': %v", fn, err)
+	if ent.NodeName != "" {
+		if err := os.Remove(CacheFilename(ent)); err != nil {
+			if !os.IsNotExist(err) {
+				return fmt.Errorf("cannot remove a cache file '%v': %v", ent.NodeName, err)
+			}
+		}
+	}
+
+	for _, name := range ent.States {
+		if err := os.Remove(StateCacheFilename(ent, name)); err != nil {
+			if !os.IsNotExist(err) {
+				return fmt.Errorf("cannot remove a cache file '%v': %v", name, err)
+			}
 		}
 	}
 	return nil
