@@ -176,6 +176,9 @@ func NewArray(a []interface{}) (Array, error) {
 	return result, nil
 }
 
+// MaxInt is a maximum value of an integer on 32-bit or 64-bit environment.
+const MaxInt = int(^uint(0) >> 1)
+
 // NewValue returns a Value object from interface{}.
 // Returns an error when value type is not supported in SensorBee.
 func NewValue(v interface{}) (Value, error) {
@@ -210,8 +213,8 @@ func NewValue(v interface{}) (Value, error) {
 	case int64:
 		return Int(vt), nil
 	case uint:
-		if vt > math.MaxInt64 {
-			return nil, fmt.Errorf("an int value must be less than 2^63: %v", vt)
+		if vt > uint(MaxInt) {
+			return nil, fmt.Errorf("an int value must be less than %v: %v", MaxInt, vt)
 		}
 		return Int(vt), nil
 	case uint8:
