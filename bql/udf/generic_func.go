@@ -135,7 +135,7 @@ func checkGenericFuncReturnTypes(t reflect.Type) (bool, error) {
 				return false, fmt.Errorf("the return value isn't convertible to data.Value")
 			}
 		}
-		if _, err := data.NewValue(reflect.Zero(t.Out(0)).Interface()); err != nil {
+		if _, err := data.NewValue(reflect.Zero(out).Interface()); err != nil {
 			return false, fmt.Errorf("the return value isn't convertible to data.Value")
 		}
 

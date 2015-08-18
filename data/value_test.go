@@ -707,3 +707,83 @@ func TestValueString(t *testing.T) {
 		})
 	})
 }
+
+func TestNewValueFromSlice(t *testing.T) {
+	Convey("Given NewValue function", t, func() {
+		Convey("When passing a slice of integers", func() {
+			v, err := NewValue([]int{1, 2, 3})
+			So(err, ShouldBeNil)
+
+			Convey("Then it should return an Array", func() {
+				a, err := v.asArray()
+				So(err, ShouldBeNil)
+				So(len(a), ShouldEqual, 3)
+				So(a[0], ShouldEqual, 1)
+				So(a[1], ShouldEqual, 2)
+				So(a[2], ShouldEqual, 3)
+			})
+		})
+
+		Convey("When passing a slice of strings", func() {
+			v, err := NewValue([]string{"a", "b", "c"})
+			So(err, ShouldBeNil)
+
+			Convey("Then it should return an Array", func() {
+				a, err := v.asArray()
+				So(err, ShouldBeNil)
+				So(len(a), ShouldEqual, 3)
+				So(a[0], ShouldEqual, "a")
+				So(a[1], ShouldEqual, "b")
+				So(a[2], ShouldEqual, "c")
+			})
+		})
+
+		Convey("When passing a slice of slices", func() {
+			v, err := NewValue([][]int{[]int{1}, []int{2, 3}})
+			So(err, ShouldBeNil)
+
+			Convey("Then it should return an Array", func() {
+				a, err := v.asArray()
+				So(err, ShouldBeNil)
+				So(len(a), ShouldEqual, 2)
+				So(a[0], ShouldResemble, Array{Int(1)})
+				So(a[1], ShouldResemble, Array{Int(2), Int(3)})
+			})
+		})
+
+		Convey("When passing a slice of maps", func() {
+			v, err := NewValue([]map[string]interface{}{
+				{"a": 1},
+				{"b": "2", "c": 3.5},
+			})
+			So(err, ShouldBeNil)
+
+			Convey("Then it should return an Array", func() {
+				a, err := v.asArray()
+				So(err, ShouldBeNil)
+				So(len(a), ShouldEqual, 2)
+				So(a[0], ShouldResemble, Map{"a": Int(1)})
+				So(a[1], ShouldResemble, Map{"b": String("2"), "c": Float(3.5)})
+			})
+		})
+
+		Convey("When passing a nil slice", func() {
+			v, err := NewValue([]int(nil))
+			So(err, ShouldBeNil)
+
+			Convey("Then it should return an empty Array", func() {
+				a, err := v.asArray()
+				So(err, ShouldBeNil)
+				So(len(a), ShouldEqual, 0)
+			})
+		})
+
+		Convey("When passing a slice of inconvertible type", func() {
+			_, err := NewValue([]struct{}{struct{}{}})
+
+			Convey("Then it should fail", func() {
+				So(err, ShouldNotBeNil)
+			})
+		})
+	})
+}
