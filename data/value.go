@@ -242,6 +242,19 @@ func NewValue(v interface{}) (Value, error) {
 	case Value:
 		return vt, nil
 	default:
+		rv := reflect.ValueOf(v)
+		switch rv.Kind() {
+		case reflect.Slice:
+			a := make(Array, rv.Len())
+			for i := 0; i < rv.Len(); i++ {
+				elem, err := NewValue(rv.Index(i).Interface())
+				if err != nil {
+					return nil, err
+				}
+				a[i] = elem
+			}
+			return a, nil
+		}
 		return nil, fmt.Errorf("unsupported type %T", v)
 	}
 }
