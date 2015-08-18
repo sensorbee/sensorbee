@@ -212,7 +212,10 @@ type UDSF interface {
 	// once. It can block until it generates all tuples or Terminate method
 	// is called. A tuple passed to this method in the source mode doesn't
 	// contain anything meaningful. It behaves like core.Source although the
-	// interface is like core.Box.
+	// interface is like core.Box. The core.Writer returns core.ErrSourceStopped
+	// when the UDSF running in the source mode is stopped. Therefore, if
+	// Process method returns on that error, the implementation of Terminate
+	// can just be resource deallocation.
 	Process(ctx *core.Context, t *core.Tuple, w core.Writer) error
 
 	// Terminate terminates the UDSF. Resources allocated when the UDSF is

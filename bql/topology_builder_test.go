@@ -155,7 +155,25 @@ func TestCreateStreamAsSelectStmt(t *testing.T) {
 
 				Convey("And when self-joining the UDSF", func() {
 					err := addBQLToTopology(tb, `CREATE STREAM x AS SELECT ISTREAM s:int FROM
-                duplicate('s', 2) [RANGE 2 SECONDS] AS s, duplicate('s', 4) [RANGE 3 TUPLES] AS t`)
+                    duplicate('s', 2) [RANGE 2 SECONDS] AS s, duplicate('s', 4) [RANGE 3 TUPLES] AS t`)
+
+					Convey("Then there should be no error", func() {
+						So(err, ShouldBeNil)
+					})
+				})
+			})
+
+			Convey("If the UDSF doesn't depend on an input", func() {
+				err := addBQLToTopology(tb, `CREATE STREAM t AS SELECT ISTREAM int FROM
+                test_sequence(4) [RANGE 2 SECONDS] WHERE int=2`)
+
+				Convey("Then there should be no error", func() {
+					So(err, ShouldBeNil)
+				})
+
+				Convey("And when joining source and UDSF", func() {
+					err := addBQLToTopology(tb, `CREATE STREAM x AS SELECT ISTREAM s:int FROM
+                    s [RANGE 2 SECONDS], test_sequence(4) [RANGE 3 TUPLES]`)
 
 					Convey("Then there should be no error", func() {
 						So(err, ShouldBeNil)
@@ -180,16 +198,6 @@ func TestCreateStreamAsSelectStmt(t *testing.T) {
 				Convey("Then there should be an error", func() {
 					So(err, ShouldNotBeNil)
 					So(err.Error(), ShouldContainSubstring, "arity")
-				})
-			})
-
-			Convey("If the UDSF doesn't depend on an input", func() {
-				err := addBQLToTopology(tb, `CREATE STREAM t AS SELECT ISTREAM int FROM
-                no_input_duplicate('s', 2) [RANGE 2 SECONDS] WHERE int=2`)
-
-				Convey("Then there should be an error", func() {
-					So(err, ShouldNotBeNil)
-					So(err.Error(), ShouldContainSubstring, "at least")
 				})
 			})
 

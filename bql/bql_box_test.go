@@ -458,3 +458,37 @@ func TestBQLBoxUDSF(t *testing.T) {
 		})
 	})
 }
+
+func TestBQLBoxSourceUDSF(t *testing.T) {
+	Convey("Given a topology using a UDSF running in the source mode", t, func() {
+		// TODO: This is a super dirty hack. Although pause/resume of streams
+		// isn't supported yet, test_sequence UDSF needs to be paused somehow.
+		// Remove this WaitGroup after supporting pause/resume of streams.
+		wgSequenceUDSF.Add(1)
+		callDone := true
+		Reset(func() {
+			if callDone {
+				wgSequenceUDSF.Done()
+			}
+		})
+		tb, err := setupTopology(`CREATE STREAM box AS SELECT RSTREAM test_sequence:int FROM test_sequence(5) [RANGE 1 TUPLES]`, false)
+		So(err, ShouldBeNil)
+		dt := tb.Topology()
+		Reset(func() {
+			dt.Stop()
+		})
+
+		sin, err := dt.Sink("snk")
+		So(err, ShouldBeNil)
+		si := sin.Sink().(*tupleCollectorSink)
+		wgSequenceUDSF.Done()
+		callDone = false
+
+		Convey("When 5 tuples are emitted by the source", func() {
+			Convey("Then the sink should receive all tuples", func() {
+				si.Wait(5)
+				So(len(si.Tuples), ShouldEqual, 5)
+			})
+		})
+	})
+}
