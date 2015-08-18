@@ -419,6 +419,27 @@ func TestGenericFunc(t *testing.T) {
 	})
 }
 
+func TestGenericFuncReturnValue(t *testing.T) {
+	ctx := &core.Context{}
+
+	Convey("Given a generic UDF generator", t, func() {
+		Convey("When a function has a slice return value", func() {
+			f, err := ConvertGeneric(func(fs ...float64) []float64 {
+				return fs
+			})
+			So(err, ShouldBeNil)
+
+			Convey("Then it should return a slice", func() {
+				v, err := f.Call(ctx, data.Float(1), data.Float(2))
+				So(err, ShouldBeNil)
+				So(v, ShouldResemble, data.Array{data.Float(1), data.Float(2)})
+			})
+		})
+
+		// Other cases are tested in data.NewValue
+	})
+}
+
 func TestGenericFuncInvalidCases(t *testing.T) {
 	ctx := &core.Context{}
 	toArgs := func(vs ...interface{}) data.Array {
