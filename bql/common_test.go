@@ -6,6 +6,7 @@ import (
 	"pfi/sensorbee/sensorbee/bql/udf"
 	"pfi/sensorbee/sensorbee/core"
 	"pfi/sensorbee/sensorbee/data"
+	"sync"
 )
 
 func newTestTopology() core.Topology {
@@ -97,18 +98,46 @@ func createDuplicateUDSF(decl udf.UDSFDeclarer, stream string, dup int) (udf.UDS
 	}, nil
 }
 
-func noInputUDSFCreator(decl udf.UDSFDeclarer, stream string, dup int) (udf.UDSF, error) {
-	return &duplicateUDSF{
-		dup: dup,
-	}, nil
-}
-
 func failingUDSFCreator(decl udf.UDSFDeclarer, stream string, dup int) (udf.UDSF, error) {
 	return nil, errors.New("test UDSF creation failed")
 }
 
 func init() {
 	udf.MustRegisterGlobalUDSFCreator("duplicate", udf.MustConvertToUDSFCreator(createDuplicateUDSF))
-	udf.MustRegisterGlobalUDSFCreator("no_input_duplicate", udf.MustConvertToUDSFCreator(noInputUDSFCreator))
 	udf.MustRegisterGlobalUDSFCreator("failing_duplicate", udf.MustConvertToUDSFCreator(failingUDSFCreator))
+}
+
+type sequenceUDSF struct {
+	cnt int
+}
+
+// TODO: remove this WaitGroup after supporting pause/resume of streams
+var (
+	wgSequenceUDSF sync.WaitGroup
+)
+
+func (s *sequenceUDSF) Process(ctx *core.Context, t *core.Tuple, w core.Writer) error {
+	wgSequenceUDSF.Wait()
+	for i := 1; i <= s.cnt; i++ {
+		if err := w.Write(ctx, core.NewTuple(data.Map{"int": data.Int(i)})); err != nil {
+			if err == core.ErrSourceStopped {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func (s *sequenceUDSF) Terminate(ctx *core.Context) error {
+	return nil
+}
+
+func createSequenceUDSF(decl udf.UDSFDeclarer, cnt int) (udf.UDSF, error) {
+	return &sequenceUDSF{
+		cnt: cnt,
+	}, nil
+}
+
+func init() {
+	udf.MustRegisterGlobalUDSFCreator("test_sequence", udf.MustConvertToUDSFCreator(createSequenceUDSF))
 }
