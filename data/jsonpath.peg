@@ -17,10 +17,18 @@ jsonPathHead <- (jsonMapAccessString / jsonMapAccessBracket) {
         p.addMapAccess(p.lastKey)
     }
 
-jsonPathNonHead <- jsonMapSingleLevel / jsonArraySlice / jsonArrayAccess
+jsonPathNonHead <- jsonMapMultipleLevel / jsonMapSingleLevel /
+    jsonArraySlice / jsonArrayAccess
 
 jsonMapSingleLevel <- (('.' jsonMapAccessString) / jsonMapAccessBracket) {
         p.addMapAccess(p.lastKey)
+    }
+
+# for single level it is `foo.bar` or `foo['bar']`, but
+# for recursion it is `foo..bar` or `foo..['bar']`, that is
+# a bit inconsistent
+jsonMapMultipleLevel <- '..' (jsonMapAccessString / jsonMapAccessBracket) {
+        p.addRecursiveAccess(p.lastKey)
     }
 
 jsonMapAccessString <- < [[a-z]] ([[a-z]] / [0-9] / '_')* > {
