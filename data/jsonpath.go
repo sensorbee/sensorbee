@@ -3,6 +3,14 @@ package data
 import (
 	"fmt"
 	"strconv"
+	"strings"
+)
+
+type multiplicity int
+
+const (
+	one multiplicity = iota
+	many
 )
 
 // Path is an entity that can be evaluated with a Map to
@@ -42,6 +50,16 @@ func CompilePath(s string) (p Path, err error) {
 		return nil, fmt.Errorf("error parsing '%s' as a JSON Path", s)
 	}
 	j.Execute()
+	// discover nested array slice accesses
+	containsSlice := false
+	for _, c := range j.components {
+		if c.resultMultiplicity() == many {
+			if containsSlice {
+				return nil, fmt.Errorf("path '%s' contains multiple slice elements", s)
+			}
+			containsSlice = true
+		}
+	}
 	return j, nil
 }
 
@@ -54,12 +72,41 @@ func (j *jsonPeg) evaluate(m Map) (Value, error) {
 	var current Value = m
 	var next Value
 
+	// resultIsArray is set to true after we processed an
+	// extractor that returns an array-valued result by nature (such
+	// as arraySliceExtractor). The consequence of `resultIsArray == true`
+	// is that we will not process `current` itself with subsequent
+	// extractors, but each item in `current`.
+	resultIsArray := false
+
 	for _, c := range j.components {
-		err := c.extract(current, &next)
-		if err != nil {
-			return nil, err
+		if resultIsArray {
+			// replace each item in `current` by its extracted child item
+			arr, err := current.asArray()
+			if err != nil {
+				return nil, err
+			}
+			for i, currentElem := range arr {
+				err := c.extract(currentElem, &next)
+				if err != nil {
+					return nil, err
+				}
+				// we assign a new value to a position of `current` here.
+				// this is only valid (and does not change the input Map)
+				// because all functions with `resultMultiplicity() == many`
+				// are required to return a *new* slice, not a pointer
+				// to an existing one!
+				arr[i] = next
+			}
+		} else {
+			// replace `current` by its extracted child item
+			err := c.extract(current, &next)
+			if err != nil {
+				return nil, err
+			}
+			current = next
 		}
-		current = next
+		resultIsArray = resultIsArray || (c.resultMultiplicity() == many)
 	}
 	return current, nil
 }
@@ -118,11 +165,32 @@ func (j *jsonPeg) addArrayAccess(s string) {
 	j.components = append(j.components, &arrayElementExtractor{int(i)})
 }
 
+// addArraySlice is called when we discover `[1:3]` in a JSON Path
+// string.
+func (j *jsonPeg) addArraySlice(s string) {
+	parts := strings.Split(s, ":")
+	if len(parts) != 2 {
+		panic(fmt.Sprintf("'%s' did not have format 'a:b'", s))
+	}
+	// due to parser configuration, s will always contain numeric strings,
+	// but they may overflow int32, so we need a check here.
+	start, err := strconv.ParseInt(parts[0], 10, 32)
+	if err != nil {
+		panic(fmt.Sprintf("overflow index number: " + parts[0]))
+	}
+	end, err := strconv.ParseInt(parts[1], 10, 32)
+	if err != nil {
+		panic(fmt.Sprintf("overflow index number: " + parts[1]))
+	}
+	j.components = append(j.components, &arraySliceExtractor{int(start), int(end)})
+}
+
 // extractor describes an entity that can extract a child element
 // from a Value.
 type extractor interface {
 	extract(v Value, next *Value) error
 	extractForSet(Value, *Value, *func(Value)) error
+	resultMultiplicity() multiplicity
 }
 
 // mapValueExtractor can extract a value from a Map using the
@@ -166,6 +234,10 @@ func (a *mapValueExtractor) extractForSet(v Value, next *Value, setInParent *fun
 	}
 	*next = cont[a.key]
 	return nil
+}
+
+func (a *mapValueExtractor) resultMultiplicity() multiplicity {
+	return one
 }
 
 // arrayElementExtractor can extract an element from an Array using
@@ -218,4 +290,55 @@ func (a *arrayElementExtractor) extractForSet(v Value, next *Value, setInParent 
 	}
 	*next = cont[a.idx]
 	return nil
+}
+
+func (a *arrayElementExtractor) resultMultiplicity() multiplicity {
+	return one
+}
+
+// arraySliceExtractor can extract a slice from an Array using the
+// given start/end indexes.
+type arraySliceExtractor struct {
+	start, end int
+}
+
+func (a *arraySliceExtractor) extract(v Value, next *Value) error {
+	cont, err := AsArray(v)
+	if err != nil {
+		return fmt.Errorf("cannot access a %T using range %d:%d", v, a.start, a.end)
+	}
+	// negative indexes are forbidden at the moment
+	if a.start < 0 || a.end < 0 {
+		return fmt.Errorf("array indexes must be >= 0")
+	}
+	// end index must be greater or equal than start index
+	if a.start > a.end {
+		return fmt.Errorf("start index %d must be less or equal to end index %d",
+			a.start, a.end)
+	}
+	if a.start >= len(cont) {
+		*next = Array{}
+		return nil
+	}
+	// if too large, truncate the end index to the largest possible value
+	end := a.end
+	if a.end > len(cont) {
+		end = len(cont)
+	}
+
+	// copy the values into a new array
+	retVal := make(Array, 0, end-a.start)
+	for i := a.start; i < end; i++ {
+		retVal = append(retVal, cont[i])
+	}
+	*next = retVal
+	return nil
+}
+
+func (a *arraySliceExtractor) extractForSet(v Value, next *Value, setInParent *func(Value)) error {
+	return fmt.Errorf("not implemented")
+}
+
+func (a *arraySliceExtractor) resultMultiplicity() multiplicity {
+	return many
 }

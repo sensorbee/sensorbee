@@ -14,7 +14,7 @@ jsonPath <- jsonPathHead jsonPathNonHead* !.
 
 jsonPathHead <- jsonMapAccessString / jsonMapAccessBracket
 
-jsonPathNonHead <- ('.' jsonMapAccessString) / jsonMapAccessBracket / jsonArrayAccess
+jsonPathNonHead <- ('.' jsonMapAccessString) / jsonMapAccessBracket / jsonArraySlice / jsonArrayAccess
 
 jsonMapAccessString <- < [[a-z]] ([[a-z]] / [0-9] / '_')* > {
         substr := string([]rune(buffer)[begin:end])
@@ -23,9 +23,20 @@ jsonMapAccessString <- < [[a-z]] ([[a-z]] / [0-9] / '_')* > {
 
 jsonMapAccessBracket <- '[' < StringLiteral > ']'
 
+# TODO add negative indexing
 jsonArrayAccess <- '[' < [0-9]+ > ']' {
         substr := string([]rune(buffer)[begin:end])
         p.addArrayAccess(substr)
+    }
+
+# TODO add more syntax variations:
+#      - [:]
+#      - [*]
+#      - [start:end:step]
+#      - [-3:-1]
+jsonArraySlice <- '[' < [0-9]+ ':' [0-9]+ > ']' {
+        substr := string([]rune(buffer)[begin:end])
+        p.addArraySlice(substr)
     }
 
 StringLiteral <- singleQuotedString / doubleQuotedString
