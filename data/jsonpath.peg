@@ -8,20 +8,39 @@ import "strings"
 
 type jsonPeg Peg {
     components []extractor
+    lastKey    string
 }
 
 jsonPath <- jsonPathHead jsonPathNonHead* !.
 
-jsonPathHead <- jsonMapAccessString / jsonMapAccessBracket
+jsonPathHead <- (jsonMapAccessString / jsonMapAccessBracket) {
+        p.addMapAccess(p.lastKey)
+    }
 
-jsonPathNonHead <- ('.' jsonMapAccessString) / jsonMapAccessBracket / jsonArraySlice / jsonArrayAccess
+jsonPathNonHead <- jsonMapSingleLevel / jsonArraySlice / jsonArrayAccess
+
+jsonMapSingleLevel <- (('.' jsonMapAccessString) / jsonMapAccessBracket) {
+        p.addMapAccess(p.lastKey)
+    }
 
 jsonMapAccessString <- < [[a-z]] ([[a-z]] / [0-9] / '_')* > {
         substr := string([]rune(buffer)[begin:end])
-        p.addMapAccess(substr)
+        p.lastKey = substr
     }
 
-jsonMapAccessBracket <- '[' < StringLiteral > ']'
+jsonMapAccessBracket <- '[' (singleQuotedString / doubleQuotedString) ']'
+
+# single quotes within a singleQuotedString must be doubled
+singleQuotedString <- ['] < ("''" / !"'" .)* > ['] {
+        substr := string([]rune(buffer)[begin:end])
+        p.lastKey = strings.Replace(substr, "''", "'", -1)
+    }
+
+# double quotes within a doubleQuotedString must be doubled
+doubleQuotedString <- ["] < ('""' / !'"' .)* > ["] {
+        substr := string([]rune(buffer)[begin:end])
+        p.lastKey = strings.Replace(substr, "\"\"", "\"", -1)
+    }
 
 # TODO add negative indexing
 jsonArrayAccess <- '[' < [0-9]+ > ']' {
@@ -37,18 +56,4 @@ jsonArrayAccess <- '[' < [0-9]+ > ']' {
 jsonArraySlice <- '[' < [0-9]+ ':' [0-9]+ > ']' {
         substr := string([]rune(buffer)[begin:end])
         p.addArraySlice(substr)
-    }
-
-StringLiteral <- singleQuotedString / doubleQuotedString
-
-# single quotes within a singleQuotedString must be doubled
-singleQuotedString <- ['] < ("''" / !"'" .)* > ['] {
-        substr := string([]rune(buffer)[begin:end])
-        p.addMapAccess(strings.Replace(substr, "''", "'", -1))
-    }
-
-# double quotes within a doubleQuotedString must be doubled
-doubleQuotedString <- ["] < ('""' / !'"' .)* > ["] {
-        substr := string([]rune(buffer)[begin:end])
-        p.addMapAccess(strings.Replace(substr, "\"\"", "\"", -1))
     }
