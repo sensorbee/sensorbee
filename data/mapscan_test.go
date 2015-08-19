@@ -61,6 +61,82 @@ func TestMapscanDocstrings(t *testing.T) {
 	})
 }
 
+func TestArraySlicing(t *testing.T) {
+	elem0 := Map{"hoge": Array{
+		Map{"a": Int(1), "b": Int(2)},
+		Map{"a": Int(3), "b": Int(4)},
+	}, "bar": Int(5)}
+	elem1 := Map{"hoge": Array{
+		Map{"a": Int(5), "b": Int(6)},
+		Map{"a": Int(7), "b": Int(8)},
+	}, "bar": Int(2)}
+	elem2 := Map{"hoge": Array{
+		Map{"a": Int(9), "b": Int(10)},
+	}, "bar": Int(8)}
+
+	data := Map{
+		"foo": Array{
+			elem0, elem1, elem2,
+		},
+		"nantoka": Map{"x": String("y")},
+	}
+
+	Convey("Slicing should work as expected", t, func() {
+		examples := map[string]interface{}{
+			// normal array slicing
+			"foo[0:1]":  Array{elem0},
+			"foo[0:2]":  Array{elem0, elem1},
+			"foo[1:3]":  Array{elem1, elem2},
+			"foo[2:2]":  Array{},
+			"foo[3:2]":  nil, // invalid range
+			"foo[2:17]": Array{elem2},
+			"foo[3:17]": Array{},
+			// slicing with sub-elements
+			"foo[0:1].bar":  Array{Int(5)},
+			"foo[0:2].bar":  Array{Int(5), Int(2)},
+			"foo[1:3].bar":  Array{Int(2), Int(8)},
+			"foo[2:2].bar":  Array{},
+			"foo[3:2].bar":  nil, // invalid range
+			"foo[2:17].bar": Array{Int(8)},
+			"foo[3:17].bar": Array{},
+			// slicing with further descend
+			"foo[0:1].hoge[0].b":  Array{Int(2)},
+			"foo[0:2].hoge[0].b":  Array{Int(2), Int(6)},
+			"foo[0:2].hoge[1].b":  Array{Int(4), Int(8)},
+			"foo[1:3].hoge[0].b":  Array{Int(6), Int(10)},
+			"foo[1:3].hoge[1].b":  nil, // foo[2] has no hoge[1]
+			"foo[2:2].hoge[0].b":  Array{},
+			"foo[3:2].hoge[0].b":  nil, // invalid range
+			"foo[2:17].hoge[0].b": Array{Int(10)},
+			"foo[3:17].hoge[0].b": Array{},
+		}
+		for input, expected := range examples {
+			path, err := CompilePath(input)
+			So(err, ShouldBeNil)
+			actual, err := data.Get(path)
+			if expected == nil {
+				So(err, ShouldNotBeNil)
+			} else {
+				So(err, ShouldBeNil)
+				So(actual, ShouldResemble, expected)
+			}
+		}
+	})
+
+	Convey("Illegal slice paths should return an error", t, func() {
+		examples := []string{
+			"foo[0:1][2:3]",
+			"foo[0:1].hoge[2:3]",
+			"foo[0:1].hoge[2:3].bar",
+		}
+
+		for _, input := range examples {
+			_, err := CompilePath(input)
+			So(err, ShouldNotBeNil)
+		}
+	})
+}
+
 func TestSetInMap(t *testing.T) {
 	testCases := []struct {
 		key    string
@@ -311,7 +387,6 @@ func TestScanMap(t *testing.T) {
 					`array[0][`,
 					`array[0]]`,
 					`array[-1]`,
-					`array[0:1]`,
 				}
 				Convey("Then lookup should fail", func() {
 					for _, input := range samples {
