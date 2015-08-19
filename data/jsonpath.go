@@ -91,18 +91,31 @@ func (j *jsonPeg) evaluate(m Map) (Value, error) {
 				if err != nil {
 					return nil, err
 				}
+				if c.resultMultiplicity() == many && next.Type() == TypeArray {
+					// if we get an nil array result, turn it into an empty array instead
+					if a, _ := next.asArray(); a == nil {
+						next = Array{}
+					}
+				}
 				// we assign a new value to a position of `current` here.
 				// this is only valid (and does not change the input Map)
 				// because all functions with `resultMultiplicity() == many`
 				// are required to return a *new* slice, not a pointer
 				// to an existing one!
 				arr[i] = next
+
 			}
 		} else {
 			// replace `current` by its extracted child item
 			err := c.extract(current, &next)
 			if err != nil {
 				return nil, err
+			}
+			if c.resultMultiplicity() == many && next.Type() == TypeArray {
+				// if we get an nil array result, turn it into an empty array instead
+				if a, _ := next.asArray(); a == nil {
+					next = Array{}
+				}
 			}
 			current = next
 		}
@@ -150,6 +163,12 @@ func (j *jsonPeg) addMapAccess(s string) {
 	j.components = append(j.components, &mapValueExtractor{s})
 }
 
+// addRecursiveAccess is called when we discover `..foo` or `..['bar']`
+// in a JSON Path string.
+func (j *jsonPeg) addRecursiveAccess(s string) {
+	j.components = append(j.components, &recursiveExtractor{s})
+}
+
 // addArrayAccess is called when we discover `[1]` in a JSON Path
 // string.
 func (j *jsonPeg) addArrayAccess(s string) {
@@ -181,6 +200,10 @@ func (j *jsonPeg) addArraySlice(s string) {
 	end, err := strconv.ParseInt(parts[1], 10, 32)
 	if err != nil {
 		panic(fmt.Sprintf("overflow index number: " + parts[1]))
+	}
+	if start > end {
+		panic(fmt.Sprintf("start index %d must be less or equal to end index %d",
+			start, end))
 	}
 	j.components = append(j.components, &arraySliceExtractor{int(start), int(end)})
 }
@@ -238,6 +261,81 @@ func (a *mapValueExtractor) extractForSet(v Value, next *Value, setInParent *fun
 
 func (a *mapValueExtractor) resultMultiplicity() multiplicity {
 	return one
+}
+
+// recursiveExtractor can extract a list of all items with a certain key,
+// no matter where they are located in the Map
+type recursiveExtractor struct {
+	key string
+}
+
+func (a *recursiveExtractor) extract(v Value, next *Value) error {
+	var results []Value
+
+	if v.Type() == TypeMap {
+		// if v is a Map, then we append the entry with the correct
+		// key (if one exists) to the result list and recurse for all
+		// contained containers
+		cont, _ := v.asMap()
+		for key, value := range cont {
+			if key == a.key {
+				// NB. We do NOT descend further into `value` even if
+				// it is itself a Map or Array!
+				results = append(results, value)
+			} else if value.Type() == TypeMap || value.Type() == TypeArray {
+				// recurse
+				var descend Value
+				err := a.extract(value, &descend)
+				if err != nil {
+					return err
+				}
+				// we expect that the results we get from further
+				// down are in an array shape
+				subResults, err := descend.asArray()
+				if err != nil {
+					return err
+				}
+				results = append(results, subResults...)
+			}
+			// we ignore all entries in this Map that are not
+			// container-like or do not have the key we are looking for
+		}
+	} else if v.Type() == TypeArray {
+		// if v is a Map, then we
+		cont, _ := v.asArray()
+		for _, value := range cont {
+			if value.Type() == TypeMap || value.Type() == TypeArray {
+				// recurse
+				var descend Value
+				err := a.extract(value, &descend)
+				if err != nil {
+					return err
+				}
+				// we expect that the results we get from further
+				// down are in an array shape
+				subResults, err := descend.asArray()
+				if err != nil {
+					return err
+				}
+				results = append(results, subResults...)
+			}
+			// we ignore all entries in this Array that are not
+			// container-like
+		}
+	} else {
+		return fmt.Errorf("cannot descend recursively into %T", v)
+	}
+
+	*next = Array(results)
+	return nil
+}
+
+func (a *recursiveExtractor) extractForSet(v Value, next *Value, setInParent *func(Value)) error {
+	return fmt.Errorf("not implemented")
+}
+
+func (a *recursiveExtractor) resultMultiplicity() multiplicity {
+	return many
 }
 
 // arrayElementExtractor can extract an element from an Array using
