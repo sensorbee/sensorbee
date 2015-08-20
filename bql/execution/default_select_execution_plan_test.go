@@ -391,6 +391,63 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 		})
 	})
 
+	Convey("Given a SELECT clause with a complex JSON Path", t, func() {
+		tuples := getTuples(4)
+		for i, t := range tuples {
+			k := i + 1
+			t.Data["d"] = data.Map{
+				"foo": data.Array{
+					data.Map{"hoge": data.Array{
+						data.Map{"a": data.Int(1 + k), "b": data.Int(2 * k)},
+						data.Map{"a": data.Int(3 + k), "b": data.Int(4 * k)},
+					}, "bar": data.Int(5)},
+					data.Map{"hoge": data.Array{
+						data.Map{"a": data.Int(5 + k), "b": data.Int(6 * k)},
+						data.Map{"a": data.Int(7 + k), "b": data.Int(8 * k)},
+					}, "bar": data.Int(2)},
+					data.Map{"hoge": data.Array{
+						data.Map{"a": data.Int(9 + k), "b": data.Int(10 * k)},
+					}, "bar": data.Int(8)},
+				},
+				"nantoka": data.Map{"x": data.String("y")},
+			}
+		}
+		s := `CREATE STREAM box AS SELECT ISTREAM d..b AS bs, d.foo[1:].hoge[0].a AS as FROM src [RANGE 2 SECONDS]`
+		plan, err := createDefaultSelectPlan(s, t)
+		So(err, ShouldBeNil)
+
+		Convey("When feeding it with tuples", func() {
+			for idx, inTup := range tuples {
+				out, err := plan.Process(inTup)
+				So(err, ShouldBeNil)
+
+				Convey(fmt.Sprintf("Then those values should appear in %v", idx), func() {
+					So(len(out), ShouldEqual, 1)
+					if idx == 0 {
+						So(out[0], ShouldResemble,
+							data.Map{"bs": data.Array{
+								data.Int(2), data.Int(4), data.Int(6), data.Int(8), data.Int(10),
+							},
+								"as": data.Array{
+									data.Int(6), data.Int(10),
+								},
+							})
+					} else if idx == 1 {
+						So(out[0], ShouldResemble,
+							data.Map{"bs": data.Array{
+								data.Int(4), data.Int(8), data.Int(12), data.Int(16), data.Int(20),
+							},
+								"as": data.Array{
+									data.Int(7), data.Int(11),
+								},
+							})
+					}
+				})
+			}
+
+		})
+	})
+
 	// Use wildcard
 	Convey("Given a SELECT clause with a wildcard", t, func() {
 		tuples := getTuples(4)
