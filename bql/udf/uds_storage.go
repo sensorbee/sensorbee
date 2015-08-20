@@ -42,7 +42,10 @@ type UDSStorage interface {
 	List() (map[string][]string, error)
 }
 
-// UDSStorageWriter is used to save a state.
+// UDSStorageWriter is used to save a state. An instance of UDSStorageWriter
+// doesn't have to be thread-safe. It means that an instance may not be able to
+// be used from multiple goroutines. However, different instances can be used
+// concurrently so that multiple states can be saved simultaneously.
 type UDSStorageWriter interface {
 	io.Writer
 
@@ -52,7 +55,7 @@ type UDSStorageWriter interface {
 
 	// Abort discard the data written to the writer. Write cannot be called
 	// after calling Abort.
-	Abort()
+	Abort() error
 }
 
 type inMemoryUDSStorage struct {
@@ -142,6 +145,10 @@ func (w *inMemoryUDSStorageWriter) Write(data []byte) (int, error) {
 }
 
 func (w *inMemoryUDSStorageWriter) Commit() error {
+	if w.buf == nil {
+		return errors.New("writer is already closed")
+	}
+
 	w.storage.m.Lock()
 	defer w.storage.m.Unlock()
 	w.storage.states[w.stateName] = w.buf.Bytes()
@@ -149,6 +156,10 @@ func (w *inMemoryUDSStorageWriter) Commit() error {
 	return nil
 }
 
-func (w *inMemoryUDSStorageWriter) Abort() {
+func (w *inMemoryUDSStorageWriter) Abort() error {
+	if w.buf == nil {
+		return errors.New("writer is already closed")
+	}
 	w.buf = nil
+	return nil
 }
