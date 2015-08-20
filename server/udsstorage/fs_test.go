@@ -1,15 +1,32 @@
-package udf
+package udsstorage
 
 import (
 	. "github.com/smartystreets/goconvey/convey"
 	"io"
 	"io/ioutil"
+	"os"
 	"testing"
 )
 
-func TestInMemoryUDSStorage(t *testing.T) {
-	Convey("Given an in memory UDSStorage with a saved state", t, func() {
-		s := NewInMemoryUDSStorage()
+func TestFS(t *testing.T) {
+	dir, err := ioutil.TempDir("", "sensorbee_uds_storage_test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+
+	// This test is usually disabled for SSD.
+	SkipConvey("Given a filesystem UDS storage", t, func() {
+		s := NewFS(dir, dir)
+		fs := s.(*fsUDSStorage)
+		Reset(func() {
+			ls, _ := s.List()
+			for t, states := range ls {
+				for _, st := range states {
+					os.Remove(fs.stateFilename(t, st))
+				}
+			}
+		})
 
 		w, err := s.Save("test_topology", "state1")
 		So(err, ShouldBeNil)
