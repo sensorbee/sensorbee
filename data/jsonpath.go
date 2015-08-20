@@ -447,3 +447,36 @@ func (a *arraySliceExtractor) extractForSet(v Value, next *Value, setInParent *f
 func (a *arraySliceExtractor) resultMultiplicity() multiplicity {
 	return many
 }
+
+// addArrayFullSlice is called when we discover `[:]` in a JSON Path
+// string.
+func (j *jsonPeg) addArrayFullSlice() {
+	j.components = append(j.components, &arrayFullSliceExtractor{})
+}
+
+// arrayFullSliceExtractor can copy an Array for further descend.
+type arrayFullSliceExtractor struct {
+	start, end, step int
+}
+
+func (a *arrayFullSliceExtractor) extract(v Value, next *Value) error {
+	cont, err := AsArray(v)
+	if err != nil {
+		return err
+	}
+	// copy the values into a new array
+	retVal := make(Array, len(cont))
+	for i, val := range cont {
+		retVal[i] = val
+	}
+	*next = retVal
+	return nil
+}
+
+func (a *arrayFullSliceExtractor) extractForSet(v Value, next *Value, setInParent *func(Value)) error {
+	return fmt.Errorf("not implemented")
+}
+
+func (a *arrayFullSliceExtractor) resultMultiplicity() multiplicity {
+	return many
+}

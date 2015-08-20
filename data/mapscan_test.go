@@ -90,6 +90,7 @@ func TestArraySlicing(t *testing.T) {
 			"foo[2:2]":  Array{},
 			"foo[2:17]": Array{elem2},
 			"foo[3:17]": Array{},
+			"foo[:]":    Array{elem0, elem1, elem2},
 			// normal array slicing with steps
 			"foo[0:1:1]":  Array{elem0},
 			"foo[0:2:1]":  Array{elem0, elem1},
@@ -104,6 +105,7 @@ func TestArraySlicing(t *testing.T) {
 			"foo[2:2].bar":    Array{},
 			"foo[2:17].bar":   Array{Int(8)},
 			"foo[3:17].bar":   Array{},
+			"foo[:].bar":      Array{Int(5), Int(2), Int(8)},
 			// slicing with further descend
 			"foo[0:1].hoge[0].b":    Array{Int(2)},
 			"foo[0:2].hoge[0].b":    Array{Int(2), Int(6)},
@@ -114,6 +116,7 @@ func TestArraySlicing(t *testing.T) {
 			"foo[2:2].hoge[0].b":    Array{},
 			"foo[2:17].hoge[0].b":   Array{Int(10)},
 			"foo[3:17].hoge[0].b":   Array{},
+			"foo[:].hoge[0].b":      Array{Int(2), Int(6), Int(10)},
 			// recursion
 			"foo..bar":              Array{Int(5), Int(2), Int(8)},
 			"foo..hoge":             Array{elem0["hoge"], elem1["hoge"], elem2["hoge"]},
@@ -143,6 +146,8 @@ func TestArraySlicing(t *testing.T) {
 			"foo[0:1].hoge[2:3]",
 			"foo[0:1].hoge[2:3].bar",
 			"foo[0:1]..bar",
+			"foo[:].hoge[2:3]",
+			"foo[:]..bar",
 			"foo[3:2]",
 			"foo[2:2:4:3]",
 			"foo[3:2].hoge[0].b",
