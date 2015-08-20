@@ -66,6 +66,7 @@ func TestExpressionParser(t *testing.T) {
 		"my_mem_27": {[]Expression{RowValue{"", "my_mem_27"}}, "my_mem_27"},
 		/// JSON Path
 		"['hoge']":       {[]Expression{RowValue{"", "['hoge']"}}, "['hoge']"},
+		"['hoge'][0]..y": {[]Expression{RowValue{"", "['hoge'][0]..y"}}, "['hoge'][0]..y"},
 		"['array'][0]":   {[]Expression{RowValue{"", "['array'][0]"}}, "['array'][0]"},
 		"['array'][0].x": {[]Expression{RowValue{"", "['array'][0].x"}}, "['array'][0].x"},
 		"['array']['x']": {[]Expression{RowValue{"", "['array']['x']"}}, "['array']['x']"},
