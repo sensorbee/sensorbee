@@ -370,12 +370,12 @@ func (a *arrayElementExtractor) resultMultiplicity() multiplicity {
 	return one
 }
 
-// addArraySlice is called when we discover `[1:3]` in a JSON Path
-// string.
+// addArraySlice is called when we discover `[1:3]` or `[1:3:2]` in a
+// JSON Path string.
 func (j *jsonPeg) addArraySlice(s string) {
 	parts := strings.Split(s, ":")
-	if len(parts) != 2 {
-		panic(fmt.Sprintf("'%s' did not have format 'a:b'", s))
+	if !(len(parts) == 2 || len(parts) == 3) {
+		panic(fmt.Sprintf("'%s' did not have format 'a:b' or 'a:b:c'", s))
 	}
 	// due to parser configuration, s will always contain numeric strings,
 	// but they may overflow int32, so we need a check here.
@@ -387,17 +387,24 @@ func (j *jsonPeg) addArraySlice(s string) {
 	if err != nil {
 		panic(fmt.Sprintf("overflow index number: " + parts[1]))
 	}
+	step := int64(1)
+	if len(parts) == 3 {
+		step, err = strconv.ParseInt(parts[2], 10, 32)
+		if err != nil {
+			panic(fmt.Sprintf("overflow index number: " + parts[2]))
+		}
+	}
 	if start > end {
 		panic(fmt.Sprintf("start index %d must be less or equal to end index %d",
 			start, end))
 	}
-	j.components = append(j.components, &arraySliceExtractor{int(start), int(end)})
+	j.components = append(j.components, &arraySliceExtractor{int(start), int(end), int(step)})
 }
 
 // arraySliceExtractor can extract a slice from an Array using the
 // given start/end indexes.
 type arraySliceExtractor struct {
-	start, end int
+	start, end, step int
 }
 
 func (a *arraySliceExtractor) extract(v Value, next *Value) error {
@@ -426,7 +433,7 @@ func (a *arraySliceExtractor) extract(v Value, next *Value) error {
 
 	// copy the values into a new array
 	retVal := make(Array, 0, end-a.start)
-	for i := a.start; i < end; i++ {
+	for i := a.start; i < end; i += a.step {
 		retVal = append(retVal, cont[i])
 	}
 	*next = retVal

@@ -90,6 +90,12 @@ func TestArraySlicing(t *testing.T) {
 			"foo[2:2]":  Array{},
 			"foo[2:17]": Array{elem2},
 			"foo[3:17]": Array{},
+			// normal array slicing with steps
+			"foo[0:1:1]":  Array{elem0},
+			"foo[0:2:1]":  Array{elem0, elem1},
+			"foo[0:2:2]":  Array{elem0},
+			"foo[1:3:2]":  Array{elem1},
+			"foo[0:17:2]": Array{elem0, elem2},
 			// slicing with sub-elements
 			"foo[0:1].bar":    Array{Int(5)},
 			"foo[0:2].bar":    Array{Int(5), Int(2)},
@@ -138,6 +144,7 @@ func TestArraySlicing(t *testing.T) {
 			"foo[0:1].hoge[2:3].bar",
 			"foo[0:1]..bar",
 			"foo[3:2]",
+			"foo[2:2:4:3]",
 			"foo[3:2].hoge[0].b",
 		}
 
