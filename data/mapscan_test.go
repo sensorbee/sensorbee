@@ -254,7 +254,7 @@ func TestScanMap(t *testing.T) {
 	}
 	var testData = Map{
 		"string":   String("homhom"),
-		"array":    Array([]Value{String("saysay"), String("mammam")}),
+		"array":    Array([]Value{String("saysay"), String("mammam"), String("hoge")}),
 		"map":      nestedData,
 		"arraymap": Array([]Value{Map{"mappedstring": String("boo")}}),
 	}
@@ -306,10 +306,18 @@ func TestScanMap(t *testing.T) {
 		})
 		Convey("When accessing an out-of-range index", func() {
 			var v Value
-			err := scanMap(testData, "array[2]", &v)
+			err := scanMap(testData, "array[3]", &v)
 			Convey("Then lookup should fail", func() {
 				So(err, ShouldNotBeNil)
-				So(err.Error(), ShouldEqual, "out of range access: 2")
+				So(err.Error(), ShouldEqual, "out of range access: 3 (length 3)")
+			})
+		})
+		Convey("When accessing an out-of-range negative index", func() {
+			var v Value
+			err := scanMap(testData, "array[-4]", &v)
+			Convey("Then lookup should fail", func() {
+				So(err, ShouldNotBeNil)
+				So(err.Error(), ShouldEqual, "out of range access: -4 (length 3)")
 			})
 		})
 
@@ -391,6 +399,8 @@ func TestScanMap(t *testing.T) {
 				samples := map[string]string{
 					`['array'][0]`:                    "saysay",
 					`array[0]`:                        "saysay",
+					`array[-1]`:                       "hoge",
+					`array[-3]`:                       "saysay",
 					`['arraymap'][0]['mappedstring']`: "boo",
 				}
 				Convey("Then lookup should succeed and match the original value", func() {
@@ -409,7 +419,6 @@ func TestScanMap(t *testing.T) {
 					`array[０]`, // zenkaku
 					`array[0][`,
 					`array[0]]`,
-					`array[-1]`,
 				}
 				Convey("Then lookup should fail", func() {
 					for _, input := range samples {
