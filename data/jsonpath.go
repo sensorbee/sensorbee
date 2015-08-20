@@ -157,63 +157,18 @@ func (j *jsonPeg) set(m Map, v Value) error {
 	return nil
 }
 
-// addMapAccess is called when we discover `foo` or `['bar']`
-// in a JSON Path string.
-func (j *jsonPeg) addMapAccess(s string) {
-	j.components = append(j.components, &mapValueExtractor{s})
-}
-
-// addRecursiveAccess is called when we discover `..foo` or `..['bar']`
-// in a JSON Path string.
-func (j *jsonPeg) addRecursiveAccess(s string) {
-	j.components = append(j.components, &recursiveExtractor{s})
-}
-
-// addArrayAccess is called when we discover `[1]` in a JSON Path
-// string.
-func (j *jsonPeg) addArrayAccess(s string) {
-	i, err := strconv.ParseInt(s, 10, 32)
-	// due to parser configuration, s will always be a numeric string,
-	// but it may overflow int32, so we need a check here.
-	if err != nil {
-		// TODO panic is not the gold standard of error handling, but
-		//      at the moment we have no better way to signal an error
-		//      from within jsonPeg.Execute()
-		panic(fmt.Sprintf("overflow index number: " + s))
-	}
-	j.components = append(j.components, &arrayElementExtractor{int(i)})
-}
-
-// addArraySlice is called when we discover `[1:3]` in a JSON Path
-// string.
-func (j *jsonPeg) addArraySlice(s string) {
-	parts := strings.Split(s, ":")
-	if len(parts) != 2 {
-		panic(fmt.Sprintf("'%s' did not have format 'a:b'", s))
-	}
-	// due to parser configuration, s will always contain numeric strings,
-	// but they may overflow int32, so we need a check here.
-	start, err := strconv.ParseInt(parts[0], 10, 32)
-	if err != nil {
-		panic(fmt.Sprintf("overflow index number: " + parts[0]))
-	}
-	end, err := strconv.ParseInt(parts[1], 10, 32)
-	if err != nil {
-		panic(fmt.Sprintf("overflow index number: " + parts[1]))
-	}
-	if start > end {
-		panic(fmt.Sprintf("start index %d must be less or equal to end index %d",
-			start, end))
-	}
-	j.components = append(j.components, &arraySliceExtractor{int(start), int(end)})
-}
-
 // extractor describes an entity that can extract a child element
 // from a Value.
 type extractor interface {
 	extract(v Value, next *Value) error
 	extractForSet(Value, *Value, *func(Value)) error
 	resultMultiplicity() multiplicity
+}
+
+// addMapAccess is called when we discover `foo` or `['bar']`
+// in a JSON Path string.
+func (j *jsonPeg) addMapAccess(s string) {
+	j.components = append(j.components, &mapValueExtractor{s})
 }
 
 // mapValueExtractor can extract a value from a Map using the
@@ -261,6 +216,12 @@ func (a *mapValueExtractor) extractForSet(v Value, next *Value, setInParent *fun
 
 func (a *mapValueExtractor) resultMultiplicity() multiplicity {
 	return one
+}
+
+// addRecursiveAccess is called when we discover `..foo` or `..['bar']`
+// in a JSON Path string.
+func (j *jsonPeg) addRecursiveAccess(s string) {
+	j.components = append(j.components, &recursiveExtractor{s})
 }
 
 // recursiveExtractor can extract a list of all items with a certain key,
@@ -338,6 +299,21 @@ func (a *recursiveExtractor) resultMultiplicity() multiplicity {
 	return many
 }
 
+// addArrayAccess is called when we discover `[1]` in a JSON Path
+// string.
+func (j *jsonPeg) addArrayAccess(s string) {
+	i, err := strconv.ParseInt(s, 10, 32)
+	// due to parser configuration, s will always be a numeric string,
+	// but it may overflow int32, so we need a check here.
+	if err != nil {
+		// TODO panic is not the gold standard of error handling, but
+		//      at the moment we have no better way to signal an error
+		//      from within jsonPeg.Execute()
+		panic(fmt.Sprintf("overflow index number: " + s))
+	}
+	j.components = append(j.components, &arrayElementExtractor{int(i)})
+}
+
 // arrayElementExtractor can extract an element from an Array using
 // the given index.
 type arrayElementExtractor struct {
@@ -392,6 +368,30 @@ func (a *arrayElementExtractor) extractForSet(v Value, next *Value, setInParent 
 
 func (a *arrayElementExtractor) resultMultiplicity() multiplicity {
 	return one
+}
+
+// addArraySlice is called when we discover `[1:3]` in a JSON Path
+// string.
+func (j *jsonPeg) addArraySlice(s string) {
+	parts := strings.Split(s, ":")
+	if len(parts) != 2 {
+		panic(fmt.Sprintf("'%s' did not have format 'a:b'", s))
+	}
+	// due to parser configuration, s will always contain numeric strings,
+	// but they may overflow int32, so we need a check here.
+	start, err := strconv.ParseInt(parts[0], 10, 32)
+	if err != nil {
+		panic(fmt.Sprintf("overflow index number: " + parts[0]))
+	}
+	end, err := strconv.ParseInt(parts[1], 10, 32)
+	if err != nil {
+		panic(fmt.Sprintf("overflow index number: " + parts[1]))
+	}
+	if start > end {
+		panic(fmt.Sprintf("start index %d must be less or equal to end index %d",
+			start, end))
+	}
+	j.components = append(j.components, &arraySliceExtractor{int(start), int(end)})
 }
 
 // arraySliceExtractor can extract a slice from an Array using the
