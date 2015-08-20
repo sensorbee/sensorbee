@@ -381,34 +381,65 @@ func (j *jsonPeg) addArraySlice(s string) {
 	if !(len(parts) == 2 || len(parts) == 3) {
 		panic(fmt.Sprintf("'%s' did not have format 'a:b' or 'a:b:c'", s))
 	}
-	// due to parser configuration, s will always contain numeric strings,
-	// but they may overflow int32, so we need a check here.
-	start, err := strconv.ParseInt(parts[0], 10, 32)
-	if err != nil {
-		panic(fmt.Sprintf("overflow index number: " + parts[0]))
+	// store for each component if that component was set by the user
+	var startSet, endSet, stepSet bool
+	var start, end int64
+	var step int64 = 1
+	var err error
+	if parts[0] == "" { // [:b] situation
+		start = 0
+	} else { // [a:b] or [a:b:c]
+		startSet = true
+		start, err = strconv.ParseInt(parts[0], 10, 32)
+		// due to parser setup, s will always contain numeric strings,
+		// but they may overflow int32, so we need a check here.
+		if err != nil {
+			panic(fmt.Sprintf("overflow index number: " + parts[0]))
+		}
 	}
-	end, err := strconv.ParseInt(parts[1], 10, 32)
-	if err != nil {
-		panic(fmt.Sprintf("overflow index number: " + parts[1]))
+	if parts[1] != "" { // [a:b] situation
+		endSet = true
+		end, err = strconv.ParseInt(parts[1], 10, 32)
+		// due to parser setup, s will always contain numeric strings,
+		// but they may overflow int32, so we need a check here.
+		if err != nil {
+			panic(fmt.Sprintf("overflow index number: " + parts[1]))
+		}
 	}
-	step := int64(1)
-	if len(parts) == 3 {
+	if len(parts) == 3 && parts[2] != "" { // [a:b:c] situation
+		stepSet = true
 		step, err = strconv.ParseInt(parts[2], 10, 32)
+		// due to parser setup, s will always contain numeric strings,
+		// but they may overflow int32, so we need a check here.
 		if err != nil {
 			panic(fmt.Sprintf("overflow index number: " + parts[2]))
 		}
 	}
-	if start > end {
-		panic(fmt.Sprintf("start index %d must be less or equal to end index %d",
-			start, end))
+	if step == 0 {
+		panic("step must not be 0")
 	}
-	j.components = append(j.components, &arraySliceExtractor{int(start), int(end), int(step)})
+	// validation of the step sign/direction can only happen/
+	// if start and end have the same sign. (we don't know if
+	// `[10:-10:2]` is valid or not without a particular list.)
+	if (start >= 0 && end >= 0) || (start < 0 && end < 0) {
+		if start > end && step > 0 && endSet && startSet {
+			panic(fmt.Sprintf("start index %d must be less or equal to "+
+				"end index %d when step is positive", start, end))
+		} else if start < end && step < 0 {
+			panic(fmt.Sprintf("start index %d must be greater or equal to "+
+				"end index %d when step is negative", start, end))
+		}
+	}
+
+	j.components = append(j.components, &arraySliceExtractor{int(start), int(end), int(step),
+		startSet, endSet, stepSet})
 }
 
 // arraySliceExtractor can extract a slice from an Array using the
 // given start/end indexes.
 type arraySliceExtractor struct {
-	start, end, step int
+	start, end, step          int
+	startSet, endSet, stepSet bool
 }
 
 func (a *arraySliceExtractor) extract(v Value, next *Value) error {
@@ -416,31 +447,61 @@ func (a *arraySliceExtractor) extract(v Value, next *Value) error {
 	if err != nil {
 		return fmt.Errorf("cannot access a %T using range %d:%d", v, a.start, a.end)
 	}
-	// negative indexes are forbidden at the moment
-	if a.start < 0 || a.end < 0 {
-		return fmt.Errorf("array indexes must be >= 0")
+	start := a.start
+	if a.start < 0 {
+		start = len(cont) + a.start
+	} else if !a.startSet {
+		start = 0
 	}
-	// end index must be greater or equal than start index
-	if a.start > a.end {
-		return fmt.Errorf("start index %d must be less or equal to end index %d",
-			a.start, a.end)
-	}
-	if a.start >= len(cont) {
-		*next = Array{}
-		return nil
-	}
-	// if too large, truncate the end index to the largest possible value
 	end := a.end
-	if a.end > len(cont) {
+	if a.end < 0 {
+		end = len(cont) + a.end
+	} else if !a.endSet {
 		end = len(cont)
 	}
-
-	// copy the values into a new array
-	retVal := make(Array, 0, end-a.start)
-	for i := a.start; i < end; i += a.step {
-		retVal = append(retVal, cont[i])
+	// there are now two possible valid conditions:
+	// 1. start <= end && step > 0 (count upwards)
+	// 2. start >= end && step < 0 (count downwards)
+	if start <= end && a.step > 0 {
+		// truncate start and end to valid ranges
+		if start < 0 {
+			start = 0
+		}
+		if end > len(cont) {
+			end = len(cont)
+		}
+		if start >= len(cont) || end < start {
+			*next = Array{}
+		} else {
+			// copy the values into a new array
+			retVal := make(Array, 0, end-start)
+			for i := start; i < end; i += a.step {
+				retVal = append(retVal, cont[i])
+			}
+			*next = retVal
+		}
+	} else if start >= end && a.step < 0 {
+		// truncate start and end to valid ranges
+		if start >= len(cont) {
+			start = len(cont) - 1
+		}
+		if end < 0 {
+			end = -1
+		}
+		if start < 0 || start < end {
+			*next = Array{}
+		} else {
+			// copy the values into a new array
+			retVal := make(Array, 0, start-end)
+			for i := start; i > end; i += a.step {
+				retVal = append(retVal, cont[i])
+			}
+			*next = retVal
+		}
+	} else {
+		*next = Array{}
 	}
-	*next = retVal
+
 	return nil
 }
 
@@ -449,38 +510,5 @@ func (a *arraySliceExtractor) extractForSet(v Value, next *Value, setInParent *f
 }
 
 func (a *arraySliceExtractor) resultMultiplicity() multiplicity {
-	return many
-}
-
-// addArrayFullSlice is called when we discover `[:]` in a JSON Path
-// string.
-func (j *jsonPeg) addArrayFullSlice() {
-	j.components = append(j.components, &arrayFullSliceExtractor{})
-}
-
-// arrayFullSliceExtractor can copy an Array for further descend.
-type arrayFullSliceExtractor struct {
-	start, end, step int
-}
-
-func (a *arrayFullSliceExtractor) extract(v Value, next *Value) error {
-	cont, err := AsArray(v)
-	if err != nil {
-		return err
-	}
-	// copy the values into a new array
-	retVal := make(Array, len(cont))
-	for i, val := range cont {
-		retVal[i] = val
-	}
-	*next = retVal
-	return nil
-}
-
-func (a *arrayFullSliceExtractor) extractForSet(v Value, next *Value, setInParent *func(Value)) error {
-	return fmt.Errorf("not implemented")
-}
-
-func (a *arrayFullSliceExtractor) resultMultiplicity() multiplicity {
 	return many
 }

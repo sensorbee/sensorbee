@@ -18,7 +18,7 @@ jsonPathHead <- (jsonMapAccessString / jsonMapAccessBracket) {
     }
 
 jsonPathNonHead <- jsonMapMultipleLevel / jsonMapSingleLevel /
-    jsonArrayFullSlice / jsonArraySlice / jsonArrayAccess
+    jsonArrayFullSlice / jsonArrayPartialSlice / jsonArraySlice / jsonArrayAccess
 
 jsonMapSingleLevel <- (('.' jsonMapAccessString) / jsonMapAccessBracket) {
         p.addMapAccess(p.lastKey)
@@ -55,13 +55,16 @@ jsonArrayAccess <- '[' < '-'? [0-9]+ > ']' {
         p.addArrayAccess(substr)
     }
 
-# TODO add more syntax variations:
-#      - [-3:-1]
-jsonArraySlice <- '[' < [0-9]+ ':' [0-9]+ (':' [0-9]+)? > ']' {
+jsonArraySlice <- '[' < '-'? [0-9]+ ':' '-'? [0-9]+ (':' '-'? [0-9]+)? > ']' {
+        substr := string([]rune(buffer)[begin:end])
+        p.addArraySlice(substr)
+    }
+
+jsonArrayPartialSlice <- '[' < (':' '-'? [0-9]+) / ('-'? [0-9]+ ':') > ']' {
         substr := string([]rune(buffer)[begin:end])
         p.addArraySlice(substr)
     }
 
 jsonArrayFullSlice <- '[:]' {
-        p.addArrayFullSlice()
+        p.addArraySlice("0:")
     }
