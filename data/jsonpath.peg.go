@@ -1029,7 +1029,7 @@ func (p *jsonPeg) Init() {
 			position, tokenIndex, depth = position54, tokenIndex54, depth54
 			return false
 		},
-		/* 10 jsonArraySlice <- <('[' <([0-9]+ ':' [0-9]+)> ']' Action7)> */
+		/* 10 jsonArraySlice <- <('[' <([0-9]+ ':' [0-9]+ (':' [0-9]+)?)> ']' Action7)> */
 		func() bool {
 			position59, tokenIndex59, depth59 := position, tokenIndex, depth
 			{
@@ -1076,6 +1076,32 @@ func (p *jsonPeg) Init() {
 					l65:
 						position, tokenIndex, depth = position65, tokenIndex65, depth65
 					}
+					{
+						position66, tokenIndex66, depth66 := position, tokenIndex, depth
+						if buffer[position] != rune(':') {
+							goto l66
+						}
+						position++
+						if c := buffer[position]; c < rune('0') || c > rune('9') {
+							goto l66
+						}
+						position++
+					l68:
+						{
+							position69, tokenIndex69, depth69 := position, tokenIndex, depth
+							if c := buffer[position]; c < rune('0') || c > rune('9') {
+								goto l69
+							}
+							position++
+							goto l68
+						l69:
+							position, tokenIndex, depth = position69, tokenIndex69, depth69
+						}
+						goto l67
+					l66:
+						position, tokenIndex, depth = position66, tokenIndex66, depth66
+					}
+				l67:
 					depth--
 					add(rulePegText, position61)
 				}
