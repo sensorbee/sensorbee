@@ -50,8 +50,7 @@ doubleQuotedString <- ["] < ('""' / !'"' .)* > ["] {
         p.lastKey = strings.Replace(substr, "\"\"", "\"", -1)
     }
 
-# TODO add negative indexing
-jsonArrayAccess <- '[' < [0-9]+ > ']' {
+jsonArrayAccess <- '[' < '-'? [0-9]+ > ']' {
         substr := string([]rune(buffer)[begin:end])
         p.addArrayAccess(substr)
     }

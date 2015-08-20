@@ -325,11 +325,15 @@ func (a *arrayElementExtractor) extract(v Value, next *Value) error {
 	if err != nil {
 		return fmt.Errorf("cannot access a %T using index %d", v, a.idx)
 	}
-	if a.idx < len(cont) {
-		*next = cont[a.idx]
+	idx := a.idx
+	if a.idx < 0 {
+		idx = len(cont) + a.idx
+	}
+	if 0 <= idx && idx < len(cont) {
+		*next = cont[idx]
 		return nil
 	}
-	return fmt.Errorf("out of range access: %d", a.idx)
+	return fmt.Errorf("out of range access: %d (length %d)", a.idx, len(cont))
 }
 
 func (a *arrayElementExtractor) extractForSet(v Value, next *Value, setInParent *func(Value)) error {
