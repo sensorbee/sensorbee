@@ -448,7 +448,7 @@ RowTimestamp <- < (ident ':')? 'ts()' > {
 # with a::int, which would otherwise lead to a parse error because
 # `a` would be read as the stream identifier, and `:int` is not a
 # valid JSON path.
-RowValue <- < (ident ':' !':')? jsonPath > {
+RowValue <- < (ident ':' !':')? jsonGetPath > {
         substr := string([]rune(buffer)[begin:end])
         p.PushComponent(begin, end, NewRowValue(substr))
     }
@@ -658,24 +658,46 @@ Identifier <- < ident > {
         p.PushComponent(begin, end, Identifier(substr))
     }
 
-TargetIdentifier <- < jsonPath > {
+TargetIdentifier <- < jsonSetPath > {
         substr := string([]rune(buffer)[begin:end])
         p.PushComponent(begin, end, Identifier(substr))
     }
 
 ident <- [[a-z]] ([[a-z]] / [0-9] / '_')*
 
-jsonPath <- jsonPathHead jsonPathNonHead*
+# We distinguish between get and set JSON paths because we don't want
+# `SELECT x AS y[2:3].hoge` to be a valid statement.
 
-jsonPathHead <- jsonMapAccessString / jsonMapAccessBracket
+jsonGetPath <- jsonPathHead jsonGetPathNonHead*
 
-jsonPathNonHead <- ('.' jsonMapAccessString) / jsonMapAccessBracket / jsonArrayAccess
+jsonSetPath <- jsonPathHead jsonSetPathNonHead*
 
-jsonMapAccessString <- [[a-z]] ([[a-z]] / [0-9] / '_')*
+jsonPathHead <- (jsonMapAccessString / jsonMapAccessBracket)
 
-jsonMapAccessBracket <- '[' ['] ("''" / !"'" .)* ['] ']'
+jsonGetPathNonHead <- jsonMapMultipleLevel / jsonMapSingleLevel /
+    jsonArrayFullSlice / jsonArrayPartialSlice / jsonArraySlice / jsonArrayAccess
 
-jsonArrayAccess <- '[' [0-9]+ ']'
+jsonSetPathNonHead <- jsonMapSingleLevel / jsonNonNegativeArrayAccess
+
+jsonMapSingleLevel <- (('.' jsonMapAccessString) / jsonMapAccessBracket)
+
+jsonMapMultipleLevel <- '..' (jsonMapAccessString / jsonMapAccessBracket)
+
+jsonMapAccessString <- < [[a-z]] ([[a-z]] / [0-9] / '_')* >
+
+jsonMapAccessBracket <- '[' (singleQuotedString) ']'
+
+singleQuotedString <- ['] < ("''" / !"'" .)* > [']
+
+jsonArrayAccess <- '[' < '-'? [0-9]+ > ']'
+
+jsonNonNegativeArrayAccess <- '[' < [0-9]+ > ']'
+
+jsonArraySlice <- '[' < '-'? [0-9]+ ':' '-'? [0-9]+ (':' '-'? [0-9]+)? > ']'
+
+jsonArrayPartialSlice <- '[' < (':' '-'? [0-9]+) / ('-'? [0-9]+ ':') > ']'
+
+jsonArrayFullSlice <- '[:]'
 
 spElem <- ( ' ' / '\t' / '\n' / '\r' / comment / finalComment )
 

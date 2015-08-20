@@ -3,6 +3,14 @@ package data
 import (
 	"fmt"
 	"strconv"
+	"strings"
+)
+
+type multiplicity int
+
+const (
+	one multiplicity = iota
+	many
 )
 
 // Path is an entity that can be evaluated with a Map to
@@ -42,6 +50,16 @@ func CompilePath(s string) (p Path, err error) {
 		return nil, fmt.Errorf("error parsing '%s' as a JSON Path", s)
 	}
 	j.Execute()
+	// discover nested array slice accesses
+	containsSlice := false
+	for _, c := range j.components {
+		if c.resultMultiplicity() == many {
+			if containsSlice {
+				return nil, fmt.Errorf("path '%s' contains multiple slice elements", s)
+			}
+			containsSlice = true
+		}
+	}
 	return j, nil
 }
 
@@ -54,12 +72,54 @@ func (j *jsonPeg) evaluate(m Map) (Value, error) {
 	var current Value = m
 	var next Value
 
+	// resultIsArray is set to true after we processed an
+	// extractor that returns an array-valued result by nature (such
+	// as arraySliceExtractor). The consequence of `resultIsArray == true`
+	// is that we will not process `current` itself with subsequent
+	// extractors, but each item in `current`.
+	resultIsArray := false
+
 	for _, c := range j.components {
-		err := c.extract(current, &next)
-		if err != nil {
-			return nil, err
+		if resultIsArray {
+			// replace each item in `current` by its extracted child item
+			arr, err := current.asArray()
+			if err != nil {
+				return nil, err
+			}
+			for i, currentElem := range arr {
+				err := c.extract(currentElem, &next)
+				if err != nil {
+					return nil, err
+				}
+				if c.resultMultiplicity() == many && next.Type() == TypeArray {
+					// if we get an nil array result, turn it into an empty array instead
+					if a, _ := next.asArray(); a == nil {
+						next = Array{}
+					}
+				}
+				// we assign a new value to a position of `current` here.
+				// this is only valid (and does not change the input Map)
+				// because all functions with `resultMultiplicity() == many`
+				// are required to return a *new* slice, not a pointer
+				// to an existing one!
+				arr[i] = next
+
+			}
+		} else {
+			// replace `current` by its extracted child item
+			err := c.extract(current, &next)
+			if err != nil {
+				return nil, err
+			}
+			if c.resultMultiplicity() == many && next.Type() == TypeArray {
+				// if we get an nil array result, turn it into an empty array instead
+				if a, _ := next.asArray(); a == nil {
+					next = Array{}
+				}
+			}
+			current = next
 		}
-		current = next
+		resultIsArray = resultIsArray || (c.resultMultiplicity() == many)
 	}
 	return current, nil
 }
@@ -97,32 +157,18 @@ func (j *jsonPeg) set(m Map, v Value) error {
 	return nil
 }
 
-// addMapAccess is called when we discover `foo` or `['bar']`
-// in a JSON Path string.
-func (j *jsonPeg) addMapAccess(s string) {
-	j.components = append(j.components, &mapValueExtractor{s})
-}
-
-// addArrayAccess is called when we discover `[1]` in a JSON Path
-// string.
-func (j *jsonPeg) addArrayAccess(s string) {
-	i, err := strconv.ParseInt(s, 10, 32)
-	// due to parser configuration, s will always be a numeric string,
-	// but it may overflow int32, so we need a check here.
-	if err != nil {
-		// TODO panic is not the gold standard of error handling, but
-		//      at the moment we have no better way to signal an error
-		//      from within jsonPeg.Execute()
-		panic(fmt.Sprintf("overflow index number: " + s))
-	}
-	j.components = append(j.components, &arrayElementExtractor{int(i)})
-}
-
 // extractor describes an entity that can extract a child element
 // from a Value.
 type extractor interface {
 	extract(v Value, next *Value) error
 	extractForSet(Value, *Value, *func(Value)) error
+	resultMultiplicity() multiplicity
+}
+
+// addMapAccess is called when we discover `foo` or `['bar']`
+// in a JSON Path string.
+func (j *jsonPeg) addMapAccess(s string) {
+	j.components = append(j.components, &mapValueExtractor{s})
 }
 
 // mapValueExtractor can extract a value from a Map using the
@@ -168,6 +214,106 @@ func (a *mapValueExtractor) extractForSet(v Value, next *Value, setInParent *fun
 	return nil
 }
 
+func (a *mapValueExtractor) resultMultiplicity() multiplicity {
+	return one
+}
+
+// addRecursiveAccess is called when we discover `..foo` or `..['bar']`
+// in a JSON Path string.
+func (j *jsonPeg) addRecursiveAccess(s string) {
+	j.components = append(j.components, &recursiveExtractor{s})
+}
+
+// recursiveExtractor can extract a list of all items with a certain key,
+// no matter where they are located in the Map
+type recursiveExtractor struct {
+	key string
+}
+
+func (a *recursiveExtractor) extract(v Value, next *Value) error {
+	var results []Value
+
+	if v.Type() == TypeMap {
+		// if v is a Map, then we append the entry with the correct
+		// key (if one exists) to the result list and recurse for all
+		// contained containers
+		cont, _ := v.asMap()
+		for key, value := range cont {
+			if key == a.key {
+				// NB. We do NOT descend further into `value` even if
+				// it is itself a Map or Array!
+				results = append(results, value)
+			} else if value.Type() == TypeMap || value.Type() == TypeArray {
+				// recurse
+				var descend Value
+				err := a.extract(value, &descend)
+				if err != nil {
+					return err
+				}
+				// we expect that the results we get from further
+				// down are in an array shape
+				subResults, err := descend.asArray()
+				if err != nil {
+					return err
+				}
+				results = append(results, subResults...)
+			}
+			// we ignore all entries in this Map that are not
+			// container-like or do not have the key we are looking for
+		}
+	} else if v.Type() == TypeArray {
+		// if v is a Map, then we
+		cont, _ := v.asArray()
+		for _, value := range cont {
+			if value.Type() == TypeMap || value.Type() == TypeArray {
+				// recurse
+				var descend Value
+				err := a.extract(value, &descend)
+				if err != nil {
+					return err
+				}
+				// we expect that the results we get from further
+				// down are in an array shape
+				subResults, err := descend.asArray()
+				if err != nil {
+					return err
+				}
+				results = append(results, subResults...)
+			}
+			// we ignore all entries in this Array that are not
+			// container-like
+		}
+	} else {
+		return fmt.Errorf("cannot descend recursively into %T", v)
+	}
+
+	*next = Array(results)
+	return nil
+}
+
+func (a *recursiveExtractor) extractForSet(v Value, next *Value, setInParent *func(Value)) error {
+	return fmt.Errorf("not implemented")
+}
+
+func (a *recursiveExtractor) resultMultiplicity() multiplicity {
+	return many
+}
+
+// addArrayAccess is called when we discover `[1]` in a JSON Path
+// string.
+func (j *jsonPeg) addArrayAccess(s string) {
+	i, err := strconv.ParseInt(s, 10, 32)
+	// due to parser configuration, s will always be a numeric string,
+	// but it may overflow int32, so we need a check here.
+	if err != nil {
+		// TODO panic is not the gold standard of error handling, but
+		//      at the moment we have no better way to signal an error
+		//      from within jsonPeg.Execute()
+		panic(fmt.Sprintf("overflow index number: " + s))
+	}
+	j.components = append(j.components, &arrayElementExtractor{int(i)})
+}
+
 // arrayElementExtractor can extract an element from an Array using
 // the given index.
 type arrayElementExtractor struct {
@@ -179,11 +325,15 @@ func (a *arrayElementExtractor) extract(v Value, next *Value) error {
 	if err != nil {
 		return fmt.Errorf("cannot access a %T using index %d", v, a.idx)
 	}
-	if a.idx < len(cont) {
-		*next = cont[a.idx]
+	idx := a.idx
+	if a.idx < 0 {
+		idx = len(cont) + a.idx
+	}
+	if 0 <= idx && idx < len(cont) {
+		*next = cont[idx]
 		return nil
 	}
-	return fmt.Errorf("out of range access: %d", a.idx)
+	return fmt.Errorf("out of range access: %d (length %d)", a.idx, len(cont))
 }
 
 func (a *arrayElementExtractor) extractForSet(v Value, next *Value, setInParent *func(Value)) error {
@@ -218,4 +368,147 @@ func (a *arrayElementExtractor) extractForSet(v Value, next *Value, setInParent 
 	}
 	*next = cont[a.idx]
 	return nil
+}
+
+func (a *arrayElementExtractor) resultMultiplicity() multiplicity {
+	return one
+}
+
+// addArraySlice is called when we discover `[1:3]` or `[1:3:2]` in a
+// JSON Path string.
+func (j *jsonPeg) addArraySlice(s string) {
+	parts := strings.Split(s, ":")
+	if !(len(parts) == 2 || len(parts) == 3) {
+		panic(fmt.Sprintf("'%s' did not have format 'a:b' or 'a:b:c'", s))
+	}
+	// store for each component if that component was set by the user
+	var startSet, endSet, stepSet bool
+	var start, end int64
+	var step int64 = 1
+	var err error
+	if parts[0] == "" { // [:b] situation
+		start = 0
+	} else { // [a:b] or [a:b:c]
+		startSet = true
+		start, err = strconv.ParseInt(parts[0], 10, 32)
+		// due to parser setup, s will always contain numeric strings,
+		// but they may overflow int32, so we need a check here.
+		if err != nil {
+			panic(fmt.Sprintf("overflow index number: " + parts[0]))
+		}
+	}
+	if parts[1] != "" { // [a:b] situation
+		endSet = true
+		end, err = strconv.ParseInt(parts[1], 10, 32)
+		// due to parser setup, s will always contain numeric strings,
+		// but they may overflow int32, so we need a check here.
+		if err != nil {
+			panic(fmt.Sprintf("overflow index number: " + parts[1]))
+		}
+	}
+	if len(parts) == 3 && parts[2] != "" { // [a:b:c] situation
+		stepSet = true
+		step, err = strconv.ParseInt(parts[2], 10, 32)
+		// due to parser setup, s will always contain numeric strings,
+		// but they may overflow int32, so we need a check here.
+		if err != nil {
+			panic(fmt.Sprintf("overflow index number: " + parts[2]))
+		}
+	}
+	if step == 0 {
+		panic("step must not be 0")
+	}
+	// validation of the step sign/direction can only happen/
+	// if start and end have the same sign. (we don't know if
+	// `[10:-10:2]` is valid or not without a particular list.)
+	if (start >= 0 && end >= 0) || (start < 0 && end < 0) {
+		if start > end && step > 0 && endSet && startSet {
+			panic(fmt.Sprintf("start index %d must be less or equal to "+
+				"end index %d when step is positive", start, end))
+		} else if start < end && step < 0 {
+			panic(fmt.Sprintf("start index %d must be greater or equal to "+
+				"end index %d when step is negative", start, end))
+		}
+	}
+
+	j.components = append(j.components, &arraySliceExtractor{int(start), int(end), int(step),
+		startSet, endSet, stepSet})
+}
+
+// arraySliceExtractor can extract a slice from an Array using the
+// given start/end indexes.
+type arraySliceExtractor struct {
+	start, end, step          int
+	startSet, endSet, stepSet bool
+}
+
+func (a *arraySliceExtractor) extract(v Value, next *Value) error {
+	cont, err := AsArray(v)
+	if err != nil {
+		return fmt.Errorf("cannot access a %T using range %d:%d", v, a.start, a.end)
+	}
+	start := a.start
+	if a.start < 0 {
+		start = len(cont) + a.start
+	} else if !a.startSet {
+		start = 0
+	}
+	end := a.end
+	if a.end < 0 {
+		end = len(cont) + a.end
+	} else if !a.endSet {
+		end = len(cont)
+	}
+	// there are now two possible valid conditions:
+	// 1. start <= end && step > 0 (count upwards)
+	// 2. start >= end && step < 0 (count downwards)
+	if start <= end && a.step > 0 {
+		// truncate start and end to valid ranges
+		if start < 0 {
+			start = 0
+		}
+		if end > len(cont) {
+			end = len(cont)
+		}
+		if start >= len(cont) || end < start {
+			*next = Array{}
+		} else {
+			// copy the values into a new array
+			retVal := make(Array, 0, end-start)
+			for i := start; i < end; i += a.step {
+				retVal = append(retVal, cont[i])
+			}
+			*next = retVal
+		}
+	} else if start >= end && a.step < 0 {
+		// truncate start and end to valid ranges
+		if start >= len(cont) {
+			start = len(cont) - 1
+		}
+		if end < 0 {
+			end = -1
+		}
+		if start < 0 || start < end {
+			*next = Array{}
+		} else {
+			// copy the values into a new array
+			retVal := make(Array, 0, start-end)
+			for i := start; i > end; i += a.step {
+				retVal = append(retVal, cont[i])
+			}
+			*next = retVal
+		}
+	} else {
+		*next = Array{}
+	}
+
+	return nil
+}
+
+func (a *arraySliceExtractor) extractForSet(v Value, next *Value, setInParent *func(Value)) error {
+	return fmt.Errorf("not implemented")
+}
+
+func (a *arraySliceExtractor) resultMultiplicity() multiplicity {
+	return many
 }

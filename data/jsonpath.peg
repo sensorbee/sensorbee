@@ -8,36 +8,63 @@ import "strings"
 
 type jsonPeg Peg {
     components []extractor
+    lastKey    string
 }
 
 jsonPath <- jsonPathHead jsonPathNonHead* !.
 
-jsonPathHead <- jsonMapAccessString / jsonMapAccessBracket
+jsonPathHead <- (jsonMapAccessString / jsonMapAccessBracket) {
+        p.addMapAccess(p.lastKey)
+    }
 
-jsonPathNonHead <- ('.' jsonMapAccessString) / jsonMapAccessBracket / jsonArrayAccess
+jsonPathNonHead <- jsonMapMultipleLevel / jsonMapSingleLevel /
+    jsonArrayFullSlice / jsonArrayPartialSlice / jsonArraySlice / jsonArrayAccess
+
+jsonMapSingleLevel <- (('.' jsonMapAccessString) / jsonMapAccessBracket) {
+        p.addMapAccess(p.lastKey)
+    }
+
+# for single level it is `foo.bar` or `foo['bar']`, but
+# for recursion it is `foo..bar` or `foo..['bar']`, that is
+# a bit inconsistent
+jsonMapMultipleLevel <- '..' (jsonMapAccessString / jsonMapAccessBracket) {
+        p.addRecursiveAccess(p.lastKey)
+    }
 
 jsonMapAccessString <- < [[a-z]] ([[a-z]] / [0-9] / '_')* > {
         substr := string([]rune(buffer)[begin:end])
-        p.addMapAccess(substr)
+        p.lastKey = substr
     }
 
-jsonMapAccessBracket <- '[' < StringLiteral > ']'
-
-jsonArrayAccess <- '[' < [0-9]+ > ']' {
-        substr := string([]rune(buffer)[begin:end])
-        p.addArrayAccess(substr)
-    }
-
-StringLiteral <- singleQuotedString / doubleQuotedString
+jsonMapAccessBracket <- '[' (singleQuotedString / doubleQuotedString) ']'
 
 # single quotes within a singleQuotedString must be doubled
 singleQuotedString <- ['] < ("''" / !"'" .)* > ['] {
         substr := string([]rune(buffer)[begin:end])
-        p.addMapAccess(strings.Replace(substr, "''", "'", -1))
+        p.lastKey = strings.Replace(substr, "''", "'", -1)
     }
 
 # double quotes within a doubleQuotedString must be doubled
 doubleQuotedString <- ["] < ('""' / !'"' .)* > ["] {
         substr := string([]rune(buffer)[begin:end])
-        p.addMapAccess(strings.Replace(substr, "\"\"", "\"", -1))
+        p.lastKey = strings.Replace(substr, "\"\"", "\"", -1)
+    }
+
+jsonArrayAccess <- '[' < '-'? [0-9]+ > ']' {
+        substr := string([]rune(buffer)[begin:end])
+        p.addArrayAccess(substr)
+    }
+
+jsonArraySlice <- '[' < '-'? [0-9]+ ':' '-'? [0-9]+ (':' '-'? [0-9]+)? > ']' {
+        substr := string([]rune(buffer)[begin:end])
+        p.addArraySlice(substr)
+    }
+
+jsonArrayPartialSlice <- '[' < (':' '-'? [0-9]+) / ('-'? [0-9]+ ':') > ']' {
+        substr := string([]rune(buffer)[begin:end])
+        p.addArraySlice(substr)
+    }
+
+jsonArrayFullSlice <- '[:]' {
+        p.addArraySlice("0:")
     }
