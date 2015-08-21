@@ -344,6 +344,8 @@ func (e EmitterSampling) string() string {
 			countWord = "RD"
 		}
 		return fmt.Sprintf("EVERY %d-%s TUPLE", e.Value, countWord)
+	} else if e.Type == RandomizedSampling {
+		return fmt.Sprintf("SAMPLE %d%%", e.Value)
 	}
 	return ""
 }
@@ -1166,6 +1168,7 @@ type EmitterSamplingType int
 const (
 	UnspecifiedSamplingType EmitterSamplingType = iota
 	CountBasedSampling
+	RandomizedSampling
 )
 
 type StreamType int

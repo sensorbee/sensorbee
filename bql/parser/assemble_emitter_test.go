@@ -206,6 +206,32 @@ func TestAssembleEmitter(t *testing.T) {
 			})
 		})
 
+		Convey("When using ISTREAM with a SAMPLE specifier", func() {
+			p.Buffer = "CREATE STREAM x AS SELECT ISTREAM [SAMPLE 20%] 2 FROM a [RANGE 1 TUPLES]"
+			p.Init()
+
+			Convey("Then the statement should be parsed correctly", func() {
+				err := p.Parse()
+				So(err, ShouldEqual, nil)
+				p.Execute()
+
+				ps := p.parseStack
+				So(ps.Len(), ShouldEqual, 1)
+				top := ps.Peek().comp
+				So(top, ShouldHaveSameTypeAs, CreateStreamAsSelectStmt{})
+				comp := top.(CreateStreamAsSelectStmt)
+
+				So(comp.Name, ShouldEqual, "x")
+				So(comp.Select.EmitterType, ShouldEqual, Istream)
+				So(comp.Select.EmitterOptions, ShouldResemble, []interface{}{
+					EmitterSampling{20, RandomizedSampling}})
+
+				Convey("And String() should return the original statement", func() {
+					So(comp.String(), ShouldEqual, p.Buffer)
+				})
+			})
+		})
+
 		Convey("When using ISTREAM with EVERY and LIMIT specifier", func() {
 			p.Buffer = "CREATE STREAM x AS SELECT ISTREAM [EVERY 4-TH TUPLE LIMIT 7] 2 FROM a [RANGE 1 TUPLES]"
 			p.Init()
