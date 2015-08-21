@@ -116,8 +116,13 @@ func TestBasicBQLBoxConnectivity(t *testing.T) {
 			})
 		})
 	})
+}
 
-	Convey("Given an ISTREAM/2 SECONDS BQL statement with a LIMIT clause", t, func() {
+func TestBQLBoxEmitterParams(t *testing.T) {
+	tuples := mkTuples(4)
+	tup2 := *tuples[1]
+
+	Convey("Given a BQL statement with a LIMIT clause", t, func() {
 		s := "CREATE STREAM box AS SELECT " +
 			"ISTREAM [LIMIT 1] int, str((int+1) % 3) AS x FROM source [RANGE 1 TUPLES] WHERE int % 2 = 0"
 		tb, err := setupTopology(s, true)
@@ -158,7 +163,7 @@ func TestBasicBQLBoxConnectivity(t *testing.T) {
 		})
 	})
 
-	Convey("Given an ISTREAM/2 SECONDS BQL statement with an EVERY clause", t, func() {
+	Convey("Given a BQL statement with an EVERY k-TH TUPLE clause", t, func() {
 		s := "CREATE STREAM box AS SELECT " +
 			"RSTREAM [EVERY 3RD TUPLE] int, str((int+1) % 3) AS x FROM duplicate('source', 2) [RANGE 1 TUPLES] " +
 			"WHERE int % 2 = 0"
@@ -198,7 +203,7 @@ func TestBasicBQLBoxConnectivity(t *testing.T) {
 		})
 	})
 
-	Convey("Given an ISTREAM/2 SECONDS BQL statement with EVERY and LIMIT clause", t, func() {
+	Convey("Given a BQL statement with EVERY k-TH TUPLE and LIMIT clause", t, func() {
 		s := "CREATE STREAM box AS SELECT " +
 			"RSTREAM [EVERY 3RD TUPLE LIMIT 2] int, str((int+1) % 3) AS x FROM duplicate('source', 2) [RANGE 1 TUPLES] " +
 			"WHERE int % 2 = 0"
@@ -237,7 +242,7 @@ func TestBasicBQLBoxConnectivity(t *testing.T) {
 		})
 	})
 
-	Convey("Given an ISTREAM/2 SECONDS BQL statement with a SAMPLE clause", t, func() {
+	Convey("Given a BQL statement with a SAMPLE clause", t, func() {
 		s := "CREATE STREAM box AS SELECT " +
 			"RSTREAM [SAMPLE 50%] int, str((int+1) % 3) AS x FROM duplicate('source', 10) [RANGE 1 TUPLES]"
 		tb, err := setupTopology(s, true)
@@ -262,7 +267,7 @@ func TestBasicBQLBoxConnectivity(t *testing.T) {
 		})
 	})
 
-	Convey("Given an ISTREAM/2 SECONDS BQL statement with SAMPLE and LIMIT clause", t, func() {
+	Convey("Given a BQL statement with SAMPLE and LIMIT clause", t, func() {
 		s := "CREATE STREAM box AS SELECT " +
 			"RSTREAM [SAMPLE 50% LIMIT 10] int, str((int+1) % 3) AS x FROM duplicate('source', 10) [RANGE 1 TUPLES]"
 		tb, err := setupTopology(s, true)
