@@ -3,6 +3,7 @@ package bql
 import (
 	"errors"
 	"fmt"
+	"os"
 	"pfi/sensorbee/sensorbee/bql/execution"
 	"pfi/sensorbee/sensorbee/bql/parser"
 	"pfi/sensorbee/sensorbee/bql/udf"
@@ -19,6 +20,7 @@ type TopologyBuilder struct {
 	UDSCreators    udf.UDSCreatorRegistry
 	SourceCreators SourceCreatorRegistry
 	SinkCreators   SinkCreatorRegistry
+	UDSStorage     udf.UDSStorage
 }
 
 // TODO: Provide AtomicTopologyBuilder which support building multiple nodes
@@ -65,6 +67,7 @@ func NewTopologyBuilder(t core.Topology) (*TopologyBuilder, error) {
 		UDSCreators:    udss,
 		SourceCreators: srcs,
 		SinkCreators:   sinks,
+		UDSStorage:     udf.NewInMemoryUDSStorage(),
 	}
 	return tb, nil
 }
@@ -217,6 +220,24 @@ func (tb *TopologyBuilder) AddStmt(stmt interface{}) (core.Node, error) {
 			return nil, fmt.Errorf("%s cannot be updated", string(stmt.Name))
 		}
 		return nil, u.Update(tb.mkParamsMap(stmt.Params))
+
+	case parser.SaveStateStmt:
+		return nil, tb.saveState(string(stmt.Name))
+
+	case parser.LoadStateStmt:
+		_, err := tb.loadState(string(stmt.Type), string(stmt.Name), tb.mkParamsMap(stmt.Params))
+		return nil, err
+
+	case parser.LoadStateOrCreateStmt:
+		shouldCreate, err := tb.loadState(string(stmt.Type), string(stmt.Name), tb.mkParamsMap(stmt.LoadSpecs.Params))
+		if shouldCreate {
+			c := parser.CreateStateStmt{}
+			c.Type = stmt.Type
+			c.Name = stmt.Name
+			c.Params = stmt.CreateSpecs.Params
+			return tb.AddStmt(c)
+		}
+		return nil, err
 
 	case parser.UpdateSourceStmt:
 		src, err := tb.topology.Source(string(stmt.Name))
@@ -701,4 +722,87 @@ func (tb *TopologyBuilder) AddSelectUnionStmt(stmts *parser.SelectUnionStmt) (co
 	}
 	sn.StopOnDisconnect()
 	return sn, ch, nil
+}
+
+func (tb *TopologyBuilder) saveState(name string) error {
+	st, err := tb.topology.Context().SharedStates.Get(name)
+	if err != nil {
+		return err
+	}
+	s, ok := st.(core.SavableSharedState)
+	if !ok {
+		return fmt.Errorf("the state '%v' cannot be saved", name)
+	}
+
+	// Appropriate header information should be written by the storage.
+	w, err := tb.UDSStorage.Save(tb.topology.Name(), name)
+	if err != nil {
+		return err
+	}
+	shouldAbort := true
+	defer func() {
+		if shouldAbort {
+			if err := w.Abort(); err != nil {
+				tb.topology.Context().ErrLog(err).WithField("state_name", name).
+					Error("saving the state panicked")
+			}
+		}
+	}()
+
+	if err := s.Save(tb.topology.Context(), w, data.Map{}); err != nil {
+		return err
+	}
+	shouldAbort = false
+	return w.Commit()
+}
+
+// loadState loads a state from the storage. It returns true when the state was
+// not saved and LOAD STATE OR CREATE IF NOT EXISTS should fall back to CREATE STATE.
+func (tb *TopologyBuilder) loadState(typeName, name string, params data.Map) (bool, error) {
+	r, err := tb.UDSStorage.Load(tb.topology.Name(), name)
+	if err != nil {
+		return os.IsNotExist(err), err
+	}
+	defer r.Close()
+
+	c, err := tb.UDSCreators.Lookup(typeName)
+	if err != nil {
+		return false, err
+	}
+	loader, ok := c.(udf.UDSLoader)
+	if !ok {
+		return false, fmt.Errorf("the state '%v' cannot be loaded", name)
+	}
+
+	// If the state is loaded and it provides Load method, Load method will be
+	// used instead of loader.LoadState.
+	reg := tb.topology.Context().SharedStates
+	s, err := reg.Get(name)
+	if err != nil {
+		// TODO: check if the error is "not found". Return only on other errors.
+	} else if t, err := reg.Type(name); err != nil {
+		return false, err
+	} else if t != typeName {
+		return false, fmt.Errorf("type name doesn't much to the current state's type")
+	}
+
+	if l, ok := s.(core.LoadableSharedState); ok {
+		return false, l.Load(tb.topology.Context(), r, params)
+	}
+
+	newState, err := loader.LoadState(tb.topology.Context(), r, params)
+	if err != nil {
+		return false, err
+	}
+	prev, err := reg.Replace(name, typeName, newState, true)
+	if err != nil {
+		return false, err
+	}
+	if prev != nil {
+		if err := prev.Terminate(tb.topology.Context()); err != nil {
+			tb.topology.Context().ErrLog(err).WithField("state_name", name).
+				Error("Cannot terminate the previous instance of the loaded state")
+		}
+	}
+	return false, nil
 }

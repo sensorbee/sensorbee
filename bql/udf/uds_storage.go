@@ -24,6 +24,10 @@ type UDSStorage interface {
 	// Either Commit or Abort of a UDSStorageWriter returned from this method
 	// has to be called. When Commit is called, the data is persisted. When
 	// Abort is called, the data is discarded and the previous data remains.
+	//
+	// Save can write header information or other data such as a space for
+	// storing checksum later to UDSStorageWriter before returning it. Save can
+	// also manipulate the written data as long as the data can be loaded again.
 	Save(topology, state string) (UDSStorageWriter, error)
 
 	// Load loads the previously saved data of the state. io.ReadCloser.Close
