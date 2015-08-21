@@ -1171,6 +1171,17 @@ const (
 	RandomizedSampling
 )
 
+func (est EmitterSamplingType) String() string {
+	s := "UNKNOWN"
+	switch est {
+	case CountBasedSampling:
+		s = "EVERY"
+	case RandomizedSampling:
+		s = "SAMPLE"
+	}
+	return s
+}
+
 type StreamType int
 
 const (
