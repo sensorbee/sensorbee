@@ -193,10 +193,14 @@ EmitterLimit <- "LIMIT" sp NumericLiteral {
         p.AssembleEmitterLimit()
     }
 
-EmitterSample <- CountBasedSampling
+EmitterSample <- CountBasedSampling / RandomizedSampling
 
 CountBasedSampling <- "EVERY" sp NumericLiteral spOpt '-'? spOpt ("ST" / "ND" / "RD" / "TH") sp "TUPLE" {
         p.AssembleEmitterSampling(CountBasedSampling)
+    }
+
+RandomizedSampling <- "SAMPLE" sp NumericLiteral spOpt '%' {
+        p.AssembleEmitterSampling(RandomizedSampling)
     }
 
 Projections <- < sp Projection (spOpt ',' spOpt Projection)* > {
