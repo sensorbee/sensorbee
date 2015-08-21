@@ -571,12 +571,12 @@ func (ps *parseStack) AssembleEmitterLimit() {
 //  ...
 //   =>
 //  EmitterSampling{NumericLiteral, EmitterSamplingType}
-func (ps *parseStack) AssembleEmitterSampling(samplingType EmitterSamplingType) {
+func (ps *parseStack) AssembleEmitterSampling(samplingType EmitterSamplingType, factor int64) {
 	_value := ps.Pop()
 
 	value := _value.comp.(NumericLiteral)
 
-	ps.PushComponent(_value.begin, _value.end, EmitterSampling{value.Value, samplingType})
+	ps.PushComponent(_value.begin, _value.end, EmitterSampling{value.Value * factor, samplingType})
 }
 
 // AssembleProjections takes the elements from the stack that

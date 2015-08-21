@@ -193,14 +193,24 @@ EmitterLimit <- "LIMIT" sp NumericLiteral {
         p.AssembleEmitterLimit()
     }
 
-EmitterSample <- CountBasedSampling / RandomizedSampling
+EmitterSample <- CountBasedSampling / RandomizedSampling / TimeBasedSampling
 
 CountBasedSampling <- "EVERY" sp NumericLiteral spOpt '-'? spOpt ("ST" / "ND" / "RD" / "TH") sp "TUPLE" {
-        p.AssembleEmitterSampling(CountBasedSampling)
+        p.AssembleEmitterSampling(CountBasedSampling, 1)
     }
 
 RandomizedSampling <- "SAMPLE" sp NumericLiteral spOpt '%' {
-        p.AssembleEmitterSampling(RandomizedSampling)
+        p.AssembleEmitterSampling(RandomizedSampling, 1)
+    }
+
+TimeBasedSampling <- TimeBasedSamplingSeconds / TimeBasedSamplingMilliseconds
+
+TimeBasedSamplingSeconds <- "EVERY" sp NumericLiteral sp "SECONDS" {
+        p.AssembleEmitterSampling(TimeBasedSampling, 1000)
+    }
+
+TimeBasedSamplingMilliseconds <- "EVERY" sp NumericLiteral sp "MILLISECONDS" {
+        p.AssembleEmitterSampling(TimeBasedSampling, 1)
     }
 
 Projections <- < sp Projection (spOpt ',' spOpt Projection)* > {

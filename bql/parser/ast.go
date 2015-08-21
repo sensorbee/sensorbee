@@ -346,6 +346,11 @@ func (e EmitterSampling) string() string {
 		return fmt.Sprintf("EVERY %d-%s TUPLE", e.Value, countWord)
 	} else if e.Type == RandomizedSampling {
 		return fmt.Sprintf("SAMPLE %d%%", e.Value)
+	} else if e.Type == TimeBasedSampling {
+		if e.Value%1000 == 0 {
+			return fmt.Sprintf("EVERY %d SECONDS", e.Value/1000)
+		}
+		return fmt.Sprintf("EVERY %d MILLISECONDS", e.Value)
 	}
 	return ""
 }
@@ -1169,15 +1174,18 @@ const (
 	UnspecifiedSamplingType EmitterSamplingType = iota
 	CountBasedSampling
 	RandomizedSampling
+	TimeBasedSampling
 )
 
 func (est EmitterSamplingType) String() string {
 	s := "UNKNOWN"
 	switch est {
 	case CountBasedSampling:
-		s = "EVERY"
+		s = "EVERY k-TH TUPLE"
 	case RandomizedSampling:
 		s = "SAMPLE"
+	case TimeBasedSampling:
+		s = "EVERY k SECONDS"
 	}
 	return s
 }
