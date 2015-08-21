@@ -314,15 +314,38 @@ func (a EmitterAST) string() string {
 			switch obj := opt.(type) {
 			case EmitterLimit:
 				optStrings[i] = fmt.Sprintf("LIMIT %d", obj.Limit)
+			case EmitterSampling:
+				optStrings[i] = obj.string()
 			}
 		}
-		s += " [" + strings.Join(optStrings, ", ") + "]"
+		s += " [" + strings.Join(optStrings, " ") + "]"
 	}
 	return s
 }
 
 type EmitterLimit struct {
 	Limit int64
+}
+
+type EmitterSampling struct {
+	Value int64
+	Type  EmitterSamplingType
+}
+
+func (e EmitterSampling) string() string {
+	if e.Type == CountBasedSampling {
+		countWord := "TH"
+		switch e.Value {
+		case 1:
+			countWord = "ST"
+		case 2:
+			countWord = "ND"
+		case 3:
+			countWord = "RD"
+		}
+		return fmt.Sprintf("EVERY %d-%s TUPLE", e.Value, countWord)
+	}
+	return ""
 }
 
 type ProjectionsAST struct {
@@ -1137,6 +1160,13 @@ func (e Emitter) String() string {
 	}
 	return s
 }
+
+type EmitterSamplingType int
+
+const (
+	UnspecifiedSamplingType EmitterSamplingType = iota
+	CountBasedSampling
+)
 
 type StreamType int
 

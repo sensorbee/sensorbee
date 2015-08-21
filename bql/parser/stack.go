@@ -563,6 +563,22 @@ func (ps *parseStack) AssembleEmitterLimit() {
 	ps.PushComponent(_limit.begin, _limit.end, EmitterLimit{limit.Value})
 }
 
+// AssembleEmitterSampling takes the topmost elements from the stack,
+// assuming they are components of a emitter EVERY/SAMPLE option, and replaces
+// them by a single EmitterSampling element.
+//
+//  NumericLiteral
+//  ...
+//   =>
+//  EmitterSampling{NumericLiteral, EmitterSamplingType}
+func (ps *parseStack) AssembleEmitterSampling(samplingType EmitterSamplingType) {
+	_value := ps.Pop()
+
+	value := _value.comp.(NumericLiteral)
+
+	ps.PushComponent(_value.begin, _value.end, EmitterSampling{value.Value, samplingType})
+}
+
 // AssembleProjections takes the elements from the stack that
 // correspond to the input[begin:end] string and wraps a
 // ProjectionsAST struct around them.
