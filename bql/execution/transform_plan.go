@@ -250,6 +250,8 @@ func flattenExpressions(s *parser.SelectStmt, reg udf.FunctionRegistry) (*Logica
 			default:
 				return nil, fmt.Errorf("unknown emitter sampling type: %+v", obj.Type)
 			case parser.CountBasedSampling:
+				fallthrough
+			case parser.TimeBasedSampling:
 				if v < 0 {
 					return nil, fmt.Errorf("EVERY parameter must have a "+
 						"positive value, not %d", v)
