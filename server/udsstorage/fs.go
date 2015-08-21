@@ -17,23 +17,23 @@ import (
 // It doesn't provide checksum, either. If such capability is required, another
 // UDSStorage should be implemented.
 type fsUDSStorage struct {
-	dirPath    string
-	tmpDirPath string
+	dirPath     string
+	tempDirPath string
 }
 
 var (
 	_ udf.UDSStorage = &fsUDSStorage{}
 )
 
-func NewFS(dir, tmpDir string) udf.UDSStorage {
+func NewFS(dir, tempDir string) udf.UDSStorage {
 	return &fsUDSStorage{
-		dirPath:    dir,
-		tmpDirPath: tmpDir,
+		dirPath:     dir,
+		tempDirPath: tempDir,
 	}
 }
 
 func (s *fsUDSStorage) Save(topology, state string) (udf.UDSStorageWriter, error) {
-	f, err := s.stateTmpFile(topology, state)
+	f, err := s.stateTempFile(topology, state)
 	if err != nil {
 		return nil, err
 	}
@@ -45,8 +45,8 @@ func (s *fsUDSStorage) Save(topology, state string) (udf.UDSStorageWriter, error
 	}, nil
 }
 
-func (s *fsUDSStorage) stateTmpFile(topology, state string) (*os.File, error) {
-	return ioutil.TempFile(s.tmpDirPath, s.stateFilename(topology, state))
+func (s *fsUDSStorage) stateTempFile(topology, state string) (*os.File, error) {
+	return ioutil.TempFile(s.tempDirPath, s.stateFilename(topology, state))
 }
 
 func (s *fsUDSStorage) Load(topology, state string) (io.ReadCloser, error) {
