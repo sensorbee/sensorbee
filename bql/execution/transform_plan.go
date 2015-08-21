@@ -25,10 +25,12 @@ in three phases:
 // statement. A LogicalPlan as returned by `Analyze` should not contain
 // logical errors such as "... must appear in GROUP BY clause" etc.
 type LogicalPlan struct {
-	GroupingStmt bool
-	EmitterType  parser.Emitter
-	EmitterLimit int64
-	Projections  []aliasedExpression
+	GroupingStmt        bool
+	EmitterType         parser.Emitter
+	EmitterLimit        int64
+	EmitterSampling     int64
+	EmitterSamplingType parser.EmitterSamplingType
+	Projections         []aliasedExpression
 	parser.WindowedFromAST
 	Filter    FlatExpression
 	GroupList []FlatExpression
@@ -229,6 +231,8 @@ func flattenExpressions(s *parser.SelectStmt, reg udf.FunctionRegistry) (*Logica
 
 	// validate the emitter parameters
 	emitLimit := int64(-1)
+	emitSampling := int64(-1)
+	emitSamplingType := parser.UnspecifiedSamplingType
 	for _, opt := range s.EmitterAST.EmitterOptions {
 		switch obj := opt.(type) {
 		default:
@@ -240,6 +244,24 @@ func flattenExpressions(s *parser.SelectStmt, reg udf.FunctionRegistry) (*Logica
 					"positive value, not %d", l)
 			}
 			emitLimit = l
+		case parser.EmitterSampling:
+			v := obj.Value
+			switch obj.Type {
+			default:
+				return nil, fmt.Errorf("unknown emitter sampling type: %+v", obj.Type)
+			case parser.CountBasedSampling:
+				if v < 0 {
+					return nil, fmt.Errorf("EVERY parameter must have a "+
+						"positive value, not %d", v)
+				}
+			case parser.RandomizedSampling:
+				if v < 0 || v > 100 {
+					return nil, fmt.Errorf("SAMPLE parameter must have a "+
+						"value between 0 and 100, not %d", v)
+				}
+			}
+			emitSampling = v
+			emitSamplingType = obj.Type
 		}
 	}
 
@@ -247,6 +269,8 @@ func flattenExpressions(s *parser.SelectStmt, reg udf.FunctionRegistry) (*Logica
 		groupingMode,
 		s.EmitterAST.EmitterType,
 		emitLimit,
+		emitSampling,
+		emitSamplingType,
 		flatProjExprs,
 		s.WindowedFromAST,
 		filterExpr,

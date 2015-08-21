@@ -1,6 +1,7 @@
 package bql
 
 import (
+	"math/rand"
 	"pfi/sensorbee/sensorbee/bql/execution"
 	"pfi/sensorbee/sensorbee/bql/parser"
 	"pfi/sensorbee/sensorbee/bql/udf"
@@ -20,9 +21,17 @@ type bqlBox struct {
 	// emitterLimit holds a positive value if this box should
 	// stop emitting items after a certain number of items
 	emitterLimit int64
-	// count holds the number of items seen so far; but only
-	// if emitterLimit >= 0
-	count int64
+	// emitterSampling holds a positive value if this box should only
+	// emit a certain subset of items (defined by emitterSamplingType)
+	emitterSampling int64
+	// emitterSamplingType holds a value different from
+	// parser.UnspecifiedSamplingType if output sampling is active
+	emitterSamplingType parser.EmitterSamplingType
+	// genCount holds the number of items generated so far
+	// (i.e. computed by the underlying execution plan)
+	genCount int64
+	// emitCount holds the number of items emitted so far
+	emitCount int64
 	// removeMe is a function to remove this bqlBox from its
 	// topology. A nil check must be done before calling.
 	removeMe func()
@@ -39,6 +48,8 @@ func (b *bqlBox) Init(ctx *core.Context) error {
 		return err
 	}
 	b.emitterLimit = analyzedPlan.EmitterLimit
+	b.emitterSampling = analyzedPlan.EmitterSampling
+	b.emitterSamplingType = analyzedPlan.EmitterSamplingType
 	optimizedPlan, err := analyzedPlan.LogicalOptimize()
 	if err != nil {
 		return err
@@ -54,13 +65,9 @@ func (b *bqlBox) Process(ctx *core.Context, t *core.Tuple, s core.Writer) error 
 	b.mutex.Lock()
 	defer b.mutex.Unlock()
 
-	// deal with statements that have an emitter limit
-	if b.emitterLimit >= 0 && b.count >= b.emitterLimit {
-		if b.removeMe != nil {
-			b.removeMe()
-			// don't call twice
-			b.removeMe = nil
-		}
+	// deal with statements that have an emitter limit. in particular,
+	// if we are already over the limit, exit here
+	if b.emitterLimit >= 0 && b.emitCount >= b.emitterLimit {
 		return nil
 	}
 
@@ -82,16 +89,38 @@ func (b *bqlBox) Process(ctx *core.Context, t *core.Tuple, s core.Writer) error 
 			tup.Trace = make([]core.TraceEvent, len(t.Trace))
 			copy(tup.Trace, t.Trace)
 		}
-		if err := s.Write(ctx, tup); err != nil {
-			return err
+		// decide if we should emit a tuple for this item
+		shouldWriteTuple := true
+		if b.emitterSamplingType == parser.CountBasedSampling {
+			shouldWriteTuple = b.genCount%b.emitterSampling == 0
+		} else if b.emitterSamplingType == parser.RandomizedSampling {
+			shouldWriteTuple = rand.Int63n(100) < b.emitterSampling
 		}
-		if b.emitterLimit >= 0 {
-			b.count += 1
-			if b.count >= b.emitterLimit {
-				break
+		// with 1,000,000 items per second, the counter below will overflow
+		// after running for 292,471 years. probably ok.
+		b.genCount += 1
+		// write the tuple to the connected box
+		if shouldWriteTuple {
+			if err := s.Write(ctx, tup); err != nil {
+				return err
 			}
+			b.emitCount += 1
+		}
+		// stop emitting if we have hit the limit
+		if b.emitterLimit >= 0 && b.emitCount >= b.emitterLimit {
+			break
 		}
 	}
+
+	// remove this box if we are over the limit
+	if b.emitterLimit >= 0 && b.emitCount >= b.emitterLimit {
+		if b.removeMe != nil {
+			b.removeMe()
+			// don't call twice
+			b.removeMe = nil
+		}
+	}
+
 	return nil
 }
 

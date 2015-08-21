@@ -183,12 +183,24 @@ Emitter <- sp (ISTREAM / DSTREAM / RSTREAM) EmitterOptions {
         p.AssembleEmitter()
     }
 
-EmitterOptions <- < (spOpt '[' spOpt EmitterLimit spOpt ']')? > {
+EmitterOptions <- < (spOpt '[' spOpt EmitterOptionCombinations spOpt ']')? > {
         p.AssembleEmitterOptions(begin, end)
     }
 
-EmitterLimit <- 'LIMIT' sp NumericLiteral {
+EmitterOptionCombinations <- EmitterLimit / (EmitterSample sp EmitterLimit) / EmitterSample
+
+EmitterLimit <- "LIMIT" sp NumericLiteral {
         p.AssembleEmitterLimit()
+    }
+
+EmitterSample <- CountBasedSampling / RandomizedSampling
+
+CountBasedSampling <- "EVERY" sp NumericLiteral spOpt '-'? spOpt ("ST" / "ND" / "RD" / "TH") sp "TUPLE" {
+        p.AssembleEmitterSampling(CountBasedSampling)
+    }
+
+RandomizedSampling <- "SAMPLE" sp NumericLiteral spOpt '%' {
+        p.AssembleEmitterSampling(RandomizedSampling)
     }
 
 Projections <- < sp Projection (spOpt ',' spOpt Projection)* > {
