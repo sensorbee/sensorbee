@@ -92,11 +92,13 @@ type SharedStateRegistry interface {
 	// Replace replaces the previous SharedState instance with a new instance.
 	// The previous instance is returned on success. It will not be terminated
 	// by the registry and the caller must call Terminate. The type name must
-	// be same as the previous state's type name.
+	// be same as the previous state's type name. The previous instance can be
+	// nil when createIfNotExist is true and there was no state created with the
+	// given name.
 	//
 	// The given SharedState is terminated when the previous state isn't found
 	// or it cannot be replaced somehow.
-	Replace(name, typeName string, s SharedState) (SharedState, error)
+	Replace(name, typeName string, s SharedState, createIfNotExist bool) (SharedState, error)
 
 	// List returns a map containing all SharedState the registry has.
 	// The map returned from this method can safely be modified.
@@ -187,7 +189,7 @@ func (r *defaultSharedStateRegistry) Type(name string) (string, error) {
 	return "", fmt.Errorf("state '%v' was not found", name)
 }
 
-func (r *defaultSharedStateRegistry) Replace(name, typeName string, s SharedState) (SharedState, error) {
+func (r *defaultSharedStateRegistry) Replace(name, typeName string, s SharedState, createIfNotExist bool) (SharedState, error) {
 	r.m.Lock()
 	defer r.m.Unlock()
 	prev, ok := r.states[name]
@@ -196,10 +198,12 @@ func (r *defaultSharedStateRegistry) Replace(name, typeName string, s SharedStat
 			r.ctx.ErrLog(err).WithField("state_name", name).
 				Errorf("Cannot terminate a state which couldn't be replaced due to nonexistence of the previous state")
 		}
-		if !ok {
+		if ok {
+			return nil, fmt.Errorf("state '%v' has a different type", name)
+		} else if !createIfNotExist {
 			return nil, fmt.Errorf("state '%v' was not found", name)
 		}
-		return nil, fmt.Errorf("state '%v' has a different type", name)
+		prev = &defaultSharedStateInfo{}
 	}
 	r.states[name] = &defaultSharedStateInfo{
 		state:    s,

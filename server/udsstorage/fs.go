@@ -14,6 +14,8 @@ import (
 
 // fsUDSStorage is a UDSStorage which store states as files on a filesystem.
 // This simple storage doesn't provide any version controlling capability.
+// It doesn't provide checksum, either. If such capability is required, another
+// UDSStorage should be implemented.
 type fsUDSStorage struct {
 	dirPath    string
 	tmpDirPath string
