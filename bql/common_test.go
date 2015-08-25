@@ -65,7 +65,11 @@ type dummyUpdatableUDS struct {
 	dummyUDS
 }
 
-func (s *dummyUpdatableUDS) Update(params data.Map) error {
+var (
+	_ core.Updater = &dummyUpdatableUDS{}
+)
+
+func (s *dummyUpdatableUDS) Update(ctx *core.Context, params data.Map) error {
 	return s.setNum(params)
 }
 
