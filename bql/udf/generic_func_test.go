@@ -404,7 +404,7 @@ func TestGenericFunc(t *testing.T) {
 		Convey("When creating a valid UDF with MustConvertGenericAggregate", func() {
 			Convey("Then it shouldn't panic", func() {
 				So(func() {
-					MustConvertGenericAggregate(func() int { return 0 })
+					MustConvertGenericAggregate(func([]int) int { return 0 }, []bool{true})
 				}, ShouldNotPanic)
 			})
 		})
@@ -412,7 +412,7 @@ func TestGenericFunc(t *testing.T) {
 		Convey("When creating a invalid UDF with MustConvertGenericAggregate", func() {
 			Convey("Then it should panic", func() {
 				So(func() {
-					MustConvertGenericAggregate(func() {})
+					MustConvertGenericAggregate(func() {}, []bool{})
 				}, ShouldPanic)
 			})
 		})
@@ -466,8 +466,11 @@ func TestGenericFuncInvalidCases(t *testing.T) {
 			{"with an invalid aggParams 1", func(int) int { return 0 }, []bool{}},
 			{"with an invalid aggParams 2", func(int) int { return 0 }, []bool{false, false}},
 			{"with an invalid aggParams 3", func(*core.Context, int) int { return 0 }, []bool{false, false}},
+			{"with an aggregate function having no argument", func() int { return 0 }, []bool{}},
 			{"with an aggregate function which has non-slice aggregation parameter", func(int) int { return 0 }, []bool{true}},
+			{"with an aggregate function which doesn't have an aggregation parameter", func(int) int { return 0 }, []bool{false}},
 			{"with an aggregate function which has non-slice aggregation parameter with context", func(*core.Context, int) int { return 0 }, []bool{true}},
+			{"with an aggregate function with wrong number of aggParams", func([]int) int { return 0 }, []bool{true, false}},
 		}
 
 		for _, c := range genCases {

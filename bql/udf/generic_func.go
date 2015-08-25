@@ -37,7 +37,7 @@ func ConvertGeneric(function interface{}) (UDF, error) {
 		numArgs--
 	}
 
-	return ConvertGenericAggregate(function, make([]bool, numArgs))
+	return convertGenericAggregate(function, make([]bool, numArgs), false)
 }
 
 // MustConvertGeneric is like ConvertGeneric, but panics on errors.
@@ -55,6 +55,10 @@ func MustConvertGeneric(function interface{}) UDF {
 // receives aggregation parameter.
 // Supported and acceptable types are the same as ConvertGeneric.
 func ConvertGenericAggregate(function interface{}, aggParams []bool) (UDF, error) {
+	return convertGenericAggregate(function, aggParams, true)
+}
+
+func convertGenericAggregate(function interface{}, aggParams []bool, isAggregate bool) (UDF, error) {
 	t := reflect.TypeOf(function)
 	if t.Kind() != reflect.Func {
 		return nil, errors.New("the argument must be a function")
@@ -72,6 +76,23 @@ func ConvertGenericAggregate(function interface{}, aggParams []bool) (UDF, error
 
 	if g.hasContext {
 		g.arity--
+	}
+
+	if isAggregate {
+		if g.arity == 0 {
+			return nil, errors.New("UDAF must have at least one argument")
+		}
+
+		hasTrue := false
+		for _, b := range aggParams {
+			if b {
+				hasTrue = true
+				break
+			}
+		}
+		if !hasTrue {
+			return nil, errors.New("the function doesn't have an aggregation parameter")
+		}
 	}
 
 	if g.arity != len(aggParams) {
@@ -108,8 +129,8 @@ func ConvertGenericAggregate(function interface{}, aggParams []bool) (UDF, error
 
 // MustConvertGenericAggregate is like ConvertGenericAggregate,
 // but panics on errors.
-func MustConvertGenericAggregate(function interface{}) UDF {
-	f, err := ConvertGeneric(function)
+func MustConvertGenericAggregate(function interface{}, aggParams []bool) UDF {
+	f, err := ConvertGenericAggregate(function, aggParams)
 	if err != nil {
 		panic(err)
 	}
