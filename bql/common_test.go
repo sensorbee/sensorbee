@@ -1,7 +1,9 @@
 package bql
 
 import (
+	"encoding/binary"
 	"errors"
+	"io"
 	"pfi/sensorbee/sensorbee/bql/parser"
 	"pfi/sensorbee/sensorbee/bql/udf"
 	"pfi/sensorbee/sensorbee/core"
@@ -35,14 +37,24 @@ type dummyUDS struct {
 
 func newDummyUDS(ctx *core.Context, params data.Map) (core.SharedState, error) {
 	s := &dummyUDS{}
-	if v, ok := params["num"]; ok {
-		if n, err := data.ToInt(v); err != nil {
-			return nil, err
-		} else {
-			s.num = n
-		}
+	if err := s.setNum(params); err != nil {
+		return nil, err
 	}
 	return s, nil
+}
+
+func (s *dummyUDS) setNum(params data.Map) error {
+	v, ok := params["num"]
+	if !ok {
+		return nil
+	}
+
+	n, err := data.ToInt(v)
+	if err != nil {
+		return err
+	}
+	s.num = n
+	return nil
 }
 
 func (s *dummyUDS) Terminate(ctx *core.Context) error {
@@ -50,25 +62,71 @@ func (s *dummyUDS) Terminate(ctx *core.Context) error {
 }
 
 type dummyUpdatableUDS struct {
-	*dummyUDS
+	dummyUDS
 }
 
 func (s *dummyUpdatableUDS) Update(params data.Map) error {
-	return nil
+	return s.setNum(params)
 }
 
-func newDummyUpdatableUDS(ctx *core.Context, params data.Map) (core.SharedState, error) {
+func (s *dummyUpdatableUDS) Save(ctx *core.Context, w io.Writer, params data.Map) error {
+	return binary.Write(w, binary.LittleEndian, s.num)
+}
+
+type dummyUpdatableUDSCreator struct {
+}
+
+func (*dummyUpdatableUDSCreator) CreateState(ctx *core.Context, params data.Map) (core.SharedState, error) {
 	state, _ := newDummyUDS(ctx, params)
 	uds, _ := state.(*dummyUDS)
 	s := &dummyUpdatableUDS{
-		dummyUDS: uds,
+		dummyUDS: *uds,
+	}
+	return s, nil
+}
+
+func (*dummyUpdatableUDSCreator) LoadState(ctx *core.Context, r io.Reader, params data.Map) (core.SharedState, error) {
+	s := &dummyUpdatableUDS{}
+	if err := binary.Read(r, binary.LittleEndian, &s.num); err != nil {
+		return nil, err
+	}
+	return s, nil
+}
+
+type dummySelfLoadableUDS struct {
+	dummyUpdatableUDS
+}
+
+func (s *dummySelfLoadableUDS) Load(ctx *core.Context, r io.Reader, params data.Map) error {
+	return binary.Read(r, binary.LittleEndian, &s.num)
+}
+
+type dummySelfLoadableUDSCreator struct {
+}
+
+func (*dummySelfLoadableUDSCreator) CreateState(ctx *core.Context, params data.Map) (core.SharedState, error) {
+	state, _ := newDummyUDS(ctx, params)
+	uds, _ := state.(*dummyUDS)
+	s := &dummySelfLoadableUDS{
+		dummyUpdatableUDS: dummyUpdatableUDS{
+			dummyUDS: *uds,
+		},
+	}
+	return s, nil
+}
+
+func (*dummySelfLoadableUDSCreator) LoadState(ctx *core.Context, r io.Reader, params data.Map) (core.SharedState, error) {
+	s := &dummySelfLoadableUDS{}
+	if err := s.Load(ctx, r, params); err != nil {
+		return nil, err
 	}
 	return s, nil
 }
 
 func init() {
 	udf.MustRegisterGlobalUDSCreator("dummy_uds", udf.UDSCreatorFunc(newDummyUDS))
-	udf.MustRegisterGlobalUDSCreator("dummy_updatable_uds", udf.UDSCreatorFunc(newDummyUpdatableUDS))
+	udf.MustRegisterGlobalUDSCreator("dummy_updatable_uds", &dummyUpdatableUDSCreator{})
+	udf.MustRegisterGlobalUDSCreator("dummy_self_loadable_uds", &dummySelfLoadableUDSCreator{})
 }
 
 type duplicateUDSF struct {
