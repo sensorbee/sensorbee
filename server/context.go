@@ -12,8 +12,11 @@ import (
 	"path/filepath"
 	"pfi/sensorbee/sensorbee/bql"
 	"pfi/sensorbee/sensorbee/bql/parser"
+	"pfi/sensorbee/sensorbee/bql/udf"
 	"pfi/sensorbee/sensorbee/core"
+	"pfi/sensorbee/sensorbee/data"
 	"pfi/sensorbee/sensorbee/server/config"
+	"pfi/sensorbee/sensorbee/server/udsstorage"
 	"runtime"
 	"sync/atomic"
 	"time"
@@ -31,6 +34,7 @@ type Context struct {
 	HTTPStatus int
 
 	logger     *logrus.Logger
+	udsStorage udf.UDSStorage
 	topologies TopologyRegistry
 	config     *config.Config
 }
@@ -243,7 +247,13 @@ func SetUpContextGlobalVariables(conf *config.Config) (*ContextGlobalVariables, 
 // SetUpContextAndRouter creates a root router of the API server and its context.
 func SetUpContextAndRouter(prefix string, gvariables *ContextGlobalVariables) (*web.Router, error) {
 	gvars := *gvariables
-	if err := setUpTopologies(gvars.Logger, gvars.Topologies, gvars.Config); err != nil {
+	udsStorage, err := setUpUDSStorage(&gvars.Config.Storage.UDS)
+	if err != nil {
+		return nil, err
+	}
+
+	// Topologies should be created after setting up everything necessary for it.
+	if err := setUpTopologies(gvars.Logger, gvars.Topologies, gvars.Config, udsStorage); err != nil {
 		return nil, err
 	}
 
@@ -251,6 +261,7 @@ func SetUpContextAndRouter(prefix string, gvariables *ContextGlobalVariables) (*
 	root.NotFound((*Context).NotFoundHandler)
 	root.Middleware(func(c *Context, rw web.ResponseWriter, req *web.Request, next web.NextMiddlewareFunc) {
 		c.SetLogger(gvars.Logger)
+		c.udsStorage = udsStorage
 		c.topologies = gvars.Topologies
 		c.config = gvars.Config
 		next(rw, req)
@@ -259,7 +270,24 @@ func SetUpContextAndRouter(prefix string, gvariables *ContextGlobalVariables) (*
 	return root, nil
 }
 
-func setUpTopologies(logger *logrus.Logger, r TopologyRegistry, conf *config.Config) error {
+func setUpUDSStorage(conf *config.UDSStorage) (udf.UDSStorage, error) {
+	// Parameters are already validated in conf
+	switch conf.Type {
+	case "in_memory":
+		return udf.NewInMemoryUDSStorage(), nil
+	case "fs":
+		dir, _ := data.AsString(conf.Params["dir"])
+		var tempDir string
+		if v, ok := conf.Params["temp_dir"]; ok {
+			tempDir, _ = data.AsString(v)
+		}
+		return udsstorage.NewFS(dir, tempDir)
+	default:
+		return nil, fmt.Errorf("unsupported uds storage type: %v", conf.Type)
+	}
+}
+
+func setUpTopologies(logger *logrus.Logger, r TopologyRegistry, conf *config.Config, us udf.UDSStorage) error {
 	stopAll := true
 	defer func() {
 		if stopAll {
@@ -286,6 +314,7 @@ func setUpTopologies(logger *logrus.Logger, r TopologyRegistry, conf *config.Con
 		if err != nil {
 			return err
 		}
+		tb.UDSStorage = us
 		if err := r.Register(name, tb); err != nil {
 			logger.WithFields(logrus.Fields{
 				"err":      err,

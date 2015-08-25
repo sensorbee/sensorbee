@@ -100,6 +100,8 @@ func (n *nopCloser) Close() error {
 // CreateWriter creates io.Writer for loggers. When Target is a file, the writer
 // supports log rotation using lumberjack.
 func (l *Logging) CreateWriter() (io.WriteCloser, error) {
+	// TODO: config package should probably concentrate on parsing and validating
+	// config files and this should be moved to the server.
 	switch l.Target {
 	case "stdout":
 		return &nopCloser{os.Stdout}, nil
