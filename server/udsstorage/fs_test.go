@@ -17,7 +17,8 @@ func TestFS(t *testing.T) {
 
 	// This test is usually disabled for SSD.
 	SkipConvey("Given a filesystem UDS storage", t, func() {
-		s := NewFS(dir, dir)
+		s, err := NewFS(dir, dir)
+		So(err, ShouldBeNil)
 		fs := s.(*fsUDSStorage)
 		Reset(func() {
 			ls, _ := s.List()

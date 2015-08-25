@@ -144,6 +144,7 @@ func (tc *topologies) Create(rw web.ResponseWriter, req *web.Request) {
 		tc.RenderErrorJSON(NewInternalServerError(err))
 		return
 	}
+	tb.UDSStorage = tc.udsStorage
 
 	if err := tc.topologies.Register(name, tb); err != nil {
 		if err := tp.Stop(); err != nil {

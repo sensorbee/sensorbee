@@ -64,6 +64,7 @@ var (
 											"type": "string"
 										}
 									},
+									"required": ["dir"],
 									"additionalProperties": false
 								},
 								{
@@ -104,6 +105,9 @@ func newStorage(m data.Map) *Storage {
 	if udsParams.Type() == data.TypeNull {
 		udsParams = data.Map{}
 	}
+
+	// Some parameter validation such as a test for existence of a directory
+	// should be done in each UDSStorage.
 
 	return &Storage{
 		UDS: UDSStorage{

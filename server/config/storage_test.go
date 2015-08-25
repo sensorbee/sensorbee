@@ -124,7 +124,7 @@ func TestUDSStorageFS(t *testing.T) {
 		})
 
 		Convey("When params is an empty object rather than null", func() {
-			s, err := NewStorage(toMap(`{"uds":{"type":"fs","params":{}}}`))
+			s, err := NewStorage(toMap(`{"uds":{"type":"fs","params":{"dir":"/path/to/dir"}}}`))
 
 			Convey("Then it should be valid", func() {
 				So(err, ShouldBeNil)
@@ -155,7 +155,7 @@ func TestUDSStorageFS(t *testing.T) {
 		Convey("When validating temp_dir", func() {
 			for _, dir := range []string{"storage", "/path/to/storage"} {
 				Convey(fmt.Sprint("Then it should accept ", dir), func() {
-					s, err := NewStorage(toMap(fmt.Sprintf(`{"uds":{"type":"fs","params":{"temp_dir":"%v"}}}`, dir)))
+					s, err := NewStorage(toMap(fmt.Sprintf(`{"uds":{"type":"fs","params":{"dir":"/path/to/dir","temp_dir":"%v"}}}`, dir)))
 					So(err, ShouldBeNil)
 					So(s.UDS.Params["temp_dir"], ShouldEqual, dir)
 				})

@@ -25,11 +25,31 @@ var (
 	_ udf.UDSStorage = &fsUDSStorage{}
 )
 
-func NewFS(dir, tempDir string) udf.UDSStorage {
+func NewFS(dir, tempDir string) (udf.UDSStorage, error) {
+	if err := validateDir(dir); err != nil {
+		return nil, fmt.Errorf("dir (%v) isn't valid: %v", dir, err)
+	}
+	if tempDir == "" {
+		tempDir = dir
+	} else if err := validateDir(tempDir); err != nil {
+		return nil, fmt.Errorf("temp_dir (%v) isn't valid: %v", tempDir, err)
+	}
+
 	return &fsUDSStorage{
 		dirPath:     dir,
 		tempDirPath: tempDir,
+	}, nil
+}
+
+func validateDir(dir string) error {
+	fi, err := os.Stat(dir)
+	if err != nil {
+		return err
 	}
+	if !fi.IsDir() {
+		return errors.New("it isn't a directory")
+	}
+	return nil
 }
 
 func (s *fsUDSStorage) Save(topology, state string) (udf.UDSStorageWriter, error) {
