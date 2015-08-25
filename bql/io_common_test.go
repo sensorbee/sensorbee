@@ -149,7 +149,11 @@ type tupleEmitterUpdatableSource struct {
 	*tupleEmitterSource
 }
 
-func (s *tupleEmitterUpdatableSource) Update(params data.Map) error {
+var (
+	_ core.Updater = &tupleEmitterUpdatableSource{}
+)
+
+func (s *tupleEmitterUpdatableSource) Update(ctx *core.Context, params data.Map) error {
 	return nil
 }
 
@@ -205,6 +209,10 @@ type tupleCollectorUpdatableSink struct {
 	*tupleCollectorSink
 }
 
+var (
+	_ core.Updater = &tupleCollectorUpdatableSink{}
+)
+
 // createCollectorUpdatableSink creates a sink that can be updated.
 func createCollectorUpdatableSink(ctx *core.Context, ioParams *IOParams, params data.Map) (core.Sink, error) {
 	// check the given sink parameters
@@ -216,7 +224,7 @@ func createCollectorUpdatableSink(ctx *core.Context, ioParams *IOParams, params 
 	return &si, nil
 }
 
-func (s *tupleCollectorUpdatableSink) Update(params data.Map) error {
+func (s *tupleCollectorUpdatableSink) Update(ctx *core.Context, params data.Map) error {
 	return nil
 }
 

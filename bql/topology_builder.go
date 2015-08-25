@@ -219,7 +219,7 @@ func (tb *TopologyBuilder) AddStmt(stmt interface{}) (core.Node, error) {
 		if !ok {
 			return nil, fmt.Errorf("%s cannot be updated", string(stmt.Name))
 		}
-		return nil, u.Update(tb.mkParamsMap(stmt.Params))
+		return nil, u.Update(ctx, tb.mkParamsMap(stmt.Params))
 
 	case parser.SaveStateStmt:
 		return nil, tb.saveState(string(stmt.Name))
@@ -249,7 +249,7 @@ func (tb *TopologyBuilder) AddStmt(stmt interface{}) (core.Node, error) {
 		if !ok {
 			return nil, fmt.Errorf("%s cannot be updated", string(stmt.Name))
 		}
-		return nil, u.Update(tb.mkParamsMap(stmt.Params))
+		return nil, u.Update(tb.topology.Context(), tb.mkParamsMap(stmt.Params))
 
 	case parser.UpdateSinkStmt:
 		sink, err := tb.topology.Sink(string(stmt.Name))
@@ -261,7 +261,7 @@ func (tb *TopologyBuilder) AddStmt(stmt interface{}) (core.Node, error) {
 		if !ok {
 			return nil, fmt.Errorf("%s cannot be updated", string(stmt.Name))
 		}
-		return nil, u.Update(tb.mkParamsMap(stmt.Params))
+		return nil, u.Update(tb.topology.Context(), tb.mkParamsMap(stmt.Params))
 
 	case parser.DropSourceStmt:
 		_, err := tb.topology.Source(string(stmt.Source))
