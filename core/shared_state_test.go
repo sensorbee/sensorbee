@@ -61,7 +61,7 @@ func TestDefaultSharedStateRegistry(t *testing.T) {
 			})
 
 			Convey("Then it can be replaced", func() {
-				prev, err := r.Replace("test_state", "test_state_type", &stubSharedState{})
+				prev, err := r.Replace("test_state", "test_state_type", &stubSharedState{}, true)
 				So(err, ShouldBeNil)
 				Reset(func() {
 					prev.Terminate(ctx)
@@ -74,7 +74,7 @@ func TestDefaultSharedStateRegistry(t *testing.T) {
 			})
 
 			Convey("Then it cannot be replaced with a wrong type name", func() {
-				_, err := r.Replace("test_state", "wrong_type_name", &stubSharedState{})
+				_, err := r.Replace("test_state", "wrong_type_name", &stubSharedState{}, true)
 				So(err, ShouldNotBeNil)
 			})
 
@@ -125,9 +125,9 @@ func TestDefaultSharedStateRegistry(t *testing.T) {
 			})
 		})
 
-		Convey("When replacing a nonexistent state", func() {
+		Convey("When replacing a nonexistent state without creating if not exists", func() {
 			s := &stubSharedState{}
-			_, err := r.Replace("test_state", "test_state_type", s)
+			_, err := r.Replace("test_state", "test_state_type", s, false)
 
 			Convey("Then it should fail", func() {
 				So(err, ShouldNotBeNil)
@@ -138,10 +138,22 @@ func TestDefaultSharedStateRegistry(t *testing.T) {
 			})
 		})
 
+		Convey("When replacing a nonexistent state with creating if not exists", func() {
+			s := &stubSharedState{}
+			_, err := r.Replace("test_state", "test_state_type", s, true)
+			So(err, ShouldBeNil)
+
+			Convey("Then Get should return it", func() {
+				s2, err := r.Get("test_state")
+				So(err, ShouldBeNil)
+				So(s2, ShouldPointTo, s)
+			})
+		})
+
 		Convey("When replacing fails and the state.Terminate fails", func() {
 			s := &stubSharedState{}
 			s.terminateFailAt = 1
-			_, err := r.Replace("test_state", "test_state_type", s)
+			_, err := r.Replace("test_state", "test_state_type", s, false)
 
 			Convey("Then it should fail and the error message shouldn't be about the termination", func() {
 				So(err, ShouldNotBeNil)
@@ -152,7 +164,7 @@ func TestDefaultSharedStateRegistry(t *testing.T) {
 		Convey("When replacing fails and the state.Terminate panics", func() {
 			s := &stubSharedState{}
 			s.terminatePanicAt = 1
-			_, err := r.Replace("test_state", "test_state_type", s)
+			_, err := r.Replace("test_state", "test_state_type", s, false)
 
 			Convey("Then it should fail and the error message shouldn't be about the termination", func() {
 				So(err, ShouldNotBeNil)
