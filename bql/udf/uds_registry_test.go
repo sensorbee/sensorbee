@@ -32,7 +32,7 @@ func TestEmptyDefaultUDSCreatorRegistry(t *testing.T) {
 			_, err := r.Lookup("test_state_func")
 
 			Convey("Then it should fail", func() {
-				So(err, ShouldNotBeNil)
+				So(core.IsNotExist(err), ShouldBeTrue)
 			})
 		})
 
@@ -51,8 +51,8 @@ func TestEmptyDefaultUDSCreatorRegistry(t *testing.T) {
 		Convey("When unregistering a nonexistent creator", func() {
 			err := r.Unregister("test_state_func")
 
-			Convey("Then it shouldn't fail", func() {
-				So(err, ShouldBeNil)
+			Convey("Then it should fail", func() {
+				So(core.IsNotExist(err), ShouldBeTrue)
 			})
 		})
 	})
@@ -116,7 +116,7 @@ func TestDefaultUDSCreatorRegistry(t *testing.T) {
 
 				Convey("And the unregistered creator shouldn't be found", func() {
 					_, err := r.Lookup("test_state_func")
-					So(err, ShouldNotBeNil)
+					So(core.IsNotExist(err), ShouldBeTrue)
 				})
 
 				Convey("And the other creator should be found", func() {

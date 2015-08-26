@@ -118,7 +118,7 @@ type FunctionRegistry interface {
 	Context() *core.Context
 
 	// Lookup will return a function with the given name and arity
-	// or an error if there is none. Note that this interface allows
+	// or core.NotExistError if there is none. Note that this interface allows
 	// multiple functions with the same name but different arity,
 	// and it also allows functions with an arbitrary number of
 	// parameters. However, a function returned must never be used
@@ -164,7 +164,7 @@ func (fr *defaultFunctionRegistry) Lookup(name string, arity int) (UDF, error) {
 		}
 		return nil, fmt.Errorf("function '%s' is not %d-ary", name, arity)
 	}
-	return nil, fmt.Errorf("function '%s' is unknown", name)
+	return nil, core.NotExistError(fmt.Errorf("function '%s' is unknown", name))
 }
 
 func (fr *defaultFunctionRegistry) Register(name string, f UDF) error {
