@@ -324,13 +324,13 @@ func (t *defaultTopology) State() TopologyStateHolder {
 
 func (t *defaultTopology) Remove(name string) error {
 	lowerName := strings.ToLower(name)
-	n := func() Node {
+	n, err := func() (Node, error) {
 		t.nodeMutex.Lock()
 		defer t.nodeMutex.Unlock()
 
 		n, err := t.nodeWithoutLock(name)
 		if err != nil {
-			return nil // not found
+			return nil, err
 		}
 		switch n.Type() {
 		case NTSource:
@@ -340,10 +340,10 @@ func (t *defaultTopology) Remove(name string) error {
 		case NTSink:
 			delete(t.sinks, lowerName)
 		}
-		return n
+		return n, nil
 	}()
-	if n == nil {
-		return nil // already removed or doesn't exist
+	if err != nil {
+		return err
 	}
 
 	if err := n.Stop(); err != nil { // stop never panics
@@ -375,7 +375,7 @@ func (t *defaultTopology) nodeWithoutLock(name string) (Node, error) {
 	if s, ok := t.sinks[lowerName]; ok {
 		return s, nil
 	}
-	return nil, fmt.Errorf("node '%v' was not found", name)
+	return nil, NotExistError(fmt.Errorf("node '%v' was not found", name))
 }
 
 func (t *defaultTopology) Nodes() map[string]Node {
@@ -401,7 +401,7 @@ func (t *defaultTopology) Source(name string) (SourceNode, error) {
 	if s, ok := t.sources[strings.ToLower(name)]; ok {
 		return s, nil
 	}
-	return nil, fmt.Errorf("source '%v' was not found", name)
+	return nil, NotExistError(fmt.Errorf("source '%v' was not found", name))
 }
 
 func (t *defaultTopology) Sources() map[string]SourceNode {
@@ -421,7 +421,7 @@ func (t *defaultTopology) Box(name string) (BoxNode, error) {
 	if b, ok := t.boxes[strings.ToLower(name)]; ok {
 		return b, nil
 	}
-	return nil, fmt.Errorf("box '%v' was not found", name)
+	return nil, NotExistError(fmt.Errorf("box '%v' was not found", name))
 }
 
 func (t *defaultTopology) Boxes() map[string]BoxNode {
@@ -441,7 +441,7 @@ func (t *defaultTopology) Sink(name string) (SinkNode, error) {
 	if s, ok := t.sinks[strings.ToLower(name)]; ok {
 		return s, nil
 	}
-	return nil, fmt.Errorf("sink '%v' was not found", name)
+	return nil, NotExistError(fmt.Errorf("sink '%v' was not found", name))
 }
 
 func (t *defaultTopology) Sinks() map[string]SinkNode {
@@ -471,7 +471,7 @@ func (t *defaultTopology) dataSource(nodeName string) (dataSource, error) {
 	if b, ok := t.boxes[lowerNodeName]; ok {
 		return b, nil
 	}
-	return nil, fmt.Errorf("data source node %v was not found", nodeName)
+	return nil, NotExistError(fmt.Errorf("data source node %v was not found", nodeName))
 }
 
 type defaultNode struct {

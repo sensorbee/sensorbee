@@ -57,15 +57,15 @@ type UDSCreatorRegistry interface {
 	// the type name is already registered.
 	Register(typeName string, c UDSCreator) error
 
-	// Lookup returns a UDS creator having the type name. It returns an error
-	// if it doesn't have the creator.
+	// Lookup returns a UDS creator having the type name. It returns
+	// core.NotExistError if it doesn't have the creator.
 	Lookup(typeName string) (UDSCreator, error)
 
 	// List returns all creators the registry has. The caller can safely modify
 	// the map returned from this method.
 	List() (map[string]UDSCreator, error)
 
-	// Unregister removes a creator from the registry. It doesn't return error
+	// Unregister removes a creator from the registry. It returns core.NotExistError
 	// when the registry doesn't have a creator having the type name.
 	//
 	// The registry itself doesn't support cascading delete. It should properly
@@ -104,7 +104,7 @@ func (r *defaultUDSCreatorRegistry) Lookup(typeName string) (UDSCreator, error) 
 	if c, ok := r.creators[strings.ToLower(typeName)]; ok {
 		return c, nil
 	}
-	return nil, fmt.Errorf("UDS type '%v' is not found", typeName)
+	return nil, core.NotExistError(fmt.Errorf("UDS type '%v' is not found", typeName))
 }
 
 func (r *defaultUDSCreatorRegistry) List() (map[string]UDSCreator, error) {
@@ -121,7 +121,11 @@ func (r *defaultUDSCreatorRegistry) List() (map[string]UDSCreator, error) {
 func (r *defaultUDSCreatorRegistry) Unregister(typeName string) error {
 	r.m.Lock()
 	defer r.m.Unlock()
-	delete(r.creators, strings.ToLower(typeName))
+	tn := strings.ToLower(typeName)
+	if _, ok := r.creators[tn]; !ok {
+		return core.NotExistError(fmt.Errorf("UDS type '%v' is not found", typeName))
+	}
+	delete(r.creators, tn)
 	return nil
 }
 

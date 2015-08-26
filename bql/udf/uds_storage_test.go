@@ -4,6 +4,7 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 	"io"
 	"io/ioutil"
+	"pfi/sensorbee/sensorbee/core"
 	"testing"
 )
 
@@ -43,7 +44,7 @@ func TestInMemoryUDSStorage(t *testing.T) {
 			_, err := s.Load("test_topology2", "state1")
 
 			Convey("Then it should fail", func() {
-				So(err, ShouldNotBeNil)
+				So(core.IsNotExist(err), ShouldBeTrue)
 			})
 		})
 
@@ -51,7 +52,7 @@ func TestInMemoryUDSStorage(t *testing.T) {
 			_, err := s.Load("test_topology", "state2")
 
 			Convey("Then it should fail", func() {
-				So(err, ShouldNotBeNil)
+				So(core.IsNotExist(err), ShouldBeTrue)
 			})
 		})
 

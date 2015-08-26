@@ -3,9 +3,10 @@ package udf
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
-	"os"
+	"pfi/sensorbee/sensorbee/core"
 	"sync"
 )
 
@@ -38,7 +39,7 @@ type UDSStorage interface {
 	// can return an error, or can even return a reader of the previously saved
 	// data.
 	//
-	// Load returns os.ErrNotExist when the state doesn't exist.
+	// Load returns core.NotExistError when the state doesn't exist.
 	Load(topology, state string) (io.ReadCloser, error)
 
 	// List returns a list of names of saved states as a map whose key is a
@@ -98,11 +99,11 @@ func (s *inMemoryUDSStorage) Load(topology, state string) (io.ReadCloser, error)
 	defer s.m.RUnlock()
 	t, ok := s.topologies[topology]
 	if !ok {
-		return nil, os.ErrNotExist
+		return nil, core.NotExistError(fmt.Errorf("a topology '%v' was not found", topology))
 	}
 	st, ok := t.states[state]
 	if !ok {
-		return nil, os.ErrNotExist
+		return nil, core.NotExistError(fmt.Errorf("a UDS '%v' was not found", state))
 	}
 	return ioutil.NopCloser(bytes.NewReader(st)), nil
 }

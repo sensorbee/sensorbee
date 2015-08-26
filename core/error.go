@@ -2,6 +2,7 @@ package core
 
 import (
 	"fmt"
+	"os"
 	"strings"
 )
 
@@ -151,3 +152,51 @@ func TemporaryError(err error) error {
 
 // TODO: add a hybrid error interface having all possible methods which can
 // customize behavior by setting flags.
+
+// IsNotExist returns true when the error is related to "not found" or is
+// os.ErrNotExist. To be consistent with os.IsNotExist, the name of this
+// function is IsNotExist, not IsNotExistError.
+//
+// If the error implements following interface, IsNotExist returns the return
+// value of NotExist method:
+//
+//	interface {
+//		NotExist() bool
+//	}
+func IsNotExist(err error) bool {
+	if os.IsNotExist(err) {
+		return true
+	}
+
+	type notExist interface {
+		NotExist() bool
+	}
+	n, ok := err.(notExist)
+	if !ok {
+		return false
+	}
+	return n.NotExist()
+}
+
+type notExistError struct {
+	err error
+}
+
+func (n *notExistError) Error() string {
+	return n.err.Error()
+}
+
+func (n *notExistError) NotExist() bool {
+	return true
+}
+
+// NotExistError decorates the given error so that IsNotExist returns true
+// even if err doesn't have NotExist method. It will panic if err is nil.
+func NotExistError(err error) error {
+	if err == nil {
+		panic(fmt.Errorf("the error cannot be nil"))
+	}
+	return &notExistError{
+		err: err,
+	}
+}

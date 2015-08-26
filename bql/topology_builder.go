@@ -3,7 +3,6 @@ package bql
 import (
 	"errors"
 	"fmt"
-	"os"
 	"pfi/sensorbee/sensorbee/bql/execution"
 	"pfi/sensorbee/sensorbee/bql/parser"
 	"pfi/sensorbee/sensorbee/bql/udf"
@@ -761,7 +760,7 @@ func (tb *TopologyBuilder) saveState(name string) error {
 func (tb *TopologyBuilder) loadState(typeName, name string, params data.Map) (bool, error) {
 	r, err := tb.UDSStorage.Load(tb.topology.Name(), name)
 	if err != nil {
-		return os.IsNotExist(err), err
+		return core.IsNotExist(err), err
 	}
 	defer r.Close()
 

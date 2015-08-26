@@ -31,15 +31,15 @@ type SinkCreatorRegistry interface {
 	// the type name is already registered.
 	Register(typeName string, c SinkCreator) error
 
-	// Lookup returns a Sink creator having the type name. It returns an error
-	// if it doesn't have the creator.
+	// Lookup returns a Sink creator having the type name. It returns
+	// core.NotExistError if it doesn't have the creator.
 	Lookup(typeName string) (SinkCreator, error)
 
 	// List returns all creators the registry has. The caller can safely modify
 	// the map returned from this method.
 	List() (map[string]SinkCreator, error)
 
-	// Unregister removes a creator from the registry. It doesn't return error
+	// Unregister removes a creator from the registry. It returns core.NotExistError
 	// when the registry doesn't have a creator having the type name.
 	//
 	// The registry itself doesn't support cascading delete. It should properly
@@ -78,7 +78,7 @@ func (r *defaultSinkCreatorRegistry) Lookup(typeName string) (SinkCreator, error
 	if c, ok := r.creators[strings.ToLower(typeName)]; ok {
 		return c, nil
 	}
-	return nil, fmt.Errorf("sink type '%v' is not registered", typeName)
+	return nil, core.NotExistError(fmt.Errorf("sink type '%v' is not registered", typeName))
 }
 
 func (r *defaultSinkCreatorRegistry) List() (map[string]SinkCreator, error) {
@@ -95,7 +95,11 @@ func (r *defaultSinkCreatorRegistry) List() (map[string]SinkCreator, error) {
 func (r *defaultSinkCreatorRegistry) Unregister(typeName string) error {
 	r.m.Lock()
 	defer r.m.Unlock()
-	delete(r.creators, strings.ToLower(typeName))
+	tn := strings.ToLower(typeName)
+	if _, ok := r.creators[tn]; !ok {
+		return core.NotExistError(fmt.Errorf("sink type '%v' is not registered", typeName))
+	}
+	delete(r.creators, tn)
 	return nil
 }
 
