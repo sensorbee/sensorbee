@@ -83,10 +83,11 @@ type SharedStateRegistry interface {
 	Add(name, typeName string, s SharedState) error
 
 	// Get returns a SharedState having the name in the registry. It returns
-	// an error if the registry doesn't have the state.
+	// NotExistError if the registry doesn't have the state.
 	Get(name string) (SharedState, error)
 
-	// Type returns a type of a SharedState.
+	// Type returns a type of a SharedState. It returns NotExistError if the
+	// registry doesn't have the state.
 	Type(name string) (string, error)
 
 	// Replace replaces the previous SharedState instance with a new instance.
@@ -94,7 +95,8 @@ type SharedStateRegistry interface {
 	// by the registry and the caller must call Terminate. The type name must
 	// be same as the previous state's type name. The previous instance can be
 	// nil when createIfNotExist is true and there was no state created with the
-	// given name.
+	// given name. If createIfNotExist is false and the registry doesn't have
+	// the state having the name, it returns NotExistError.
 	//
 	// The given SharedState is terminated when the previous state isn't found
 	// or it cannot be replaced somehow.
@@ -112,7 +114,7 @@ type SharedStateRegistry interface {
 	// Remove also returns the removed SharedState if the registry has it. When
 	// SharedState.Terminate fails, Remove returns both the removed SharedState
 	// and an error. If the registry doesn't have a SharedState having the name,
-	// it returns a nil SharedState and a nil error.
+	// it returns a nil SharedState and NotExistError.
 	Remove(name string) (SharedState, error)
 }
 
@@ -177,7 +179,7 @@ func (r *defaultSharedStateRegistry) Get(name string) (SharedState, error) {
 	if s, ok := r.states[name]; ok {
 		return s.state, nil
 	}
-	return nil, fmt.Errorf("state '%v' was not found", name)
+	return nil, NotExistError(fmt.Errorf("state '%v' was not found", name))
 }
 
 func (r *defaultSharedStateRegistry) Type(name string) (string, error) {
@@ -186,7 +188,7 @@ func (r *defaultSharedStateRegistry) Type(name string) (string, error) {
 	if s, ok := r.states[name]; ok {
 		return s.typeName, nil
 	}
-	return "", fmt.Errorf("state '%v' was not found", name)
+	return "", NotExistError(fmt.Errorf("state '%v' was not found", name))
 }
 
 func (r *defaultSharedStateRegistry) Replace(name, typeName string, s SharedState, createIfNotExist bool) (SharedState, error) {
@@ -201,7 +203,7 @@ func (r *defaultSharedStateRegistry) Replace(name, typeName string, s SharedStat
 		if ok {
 			return nil, fmt.Errorf("state '%v' has a different type", name)
 		} else if !createIfNotExist {
-			return nil, fmt.Errorf("state '%v' was not found", name)
+			return nil, NotExistError(fmt.Errorf("state '%v' was not found", name))
 		}
 		prev = &defaultSharedStateInfo{}
 	}
@@ -233,7 +235,7 @@ func (r *defaultSharedStateRegistry) Remove(name string) (SharedState, error) {
 		return nil
 	}()
 	if s == nil {
-		return nil, nil
+		return nil, NotExistError(fmt.Errorf("state '%v' was not found", name))
 	}
 
 	if err := s.Terminate(r.ctx); err != nil {

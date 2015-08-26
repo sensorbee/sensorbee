@@ -2,6 +2,7 @@ package udf
 
 import (
 	"fmt"
+	"pfi/sensorbee/sensorbee/core"
 	"strings"
 	"sync"
 )
@@ -12,15 +13,15 @@ type UDSFCreatorRegistry interface {
 	// the type name is already registered.
 	Register(typeName string, c UDSFCreator) error
 
-	// Lookup returns a UDSF creator having the type name. It returns an error
-	// if it doesn't have the creator.
+	// Lookup returns a UDSF creator having the type name. It returns
+	// core.NotExistError if it doesn't have the creator.
 	Lookup(typeName string, arity int) (UDSFCreator, error)
 
 	// List returns all creators the registry has. The caller can safely modify
 	// the map returned from this method.
 	List() (map[string]UDSFCreator, error)
 
-	// Unregister removes a creator from the registry. It doesn't return error
+	// Unregister removes a creator from the registry. It returns core.NotExistError
 	// when the registry doesn't have a creator having the type name.
 	//
 	// The registry itself doesn't support cascading delete. It should properly
@@ -58,7 +59,7 @@ func (r *defaultUDSFCreatorRegistry) Lookup(typeName string, arity int) (UDSFCre
 	defer r.m.RUnlock()
 	c, ok := r.creators[strings.ToLower(typeName)]
 	if !ok {
-		return nil, fmt.Errorf("a UDSF type '%v' is not registered", typeName)
+		return nil, core.NotExistError(fmt.Errorf("a UDSF type '%v' is not registered", typeName))
 	}
 	if !c.Accept(arity) {
 		return nil, fmt.Errorf("a UDSF type '%v' doesn't accept the given arity: %v", typeName, arity)
@@ -80,7 +81,11 @@ func (r *defaultUDSFCreatorRegistry) List() (map[string]UDSFCreator, error) {
 func (r *defaultUDSFCreatorRegistry) Unregister(typeName string) error {
 	r.m.Lock()
 	defer r.m.Unlock()
-	delete(r.creators, strings.ToLower(typeName))
+	tn := strings.ToLower(typeName)
+	if _, ok := r.creators[tn]; !ok {
+		return core.NotExistError(fmt.Errorf("a UDSF type '%v' is not registered", typeName))
+	}
+	delete(r.creators, tn)
 	return nil
 }
 

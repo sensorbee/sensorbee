@@ -33,7 +33,7 @@ type Topology interface {
 	// caller can configure inputs or other settings of the Sink node through it.
 	AddSink(name string, s Sink, config *SinkConfig) (SinkNode, error)
 
-	// Remove removes a node from the topology. It doesn't return an error when
+	// Remove removes a node from the topology. It returns NotExistError when
 	// the topology couldn't find a node having the name. The removed node is
 	// stopped by the topology and Remove methods blocks until the node actually
 	// stops.
@@ -53,7 +53,7 @@ type Topology interface {
 
 	// TODO: low priority: Pause, Resume
 
-	// Node returns a node registered to the topology. It returns an error
+	// Node returns a node registered to the topology. It returns NotExistError
 	// when the topology doesn't have the node.
 	Node(name string) (Node, error)
 
@@ -61,23 +61,23 @@ type Topology interface {
 	// from this method can safely be modified.
 	Nodes() map[string]Node
 
-	// Source returns a source registered to the topology. It returns an error
-	// when the topology doesn't have the source.
+	// Source returns a source registered to the topology. It returns
+	// NotExistError when the topology doesn't have the source.
 	Source(name string) (SourceNode, error)
 
 	// Sources returns all sources registered to the topology. The map returned
 	// from this method can safely be modified.
 	Sources() map[string]SourceNode
 
-	// Box returns a box registered to the topology. It returns an error when
-	// the topology doesn't have the box.
+	// Box returns a box registered to the topology. It returns NotExistError
+	// when the topology doesn't have the box.
 	Box(name string) (BoxNode, error)
 
 	// Boxes returns all boxes registered to the topology. The map returned
 	// from this method can safely be modified.
 	Boxes() map[string]BoxNode
 
-	// Sink returns a sink registereed to the topology. It returns an error
+	// Sink returns a sink registereed to the topology. It returns NotExistError
 	// when the topology doesn't have the sink.
 	Sink(name string) (SinkNode, error)
 

@@ -1,8 +1,11 @@
 package server
 
 import (
+	"fmt"
 	"os"
 	"pfi/sensorbee/sensorbee/bql"
+	"pfi/sensorbee/sensorbee/core"
+	"strings"
 	"sync"
 )
 
@@ -13,8 +16,8 @@ type TopologyRegistry interface {
 	// os.ErrExist.
 	Register(name string, tb *bql.TopologyBuilder) error
 
-	// Lookup returns a topology having the name. It returns os.ErrNotExist if
-	// it doesn't have the topology.
+	// Lookup returns a topology having the name. It returns core.NotExistError
+	// if it doesn't have the topology.
 	Lookup(name string) (*bql.TopologyBuilder, error)
 
 	// List returns all topologies the registry has. The caller can safely
@@ -22,9 +25,8 @@ type TopologyRegistry interface {
 	List() (map[string]*bql.TopologyBuilder, error)
 
 	// Unregister removes a creator from the registry. It returns a removed
-	// topology. If the registry doesn't have a topology, it returns nils for
-	// both a topology and an error. If it failed to remove the topology, it
-	// returns an error.
+	// topology. If the registry doesn't have a topology, it returns
+	// core.NotExistError. If it failed to remove the topology, itreturns an error.
 	//
 	// Unregister doesn't stop the topology when it's removed. It's the caller's
 	// responsibility to correctly stop it.
@@ -48,7 +50,7 @@ func (r *defaultTopologyRegistry) Register(name string, tb *bql.TopologyBuilder)
 	r.m.Lock()
 	defer r.m.Unlock()
 
-	if _, ok := r.topologies[name]; ok {
+	if _, ok := r.topologies[strings.ToLower(name)]; ok {
 		return os.ErrExist
 	}
 	r.topologies[name] = tb
@@ -59,10 +61,10 @@ func (r *defaultTopologyRegistry) Lookup(name string) (*bql.TopologyBuilder, err
 	r.m.RLock()
 	defer r.m.RUnlock()
 
-	if tb, ok := r.topologies[name]; ok {
+	if tb, ok := r.topologies[strings.ToLower(name)]; ok {
 		return tb, nil
 	}
-	return nil, os.ErrNotExist
+	return nil, core.NotExistError(fmt.Errorf("topology '%v' is not registered", name))
 }
 
 func (r *defaultTopologyRegistry) List() (map[string]*bql.TopologyBuilder, error) {
@@ -79,10 +81,11 @@ func (r *defaultTopologyRegistry) List() (map[string]*bql.TopologyBuilder, error
 func (r *defaultTopologyRegistry) Unregister(name string) (*bql.TopologyBuilder, error) {
 	r.m.Lock()
 	defer r.m.Unlock()
-	tb, ok := r.topologies[name]
+	n := strings.ToLower(name)
+	tb, ok := r.topologies[n]
 	if !ok {
-		return nil, nil
+		return nil, core.NotExistError(fmt.Errorf("topology '%v' is not registered", name))
 	}
-	delete(r.topologies, name)
+	delete(r.topologies, n)
 	return tb, nil
 }

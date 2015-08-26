@@ -23,7 +23,7 @@ func TestEmptyDefaultSinkCreatorRegistry(t *testing.T) {
 			_, err := r.Lookup("test_sink")
 
 			Convey("Then it should fail", func() {
-				So(err, ShouldNotBeNil)
+				So(core.IsNotExist(err), ShouldBeTrue)
 			})
 		})
 
@@ -43,7 +43,7 @@ func TestEmptyDefaultSinkCreatorRegistry(t *testing.T) {
 			err := r.Unregister("test_sink")
 
 			Convey("Then it shouldn't fail", func() {
-				So(err, ShouldBeNil)
+				So(core.IsNotExist(err), ShouldBeTrue)
 			})
 		})
 	})
@@ -101,7 +101,7 @@ func TestDefaultSinkCreatorRegistry(t *testing.T) {
 
 				Convey("And the unregistered creator shouldn't be found", func() {
 					_, err := r.Lookup("test_sink")
-					So(err, ShouldNotBeNil)
+					So(core.IsNotExist(err), ShouldBeTrue)
 				})
 
 				Convey("And the other creator should be found", func() {
