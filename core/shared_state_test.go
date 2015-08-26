@@ -95,7 +95,7 @@ func TestDefaultSharedStateRegistry(t *testing.T) {
 
 				Convey("And it shouldn't be able to be removed twice", func() {
 					s3, err := r.Remove("test_state")
-					So(err, ShouldBeNil)
+					So(IsNotExist(err), ShouldBeTrue)
 					So(s3, ShouldBeNil)
 				})
 
@@ -109,7 +109,7 @@ func TestDefaultSharedStateRegistry(t *testing.T) {
 			s, err := r.Get("test_state")
 
 			Convey("Then it should fail", func() {
-				So(err, ShouldNotBeNil)
+				So(IsNotExist(err), ShouldBeTrue)
 			})
 
 			Convey("Then the returned state should be nil", func() {
@@ -121,7 +121,7 @@ func TestDefaultSharedStateRegistry(t *testing.T) {
 			_, err := r.Type("test_state")
 
 			Convey("Then it should fail", func() {
-				So(err, ShouldNotBeNil)
+				So(IsNotExist(err), ShouldBeTrue)
 			})
 		})
 
@@ -130,7 +130,7 @@ func TestDefaultSharedStateRegistry(t *testing.T) {
 			_, err := r.Replace("test_state", "test_state_type", s, false)
 
 			Convey("Then it should fail", func() {
-				So(err, ShouldNotBeNil)
+				So(IsNotExist(err), ShouldBeTrue)
 			})
 
 			Convey("Then the state should be terminated", func() {
@@ -206,6 +206,7 @@ func TestDefaultSharedStateRegistry(t *testing.T) {
 
 			Convey("Then it should fail", func() {
 				So(err, ShouldNotBeNil)
+				So(IsNotExist(err), ShouldBeFalse)
 			})
 
 			Convey("Then the state should be returned even on failure", func() {
@@ -214,15 +215,15 @@ func TestDefaultSharedStateRegistry(t *testing.T) {
 
 			Convey("Then it should've been removed", func() {
 				_, err := r.Get("test_state")
-				So(err, ShouldNotBeNil)
+				So(IsNotExist(err), ShouldBeTrue)
 			})
 		})
 
 		Convey("When removing a nonexistent state", func() {
 			s, err := r.Remove("test_state")
 
-			Convey("Then it shouldn't return an error", func() {
-				So(err, ShouldBeNil)
+			Convey("Then it should return an error", func() {
+				So(IsNotExist(err), ShouldBeTrue)
 			})
 
 			Convey("Then the returned state should be nil", func() {
