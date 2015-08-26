@@ -22,7 +22,7 @@ func TestEmptyDefaultSourceCreatorRegistry(t *testing.T) {
 			_, err := r.Lookup("test_source")
 
 			Convey("Then it should fail", func() {
-				So(err, ShouldNotBeNil)
+				So(core.IsNotExist(err), ShouldBeTrue)
 			})
 		})
 
@@ -42,7 +42,7 @@ func TestEmptyDefaultSourceCreatorRegistry(t *testing.T) {
 			err := r.Unregister("test_source")
 
 			Convey("Then it shouldn't fail", func() {
-				So(err, ShouldBeNil)
+				So(core.IsNotExist(err), ShouldBeTrue)
 			})
 		})
 	})
@@ -100,7 +100,7 @@ func TestDefaultSourceCreatorRegistry(t *testing.T) {
 
 				Convey("And the unregistered creator shouldn't be found", func() {
 					_, err := r.Lookup("test_source")
-					So(err, ShouldNotBeNil)
+					So(core.IsNotExist(err), ShouldBeTrue)
 				})
 
 				Convey("And the other creator should be found", func() {
