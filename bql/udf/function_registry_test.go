@@ -14,7 +14,7 @@ func TestDefaultFunctionRegistry(t *testing.T) {
 		Convey("When asking for an unknown function", func() {
 			_, err := fr.Lookup("hoge", 17)
 			Convey("An error is returned", func() {
-				So(err, ShouldNotBeNil)
+				So(core.IsNotExist(err), ShouldBeTrue)
 			})
 		})
 
@@ -32,6 +32,7 @@ func TestDefaultFunctionRegistry(t *testing.T) {
 			Convey("And it won't be found as binary", func() {
 				_, err := fr.Lookup("test", 2)
 				So(err, ShouldNotBeNil)
+				So(core.IsNotExist(err), ShouldBeFalse) // the function was found but its arity was wrong
 			})
 		})
 
