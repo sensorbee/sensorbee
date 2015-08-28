@@ -57,9 +57,14 @@ func (b Blob) clone() Value {
 
 // Stringreturns JSON representation of a Blob. Blob is marshaled as a string.
 func (b Blob) String() string {
-	// the String return value is defined via the
-	// default JSON serialization
-	bytes, err := json.Marshal(b)
+	if b == nil {
+		return "null"
+	}
+
+	// To avoid base64 encoding done by Go's encoding/json, []byte must be
+	// converted to string.
+	// TODO: reduce this extra copy
+	bytes, err := json.Marshal(string(b))
 	if err != nil {
 		return fmt.Sprintf("(unserializable blob: %v)", err)
 	}
