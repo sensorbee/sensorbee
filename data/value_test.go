@@ -651,11 +651,13 @@ func TestValueString(t *testing.T) {
 					Convey(fmt.Sprintf("Then String returns %v", exp), func() {
 						So(inVal.String(), ShouldResemble, exp)
 					})
-					Convey("And String returns the same as Marshal", func() {
-						j, err := json.Marshal(inVal)
-						So(err, ShouldBeNil)
-						So([]byte(inVal.String()), ShouldResemble, j)
-					})
+					if valType != "Blob" {
+						Convey("And String returns the same as Marshal", func() {
+							j, err := json.Marshal(inVal)
+							So(err, ShouldBeNil)
+							So([]byte(inVal.String()), ShouldResemble, j)
+						})
+					}
 				})
 			}
 		})
