@@ -55,33 +55,16 @@ func (b Blob) clone() Value {
 	return Blob(out)
 }
 
-// MarshalJSON marshals a Blob to JSON. nil will be encoded as null. It doesn't
-// encode a Blob in base64 format.
-func (b Blob) MarshalJSON() ([]byte, error) {
+// Stringreturns JSON representation of a Blob. Blob is marshaled as a string.
+func (b Blob) String() string {
 	if b == nil {
-		return []byte("null"), nil
+		return "null"
 	}
 
 	// To avoid base64 encoding done by Go's encoding/json, []byte must be
 	// converted to string.
 	// TODO: reduce this extra copy
-	return json.Marshal(string(b))
-}
-
-// UnmarshalJSON unmarshals a JSON string to a Blob. It doesn't parse base64
-// format.
-func (b *Blob) UnmarshalJSON(data []byte) error {
-	var s string
-	if err := json.Unmarshal(data, &s); err != nil {
-		return err
-	}
-	*b = []byte(s)
-	return nil
-}
-
-// Stringreturns JSON representation of a Blob. Blob is marshaled as a string.
-func (b Blob) String() string {
-	bytes, err := b.MarshalJSON()
+	bytes, err := json.Marshal(string(b))
 	if err != nil {
 		return fmt.Sprintf("(unserializable blob: %v)", err)
 	}
