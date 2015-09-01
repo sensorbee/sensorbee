@@ -601,8 +601,21 @@ func (s *dataSources) status() data.Map {
 }
 
 // dataDestinations have writers connected to multiple destination nodes and
-// distributes tuples to them.
+// distributes tuples to them. It is the user's responsibility to store an object
+// of this struct in 64-bit aligned memory.
+// A global variable and an first address of allocated memory from heap are
+// guaranteed to have 64-bit alignment. Memory allocated on stack has no such guarantee.
+// Use of a slice or an array of dataDestinations must be avoided because the second
+// element may not have 64-bit alignment. []*dataDestinations is okay if all pointed
+// objects have 64-bit alignment. This restriction is introduced to access int64
+// fields atomically on 32-bit machines.
+// See: https://github.com/golang/go/issues/9959
 type dataDestinations struct {
+	// numSent and numDropped must be here for 64-bit alignment.
+	// See godoc for this struct.
+	numSent    int64
+	numDropped int64
+
 	nodeType NodeType
 
 	// nodeName is the name of the node which writes tuples to
@@ -614,9 +627,6 @@ type dataDestinations struct {
 	paused   bool
 
 	callback func(ddEvent)
-
-	numSent    int64
-	numDropped int64
 
 	reportDroppedTuples bool
 }
