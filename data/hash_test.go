@@ -214,7 +214,7 @@ func TestEquality(t *testing.T) {
 
 func TestLess(t *testing.T) {
 	now := time.Now()
-	later := time.Now()
+	later := now.Add(time.Second)
 
 	ltTestCases := []struct {
 		l    Value
