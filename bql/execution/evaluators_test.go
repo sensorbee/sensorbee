@@ -1086,7 +1086,7 @@ func getTestCases() []struct {
 				{data.Map{"a": data.String("hoge"),
 					"b": data.String("hogee")}, data.Bool(true)},
 				{data.Map{"a": data.Timestamp(now),
-					"b": data.Timestamp(time.Now())}, data.Bool(true)},
+					"b": data.Timestamp(now.Add(time.Second))}, data.Bool(true)},
 				// left and right present and comparable and equal => false
 				{data.Map{"a": data.Bool(true),
 					"b": data.Bool(true)}, data.Bool(false)},
@@ -1115,7 +1115,7 @@ func getTestCases() []struct {
 					"b": data.Float(3.14)}, data.Bool(false)},
 				{data.Map{"a": data.String("hogee"),
 					"b": data.String("hoge")}, data.Bool(false)},
-				{data.Map{"a": data.Timestamp(time.Now()),
+				{data.Map{"a": data.Timestamp(now.Add(time.Second)),
 					"b": data.Timestamp(now)}, data.Bool(false)},
 				// left and right present and not comparable => error
 			}, incomparables...),
@@ -1137,7 +1137,7 @@ func getTestCases() []struct {
 				{data.Map{"a": data.String("hoge"),
 					"b": data.String("hogee")}, data.Bool(true)},
 				{data.Map{"a": data.Timestamp(now),
-					"b": data.Timestamp(time.Now())}, data.Bool(true)},
+					"b": data.Timestamp(now.Add(time.Second))}, data.Bool(true)},
 				// left and right present and comparable and equal => true
 				{data.Map{"a": data.Bool(true),
 					"b": data.Bool(true)}, data.Bool(true)},
@@ -1166,7 +1166,7 @@ func getTestCases() []struct {
 					"b": data.Float(3.14)}, data.Bool(false)},
 				{data.Map{"a": data.String("hogee"),
 					"b": data.String("hoge")}, data.Bool(false)},
-				{data.Map{"a": data.Timestamp(time.Now()),
+				{data.Map{"a": data.Timestamp(now.Add(time.Second)),
 					"b": data.Timestamp(now)}, data.Bool(false)},
 				// left and right present and not comparable => error
 			}, incomparables...),
@@ -1188,7 +1188,7 @@ func getTestCases() []struct {
 				{data.Map{"a": data.String("hoge"),
 					"b": data.String("hogee")}, data.Bool(false)},
 				{data.Map{"a": data.Timestamp(now),
-					"b": data.Timestamp(time.Now())}, data.Bool(false)},
+					"b": data.Timestamp(now.Add(time.Second))}, data.Bool(false)},
 				// left and right present and comparable and equal => false
 				{data.Map{"a": data.Bool(true),
 					"b": data.Bool(true)}, data.Bool(false)},
@@ -1217,7 +1217,7 @@ func getTestCases() []struct {
 					"b": data.Float(3.14)}, data.Bool(true)},
 				{data.Map{"a": data.String("hogee"),
 					"b": data.String("hoge")}, data.Bool(true)},
-				{data.Map{"a": data.Timestamp(time.Now()),
+				{data.Map{"a": data.Timestamp(now.Add(time.Second)),
 					"b": data.Timestamp(now)}, data.Bool(true)},
 				// left and right present and not comparable => error
 			}, incomparables...),
@@ -1239,7 +1239,7 @@ func getTestCases() []struct {
 				{data.Map{"a": data.String("hoge"),
 					"b": data.String("hogee")}, data.Bool(false)},
 				{data.Map{"a": data.Timestamp(now),
-					"b": data.Timestamp(time.Now())}, data.Bool(false)},
+					"b": data.Timestamp(now.Add(time.Second))}, data.Bool(false)},
 				// left and right present and comparable and equal => true
 				{data.Map{"a": data.Bool(true),
 					"b": data.Bool(true)}, data.Bool(true)},
@@ -1268,7 +1268,7 @@ func getTestCases() []struct {
 					"b": data.Float(3.14)}, data.Bool(true)},
 				{data.Map{"a": data.String("hogee"),
 					"b": data.String("hoge")}, data.Bool(true)},
-				{data.Map{"a": data.Timestamp(time.Now()),
+				{data.Map{"a": data.Timestamp(now.Add(time.Second)),
 					"b": data.Timestamp(now)}, data.Bool(true)},
 				// left and right present and not comparable => error
 			}, incomparables...),
@@ -1442,7 +1442,7 @@ func getTestCases() []struct {
 				{data.Map{"a": data.String("hoge"),
 					"b": data.String("hogee")}, nil},
 				{data.Map{"a": data.Timestamp(now),
-					"b": data.Timestamp(time.Now())}, nil},
+					"b": data.Timestamp(now.Add(time.Second))}, nil},
 				// left and right present and not comparable => error
 			}, incomparables...),
 		},
@@ -1464,7 +1464,7 @@ func getTestCases() []struct {
 				{data.Map{"a": data.String("hoge"),
 					"b": data.String("hogee")}, nil},
 				{data.Map{"a": data.Timestamp(now),
-					"b": data.Timestamp(time.Now())}, nil},
+					"b": data.Timestamp(now.Add(time.Second))}, nil},
 				// left and right present and not comparable => error
 			}, incomparables...),
 		},
@@ -1486,7 +1486,7 @@ func getTestCases() []struct {
 				{data.Map{"a": data.String("hoge"),
 					"b": data.String("hogee")}, nil},
 				{data.Map{"a": data.Timestamp(now),
-					"b": data.Timestamp(time.Now())}, nil},
+					"b": data.Timestamp(now.Add(time.Second))}, nil},
 				// left and right present and not comparable => error
 			}, incomparables...),
 		},
@@ -1517,7 +1517,7 @@ func getTestCases() []struct {
 				{data.Map{"a": data.String("hoge"),
 					"b": data.String("hogee")}, nil},
 				{data.Map{"a": data.Timestamp(now),
-					"b": data.Timestamp(time.Now())}, nil},
+					"b": data.Timestamp(now.Add(time.Second))}, nil},
 				// left and right present and not comparable => error
 			}, incomparables...),
 		},
@@ -1551,7 +1551,7 @@ func getTestCases() []struct {
 				{data.Map{"a": data.String("hoge"),
 					"b": data.String("hogee")}, nil},
 				{data.Map{"a": data.Timestamp(now),
-					"b": data.Timestamp(time.Now())}, nil},
+					"b": data.Timestamp(now.Add(time.Second))}, nil},
 				// left and right present and not comparable => error
 			}, incomparables...),
 		},
