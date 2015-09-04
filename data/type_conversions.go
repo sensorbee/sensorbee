@@ -1,6 +1,7 @@
 package data
 
 import (
+	"encoding/base64"
 	"fmt"
 	"math"
 	"strconv"
@@ -246,7 +247,7 @@ func ToBlob(v Value) ([]byte, error) {
 		return nil, nil
 	case TypeString:
 		val, _ := v.asString()
-		return []byte(val), nil
+		return base64.StdEncoding.DecodeString(val)
 	case TypeBlob:
 		return v.asBlob()
 	default:
