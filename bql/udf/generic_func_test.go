@@ -776,7 +776,7 @@ func TestGenericBlobFunc(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		Convey("When passing a valid value", func() {
-			v, err := f.Call(ctx, data.String("ABC"))
+			v, err := f.Call(ctx, data.String(`QUJD`)) // = "ABC"
 			So(err, ShouldBeNil)
 
 			Convey("Then it should be lowered bytes", func() {
