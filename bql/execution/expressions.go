@@ -128,7 +128,7 @@ func ParserExprToFlatExpr(e parser.Expression, reg udf.FunctionRegistry) (FlatEx
 		return typeCastAST{expr, obj.Target}, nil
 	case parser.FuncAppAST:
 		// exception for now()
-		if string(obj.Function) == "now" && len(obj.Expressions) == 0 {
+		if string(obj.Function) == "now" && len(obj.Expressions) == 0 && len(obj.Ordering) == 0 {
 			return stmtMeta{parser.NowMeta}, nil
 		}
 		// look up the function
@@ -140,6 +140,10 @@ func ParserExprToFlatExpr(e parser.Expression, reg udf.FunctionRegistry) (FlatEx
 		if isAggregateFunc(function, len(obj.Expressions)) {
 			err := fmt.Errorf("you cannot use aggregate function '%s' "+
 				"in a flat expression", obj.Function)
+			return nil, err
+		} else if len(obj.Ordering) > 0 {
+			err := fmt.Errorf("you cannot use ORDER BY in non-aggregate "+
+				"function '%s'", obj.Function)
 			return nil, err
 		}
 		// compute child expressions
@@ -236,7 +240,7 @@ func ParserExprToMaybeAggregate(e parser.Expression, aggIdx int, reg udf.Functio
 		if err != nil {
 			return nil, nil, err
 		}
-		// fail if this uses the "*" parameter for anything else than count()
+		// replace the "*" by 1 for the count function
 		for i, ast := range obj.Expressions {
 			if _, ok := ast.(parser.Wildcard); ok {
 				if string(obj.Function) == "count" {
@@ -250,7 +254,7 @@ func ParserExprToMaybeAggregate(e parser.Expression, aggIdx int, reg udf.Functio
 		returnAgg := map[string]FlatExpression{}
 		if isAggregateFunc(function, len(obj.Expressions)) {
 			// we have a setting like
-			//  SELECT udaf(x+1, 'state', c) ... GROUP BY c
+			//  SELECT udaf(x+1, 'state', c ORDER BY d + e, f DESC) ... GROUP BY c
 			// where some parameters are aggregates, others aren't.
 			for i, ast := range obj.Expressions {
 				// this expression must be flat, there must not be other aggregates
@@ -286,6 +290,60 @@ func ParserExprToMaybeAggregate(e parser.Expression, aggIdx int, reg udf.Functio
 					exprs[i] = expr
 				}
 			}
+
+			// deal with ORDER BY specifications
+			if len(obj.Ordering) > 0 {
+				ordering := make([]sortExpression, len(obj.Ordering))
+				// we need a string that uniquely identifies this ordering in order
+				// to allow `SELECT f(a ORDER BY b), f(a ORDER BY c)`
+				orderHash := sha1.New()
+				// also add all the expressions in obj.Ordering to the list
+				// of aggregate values to be computed
+				for i, sortExpr := range obj.Ordering {
+					// this expression must be flat, there must not be other aggregates
+					expr, err := ParserExprToFlatExpr(sortExpr.Expr, reg)
+					if err != nil {
+						// return a prettier error message
+						if strings.HasPrefix(err.Error(), "you cannot use aggregate") {
+							err = fmt.Errorf("aggregate functions cannot be used in ORDER BY")
+						}
+						return nil, nil, err
+					}
+					// we will replace this value by a reference to the
+					// aggregated list of values
+					h := sha1.New()
+					h.Write([]byte(fmt.Sprintf("%s", expr.Repr())))
+					orderHash.Write([]byte(fmt.Sprintf("%s", expr.Repr())))
+					exprID := "g_" + hex.EncodeToString(h.Sum(nil))[:8]
+					// For stable or immutable expressions, we compute a reference
+					// string that depends only on the expression's string
+					// representation so that we have to compute and store values
+					// only once per row (e.g., for `sum(a)/count(a)`).
+					// For volatile expressions (e.g., `sum(random())/avg(random())`)
+					// we add a numeric suffix that represents the index
+					// of this aggregate in the whole projection list.
+					if expr.Volatility() == Volatile {
+						exprID += fmt.Sprintf("_%d", aggIdx+len(returnAgg))
+					}
+					// remember the information about exprID and the order direction
+					ascending := true
+					if sortExpr.Ascending == parser.No {
+						ascending = false
+						orderHash.Write([]byte(" DESC"))
+					}
+					orderHash.Write([]byte(","))
+					ordering[i] = sortExpression{
+						aggInputRef{exprID}, ascending,
+					}
+					returnAgg[exprID] = expr
+				}
+				return aggregateInputSorter{
+					funcAppAST{obj.Function, exprs},
+					ordering,
+					hex.EncodeToString(orderHash.Sum(nil))[:8],
+				}, returnAgg, nil
+			}
+
 		} else {
 			for i, ast := range obj.Expressions {
 				expr, agg, err := ParserExprToMaybeAggregate(ast, aggIdx, reg)
@@ -483,6 +541,35 @@ func (f funcAppAST) Volatility() VolatilityType {
 	// cannot assume that UDFs are stable or immutable
 	// in general
 	return Volatile
+}
+
+type sortExpression struct {
+	Value     aggInputRef
+	Ascending bool
+}
+
+type aggregateInputSorter struct {
+	funcAppAST
+	Ordering []sortExpression
+	ID       string
+}
+
+func (a aggregateInputSorter) Repr() string {
+	reprs := make([]string, len(a.Expressions))
+	for i, e := range a.Expressions {
+		reprs[i] = e.Repr()
+	}
+	ordering := make([]string, len(a.Ordering))
+	for i, e := range a.Ordering {
+		ordering[i] = e.Value.Repr()
+		if e.Ascending {
+			ordering[i] += " ASC"
+		} else {
+			ordering[i] += " DESC"
+		}
+	}
+	return fmt.Sprintf("%s(%s ORDER BY %s)", a.Function,
+		strings.Join(reprs, ","), strings.Join(ordering, ","))
 }
 
 type arrayAST struct {

@@ -7,6 +7,7 @@ import (
 	"pfi/sensorbee/sensorbee/core"
 	"pfi/sensorbee/sensorbee/data"
 	"testing"
+	"time"
 )
 
 func setupTopology(stmt string, trace bool) (*TopologyBuilder, error) {
@@ -116,8 +117,13 @@ func TestBasicBQLBoxConnectivity(t *testing.T) {
 			})
 		})
 	})
+}
 
-	Convey("Given an ISTREAM/2 SECONDS BQL statement with a LIMIT clause", t, func() {
+func TestBQLBoxEmitterParams(t *testing.T) {
+	tuples := mkTuples(4)
+	tup2 := *tuples[1]
+
+	Convey("Given a BQL statement with a LIMIT clause", t, func() {
 		s := "CREATE STREAM box AS SELECT " +
 			"ISTREAM [LIMIT 1] int, str((int+1) % 3) AS x FROM source [RANGE 1 TUPLES] WHERE int % 2 = 0"
 		tb, err := setupTopology(s, true)
@@ -154,6 +160,220 @@ func TestBasicBQLBoxConnectivity(t *testing.T) {
 			Convey("Then the sink receives no more tuples", func() {
 				si.Wait(1)
 				So(len(si.Tuples), ShouldEqual, 1)
+			})
+		})
+	})
+
+	Convey("Given a BQL statement with an EVERY k-TH TUPLE clause", t, func() {
+		s := "CREATE STREAM box AS SELECT " +
+			"RSTREAM [EVERY 3RD TUPLE] int, str((int+1) % 3) AS x FROM duplicate('source', 2) [RANGE 1 TUPLES] " +
+			"WHERE int % 2 = 0"
+		tb, err := setupTopology(s, true)
+		So(err, ShouldBeNil)
+		dt := tb.Topology()
+		Reset(func() {
+			dt.Stop()
+		})
+
+		sin, err := dt.Sink("snk")
+		So(err, ShouldBeNil)
+		si := sin.Sink().(*tupleCollectorSink)
+
+		Convey("When 4 tuples are emitted by the source", func() {
+
+			Convey("Then the sink receives 2 tuples", func() {
+				si.Wait(2)
+				So(si.Tuples, ShouldNotBeNil)
+				So(len(si.Tuples), ShouldEqual, 2)
+				So(si.Tuples[0].Data["int"], ShouldEqual, data.Int(2))
+				// the second Int(2) is dropped due to sampling
+				// the first Int(4) is dropped due to sampling
+				So(si.Tuples[1].Data["int"], ShouldEqual, data.Int(4))
+			})
+		})
+
+		Convey("When rewinding the source", func() {
+			si.Wait(2)
+			So(addBQLToTopology(tb, `REWIND SOURCE source;`), ShouldBeNil)
+
+			Convey("Then the sink receives one more tuple", func() {
+				si.Wait(3)
+				So(len(si.Tuples), ShouldEqual, 3)
+				So(si.Tuples[2].Data["int"], ShouldEqual, data.Int(4))
+			})
+		})
+	})
+
+	Convey("Given a BQL statement with EVERY k-TH TUPLE and LIMIT clause", t, func() {
+		s := "CREATE STREAM box AS SELECT " +
+			"RSTREAM [EVERY 3RD TUPLE LIMIT 2] int, str((int+1) % 3) AS x FROM duplicate('source', 2) [RANGE 1 TUPLES] " +
+			"WHERE int % 2 = 0"
+		tb, err := setupTopology(s, true)
+		So(err, ShouldBeNil)
+		dt := tb.Topology()
+		Reset(func() {
+			dt.Stop()
+		})
+
+		sin, err := dt.Sink("snk")
+		So(err, ShouldBeNil)
+		si := sin.Sink().(*tupleCollectorSink)
+
+		Convey("When 4 tuples are emitted by the source", func() {
+
+			Convey("Then the sink receives 2 tuples", func() {
+				si.Wait(2)
+				So(si.Tuples, ShouldNotBeNil)
+				So(len(si.Tuples), ShouldEqual, 2)
+				So(si.Tuples[0].Data["int"], ShouldEqual, data.Int(2))
+				// the second Int(2) is dropped due to sampling
+				// the first Int(4) is dropped due to sampling
+				So(si.Tuples[1].Data["int"], ShouldEqual, data.Int(4))
+			})
+		})
+
+		Convey("When rewinding the source", func() {
+			si.Wait(2)
+			So(addBQLToTopology(tb, `REWIND SOURCE source;`), ShouldBeNil)
+
+			Convey("Then the sink receives no more tuples", func() {
+				si.Wait(2)
+				So(len(si.Tuples), ShouldEqual, 2)
+			})
+		})
+	})
+
+	Convey("Given a BQL statement with an EVERY 10 MILLISECONDS clause", t, func() {
+		s := "CREATE STREAM box AS SELECT " +
+			"RSTREAM [EVERY 10 MILLISECONDS] int, str((int+1) % 3) AS x FROM source [RANGE 1 TUPLES] " +
+			"WHERE int % 2 = 0"
+		tb, err := setupTopology(s, true)
+		So(err, ShouldBeNil)
+		dt := tb.Topology()
+		Reset(func() {
+			dt.Stop()
+		})
+
+		sin, err := dt.Sink("snk")
+		So(err, ShouldBeNil)
+		si := sin.Sink().(*tupleCollectorSink)
+
+		Convey("When 4 tuples are emitted by the source", func() {
+
+			Convey("Then the sink receives only the last tuple", func() {
+				// the time-based emitter has a larger interval (10 ms) than it
+				// takes the execution plan to process all tuples. therefore only
+				// one tuple will be emitted, even if we wait a long time.
+				time.Sleep(30 * time.Millisecond)
+				So(si.Tuples, ShouldNotBeNil)
+				So(len(si.Tuples), ShouldEqual, 1)
+				So(si.Tuples[0].Data["int"], ShouldEqual, data.Int(4))
+			})
+		})
+	})
+
+	Convey("Given a BQL statement with an EVERY 1 MILLISECONDS clause", t, func() {
+		s := "CREATE STREAM box AS SELECT " +
+			"RSTREAM [EVERY 1 MILLISECONDS] int, str((int+1) % 3) AS x FROM source [RANGE 1 TUPLES] " +
+			"WHERE int % 2 = 0"
+		tb, err := setupTopology(s, true)
+		So(err, ShouldBeNil)
+		dt := tb.Topology()
+		Reset(func() {
+			dt.Stop()
+		})
+
+		sin, err := dt.Sink("snk")
+		So(err, ShouldBeNil)
+		si := sin.Sink().(*tupleCollectorSink)
+
+		Convey("When tuples are emitted by the source over a long time span", func() {
+			time.Sleep(2 * time.Millisecond)
+			So(addBQLToTopology(tb, `REWIND SOURCE source;`), ShouldBeNil)
+
+			Convey("Then the sink receives multiple tuples", func() {
+				time.Sleep(2 * time.Millisecond)
+				So(si.Tuples, ShouldNotBeNil)
+				So(len(si.Tuples), ShouldEqual, 2)
+				So(si.Tuples[0].Data["int"], ShouldEqual, data.Int(4))
+				So(si.Tuples[1].Data["int"], ShouldEqual, data.Int(4))
+			})
+		})
+	})
+
+	Convey("Given a BQL statement with an EVERY 1 MILLISECONDS and LIMIT clause", t, func() {
+		s := "CREATE STREAM box AS SELECT " +
+			"RSTREAM [EVERY 1 MILLISECONDS LIMIT 1] int, str((int+1) % 3) AS x FROM source [RANGE 1 TUPLES] " +
+			"WHERE int % 2 = 0"
+		tb, err := setupTopology(s, true)
+		So(err, ShouldBeNil)
+		dt := tb.Topology()
+		Reset(func() {
+			dt.Stop()
+		})
+
+		sin, err := dt.Sink("snk")
+		So(err, ShouldBeNil)
+		si := sin.Sink().(*tupleCollectorSink)
+
+		Convey("When tuples are emitted by the source over a long time span", func() {
+			time.Sleep(2 * time.Millisecond)
+			So(addBQLToTopology(tb, `REWIND SOURCE source;`), ShouldBeNil)
+
+			Convey("Then the sink receives only one tuple", func() {
+				time.Sleep(2 * time.Millisecond)
+				So(si.Tuples, ShouldNotBeNil)
+				So(len(si.Tuples), ShouldEqual, 1)
+				So(si.Tuples[0].Data["int"], ShouldEqual, data.Int(4))
+			})
+		})
+	})
+
+	Convey("Given a BQL statement with a SAMPLE clause", t, func() {
+		s := "CREATE STREAM box AS SELECT " +
+			"RSTREAM [SAMPLE 50%] int, str((int+1) % 3) AS x FROM duplicate('source', 10) [RANGE 1 TUPLES]"
+		tb, err := setupTopology(s, true)
+		So(err, ShouldBeNil)
+		dt := tb.Topology()
+		Reset(func() {
+			dt.Stop()
+		})
+
+		sin, err := dt.Sink("snk")
+		So(err, ShouldBeNil)
+		si := sin.Sink().(*tupleCollectorSink)
+
+		Convey("When 4 tuples are emitted by the source", func() {
+
+			Convey("Then the sink receives more or less half of them", func() {
+				si.Wait(10)
+				So(si.Tuples, ShouldNotBeNil)
+				So(len(si.Tuples), ShouldBeGreaterThan, 10)
+				So(len(si.Tuples), ShouldBeLessThan, 30)
+			})
+		})
+	})
+
+	Convey("Given a BQL statement with SAMPLE and LIMIT clause", t, func() {
+		s := "CREATE STREAM box AS SELECT " +
+			"RSTREAM [SAMPLE 50% LIMIT 10] int, str((int+1) % 3) AS x FROM duplicate('source', 10) [RANGE 1 TUPLES]"
+		tb, err := setupTopology(s, true)
+		So(err, ShouldBeNil)
+		dt := tb.Topology()
+		Reset(func() {
+			dt.Stop()
+		})
+
+		sin, err := dt.Sink("snk")
+		So(err, ShouldBeNil)
+		si := sin.Sink().(*tupleCollectorSink)
+
+		Convey("When 4 tuples are emitted by the source", func() {
+
+			Convey("Then the sink receives more or less half of them", func() {
+				si.Wait(10)
+				So(si.Tuples, ShouldNotBeNil)
+				So(len(si.Tuples), ShouldEqual, 10)
 			})
 		})
 	})
@@ -301,7 +521,7 @@ func TestBasicBQLBoxUnionCapability(t *testing.T) {
 	Convey("Given a UNION over three disjoint streams in BQL", t, func() {
 		s := "CREATE STREAM box AS " +
 			"SELECT ISTREAM int, 'a' AS x FROM source [RANGE 1 TUPLES] WHERE int = 0 " +
-			"UNION ALL SELECT ISTREAM int, 'b' AS y FROM source [RANGE 1 TUPLES] WHERE int = 1" +
+			"UNION ALL SELECT ISTREAM int, 'b' AS y FROM source [RANGE 1 TUPLES] WHERE int = 1 " +
 			"UNION ALL SELECT ISTREAM int, 'c' AS z FROM source [RANGE 1 TUPLES] WHERE int >= 2"
 		tb, err := setupTopology(s, false)
 		So(err, ShouldBeNil)
@@ -454,6 +674,40 @@ func TestBQLBoxUDSF(t *testing.T) {
 			Convey("Then the sink should receive 12 tuples", func() {
 				si.Wait(12)
 				So(len(si.Tuples), ShouldEqual, 12)
+			})
+		})
+	})
+}
+
+func TestBQLBoxSourceUDSF(t *testing.T) {
+	Convey("Given a topology using a UDSF running in the source mode", t, func() {
+		// TODO: This is a super dirty hack. Although pause/resume of streams
+		// isn't supported yet, test_sequence UDSF needs to be paused somehow.
+		// Remove this WaitGroup after supporting pause/resume of streams.
+		wgSequenceUDSF.Add(1)
+		callDone := true
+		Reset(func() {
+			if callDone {
+				wgSequenceUDSF.Done()
+			}
+		})
+		tb, err := setupTopology(`CREATE STREAM box AS SELECT RSTREAM test_sequence:int FROM test_sequence(5) [RANGE 1 TUPLES]`, false)
+		So(err, ShouldBeNil)
+		dt := tb.Topology()
+		Reset(func() {
+			dt.Stop()
+		})
+
+		sin, err := dt.Sink("snk")
+		So(err, ShouldBeNil)
+		si := sin.Sink().(*tupleCollectorSink)
+		wgSequenceUDSF.Done()
+		callDone = false
+
+		Convey("When 5 tuples are emitted by the source", func() {
+			Convey("Then the sink should receive all tuples", func() {
+				si.Wait(5)
+				So(len(si.Tuples), ShouldEqual, 5)
 			})
 		})
 	})

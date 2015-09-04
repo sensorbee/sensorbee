@@ -28,6 +28,8 @@ func TestClockTimestampFunc(t *testing.T) {
 
 				Convey("And the times of two calls should differ", func() {
 
+					// sleep for Windows
+					time.Sleep(100 * time.Nanosecond)
 					actual2, err := f.Call(nil)
 					So(err, ShouldBeNil)
 					So(actual2, ShouldHaveSameTypeAs, data.Timestamp{})

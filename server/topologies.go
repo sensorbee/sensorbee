@@ -67,7 +67,7 @@ func (tc *topologies) extractName(rw web.ResponseWriter, req *web.Request, next 
 func (tc *topologies) fetchTopology() *bql.TopologyBuilder {
 	tb, err := tc.topologies.Lookup(tc.topologyName)
 	if err != nil {
-		if os.IsNotExist(err) {
+		if core.IsNotExist(err) {
 			tc.Log().Error("The topology is not registered")
 			tc.RenderErrorJSON(NewError(requestURLNotFoundErrorCode, "The topology doesn't exist",
 				http.StatusNotFound, err))
@@ -144,6 +144,7 @@ func (tc *topologies) Create(rw web.ResponseWriter, req *web.Request) {
 		tc.RenderErrorJSON(NewInternalServerError(err))
 		return
 	}
+	tb.UDSStorage = tc.udsStorage
 
 	if err := tc.topologies.Register(name, tb); err != nil {
 		if err := tp.Stop(); err != nil {
@@ -202,7 +203,8 @@ func (tc *topologies) Show(rw web.ResponseWriter, req *web.Request) {
 
 func (tc *topologies) Destroy(rw web.ResponseWriter, req *web.Request) {
 	tb, err := tc.topologies.Unregister(tc.topologyName)
-	if err != nil {
+	isNotExist := core.IsNotExist(err)
+	if err != nil && !isNotExist {
 		tc.ErrLog(err).Error("Cannot unregister the topology")
 		tc.RenderErrorJSON(NewInternalServerError(err))
 		return

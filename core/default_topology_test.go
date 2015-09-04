@@ -502,7 +502,7 @@ func TestDefaultTopologySetup(t *testing.T) {
 					for {
 						_, err := t.Node("sink1")
 						if err != nil {
-							So(err, ShouldNotBeNil)
+							So(IsNotExist(err), ShouldBeTrue)
 							break
 						}
 					}
@@ -530,7 +530,7 @@ func TestDefaultTopologySetup(t *testing.T) {
 					for {
 						_, err := t.Node("sink1")
 						if err != nil {
-							So(err, ShouldNotBeNil)
+							So(IsNotExist(err), ShouldBeTrue)
 							break
 						}
 					}
@@ -558,7 +558,7 @@ func TestDefaultTopologySetup(t *testing.T) {
 					for {
 						_, err := t.Node("sink1")
 						if err != nil {
-							So(err, ShouldNotBeNil)
+							So(IsNotExist(err), ShouldBeTrue)
 							break
 						}
 					}
@@ -570,7 +570,7 @@ func TestDefaultTopologySetup(t *testing.T) {
 			_, err := t.Node("source1")
 
 			Convey("Then it shouldn't be found", func() {
-				So(err, ShouldNotBeNil)
+				So(IsNotExist(err), ShouldBeTrue)
 			})
 		})
 	})
@@ -826,7 +826,7 @@ func TestLinearDefaultTopology(t *testing.T) {
 
 		Convey("When removing a nonexistent node", func() {
 			Convey("Then it shouldn't fail", func() {
-				So(t.Remove("no_such_node"), ShouldBeNil)
+				So(IsNotExist(t.Remove("no_such_node")), ShouldBeTrue)
 			})
 		})
 

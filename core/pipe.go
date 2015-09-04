@@ -43,7 +43,21 @@ func (r *pipeReceiver) close() {
 	}()
 }
 
+// pipeSender represents a pipe sender. An object of this struct must be
+// placed in a global variable or in memory allocated from the heap.
+// Using an array or a slice of pipeSender may cause panic even if it is
+// global or allocated from the heap. Read dataDestination godoc or
+// https://github.com/golang/go/issues/9959 for details.
 type pipeSender struct {
+	// cnt is the number of tuples written to this pipe. This value may not
+	// be accurate when the sender is registered to multiple destinations.
+	// This can be solved by sharing the same chan with multiple pipe instances.
+	// To support it, we should create a sharedChan which manages the chan with
+	// reference counting. registeredDsts won't have to be a slice after
+	// applying this change.
+	// cnt is the first field of this struct for 64-bit alignment.
+	cnt int64
+
 	inputName string
 	out       chan<- *Tuple
 
@@ -55,14 +69,6 @@ type pipeSender struct {
 		dst            *dataDestinations
 	}
 	closed bool
-
-	// cnt is the number of tuples written to this pipe. This value may not
-	// be accurate when the sender is registered to multiple destinations.
-	// This can be solved by sharing the same chan with multiple pipe instances.
-	// To support it, we should create a sharedChan which manages the chan with
-	// reference counting. registeredDsts won't have to be a slice after
-	// applying this change.
-	cnt int64
 }
 
 // Write outputs the given tuple to the pipe. This method only returns
@@ -140,7 +146,18 @@ func (s *pipeSender) isClosed() bool {
 	return s.closed
 }
 
+// dataSources represents data sources. This struct has atomic integers
+// and golang does not offer alignment attributes, so it is a user's
+// responsibility to align them. A user must neither allocate dataSources
+// on a stack nor use an array or slice of dataSources.
+// Read godoc for dataDestinations or https://github.com/golang/go/issues/9959
+// for details.
 type dataSources struct {
+	// numReceived and numErrors must be here for 64-bit alignment.
+	// See godoc for this struct.
+	numReceived int64
+	numErrors   int64
+
 	nodeType NodeType
 	nodeName string
 
@@ -153,9 +170,6 @@ type dataSources struct {
 	// msgChs is a slice of channels which are connected to goroutines
 	// pouring tuples. They receive controlling messages through this channel.
 	msgChs []chan<- *dataSourcesMessage
-
-	numReceived int64
-	numErrors   int64
 
 	// reportDroppedTuples is a flag (0,1) to control the behavior of dropped
 	// tuple logging. If this value is 0, dropped tuples won't be reported.
@@ -601,8 +615,21 @@ func (s *dataSources) status() data.Map {
 }
 
 // dataDestinations have writers connected to multiple destination nodes and
-// distributes tuples to them.
+// distributes tuples to them. It is the user's responsibility to store an object
+// of this struct in 64-bit aligned memory.
+// A global variable and an first address of allocated memory from heap are
+// guaranteed to have 64-bit alignment. Memory allocated on stack has no such guarantee.
+// Use of a slice or an array of dataDestinations must be avoided because the second
+// element may not have 64-bit alignment. []*dataDestinations is okay if all pointed
+// objects have 64-bit alignment. This restriction is introduced to access int64
+// fields atomically on 32-bit machines.
+// See: https://github.com/golang/go/issues/9959
 type dataDestinations struct {
+	// numSent and numDropped must be here for 64-bit alignment.
+	// See godoc for this struct.
+	numSent    int64
+	numDropped int64
+
 	nodeType NodeType
 
 	// nodeName is the name of the node which writes tuples to
@@ -614,9 +641,6 @@ type dataDestinations struct {
 	paused   bool
 
 	callback func(ddEvent)
-
-	numSent    int64
-	numDropped int64
 
 	reportDroppedTuples bool
 }

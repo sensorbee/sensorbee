@@ -19,6 +19,7 @@ type TopologyBuilder struct {
 	UDSCreators    udf.UDSCreatorRegistry
 	SourceCreators SourceCreatorRegistry
 	SinkCreators   SinkCreatorRegistry
+	UDSStorage     udf.UDSStorage
 }
 
 // TODO: Provide AtomicTopologyBuilder which support building multiple nodes
@@ -65,6 +66,7 @@ func NewTopologyBuilder(t core.Topology) (*TopologyBuilder, error) {
 		UDSCreators:    udss,
 		SourceCreators: srcs,
 		SinkCreators:   sinks,
+		UDSStorage:     udf.NewInMemoryUDSStorage(),
 	}
 	return tb, nil
 }
@@ -216,7 +218,25 @@ func (tb *TopologyBuilder) AddStmt(stmt interface{}) (core.Node, error) {
 		if !ok {
 			return nil, fmt.Errorf("%s cannot be updated", string(stmt.Name))
 		}
-		return nil, u.Update(tb.mkParamsMap(stmt.Params))
+		return nil, u.Update(ctx, tb.mkParamsMap(stmt.Params))
+
+	case parser.SaveStateStmt:
+		return nil, tb.saveState(string(stmt.Name))
+
+	case parser.LoadStateStmt:
+		_, err := tb.loadState(string(stmt.Type), string(stmt.Name), tb.mkParamsMap(stmt.Params))
+		return nil, err
+
+	case parser.LoadStateOrCreateStmt:
+		shouldCreate, err := tb.loadState(string(stmt.Type), string(stmt.Name), tb.mkParamsMap(stmt.LoadSpecs.Params))
+		if shouldCreate {
+			c := parser.CreateStateStmt{}
+			c.Type = stmt.Type
+			c.Name = stmt.Name
+			c.Params = stmt.CreateSpecs.Params
+			return tb.AddStmt(c)
+		}
+		return nil, err
 
 	case parser.UpdateSourceStmt:
 		src, err := tb.topology.Source(string(stmt.Name))
@@ -228,7 +248,7 @@ func (tb *TopologyBuilder) AddStmt(stmt interface{}) (core.Node, error) {
 		if !ok {
 			return nil, fmt.Errorf("%s cannot be updated", string(stmt.Name))
 		}
-		return nil, u.Update(tb.mkParamsMap(stmt.Params))
+		return nil, u.Update(tb.topology.Context(), tb.mkParamsMap(stmt.Params))
 
 	case parser.UpdateSinkStmt:
 		sink, err := tb.topology.Sink(string(stmt.Name))
@@ -240,7 +260,7 @@ func (tb *TopologyBuilder) AddStmt(stmt interface{}) (core.Node, error) {
 		if !ok {
 			return nil, fmt.Errorf("%s cannot be updated", string(stmt.Name))
 		}
-		return nil, u.Update(tb.mkParamsMap(stmt.Params))
+		return nil, u.Update(tb.topology.Context(), tb.mkParamsMap(stmt.Params))
 
 	case parser.DropSourceStmt:
 		_, err := tb.topology.Source(string(stmt.Source))
@@ -360,6 +380,7 @@ func (tb *TopologyBuilder) AddStmt(stmt interface{}) (core.Node, error) {
 	return nil, fmt.Errorf("statement of type %T is unimplemented", stmt)
 }
 
+// udsfBox is a core.Box which runs a UDSF in the stream mode.
 type udsfBox struct {
 	f udf.UDSF
 }
@@ -384,6 +405,39 @@ func (b *udsfBox) Process(ctx *core.Context, t *core.Tuple, w core.Writer) error
 
 func (b *udsfBox) Terminate(ctx *core.Context) error {
 	return b.f.Terminate(ctx)
+}
+
+// udsfSource is a core.Source which runs a UDSF in the source mode.
+type udsfSource struct {
+	f       udf.UDSF
+	stopped core.AtomicFlag
+}
+
+var (
+	_ core.Source = &udsfSource{}
+)
+
+func newUDSFSource(f udf.UDSF) *udsfSource {
+	return &udsfSource{
+		f: f,
+	}
+}
+
+func (s *udsfSource) GenerateStream(ctx *core.Context, w core.Writer) error {
+	// In the source mode, UDSF.Process is only called once. It can generate
+	// as many tuples as it wants.
+	return s.f.Process(ctx, core.NewTuple(data.Map{"b": data.True}),
+		core.WriterFunc(func(ctx *core.Context, t *core.Tuple) error {
+			if s.stopped.Enabled() {
+				return core.ErrSourceStopped
+			}
+			return w.Write(ctx, t)
+		}))
+}
+
+func (s *udsfSource) Stop(ctx *core.Context) error {
+	s.stopped.Set(true)
+	return s.f.Terminate(ctx)
 }
 
 func (tb *TopologyBuilder) createStreamAsSelectStmt(stmt *parser.CreateStreamAsSelectStmt) (core.Node, error) {
@@ -412,6 +466,7 @@ func (tb *TopologyBuilder) createStreamAsSelectStmt(stmt *parser.CreateStreamAsS
 	}()
 
 	connected := map[string]bool{}
+	var pausedSources []core.SourceNode
 	for _, rel := range stmt.Select.Relations {
 		switch rel.Type {
 		case parser.ActualStream:
@@ -443,97 +498,14 @@ func (tb *TopologyBuilder) createStreamAsSelectStmt(stmt *parser.CreateStreamAsS
 			connected[rel.Name] = true
 
 		case parser.UDSFStream:
-			// Compute the values of the UDSF parameters (if there was
-			// an unusable parameter, as in `udsf(7, col)` this will fail).
-			// Note: it doesn't feel exactly right to do this kind of
-			// validation here after parsing has been done "successfully",
-			// on the other hand the parser should not evaluate expressions
-			// (and cannot import the execution package) or make too many
-			// semantical checks, so we leave this here for the moment.
-			params := make([]data.Value, len(rel.Params))
-			for i, expr := range rel.Params {
-				p, err := execution.EvaluateFoldable(expr, tb.Reg)
-				if err != nil {
-					return nil, err
-				}
-				params[i] = p
-			}
-
-			udsfc, err := tb.UDSFCreators.Lookup(rel.Name, len(params))
+			sn, name, err := tb.setUpUDSFStream(dbox, &rel)
 			if err != nil {
 				return nil, err
 			}
-
-			decl := udf.NewUDSFDeclarer()
-			udsf, err := func() (f udf.UDSF, err error) {
-				defer func() {
-					if e := recover(); e != nil {
-						if er, ok := e.(error); ok {
-							err = er
-						} else {
-							err = fmt.Errorf("cannot create a UDSF: %v", e)
-						}
-					}
-				}()
-				return udsfc.CreateUDSF(tb.topology.Context(), decl, params...)
-			}()
-			if err != nil {
-				return nil, err
+			temporaryNodes = append(temporaryNodes, name)
+			if sn != nil {
+				pausedSources = append(pausedSources, sn)
 			}
-			if len(decl.ListInputs()) == 0 {
-				func() {
-					defer func() {
-						if e := recover(); e != nil {
-							tb.topology.Context().Log().WithField("udsf_name", rel.Name).
-								Errorf("Cannot terminate the UDFS due to panic: %v", e)
-						}
-					}()
-					if err := udsf.Terminate(tb.topology.Context()); err != nil {
-						tb.topology.Context().ErrLog(err).WithField("udsf_name", rel.Name).
-							Error("Cannot terminate the UDSF")
-					}
-				}()
-				return nil, fmt.Errorf("a UDSF '%v' must have at least one input", rel.Name)
-			}
-
-			temporaryName := fmt.Sprintf("sensorbee_tmp_udsf_%v", topologyBuilderNextTemporaryID())
-			bn, err := tb.topology.AddBox(temporaryName, newUDSFBox(udsf), &core.BoxConfig{
-			// TODO: add information of the statement
-			})
-			if err != nil {
-				return nil, err
-			}
-			temporaryNodes = append(temporaryNodes, temporaryName)
-
-			for input, config := range decl.ListInputs() {
-				if err := bn.Input(input, &core.BoxInputConfig{
-					InputName: config.InputName,
-				}); err != nil {
-					return nil, err
-				}
-			}
-
-			alias := rel.Alias
-			if alias == "" {
-				alias = rel.Name
-			}
-			if err := dbox.Input(temporaryName, &core.BoxInputConfig{
-				// As opposed to actual streams, for `udsf('s') AS a, udsf('s') AS b`,
-				// there will be *multiple* boxes and we will have one connection to
-				// udsf 1 (the one aliased to `a`) and udsf 2 (the one aliased to `b`).
-				// Therefore we need to have different InputNames for them. Note that
-				// we cannot just take the alias, as there would be the danger of
-				// overriding an input stream with that same name, as in
-				// `FROM x AS b, udsf('s') AS x`, and we should also use a string
-				// that does not possibly conflict with any input name.
-				// Note that `addTupleToBuffer` in defaultSelectExecutionPlan needs
-				// to use that same method.
-				InputName: fmt.Sprintf("%s/%s", rel.Name, alias),
-			}); err != nil {
-				return nil, err
-			}
-			bn.StopOnDisconnect(core.Inbound | core.Outbound)
-			bn.RemoveOnStop()
 
 		default:
 			return nil, fmt.Errorf("input stream of type %s not implemented",
@@ -541,8 +513,116 @@ func (tb *TopologyBuilder) createStreamAsSelectStmt(stmt *parser.CreateStreamAsS
 		}
 	}
 	dbox.(core.BoxNode).StopOnDisconnect(core.Inbound)
+
+	// Resume all UDSFs running in the source mode as fairly as possible.
+	for _, sn := range pausedSources {
+		if err := sn.Resume(); err != nil {
+			return nil, err
+		}
+	}
 	removeNodes = false
 	return dbox, nil
+}
+
+// setUpUDSFStream creates a Source or a Box from a UDSF. When it creates a
+// Source, it will return the corresponding core.SourceNode of it. Otherwise,
+// it returns nil for core.SourceNode. It also returns the temporary name of
+// the UDSF node.
+func (tb *TopologyBuilder) setUpUDSFStream(subsequentBox core.BoxNode, rel *parser.AliasedStreamWindowAST) (core.SourceNode, string, error) {
+	// Compute the values of the UDSF parameters (if there was
+	// an unusable parameter, as in `udsf(7, col)` this will fail).
+	// Note: it doesn't feel exactly right to do this kind of
+	// validation here after parsing has been done "successfully",
+	// on the other hand the parser should not evaluate expressions
+	// (and cannot import the execution package) or make too many
+	// semantical checks, so we leave this here for the moment.
+	params := make([]data.Value, len(rel.Params))
+	for i, expr := range rel.Params {
+		p, err := execution.EvaluateFoldable(expr, tb.Reg)
+		if err != nil {
+			return nil, "", err
+		}
+		params[i] = p
+	}
+
+	udsfc, err := tb.UDSFCreators.Lookup(rel.Name, len(params))
+	if err != nil {
+		return nil, "", err
+	}
+
+	decl := udf.NewUDSFDeclarer()
+	udsf, err := func() (f udf.UDSF, err error) {
+		defer func() {
+			if e := recover(); e != nil {
+				if er, ok := e.(error); ok {
+					err = er
+				} else {
+					err = fmt.Errorf("cannot create a UDSF: %v", e)
+				}
+			}
+		}()
+		return udsfc.CreateUDSF(tb.topology.Context(), decl, params...)
+	}()
+	if err != nil {
+		return nil, "", err
+	}
+
+	temporaryName := fmt.Sprintf("sensorbee_tmp_udsf_%v", topologyBuilderNextTemporaryID())
+	addInput := func() error {
+		alias := rel.Alias
+		if alias == "" {
+			alias = rel.Name
+		}
+		return subsequentBox.Input(temporaryName, &core.BoxInputConfig{
+			// As opposed to actual streams, for `udsf('s') AS a, udsf('s') AS b`,
+			// there will be *multiple* boxes and we will have one connection to
+			// udsf 1 (the one aliased to `a`) and udsf 2 (the one aliased to `b`).
+			// Therefore we need to have different InputNames for them. Note that
+			// we cannot just take the alias, as there would be the danger of
+			// overriding an input stream with that same name, as in
+			// `FROM x AS b, udsf('s') AS x`, and we should also use a string
+			// that does not possibly conflict with any input name.
+			// Note that `addTupleToBuffer` in defaultSelectExecutionPlan needs
+			// to use that same method.
+			InputName: fmt.Sprintf("%s/%s", rel.Name, alias),
+		})
+	}
+
+	if len(decl.ListInputs()) == 0 { // Source mode
+		sn, err := tb.topology.AddSource(temporaryName, newUDSFSource(udsf), &core.SourceConfig{
+			PausedOnStartup: true,
+		})
+		if err != nil {
+			return nil, "", err
+		}
+		if err := addInput(); err != nil {
+			return nil, "", err
+		}
+		sn.StopOnDisconnect()
+		sn.RemoveOnStop()
+		// The source will be resumed by the caller.
+		return sn, temporaryName, nil
+	}
+
+	bn, err := tb.topology.AddBox(temporaryName, newUDSFBox(udsf), &core.BoxConfig{
+	// TODO: add information of the statement
+	})
+	if err != nil {
+		return nil, "", err
+	}
+	for input, config := range decl.ListInputs() {
+		if err := bn.Input(input, &core.BoxInputConfig{
+			InputName: config.InputName,
+		}); err != nil {
+			return nil, "", err
+		}
+	}
+	if err := addInput(); err != nil {
+		return nil, "", err
+	}
+	bn.StopOnDisconnect(core.Inbound | core.Outbound)
+	bn.RemoveOnStop()
+	return nil, temporaryName, nil
 }
 
 func (tb *TopologyBuilder) mkParamsMap(params []parser.SourceSinkParamAST) data.Map {
@@ -641,4 +721,87 @@ func (tb *TopologyBuilder) AddSelectUnionStmt(stmts *parser.SelectUnionStmt) (co
 	}
 	sn.StopOnDisconnect()
 	return sn, ch, nil
+}
+
+func (tb *TopologyBuilder) saveState(name string) error {
+	st, err := tb.topology.Context().SharedStates.Get(name)
+	if err != nil {
+		return err
+	}
+	s, ok := st.(core.SavableSharedState)
+	if !ok {
+		return fmt.Errorf("the state '%v' cannot be saved", name)
+	}
+
+	// Appropriate header information should be written by the storage.
+	w, err := tb.UDSStorage.Save(tb.topology.Name(), name)
+	if err != nil {
+		return err
+	}
+	shouldAbort := true
+	defer func() {
+		if shouldAbort {
+			if err := w.Abort(); err != nil {
+				tb.topology.Context().ErrLog(err).WithField("state_name", name).
+					Error("saving the state panicked")
+			}
+		}
+	}()
+
+	if err := s.Save(tb.topology.Context(), w, data.Map{}); err != nil {
+		return err
+	}
+	shouldAbort = false
+	return w.Commit()
+}
+
+// loadState loads a state from the storage. It returns true when the state was
+// not saved and LOAD STATE OR CREATE IF NOT EXISTS should fall back to CREATE STATE.
+func (tb *TopologyBuilder) loadState(typeName, name string, params data.Map) (bool, error) {
+	r, err := tb.UDSStorage.Load(tb.topology.Name(), name)
+	if err != nil {
+		return core.IsNotExist(err), err
+	}
+	defer r.Close()
+
+	c, err := tb.UDSCreators.Lookup(typeName)
+	if err != nil {
+		return false, err
+	}
+	loader, ok := c.(udf.UDSLoader)
+	if !ok {
+		return false, fmt.Errorf("the state '%v' cannot be loaded", name)
+	}
+
+	// If the state is loaded and it provides Load method, Load method will be
+	// used instead of loader.LoadState.
+	reg := tb.topology.Context().SharedStates
+	s, err := reg.Get(name)
+	if err != nil {
+		// TODO: check if the error is "not found". Return only on other errors.
+	} else if t, err := reg.Type(name); err != nil {
+		return false, err
+	} else if t != typeName {
+		return false, fmt.Errorf("type name doesn't much to the current state's type")
+	}
+
+	if l, ok := s.(core.LoadableSharedState); ok {
+		return false, l.Load(tb.topology.Context(), r, params)
+	}
+
+	newState, err := loader.LoadState(tb.topology.Context(), r, params)
+	if err != nil {
+		return false, err
+	}
+	prev, err := reg.Replace(name, typeName, newState, true)
+	if err != nil {
+		return false, err
+	}
+	if prev != nil {
+		if err := prev.Terminate(tb.topology.Context()); err != nil {
+			tb.topology.Context().ErrLog(err).WithField("state_name", name).
+				Error("Cannot terminate the previous instance of the loaded state")
+		}
+	}
+	return false, nil
 }

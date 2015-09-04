@@ -20,17 +20,27 @@ func TestExpressionParser(t *testing.T) {
 		"NULL": {[]Expression{NullLiteral{}}, "NULL"},
 		// Function Application
 		"f()": {[]Expression{FuncAppAST{FuncName("f"),
-			ExpressionsAST{[]Expression{}}}}, "f()"},
+			ExpressionsAST{[]Expression{}}, nil}}, "f()"},
 		"now()": {[]Expression{FuncAppAST{FuncName("now"),
-			ExpressionsAST{[]Expression{}}}}, "now()"},
+			ExpressionsAST{[]Expression{}}, nil}}, "now()"},
 		"f(a)": {[]Expression{FuncAppAST{FuncName("f"),
-			ExpressionsAST{[]Expression{RowValue{"", "a"}}}}}, "f(a)"},
+			ExpressionsAST{[]Expression{RowValue{"", "a"}}}, nil}}, "f(a)"},
 		"f(*)": {[]Expression{FuncAppAST{FuncName("f"),
-			ExpressionsAST{[]Expression{Wildcard{}}}}}, "f(*)"},
+			ExpressionsAST{[]Expression{Wildcard{}}}, nil}}, "f(*)"},
 		"f(x:*)": {[]Expression{FuncAppAST{FuncName("f"),
-			ExpressionsAST{[]Expression{Wildcard{"x"}}}}}, "f(x:*)"},
+			ExpressionsAST{[]Expression{Wildcard{"x"}}}, nil}}, "f(x:*)"},
+		"f(x:* ORDER BY a)": {[]Expression{FuncAppAST{FuncName("f"),
+			ExpressionsAST{[]Expression{Wildcard{"x"}}},
+			[]SortedExpressionAST{{RowValue{"", "a"}, UnspecifiedKeyword}}}}, "f(x:* ORDER BY a)"},
+		"f(a ORDER BY a DESC, b, c ASC)": {[]Expression{FuncAppAST{FuncName("f"),
+			ExpressionsAST{[]Expression{RowValue{"", "a"}}},
+			[]SortedExpressionAST{{RowValue{"", "a"}, No}, {RowValue{"", "b"}, UnspecifiedKeyword}, {RowValue{"", "c"}, Yes}}}}, "f(a ORDER BY a DESC, b, c ASC)"},
+		"count(a ORDER BY count(b))": {[]Expression{FuncAppAST{FuncName("count"),
+			ExpressionsAST{[]Expression{RowValue{"", "a"}}},
+			[]SortedExpressionAST{{FuncAppAST{FuncName("count"),
+				ExpressionsAST{[]Expression{RowValue{"", "b"}}}, nil}, UnspecifiedKeyword}}}}, "count(a ORDER BY count(b))"},
 		"f(2.1, 'a')": {[]Expression{FuncAppAST{FuncName("f"),
-			ExpressionsAST{[]Expression{FloatLiteral{2.1}, StringLiteral{"a"}}}}}, "f(2.1, 'a')"},
+			ExpressionsAST{[]Expression{FloatLiteral{2.1}, StringLiteral{"a"}}}, nil}}, "f(2.1, 'a')"},
 		// Type Cast
 		"CAST(2.1 AS BOOL)":    {[]Expression{TypeCastAST{FloatLiteral{2.1}, Bool}}, "CAST(2.1 AS BOOL)"},
 		"CAST(2.1 AS INT)":     {[]Expression{TypeCastAST{FloatLiteral{2.1}, Int}}, "CAST(2.1 AS INT)"},
@@ -56,6 +66,7 @@ func TestExpressionParser(t *testing.T) {
 		"my_mem_27": {[]Expression{RowValue{"", "my_mem_27"}}, "my_mem_27"},
 		/// JSON Path
 		"['hoge']":       {[]Expression{RowValue{"", "['hoge']"}}, "['hoge']"},
+		"['hoge'][0]..y": {[]Expression{RowValue{"", "['hoge'][0]..y"}}, "['hoge'][0]..y"},
 		"['array'][0]":   {[]Expression{RowValue{"", "['array'][0]"}}, "['array'][0]"},
 		"['array'][0].x": {[]Expression{RowValue{"", "['array'][0].x"}}, "['array'][0].x"},
 		"['array']['x']": {[]Expression{RowValue{"", "['array']['x']"}}, "['array']['x']"},
@@ -239,7 +250,7 @@ func TestExpressionParser(t *testing.T) {
 				NumericLiteral{2}}},
 		*/
 		/// Complex/Nested Expressions
-		"(a + 1) % 2 = 0 OR b < 7.1, c": {
+		"(a+ 1) % 2= 0 OR b < 7.1, c": {
 			[]Expression{BinaryOpAST{Or,
 				BinaryOpAST{Equal,
 					BinaryOpAST{Modulo,
@@ -249,10 +260,10 @@ func TestExpressionParser(t *testing.T) {
 				BinaryOpAST{Less, RowValue{"", "b"}, FloatLiteral{7.1}}},
 				RowValue{"", "c"}}, "(a + 1) % 2 = 0 OR b < 7.1, c"},
 		/// Multiple Columns
-		"a, 3.1, false, -2": {[]Expression{RowValue{"", "a"}, FloatLiteral{3.1}, BoolLiteral{false}, UnaryOpAST{UnaryMinus, NumericLiteral{2}}}, "a, 3.1, FALSE, -2"},
-		`'日本語', 13`:         {[]Expression{StringLiteral{"日本語"}, NumericLiteral{13}}, `'日本語', 13`},
+		"a, 3.1, false,-2": {[]Expression{RowValue{"", "a"}, FloatLiteral{3.1}, BoolLiteral{false}, UnaryOpAST{UnaryMinus, NumericLiteral{2}}}, "a, 3.1, FALSE, -2"},
+		`'日本語', 13`:        {[]Expression{StringLiteral{"日本語"}, NumericLiteral{13}}, `'日本語', 13`},
 		"concat(a, 'Pi', 3.1), b": {[]Expression{FuncAppAST{FuncName("concat"), ExpressionsAST{
-			[]Expression{RowValue{"", "a"}, StringLiteral{"Pi"}, FloatLiteral{3.1}}}},
+			[]Expression{RowValue{"", "a"}, StringLiteral{"Pi"}, FloatLiteral{3.1}}}, nil},
 			RowValue{"", "b"}}, "concat(a, 'Pi', 3.1), b"},
 	}
 

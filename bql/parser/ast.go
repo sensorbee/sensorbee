@@ -314,15 +314,45 @@ func (a EmitterAST) string() string {
 			switch obj := opt.(type) {
 			case EmitterLimit:
 				optStrings[i] = fmt.Sprintf("LIMIT %d", obj.Limit)
+			case EmitterSampling:
+				optStrings[i] = obj.string()
 			}
 		}
-		s += " [" + strings.Join(optStrings, ", ") + "]"
+		s += " [" + strings.Join(optStrings, " ") + "]"
 	}
 	return s
 }
 
 type EmitterLimit struct {
 	Limit int64
+}
+
+type EmitterSampling struct {
+	Value int64
+	Type  EmitterSamplingType
+}
+
+func (e EmitterSampling) string() string {
+	if e.Type == CountBasedSampling {
+		countWord := "TH"
+		switch e.Value {
+		case 1:
+			countWord = "ST"
+		case 2:
+			countWord = "ND"
+		case 3:
+			countWord = "RD"
+		}
+		return fmt.Sprintf("EVERY %d-%s TUPLE", e.Value, countWord)
+	} else if e.Type == RandomizedSampling {
+		return fmt.Sprintf("SAMPLE %d%%", e.Value)
+	} else if e.Type == TimeBasedSampling {
+		if e.Value%1000 == 0 {
+			return fmt.Sprintf("EVERY %d SECONDS", e.Value/1000)
+		}
+		return fmt.Sprintf("EVERY %d MILLISECONDS", e.Value)
+	}
+	return ""
 }
 
 type ProjectionsAST struct {
@@ -638,11 +668,17 @@ func (u TypeCastAST) string() string {
 type FuncAppAST struct {
 	Function FuncName
 	ExpressionsAST
+	Ordering []SortedExpressionAST
 }
 
 func (f FuncAppAST) ReferencedRelations() map[string]bool {
 	rels := map[string]bool{}
 	for _, expr := range f.Expressions {
+		for rel := range expr.ReferencedRelations() {
+			rels[rel] = true
+		}
+	}
+	for _, expr := range f.Ordering {
 		for rel := range expr.ReferencedRelations() {
 			rels[rel] = true
 		}
@@ -655,13 +691,22 @@ func (f FuncAppAST) RenameReferencedRelation(from, to string) Expression {
 	for i, expr := range f.Expressions {
 		newExprs[i] = expr.RenameReferencedRelation(from, to)
 	}
-	return FuncAppAST{f.Function, ExpressionsAST{newExprs}}
+	newOrderExprs := make([]SortedExpressionAST, len(f.Ordering))
+	for i, expr := range f.Ordering {
+		newOrderExprs[i] = expr.RenameReferencedRelation(from, to).(SortedExpressionAST)
+	}
+	return FuncAppAST{f.Function, ExpressionsAST{newExprs}, newOrderExprs}
 }
 
 func (f FuncAppAST) Foldable() bool {
 	foldable := true
 	// now() is not evaluable outside of some execution context
 	if string(f.Function) == "now" && len(f.Expressions) == 0 {
+		return false
+	}
+	// if there is a ORDER BY clause, then this is definitely an
+	// aggregate function and therefore not foldable
+	if len(f.Ordering) > 0 {
 		return false
 	}
 	for _, expr := range f.Expressions {
@@ -671,6 +716,46 @@ func (f FuncAppAST) Foldable() bool {
 		}
 	}
 	return foldable
+}
+
+func (f FuncAppAST) string() string {
+	s := string(f.Function) + "(" + f.ExpressionsAST.string()
+	if len(f.Ordering) > 0 {
+		orderStrings := make([]string, len(f.Ordering))
+		for i, expr := range f.Ordering {
+			orderStrings[i] = expr.string()
+		}
+		s += " ORDER BY " + strings.Join(orderStrings, ", ")
+	}
+	return s + ")"
+}
+
+type SortedExpressionAST struct {
+	Expr      Expression
+	Ascending BinaryKeyword
+}
+
+func (s SortedExpressionAST) ReferencedRelations() map[string]bool {
+	return s.Expr.ReferencedRelations()
+}
+
+func (s SortedExpressionAST) RenameReferencedRelation(from, to string) Expression {
+	return SortedExpressionAST{s.Expr.RenameReferencedRelation(from, to),
+		s.Ascending}
+}
+
+func (s SortedExpressionAST) Foldable() bool {
+	return s.Expr.Foldable()
+}
+
+func (s SortedExpressionAST) string() string {
+	ret := s.Expr.string()
+	if s.Ascending == Yes {
+		ret += " ASC"
+	} else if s.Ascending == No {
+		ret += " DESC"
+	}
+	return ret
 }
 
 type ArrayAST struct {
@@ -708,10 +793,6 @@ func (a ArrayAST) Foldable() bool {
 
 func (a ArrayAST) string() string {
 	return "[" + a.ExpressionsAST.string() + "]"
-}
-
-func (f FuncAppAST) string() string {
-	return string(f.Function) + "(" + f.ExpressionsAST.string() + ")"
 }
 
 type ExpressionsAST struct {
@@ -1083,6 +1164,28 @@ func (e Emitter) String() string {
 		s = "DSTREAM"
 	case Rstream:
 		s = "RSTREAM"
+	}
+	return s
+}
+
+type EmitterSamplingType int
+
+const (
+	UnspecifiedSamplingType EmitterSamplingType = iota
+	CountBasedSampling
+	RandomizedSampling
+	TimeBasedSampling
+)
+
+func (est EmitterSamplingType) String() string {
+	s := "UNKNOWN"
+	switch est {
+	case CountBasedSampling:
+		s = "EVERY k-TH TUPLE"
+	case RandomizedSampling:
+		s = "SAMPLE"
+	case TimeBasedSampling:
+		s = "EVERY k SECONDS"
 	}
 	return s
 }

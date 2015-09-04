@@ -6,6 +6,7 @@ import (
 	"github.com/peterh/liner"
 	"io"
 	"os"
+	"path"
 	"pfi/sensorbee/sensorbee/client"
 	"strings"
 )
@@ -18,10 +19,12 @@ type App struct {
 	commandMap           map[string]Command
 }
 
+var tempDir = os.TempDir()
+
 // SetUpCommands set up application. Commands are initialized with it.
 func SetUpCommands(commands []Command) App {
 	app := App{
-		historyFn:            "/tmp/.sensorbee_liner_history",
+		historyFn:            path.Join(tempDir, ".sensorbee_liner_history"),
 		executeExternalFiles: flag.String("file", "", "execute BQL commands from external files"),
 		commandMap:           map[string]Command{},
 	}

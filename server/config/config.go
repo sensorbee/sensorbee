@@ -17,6 +17,9 @@ type Config struct {
 	// persisting topologies.
 	Topologies Topologies
 
+	// Storage section has information of storage of components in SensorBee.
+	Storage *Storage
+
 	// Logging section has parameters related to logging.
 	Logging *Logging
 }
@@ -27,10 +30,11 @@ var (
 	"properties": {
 		"network": %v,
 		"topologies": %v,
+		"storage": %v,
 		"logging": %v
 	},
 	"additionalProperties": false
-}`, networkSchemaString, topologiesSchemaString, loggingSchemaString)
+}`, networkSchemaString, topologiesSchemaString, storageSchemaString, loggingSchemaString)
 	rootSchema *gojsonschema.Schema
 )
 
@@ -49,6 +53,7 @@ func New(m data.Map) (*Config, error) {
 	return &Config{
 		Network:    newNetwork(mustAsMap(getWithDefault(m, "network", data.Map{}))),
 		Topologies: newTopologies(mustAsMap(getWithDefault(m, "topologies", data.Map{}))),
+		Storage:    newStorage(mustAsMap(getWithDefault(m, "storage", data.Map{}))),
 		Logging:    newLogging(mustAsMap(getWithDefault(m, "logging", data.Map{}))),
 	}, nil
 }

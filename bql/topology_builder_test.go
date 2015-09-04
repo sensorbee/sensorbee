@@ -155,7 +155,25 @@ func TestCreateStreamAsSelectStmt(t *testing.T) {
 
 				Convey("And when self-joining the UDSF", func() {
 					err := addBQLToTopology(tb, `CREATE STREAM x AS SELECT ISTREAM s:int FROM
-                duplicate('s', 2) [RANGE 2 SECONDS] AS s, duplicate('s', 4) [RANGE 3 TUPLES] AS t`)
+                    duplicate('s', 2) [RANGE 2 SECONDS] AS s, duplicate('s', 4) [RANGE 3 TUPLES] AS t`)
+
+					Convey("Then there should be no error", func() {
+						So(err, ShouldBeNil)
+					})
+				})
+			})
+
+			Convey("If the UDSF doesn't depend on an input", func() {
+				err := addBQLToTopology(tb, `CREATE STREAM t AS SELECT ISTREAM int FROM
+                test_sequence(4) [RANGE 2 SECONDS] WHERE int=2`)
+
+				Convey("Then there should be no error", func() {
+					So(err, ShouldBeNil)
+				})
+
+				Convey("And when joining source and UDSF", func() {
+					err := addBQLToTopology(tb, `CREATE STREAM x AS SELECT ISTREAM s:int FROM
+                    s [RANGE 2 SECONDS], test_sequence(4) [RANGE 3 TUPLES]`)
 
 					Convey("Then there should be no error", func() {
 						So(err, ShouldBeNil)
@@ -180,16 +198,6 @@ func TestCreateStreamAsSelectStmt(t *testing.T) {
 				Convey("Then there should be an error", func() {
 					So(err, ShouldNotBeNil)
 					So(err.Error(), ShouldContainSubstring, "arity")
-				})
-			})
-
-			Convey("If the UDSF doesn't depend on an input", func() {
-				err := addBQLToTopology(tb, `CREATE STREAM t AS SELECT ISTREAM int FROM
-                no_input_duplicate('s', 2) [RANGE 2 SECONDS] WHERE int=2`)
-
-				Convey("Then there should be an error", func() {
-					So(err, ShouldNotBeNil)
-					So(err.Error(), ShouldContainSubstring, "at least")
 				})
 			})
 
@@ -611,6 +619,133 @@ func TestUpdateStateStmt(t *testing.T) {
 				Convey("There should be no error", func() {
 					So(err, ShouldBeNil)
 				})
+			})
+		})
+	})
+}
+
+func TestSaveLoadStateStmt(t *testing.T) {
+	Convey("Given a BQL TopologyBuilder with some UDSs", t, func() {
+		dt := newTestTopology()
+		Reset(func() {
+			dt.Stop()
+		})
+		tb, err := NewTopologyBuilder(dt)
+		So(err, ShouldBeNil)
+		So(addBQLToTopology(tb, `
+			CREATE STATE s1 TYPE dummy_uds WITH num=1;
+			CREATE STATE s2 TYPE dummy_updatable_uds WITH num=2;
+			CREATE STATE s3 TYPE dummy_self_loadable_uds WITH num=3;
+		`), ShouldBeNil)
+
+		Convey("When saving a unsavable state", func() {
+			err := addBQLToTopology(tb, `SAVE STATE s1;`)
+
+			Convey("Then it should fail", func() {
+				So(err, ShouldNotBeNil)
+			})
+		})
+
+		Convey("When saving a savable state", func() {
+			So(addBQLToTopology(tb, `SAVE STATE s2;`), ShouldBeNil)
+
+			Convey("Then it should be able to be loaded", func() {
+				So(addBQLToTopology(tb, `LOAD STATE s2 TYPE dummy_updatable_uds;`), ShouldBeNil)
+
+				Convey("And the state should have the correct data", func() {
+					s, err := dt.Context().SharedStates.Get("s2")
+					So(err, ShouldBeNil)
+					So(s.(*dummyUpdatableUDS).num, ShouldEqual, 2)
+				})
+			})
+
+			Convey("Then it shouldn't be loaded with an unloadable type", func() {
+				So(addBQLToTopology(tb, `LOAD STATE s2 TYPE dummy_uds;`), ShouldNotBeNil)
+			})
+
+			Convey("Then it shouldn't be loaded with a wrong type", func() {
+				So(addBQLToTopology(tb, `LOAD STATE s2 TYPE dummy_self_loadable_uds;`), ShouldNotBeNil)
+			})
+
+			Convey("And updating the state", func() {
+				So(addBQLToTopology(tb, `UPDATE STATE s2 SET num=20;`), ShouldBeNil)
+				s, err := dt.Context().SharedStates.Get("s2")
+				So(err, ShouldBeNil)
+				So(s.(*dummyUpdatableUDS).num, ShouldEqual, 20)
+
+				Convey("Then loading it should revert the state", func() {
+					So(addBQLToTopology(tb, `LOAD STATE s2 TYPE dummy_updatable_uds;`), ShouldBeNil)
+					s, err := dt.Context().SharedStates.Get("s2")
+					So(err, ShouldBeNil)
+					So(s.(*dummyUpdatableUDS).num, ShouldEqual, 2)
+				})
+			})
+
+			Convey("And dropping the state", func() {
+				So(addBQLToTopology(tb, `DROP STATE s2;`), ShouldBeNil)
+
+				Convey("Then it should be able to be loaded again", func() {
+					So(addBQLToTopology(tb, `LOAD STATE s2 TYPE dummy_updatable_uds;`), ShouldBeNil)
+					s, err := dt.Context().SharedStates.Get("s2")
+					So(err, ShouldBeNil)
+					So(s.(*dummyUpdatableUDS).num, ShouldEqual, 2)
+				})
+
+				Convey("Then it should be able to be created", func() {
+					So(addBQLToTopology(tb, `LOAD STATE s2 TYPE dummy_updatable_uds OR CREATE IF NOT EXISTS;`), ShouldBeNil)
+					s, err := dt.Context().SharedStates.Get("s2")
+					So(err, ShouldBeNil)
+					So(s.(*dummyUpdatableUDS).num, ShouldEqual, 2)
+				})
+			})
+		})
+
+		Convey("When saving a self loadable state", func() {
+			So(addBQLToTopology(tb, `SAVE STATE s3;`), ShouldBeNil)
+
+			Convey("Then it should be able to be loaded", func() {
+				So(addBQLToTopology(tb, `LOAD STATE s3 TYPE dummy_self_loadable_uds;`), ShouldBeNil)
+
+				Convey("And the state should have the correct data", func() {
+					s, err := dt.Context().SharedStates.Get("s3")
+					So(err, ShouldBeNil)
+					So(s.(*dummySelfLoadableUDS).num, ShouldEqual, 3)
+				})
+			})
+		})
+
+		Convey("When saving a nonexistent state", func() {
+			err := addBQLToTopology(tb, `SAVE STATE s4;`)
+
+			Convey("Then it should fail", func() {
+				So(err, ShouldNotBeNil)
+			})
+		})
+
+		Convey("When loading a state which has not been saved", func() {
+			err := addBQLToTopology(tb, `LOAD STATE s2 TYPE dummy_updatable_uds;`)
+
+			Convey("Then it should fail", func() {
+				So(err, ShouldNotBeNil)
+			})
+		})
+
+		Convey("When loading a state which has not been created nor saved", func() {
+			err := addBQLToTopology(tb, `LOAD STATE s4 TYPE dummy_updatable_uds;`)
+
+			Convey("Then it should fail", func() {
+				So(err, ShouldNotBeNil)
+			})
+		})
+
+		Convey("When loading a state which has not been created nor saved with LOAD OR CREATE IF NOT EXISTS", func() {
+			err := addBQLToTopology(tb, `LOAD STATE s4 TYPE dummy_updatable_uds OR CREATE IF NOT EXISTS WITH num=4;`)
+
+			Convey("Then it should succeed", func() {
+				So(err, ShouldBeNil)
+				s, err := dt.Context().SharedStates.Get("s4")
+				So(err, ShouldBeNil)
+				So(s.(*dummyUpdatableUDS).num, ShouldEqual, 4)
 			})
 		})
 	})
