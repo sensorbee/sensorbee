@@ -266,8 +266,8 @@ func TestToBlob(t *testing.T) {
 		},
 		"String": {
 			{"empty", String(""), []byte{}},
-			{"non-empty", String("hoge"), []byte("hoge")},
-			{"numeric", String("123.456"), []byte("123.456")},
+			{"non-empty", String("aG9nZQ=="), []byte("hoge")},
+			{"numeric", String("MTIzLjQ1Ng=="), []byte("123.456")},
 		},
 		"Blob": {
 			{"nil", Blob(nil), []byte(nil)},
