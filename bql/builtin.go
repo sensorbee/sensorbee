@@ -158,11 +158,8 @@ func createNodeStatusSourceCreator(t core.Topology) SourceCreator {
 	return SourceCreatorFunc(func(ctx *core.Context, ioParams *IOParams, params data.Map) (core.Source, error) {
 		interval := 1 * time.Second
 		if v, ok := params["interval"]; !ok {
-		} else if s, err := data.AsString(v); err != nil {
-			// TODO: support other data types like float.
-			return nil, errors.New("interval parameter must be a string having format like '1s', '100ms', etc.")
-		} else if d, err := time.ParseDuration(s); err != nil {
-			return nil, fmt.Errorf("cannot parse interval parameter: %v", err)
+		} else if d, err := data.ToDuration(v); err != nil {
+			return nil, err
 		} else {
 			interval = d
 		}
