@@ -350,6 +350,56 @@ func TestToTimestamp(t *testing.T) {
 	runConversionTestCases(t, toFun, "ToTimestamp", testCases)
 }
 
+func TestToDuration(t *testing.T) {
+	testCases := map[string][]convTestInput{
+		"Null": {
+			{"Null", Null{}, nil},
+		},
+		"Bool": {
+			{"true", True, nil},
+			{"false", False, nil},
+		},
+		"Int": {
+			{"positive", Int(2), 2 * time.Second},
+			{"negative", Int(-2), -2 * time.Second},
+			{"zero", Int(0), 0 * time.Second},
+		},
+		"Float": {
+			{"positive", Float(3.14), 3140 * time.Millisecond},
+			{"negative", Float(-3.14), -3140 * time.Millisecond},
+			{"zero", Float(0.0), 0 * time.Second},
+		},
+		"String": {
+			{"empty", String(""), nil},
+			{"non-duration", String("1sec"), nil},
+			{"second", String("2.5s"), 2500 * time.Millisecond},
+			{"millsecond", String("-3.14ms"), -3140 * time.Microsecond},
+		},
+		"Blob": {
+			{"empty", Blob(""), nil},
+			{"non-empty", Blob("hoge"), nil},
+		},
+		"Timestamp": {
+			{"zero", Timestamp(time.Time{}), nil},
+			{"now", Timestamp(time.Now()), nil},
+		},
+		"Array": {
+			{"empty", Array{}, nil},
+			{"non-empty", Array{Int(2), String("foo")}, nil},
+		},
+		"Map": {
+			{"empty", Map{}, nil},
+			{"non-empty", Map{"a": Int(2), "b": String("foo")}, nil},
+		},
+	}
+
+	toFun := func(v Value) (interface{}, error) {
+		val, err := ToDuration(v)
+		return val, err
+	}
+	runConversionTestCases(t, toFun, "ToDuration", testCases)
+}
+
 func runConversionTestCases(t *testing.T,
 	toFun func(v Value) (interface{}, error),
 	funcName string,

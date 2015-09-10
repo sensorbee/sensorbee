@@ -305,3 +305,26 @@ func ToTimestamp(v Value) (time.Time, error) {
 			fmt.Errorf("cannot convert %T to Time", v)
 	}
 }
+
+// ToDuration converts a Value to time.Duration, if possible.
+// The conversion rules are as follows:
+//
+//	* Int: Converted to seconds (e.g. 3 is equal to 3 seconds)
+//	* Float: Converted to seconds (e.g. 3.141592 equals 3s + 141ms + 592us)
+//	* String: time.ParseDuration will be called
+//	* other: (error)
+func ToDuration(v Value) (time.Duration, error) {
+	switch v.Type() {
+	case TypeInt:
+		i, _ := v.asInt()
+		return time.Duration(i) * time.Second, nil
+	case TypeFloat:
+		f, _ := v.asFloat()
+		return time.Duration(f * float64(time.Second)), nil
+	case TypeString:
+		s, _ := v.asString()
+		return time.ParseDuration(s)
+	default:
+		return 0, fmt.Errorf("cannot convert %T to Duration", v)
+	}
+}
