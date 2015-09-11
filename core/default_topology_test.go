@@ -1374,3 +1374,103 @@ func TestJoinDefaultTopology(t *testing.T) {
 		})
 	})
 }
+
+func TestDefaultTopologyOutputDropMode(t *testing.T) {
+	Convey("Given a simple linear topology", t, func() {
+		dt := NewDefaultTopology(NewContext(nil), "dt1")
+		t := dt.(*defaultTopology)
+
+		ts := freshTuples()
+		so := NewTupleIncrementalEmitterSource(ts)
+		_, err := t.AddSource("source", so, nil)
+		So(err, ShouldBeNil)
+
+		Convey("When adding a box with DropLatest", func() {
+			b1 := &BlockingForwardBox{cnt: 0}
+			tc1 := newTerminateChecker(b1)
+			bn1, err := t.AddBox("box1", tc1, nil)
+			So(err, ShouldBeNil)
+			So(bn1.Input("SOURCE", &BoxInputConfig{
+				Capacity: 1,
+				DropMode: DropLatest,
+			}), ShouldBeNil)
+
+			si := NewTupleCollectorSink()
+			sic := &sinkCloseChecker{s: si}
+			sin, err := t.AddSink("sink", sic, nil)
+			So(err, ShouldBeNil)
+			So(sin.Input("BOX1", nil), ShouldBeNil)
+
+			Convey("Then it only receives the oldest tuple", func() {
+				// so.EmitTuples blocks until all tuples are written. So, only
+				// the oldest one should remain.
+				so.EmitTuples(8)
+				b1.EmitTuples(8)
+				si.Wait(1)
+				So(len(si.Tuples), ShouldEqual, 1)
+				So(si.Tuples[0], ShouldResemble, ts[0])
+			})
+		})
+
+		Convey("When adding a box with DropOldest", func() {
+			b1 := &BlockingForwardBox{cnt: 0}
+			tc1 := newTerminateChecker(b1)
+			bn1, err := t.AddBox("box1", tc1, nil)
+			So(err, ShouldBeNil)
+			So(bn1.Input("SOURCE", &BoxInputConfig{
+				Capacity: 1,
+				DropMode: DropOldest,
+			}), ShouldBeNil)
+
+			si := NewTupleCollectorSink()
+			sic := &sinkCloseChecker{s: si}
+			sin, err := t.AddSink("sink", sic, nil)
+			So(err, ShouldBeNil)
+			So(sin.Input("BOX1", nil), ShouldBeNil)
+
+			Convey("Then it only receives the latest tuple", func() {
+				so.EmitTuples(8)
+				b1.EmitTuples(8)
+				si.Wait(1)
+				So(len(si.Tuples), ShouldEqual, 1)
+				So(si.Tuples[0], ShouldResemble, ts[len(ts)-1])
+			})
+		})
+
+		Convey("When adding a sink with DropLatest", func() {
+			si := NewTupleCollectorSink()
+			sic := &sinkCloseChecker{s: si}
+			sin, err := t.AddSink("sink", sic, nil)
+			So(err, ShouldBeNil)
+			So(sin.Input("SOURCE", &SinkInputConfig{
+				Capacity: 1,
+				DropMode: DropLatest,
+			}), ShouldBeNil)
+
+			Convey("Then it only receives the oldest tuple", func() {
+				so.EmitTuples(8)
+				si.Wait(1)
+				So(len(si.Tuples), ShouldEqual, 1)
+				So(si.Tuples[0], ShouldResemble, ts[0])
+			})
+		})
+
+		Convey("When adding a sink with DropOldest", func() {
+			si := NewTupleCollectorSink()
+			sic := &sinkCloseChecker{s: si}
+			sin, err := t.AddSink("sink", sic, nil)
+			So(err, ShouldBeNil)
+			So(sin.Input("SOURCE", &SinkInputConfig{
+				Capacity: 1,
+				DropMode: DropOldest,
+			}), ShouldBeNil)
+
+			Convey("Then it only receives the latest tuple", func() {
+				so.EmitTuples(8)
+				si.Wait(1)
+				So(len(si.Tuples), ShouldEqual, 1)
+				So(si.Tuples[0], ShouldResemble, ts[len(ts)-1])
+			})
+		})
+	})
+}
