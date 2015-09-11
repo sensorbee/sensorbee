@@ -43,6 +43,7 @@ func (ds *defaultSinkNode) Input(refname string, config *SinkInputConfig) error 
 	}
 
 	recv, send := newPipe("output", config.capacity())
+	send.dropMode = config.DropMode
 	if err := s.destinations().add(ds.name, send); err != nil {
 		return err
 	}

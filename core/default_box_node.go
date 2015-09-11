@@ -40,6 +40,7 @@ func (db *defaultBoxNode) Input(refname string, config *BoxInputConfig) error {
 	}
 
 	recv, send := newPipe(config.inputName(), config.capacity())
+	send.dropMode = config.DropMode
 	if err := s.destinations().add(db.name, send); err != nil {
 		return err
 	}
