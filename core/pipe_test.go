@@ -45,7 +45,6 @@ func TestPipe(t *testing.T) {
 		}
 
 		Convey("When sending a tuple via the sender", func() {
-
 			So(s.Write(ctx, t), ShouldBeNil)
 
 			Convey("Then the tuple should be received by the receiver", func() {
@@ -90,6 +89,36 @@ func TestPipe(t *testing.T) {
 					}
 				}
 				So(err, ShouldPointTo, errPipeClosed)
+			})
+		})
+
+		Convey("When sending tuples with DropLatest mode", func() {
+			t2 := t.Copy()
+			t2.Data["v"] = data.Int(2)
+			s.dropMode = DropLatest
+
+			So(s.Write(ctx, t), ShouldBeNil)
+			So(s.Write(ctx, t2), ShouldBeNil)
+
+			Convey("Then only the first tuple should be received by the receiver", func() {
+				rt := <-r.in
+				So(rt.Data["v"], ShouldEqual, data.Int(1))
+				So(len(r.in), ShouldEqual, 0)
+			})
+		})
+
+		Convey("When sending tuples with DropOldest mode", func() {
+			t2 := t.Copy()
+			t2.Data["v"] = data.Int(2)
+			s.dropMode = DropOldest
+
+			So(s.Write(ctx, t), ShouldBeNil)
+			So(s.Write(ctx, t2), ShouldBeNil)
+
+			Convey("Then only the second tuple should be received by the receiver", func() {
+				rt := <-r.in
+				So(rt.Data["v"], ShouldEqual, data.Int(2))
+				So(len(r.in), ShouldEqual, 0)
 			})
 		})
 	})
