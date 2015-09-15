@@ -424,6 +424,13 @@ func validateReferences(s *parser.SelectStmt) error {
 		// FROM clause -> OK
 	}
 
+	for _, rel := range s.Relations {
+		if rel.Value <= 0 {
+			err := fmt.Errorf("number in RANGE clause must be positive, not %v", rel.Value)
+			return err
+		}
+	}
+
 	return nil
 }
 
