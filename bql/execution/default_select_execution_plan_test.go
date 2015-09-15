@@ -454,6 +454,49 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 		})
 	})
 
+	Convey("Given a SELECT clause with an AS * flattening", t, func() {
+		tuples := getTuples(4)
+		for i := range tuples {
+			if i == 1 {
+				tuples[i].Data["nest"] = data.Int(i)
+			} else {
+				tuples[i].Data["nest"] = data.Map{"c": data.Int(i), "d": data.Float(i + 1)}
+			}
+		}
+		s := `CREATE STREAM box AS SELECT ISTREAM nest AS * FROM src [RANGE 2 TUPLES]`
+		plan, err := createDefaultSelectPlan(s, t)
+		So(err, ShouldBeNil)
+
+		Convey("When feeding it with tuples", func() {
+			for idx, inTup := range tuples {
+				out, err := plan.Process(inTup)
+				if idx == 0 {
+					So(err, ShouldBeNil)
+					Convey(fmt.Sprintf("Then those values should appear in %v", idx), func() {
+						So(len(out), ShouldEqual, 1)
+						So(out[0], ShouldResemble,
+							data.Map{"c": data.Int(0), "d": data.Float(1.0)})
+					})
+
+				} else if idx == 1 || idx == 2 { // window size is 2!
+					So(err, ShouldNotBeNil)
+					So(err.Error(), ShouldEqual, "tried to use value 1 as columns, but is not a map")
+
+				} else {
+					So(err, ShouldBeNil)
+					Convey(fmt.Sprintf("Then those values should appear in %v", idx), func() {
+						So(len(out), ShouldEqual, 2)
+						So(out[0], ShouldResemble,
+							data.Map{"c": data.Int(2), "d": data.Float(3.0)})
+						So(out[1], ShouldResemble,
+							data.Map{"c": data.Int(3), "d": data.Float(4.0)})
+					})
+				}
+			}
+
+		})
+	})
+
 	// Use wildcard
 	Convey("Given a SELECT clause with a wildcard", t, func() {
 		tuples := getTuples(4)
