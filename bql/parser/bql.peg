@@ -680,7 +680,7 @@ Identifier <- < ident > {
         p.PushComponent(begin, end, Identifier(substr))
     }
 
-TargetIdentifier <- < jsonSetPath > {
+TargetIdentifier <- < '*' / jsonSetPath > {
         substr := string([]rune(buffer)[begin:end])
         p.PushComponent(begin, end, Identifier(substr))
     }
