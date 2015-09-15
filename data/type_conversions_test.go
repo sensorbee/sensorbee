@@ -70,7 +70,7 @@ func TestToInt(t *testing.T) {
 
 	testCases := map[string][]convTestInput{
 		"Null": {
-			{"Null", Null{}, nil},
+			{"Null", Null{}, int64(0)},
 		},
 		"Bool": {
 			{"true", Bool(true), int64(1)},
@@ -139,7 +139,7 @@ func TestToFloat(t *testing.T) {
 
 	testCases := map[string][]convTestInput{
 		"Null": {
-			{"Null", Null{}, nil},
+			{"Null", Null{}, float64(0.0)},
 		},
 		"Bool": {
 			{"true", Bool(true), float64(1.0)},
@@ -197,7 +197,7 @@ func TestToString(t *testing.T) {
 
 	testCases := map[string][]convTestInput{
 		"Null": {
-			{"Null", Null{}, "null"},
+			{"Null", Null{}, ""},
 		},
 		"Bool": {
 			{"true", Bool(true), "true"},
@@ -353,7 +353,7 @@ func TestToTimestamp(t *testing.T) {
 func TestToDuration(t *testing.T) {
 	testCases := map[string][]convTestInput{
 		"Null": {
-			{"Null", Null{}, nil},
+			{"Null", Null{}, time.Duration(0)},
 		},
 		"Bool": {
 			{"true", True, nil},
