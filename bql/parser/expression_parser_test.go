@@ -123,6 +123,9 @@ func TestExpressionParser(t *testing.T) {
 		`'Peter's'`:  {nil, ""},
 		`'Peter''s'`: {[]Expression{StringLiteral{"Peter's"}}, `'Peter''s'`},
 		`'日本語'`:      {[]Expression{StringLiteral{"日本語"}}, `'日本語'`},
+		// Alias
+		"1.2 AS x": {[]Expression{AliasAST{FloatLiteral{1.2}, "x"}}, "1.2 AS x"},
+		"b AS *":   {[]Expression{AliasAST{RowValue{"", "b"}, "*"}}, "b AS *"},
 		/// Composed Expressions
 		// OR
 		"a OR 2": {[]Expression{BinaryOpAST{Or, RowValue{"", "a"}, NumericLiteral{2}}}, "a OR 2"},
