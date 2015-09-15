@@ -660,7 +660,6 @@ func TestGenericFuncInconvertibleType(t *testing.T) {
 
 	// common incovertible values for integer and float
 	numInconvertibleValues := []InputType{
-		{"null", data.Null{}},
 		{"string", data.String("str")},
 		{"blob", data.Blob([]byte("blob"))},
 		{"array", data.Array([]data.Value{data.Int(10)})},

@@ -1595,12 +1595,13 @@ func getTestCases() []struct {
 				{data.Map{"a": data.Int(0)}, data.Int(0)},
 				{data.Map{"a": data.Float(0.0)}, data.Int(0)},
 				{data.Map{"a": data.Bool(false)}, data.Int(0)},
+				// null propagation
+				{data.Map{"a": data.Null{}}, data.Null{}},
 				// key present and other data type => error
 				{data.Map{"a": data.String("日本語")}, nil},
 				{data.Map{"a": data.Blob("hoge")}, nil},
 				{data.Map{"a": data.Array{data.Int(2)}}, nil},
 				{data.Map{"a": data.Map{"b": data.Int(3)}}, nil},
-				{data.Map{"a": data.Null{}}, nil},
 			},
 		},
 		{parser.TypeCastAST{parser.RowValue{"", "a"}, parser.String},
@@ -1621,7 +1622,8 @@ func getTestCases() []struct {
 				{data.Map{"a": data.Blob("hoge")}, data.String("hoge")},
 				{data.Map{"a": data.Array{data.Int(2)}}, data.String("data.Array{2}")},
 				{data.Map{"a": data.Map{"b": data.Int(3)}}, data.String("data.Map{\"b\":3}")},
-				{data.Map{"a": data.Null{}}, data.String("null")},
+				// null propagation
+				{data.Map{"a": data.Null{}}, data.Null{}},
 			},
 		},
 		/// Function Application

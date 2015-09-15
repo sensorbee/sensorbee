@@ -313,6 +313,10 @@ func (t *typeCast) Eval(input data.Value) (data.Value, error) {
 	if err != nil {
 		return nil, err
 	}
+	// null propagation
+	if val.Type() == data.TypeNull {
+		return data.Null{}, nil
+	}
 	return t.converter(val)
 }
 

@@ -86,6 +86,7 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 	// Select a column with changing values
 	Convey("Given a SELECT clause with only a column", t, func() {
 		tuples := getTuples(4)
+		tuples[2].Data["int"] = data.Null{}
 		s := `CREATE STREAM box AS SELECT ISTREAM int::string AS int FROM src [RANGE 2 SECONDS]`
 		plan, err := createDefaultSelectPlan(s, t)
 		So(err, ShouldBeNil)
@@ -97,8 +98,13 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 
 				Convey(fmt.Sprintf("Then those values should appear in %v", idx), func() {
 					So(len(out), ShouldEqual, 1)
-					So(out[0], ShouldResemble,
-						data.Map{"int": data.String(fmt.Sprintf("%d", idx+1))})
+					if idx == 2 {
+						So(out[0], ShouldResemble,
+							data.Map{"int": data.Null{}})
+					} else {
+						So(out[0], ShouldResemble,
+							data.Map{"int": data.String(fmt.Sprintf("%d", idx+1))})
+					}
 				})
 			}
 
