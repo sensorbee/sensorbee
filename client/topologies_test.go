@@ -325,3 +325,46 @@ func TestTopologiesQueriesSelectUnionStmt(t *testing.T) {
 		// TODO: add invalid cases
 	})
 }
+
+func TestTopologiesQueriesEvalStmt(t *testing.T) {
+	s := testutil.NewServer()
+	defer func() {
+		testutil.TestAPIWithRealHTTPServer = false
+		s.Close()
+	}()
+	r := newTestRequester(s)
+
+	Convey("Given an API server with a topology", t, func() {
+		res, _, err := do(r, Post, "/topologies", map[string]interface{}{
+			"name": "test_topology",
+		})
+		Reset(func() {
+			do(r, Delete, "/topologies/test_topology", nil)
+		})
+		So(err, ShouldBeNil)
+		So(res.Raw.StatusCode, ShouldEqual, http.StatusOK)
+
+		Convey("When issueing a foldable EVAL statement without input", func() {
+			res, js, err := do(r, Post, "/topologies/test_topology/queries", map[string]interface{}{
+				"queries": `EVAL '日本' || '語'`,
+			})
+
+			Convey("Then the result should be correct", func() {
+				So(err, ShouldBeNil)
+				So(res.Raw.StatusCode, ShouldEqual, http.StatusOK)
+				So(js["result"], ShouldEqual, "日本語")
+			})
+		})
+
+		Convey("When issueing a non-foldable EVAL statement without input", func() {
+			res, _, err := do(r, Post, "/topologies/test_topology/queries", map[string]interface{}{
+				"queries": `EVAL '日本' || go`,
+			})
+
+			Convey("Then the statement should not execute", func() {
+				So(err, ShouldBeNil)
+				So(res.Raw.StatusCode, ShouldEqual, http.StatusBadRequest)
+			})
+		})
+	})
+}

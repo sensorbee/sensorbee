@@ -723,6 +723,15 @@ func (tb *TopologyBuilder) AddSelectUnionStmt(stmts *parser.SelectUnionStmt) (co
 	return sn, ch, nil
 }
 
+// RunEvalStmt evaluates the expression contained in the given EvalStmt
+// and returns the evaluation result.
+func (tb *TopologyBuilder) RunEvalStmt(stmt *parser.EvalStmt) (data.Value, error) {
+	if stmt.Input != nil {
+		return nil, fmt.Errorf("evaluating an expression on an input is not implemented yet")
+	}
+	return execution.EvaluateFoldable(stmt.Expr, tb.Reg)
+}
+
 func (tb *TopologyBuilder) saveState(name string) error {
 	st, err := tb.topology.Context().SharedStates.Get(name)
 	if err != nil {
