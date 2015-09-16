@@ -224,9 +224,35 @@ func TestAssembleEmitter(t *testing.T) {
 				So(comp.Name, ShouldEqual, "x")
 				So(comp.Select.EmitterType, ShouldEqual, Istream)
 				So(comp.Select.EmitterOptions, ShouldResemble, []interface{}{
-					EmitterSampling{200, TimeBasedSampling}})
+					EmitterSampling{0.2, TimeBasedSampling}})
 
 				Convey("And String() should return the original statement", func() {
+					So(comp.String(), ShouldEqual, p.Buffer)
+				})
+			})
+		})
+
+		Convey("When using ISTREAM with an EVERY k MILLISECONDS (float) specifier", func() {
+			p.Buffer = "CREATE STREAM x AS SELECT ISTREAM [EVERY 2.5 MILLISECONDS] 2 FROM a [RANGE 1 TUPLES]"
+			p.Init()
+
+			Convey("Then the statement should be parsed correctly", func() {
+				err := p.Parse()
+				So(err, ShouldEqual, nil)
+				p.Execute()
+
+				ps := p.parseStack
+				So(ps.Len(), ShouldEqual, 1)
+				top := ps.Peek().comp
+				So(top, ShouldHaveSameTypeAs, CreateStreamAsSelectStmt{})
+				comp := top.(CreateStreamAsSelectStmt)
+
+				So(comp.Name, ShouldEqual, "x")
+				So(comp.Select.EmitterType, ShouldEqual, Istream)
+				So(comp.Select.EmitterOptions, ShouldResemble, []interface{}{
+					EmitterSampling{0.0025, TimeBasedSampling}})
+
+				Convey("And String() should almost return the original statement", func() {
 					So(comp.String(), ShouldEqual, p.Buffer)
 				})
 			})
@@ -250,7 +276,33 @@ func TestAssembleEmitter(t *testing.T) {
 				So(comp.Name, ShouldEqual, "x")
 				So(comp.Select.EmitterType, ShouldEqual, Istream)
 				So(comp.Select.EmitterOptions, ShouldResemble, []interface{}{
-					EmitterSampling{2000, TimeBasedSampling}})
+					EmitterSampling{2, TimeBasedSampling}})
+
+				Convey("And String() should return the original statement", func() {
+					So(comp.String(), ShouldEqual, p.Buffer)
+				})
+			})
+		})
+
+		Convey("When using ISTREAM with an EVERY k SECONDS specifier (float)", func() {
+			p.Buffer = "CREATE STREAM x AS SELECT ISTREAM [EVERY 2.5 SECONDS] 2 FROM a [RANGE 1 TUPLES]"
+			p.Init()
+
+			Convey("Then the statement should be parsed correctly", func() {
+				err := p.Parse()
+				So(err, ShouldEqual, nil)
+				p.Execute()
+
+				ps := p.parseStack
+				So(ps.Len(), ShouldEqual, 1)
+				top := ps.Peek().comp
+				So(top, ShouldHaveSameTypeAs, CreateStreamAsSelectStmt{})
+				comp := top.(CreateStreamAsSelectStmt)
+
+				So(comp.Name, ShouldEqual, "x")
+				So(comp.Select.EmitterType, ShouldEqual, Istream)
+				So(comp.Select.EmitterOptions, ShouldResemble, []interface{}{
+					EmitterSampling{2.5, TimeBasedSampling}})
 
 				Convey("And String() should return the original statement", func() {
 					So(comp.String(), ShouldEqual, p.Buffer)
@@ -277,6 +329,32 @@ func TestAssembleEmitter(t *testing.T) {
 				So(comp.Select.EmitterType, ShouldEqual, Istream)
 				So(comp.Select.EmitterOptions, ShouldResemble, []interface{}{
 					EmitterSampling{20, RandomizedSampling}})
+
+				Convey("And String() should return the original statement", func() {
+					So(comp.String(), ShouldEqual, p.Buffer)
+				})
+			})
+		})
+
+		Convey("When using ISTREAM with a SAMPLE specifier (float)", func() {
+			p.Buffer = "CREATE STREAM x AS SELECT ISTREAM [SAMPLE 0.01%] 2 FROM a [RANGE 1 TUPLES]"
+			p.Init()
+
+			Convey("Then the statement should be parsed correctly", func() {
+				err := p.Parse()
+				So(err, ShouldEqual, nil)
+				p.Execute()
+
+				ps := p.parseStack
+				So(ps.Len(), ShouldEqual, 1)
+				top := ps.Peek().comp
+				So(top, ShouldHaveSameTypeAs, CreateStreamAsSelectStmt{})
+				comp := top.(CreateStreamAsSelectStmt)
+
+				So(comp.Name, ShouldEqual, "x")
+				So(comp.Select.EmitterType, ShouldEqual, Istream)
+				So(comp.Select.EmitterOptions, ShouldResemble, []interface{}{
+					EmitterSampling{0.01, RandomizedSampling}})
 
 				Convey("And String() should return the original statement", func() {
 					So(comp.String(), ShouldEqual, p.Buffer)
