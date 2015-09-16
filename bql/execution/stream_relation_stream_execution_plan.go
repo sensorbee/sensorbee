@@ -12,7 +12,7 @@ import (
 
 type inputBuffer struct {
 	tuples     *list.List
-	windowSize int64
+	windowSize float64
 	windowType parser.IntervalUnit
 }
 
@@ -125,7 +125,7 @@ func newStreamRelationStreamExecutionPlan(lp *LogicalPlan, reg udf.FunctionRegis
 	buffers := make(map[string]*inputBuffer, len(lp.Relations))
 	for _, rel := range lp.Relations {
 		tuples := list.New()
-		rangeValue := rel.Value
+		rangeValue := float64(rel.Value)
 		rangeUnit := rel.Unit
 		// the alias of the relation is the key of the buffer
 		buffers[rel.Alias] = &inputBuffer{
@@ -220,13 +220,14 @@ func (ep *streamRelationStreamExecutionPlan) removeOutdatedTuplesFromBuffer(curT
 	for _, buffer := range ep.buffers {
 		curBufSize := int64(buffer.tuples.Len())
 		if buffer.windowType == parser.Tuples { // tuple-based window
-			if curBufSize > buffer.windowSize {
+			windowSizeInt := int64(buffer.windowSize)
+			if curBufSize > windowSizeInt {
 				// we just need to take the last `windowSize` items
 				//  {a, b, c, d} => {b, c, d}
 				// and remove all items (at most one?) before
 				i := int64(0)
 				var next *list.Element
-				for e := buffer.tuples.Front(); e != nil && i < curBufSize-buffer.windowSize; e = next {
+				for e := buffer.tuples.Front(); e != nil && i < curBufSize-windowSizeInt; e = next {
 					next = e.Next()
 					i++
 					tupCont := e.Value.(*tupleWithDerivedInputRows)
