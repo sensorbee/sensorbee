@@ -231,7 +231,7 @@ WindowedFrom <- < (sp "FROM" sp Relations)? > {
 
 Interval <- TimeInterval / TuplesInterval
 
-TimeInterval <- NumericLiteral sp (SECONDS / MILLISECONDS) {
+TimeInterval <- (FloatLiteral / NumericLiteral) sp (SECONDS / MILLISECONDS) {
         p.AssembleInterval()
     }
 

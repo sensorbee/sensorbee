@@ -2,6 +2,7 @@ package execution
 
 import (
 	"fmt"
+	"math"
 	"pfi/sensorbee/sensorbee/bql/parser"
 	"pfi/sensorbee/sensorbee/bql/udf"
 	"pfi/sensorbee/sensorbee/core"
@@ -427,6 +428,13 @@ func validateReferences(s *parser.SelectStmt) error {
 	for _, rel := range s.Relations {
 		if rel.Value <= 0 {
 			err := fmt.Errorf("number in RANGE clause must be positive, not %v", rel.Value)
+			return err
+		}
+		if rel.Unit == parser.Tuples && math.Trunc(rel.Value) != rel.Value {
+			// actually the parser should not allow fractional numbers,
+			// but we check anyway
+			err := fmt.Errorf("number in RANGE clause must be integral "+
+				"for TUPLES, not %v", rel.Value)
 			return err
 		}
 	}

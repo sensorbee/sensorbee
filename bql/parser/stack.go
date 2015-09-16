@@ -652,7 +652,12 @@ func (ps *parseStack) AssembleWindowedFrom(begin int, end int) {
 //  IntervalUnit
 //  NumericLiteral
 //   =>
-//  IntervalAST{NumericLiteral, IntervalUnit}
+//  IntervalAST{FloatLiteral, IntervalUnit}
+// or
+//  IntervalUnit
+//  FloatLiteral
+//   =>
+//  IntervalAST{FloatLiteral, IntervalUnit}
 func (ps *parseStack) AssembleInterval() {
 	// pop the components from the stack in reverse order
 	_unit, _num := ps.pop2()
@@ -660,10 +665,16 @@ func (ps *parseStack) AssembleInterval() {
 	// extract and convert the contained structure
 	// (if this fails, this is a fundamental parser bug => panic ok)
 	unit := _unit.comp.(IntervalUnit)
-	num := _num.comp.(NumericLiteral)
+	var val float64
+	if num, ok := _num.comp.(NumericLiteral); ok {
+		val = float64(num.Value)
+	} else {
+		num := _num.comp.(FloatLiteral)
+		val = num.Value
+	}
 
 	// assemble the IntervalAST and push it back
-	ps.PushComponent(_num.begin, _unit.end, IntervalAST{num, unit})
+	ps.PushComponent(_num.begin, _unit.end, IntervalAST{FloatLiteral{val}, unit})
 }
 
 /* WHERE clause */
@@ -803,7 +814,7 @@ func (ps *parseStack) AssembleStreamWindow() {
 	rel, ok := _rangeOrRel.comp.(Stream)
 	if ok {
 		// there was (only) a Stream, no Interval, so set the "no range" info
-		rangeAst = IntervalAST{NumericLiteral{0}, UnspecifiedIntervalUnit}
+		rangeAst = IntervalAST{FloatLiteral{0}, UnspecifiedIntervalUnit}
 	} else {
 		// there was no Stream, so it was a Interval
 		rangeAst = _rangeOrRel.comp.(IntervalAST)
