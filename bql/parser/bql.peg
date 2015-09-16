@@ -199,18 +199,18 @@ CountBasedSampling <- "EVERY" sp NumericLiteral spOpt '-'? spOpt ("ST" / "ND" / 
         p.AssembleEmitterSampling(CountBasedSampling, 1)
     }
 
-RandomizedSampling <- "SAMPLE" sp NumericLiteral spOpt '%' {
+RandomizedSampling <- "SAMPLE" sp (FloatLiteral / NumericLiteral) spOpt '%' {
         p.AssembleEmitterSampling(RandomizedSampling, 1)
     }
 
 TimeBasedSampling <- TimeBasedSamplingSeconds / TimeBasedSamplingMilliseconds
 
-TimeBasedSamplingSeconds <- "EVERY" sp NumericLiteral sp "SECONDS" {
-        p.AssembleEmitterSampling(TimeBasedSampling, 1000)
+TimeBasedSamplingSeconds <- "EVERY" sp (FloatLiteral / NumericLiteral) sp "SECONDS" {
+        p.AssembleEmitterSampling(TimeBasedSampling, 1)
     }
 
-TimeBasedSamplingMilliseconds <- "EVERY" sp NumericLiteral sp "MILLISECONDS" {
-        p.AssembleEmitterSampling(TimeBasedSampling, 1)
+TimeBasedSamplingMilliseconds <- "EVERY" sp (FloatLiteral / NumericLiteral) sp "MILLISECONDS" {
+        p.AssembleEmitterSampling(TimeBasedSampling, 0.001)
     }
 
 Projections <- < sp Projection (spOpt ',' spOpt Projection)* > {
@@ -231,7 +231,7 @@ WindowedFrom <- < (sp "FROM" sp Relations)? > {
 
 Interval <- TimeInterval / TuplesInterval
 
-TimeInterval <- NumericLiteral sp (SECONDS / MILLISECONDS) {
+TimeInterval <- (FloatLiteral / NumericLiteral) sp (SECONDS / MILLISECONDS) {
         p.AssembleInterval()
     }
 
