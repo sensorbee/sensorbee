@@ -274,7 +274,7 @@ func TestBQLBoxEmitterParams(t *testing.T) {
 
 	Convey("Given a BQL statement with an EVERY 1 MILLISECONDS clause", t, func() {
 		s := "CREATE STREAM box AS SELECT " +
-			"RSTREAM [EVERY 1 MILLISECONDS] int, str((int+1) % 3) AS x FROM source [RANGE 1 TUPLES] " +
+			"RSTREAM [EVERY 0.001 SECONDS] int, str((int+1) % 3) AS x FROM source [RANGE 1 TUPLES] " +
 			"WHERE int % 2 = 0"
 		tb, err := setupTopology(s, true)
 		So(err, ShouldBeNil)
@@ -331,7 +331,7 @@ func TestBQLBoxEmitterParams(t *testing.T) {
 
 	Convey("Given a BQL statement with a SAMPLE clause", t, func() {
 		s := "CREATE STREAM box AS SELECT " +
-			"RSTREAM [SAMPLE 50%] int, str((int+1) % 3) AS x FROM duplicate('source', 10) [RANGE 1 TUPLES]"
+			"RSTREAM [SAMPLE 50.3%] int, str((int+1) % 3) AS x FROM duplicate('source', 10) [RANGE 1 TUPLES]"
 		tb, err := setupTopology(s, true)
 		So(err, ShouldBeNil)
 		dt := tb.Topology()
