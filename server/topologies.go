@@ -273,7 +273,7 @@ func (tc *topologies) Queries(rw web.ResponseWriter, req *web.Request) {
 		stmtStr string // TODO: this should be stmt.String()
 	}
 	stmts := []*stmtWithStr{}
-	selectStmtIndex := -1
+	dataReturningStmtIndex := -1
 	for queries != "" {
 		stmt, rest, err := bp.ParseStmt(queries)
 		if err != nil {
@@ -286,29 +286,33 @@ func (tc *topologies) Queries(rw web.ResponseWriter, req *web.Request) {
 			return
 		}
 		if _, ok := stmt.(parser.SelectStmt); ok {
-			selectStmtIndex = len(stmts)
+			dataReturningStmtIndex = len(stmts)
 		} else if _, ok := stmt.(parser.SelectUnionStmt); ok {
-			selectStmtIndex = len(stmts)
+			dataReturningStmtIndex = len(stmts)
+		} else if _, ok := stmt.(parser.EvalStmt); ok {
+			dataReturningStmtIndex = len(stmts)
 		}
 
 		stmts = append(stmts, &stmtWithStr{stmt, queries[:len(queries)-len(rest)]})
 		queries = rest
 	}
 
-	if selectStmtIndex >= 0 {
+	if dataReturningStmtIndex >= 0 {
 		if len(stmts) != 1 {
-			tc.Log().Error("A SELECT statement cannot be issued with other statements")
+			tc.Log().Error("A SELECT or EVAL statement cannot be issued with other statements")
 			e := NewError(bqlStmtProcessingErrorCode, "Cannot process a statement", http.StatusBadRequest, err)
-			e.Meta["error"] = "a SELECT statement cannot be issued with other statements"
-			e.Meta["statement"] = stmts[selectStmtIndex].stmtStr
+			e.Meta["error"] = "a SELECT or EVAL statement cannot be issued with other statements"
+			e.Meta["statement"] = stmts[dataReturningStmtIndex].stmtStr
 			tc.RenderErrorJSON(e)
 			return
 		}
-		stmtStruct := stmts[selectStmtIndex]
+		stmtStruct := stmts[dataReturningStmtIndex]
 		if stmt, ok := stmtStruct.stmt.(parser.SelectStmt); ok {
 			tc.handleSelectStmt(rw, stmt, stmtStruct.stmtStr)
 		} else if stmt, ok := stmtStruct.stmt.(parser.SelectUnionStmt); ok {
 			tc.handleSelectUnionStmt(rw, stmt, stmtStruct.stmtStr)
+		} else if stmt, ok := stmtStruct.stmt.(parser.EvalStmt); ok {
+			tc.handleEvalStmt(rw, stmt, stmtStruct.stmtStr)
 		}
 		return
 	}
@@ -486,4 +490,26 @@ func (tc *topologies) handleSelectUnionStmt(rw web.ResponseWriter, stmt parser.S
 			return
 		}
 	}
+}
+
+func (tc *topologies) handleEvalStmt(rw web.ResponseWriter, stmt parser.EvalStmt, stmtStr string) {
+	tb := tc.fetchTopology()
+	if tb == nil { // just in case
+		return
+	}
+
+	result, err := tb.RunEvalStmt(&stmt)
+	if err != nil {
+		tc.ErrLog(err).Error("Cannot process a statement")
+		e := NewError(bqlStmtProcessingErrorCode, "Cannot process a statement", http.StatusBadRequest, err)
+		e.Meta["error"] = err.Error()
+		e.Meta["statement"] = stmtStr
+		tc.RenderErrorJSON(e)
+		return
+	}
+
+	// return value with JSON wrapper so it can be parsed on the client side
+	tc.RenderJSON(map[string]interface{}{
+		"result": result,
+	})
 }
