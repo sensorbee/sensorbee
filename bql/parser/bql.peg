@@ -38,7 +38,7 @@ StatementWithoutRest <- < Statement spOpt > {
         p.IncludeTrailingWhitespace(begin, end)
     }
 
-Statement <- (SelectUnionStmt / SelectStmt / SourceStmt / SinkStmt / StateStmt / StreamStmt)
+Statement <- (SelectUnionStmt / SelectStmt / SourceStmt / SinkStmt / StateStmt / StreamStmt / EvalStmt)
 
 SourceStmt <- CreateSourceStmt / UpdateSourceStmt / DropSourceStmt /
               PauseSourceStmt / ResumeSourceStmt / RewindSourceStmt
@@ -173,6 +173,10 @@ LoadStateOrCreateStmt <- LoadStateStmt sp
 
 SaveStateStmt <- "SAVE" sp "STATE" sp StreamIdentifier {
         p.AssembleSaveState()
+    }
+
+EvalStmt <- "EVAL" sp Expression < (sp "ON" sp MapExpr)? > {
+        p.AssembleEval(begin, end)
     }
 
 ################################
