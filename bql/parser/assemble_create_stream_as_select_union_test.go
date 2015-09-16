@@ -19,7 +19,7 @@ func TestAssembleCreateStreamAsSelectUnion(t *testing.T) {
 			ps.AssembleAlias()
 			ps.AssembleProjections(6, 9)
 			ps.PushComponent(12, 13, Stream{ActualStream, "c", nil})
-			ps.PushComponent(13, 14, IntervalAST{NumericLiteral{3}, Tuples})
+			ps.PushComponent(13, 14, IntervalAST{FloatLiteral{3}, Tuples})
 			ps.AssembleStreamWindow()
 			ps.EnsureAliasedStreamWindow()
 			ps.PushComponent(14, 15, Stream{ActualStream, "d", nil})

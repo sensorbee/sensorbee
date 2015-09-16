@@ -441,12 +441,12 @@ func (a StreamWindowAST) string() string {
 }
 
 type IntervalAST struct {
-	NumericLiteral
+	FloatLiteral
 	Unit IntervalUnit
 }
 
 func (a IntervalAST) string() string {
-	return "[RANGE " + a.NumericLiteral.string() + " " + a.Unit.String() + "]"
+	return "[RANGE " + a.FloatLiteral.string() + " " + a.Unit.String() + "]"
 }
 
 type FilterAST struct {
