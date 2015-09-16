@@ -29,7 +29,7 @@ type LogicalPlan struct {
 	GroupingStmt        bool
 	EmitterType         parser.Emitter
 	EmitterLimit        int64
-	EmitterSampling     int64
+	EmitterSampling     float64
 	EmitterSamplingType parser.EmitterSamplingType
 	Projections         []aliasedExpression
 	parser.WindowedFromAST
@@ -232,7 +232,7 @@ func flattenExpressions(s *parser.SelectStmt, reg udf.FunctionRegistry) (*Logica
 
 	// validate the emitter parameters
 	emitLimit := int64(-1)
-	emitSampling := int64(-1)
+	emitSampling := float64(-1)
 	emitSamplingType := parser.UnspecifiedSamplingType
 	for _, opt := range s.EmitterAST.EmitterOptions {
 		switch obj := opt.(type) {
@@ -251,19 +251,30 @@ func flattenExpressions(s *parser.SelectStmt, reg udf.FunctionRegistry) (*Logica
 			default:
 				return nil, fmt.Errorf("unknown emitter sampling type: %+v", obj.Type)
 			case parser.CountBasedSampling:
-				fallthrough
-			case parser.TimeBasedSampling:
-				if v < 0 {
+				if v <= 0 {
 					return nil, fmt.Errorf("EVERY parameter must have a "+
 						"positive value, not %d", v)
 				}
+				if math.Trunc(v) != v {
+					// this should be prevented by the parser, but better
+					// check here again
+					return nil, fmt.Errorf("EVERY parameter must have an "+
+						"integral value for TUPLE, not %d", v)
+				}
+				emitSampling = v
+			case parser.TimeBasedSampling:
+				if v <= 0 {
+					return nil, fmt.Errorf("EVERY parameter must have a "+
+						"positive value, not %d", v)
+				}
+				emitSampling = v
 			case parser.RandomizedSampling:
 				if v < 0 || v > 100 {
 					return nil, fmt.Errorf("SAMPLE parameter must have a "+
 						"value between 0 and 100, not %d", v)
 				}
+				emitSampling = v / 100 // project to [0,1] interval
 			}
-			emitSampling = v
 			emitSamplingType = obj.Type
 		}
 	}

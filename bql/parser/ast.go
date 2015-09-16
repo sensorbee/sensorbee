@@ -328,14 +328,14 @@ type EmitterLimit struct {
 }
 
 type EmitterSampling struct {
-	Value int64
+	Value float64
 	Type  EmitterSamplingType
 }
 
 func (e EmitterSampling) string() string {
 	if e.Type == CountBasedSampling {
 		countWord := "TH"
-		switch e.Value {
+		switch int64(e.Value) {
 		case 1:
 			countWord = "ST"
 		case 2:
@@ -343,14 +343,14 @@ func (e EmitterSampling) string() string {
 		case 3:
 			countWord = "RD"
 		}
-		return fmt.Sprintf("EVERY %d-%s TUPLE", e.Value, countWord)
+		return fmt.Sprintf("EVERY %d-%s TUPLE", int64(e.Value), countWord)
 	} else if e.Type == RandomizedSampling {
-		return fmt.Sprintf("SAMPLE %d%%", e.Value)
+		return fmt.Sprintf("SAMPLE %v%%", e.Value)
 	} else if e.Type == TimeBasedSampling {
-		if e.Value%1000 == 0 {
-			return fmt.Sprintf("EVERY %d SECONDS", e.Value/1000)
+		if e.Value < 1 {
+			return fmt.Sprintf("EVERY %v MILLISECONDS", e.Value*1000)
 		}
-		return fmt.Sprintf("EVERY %d MILLISECONDS", e.Value)
+		return fmt.Sprintf("EVERY %v SECONDS", e.Value)
 	}
 	return ""
 }
