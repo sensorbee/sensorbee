@@ -301,6 +301,19 @@ func (s SaveStateStmt) String() string {
 	return strings.Join(str, " ")
 }
 
+type EvalStmt struct {
+	Expr  Expression
+	Input *MapAST
+}
+
+func (s EvalStmt) String() string {
+	str := []string{"EVAL", s.Expr.string()}
+	if s.Input != nil {
+		str = append(str, "ON", s.Input.string())
+	}
+	return strings.Join(str, " ")
+}
+
 type EmitterAST struct {
 	EmitterType    Emitter
 	EmitterOptions []interface{}

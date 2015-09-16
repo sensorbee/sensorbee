@@ -72,7 +72,7 @@ func (b *bqlCmd) Init() error {
 // Name returns BQL start words.
 func (b *bqlCmd) Name() []string {
 	return []string{"select", "create", "update", "insert", "pause", "resume",
-		"rewind", "drop", "save", "load"}
+		"rewind", "drop", "save", "load", "eval"}
 }
 
 func (b *bqlCmd) Input(input string) (cmdInputStatusType, error) {
@@ -125,8 +125,20 @@ func sendBQLQueries(requester *client.Requester, queries string) {
 	if res.IsStream() {
 		showStreamResponses(res)
 		return
+	} else {
+		// check if we have a JSON body that contains a "result" field;
+		// if so, print it.
+		// NB. We should also display some more status information that
+		// is reported by most statements.
+		var data map[string]interface{}
+		err := res.ReadJSON(&data)
+		if err == nil {
+			result, ok := data["result"]
+			if ok {
+				fmt.Println(result)
+			}
+		}
 	}
-	// TODO: there isn't much information to show right now. Improve the server's response.
 }
 
 func showStreamResponses(res *client.Response) {
