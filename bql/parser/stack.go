@@ -509,6 +509,42 @@ func (ps *parseStack) AssembleSaveState() {
 	ps.Push(&se)
 }
 
+// AssembleEval takes the topmost one or two elements from the
+// stack, assuming they are components of an EVAL statement, and
+// replaces them by a single EvalStmt element.
+//
+//  Expression
+//  Expression
+//   =>
+//  EvalStmt{Expression, Expression}
+// or
+//  Expression
+//   =>
+//  EvalStmt{Expression, nil}
+func (ps *parseStack) AssembleEval(begin, end int) {
+	var exprBegin int
+	var expr Expression
+	var inputRow *MapAST
+
+	// pop a different number of items depending on whether we have the
+	// optional ON clause or not
+	if begin == end {
+		// the `... ON input` clause is empty
+		_expr := ps.Pop()
+		exprBegin = _expr.begin
+		expr = _expr.comp.(Expression)
+	} else {
+		_input, _expr := ps.pop2()
+		exprBegin = _expr.begin
+		expr = _expr.comp.(Expression)
+		input := _input.comp.(MapAST)
+		inputRow = &input
+	}
+
+	se := ParsedComponent{exprBegin, end, EvalStmt{expr, inputRow}}
+	ps.Push(&se)
+}
+
 /* Projections/Columns */
 
 // AssembleEmitter takes the topmost elements from the stack, assuming
