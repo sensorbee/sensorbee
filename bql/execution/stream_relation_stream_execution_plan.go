@@ -82,9 +82,6 @@ type streamRelationStreamExecutionPlan struct {
 	// of the items from the previous run so that we can compute
 	// the check "is current item in previous results?" quickly
 	prevHashesForIstream map[data.HashValue]int
-	// prevItemsForDstream is only for DSTREAM and holds a
-	// copy of the items from the previous
-	prevItemsForDstream []resultRow
 	// now holds the a time at the beginning of the execution of
 	// a statement
 	now time.Time
@@ -143,7 +140,6 @@ func newStreamRelationStreamExecutionPlan(lp *LogicalPlan, reg udf.FunctionRegis
 		curResults:           []resultRow{},
 		prevResults:          []resultRow{},
 		prevHashesForIstream: map[data.HashValue]int{},
-		prevItemsForDstream:  []resultRow{},
 		filteredInputRows:    list.New(),
 	}, nil
 }
@@ -337,19 +333,17 @@ func (ep *streamRelationStreamExecutionPlan) computeResultTuples() ([]data.Map, 
 		return output, nil
 
 	} else if ep.emitterType == parser.Dstream {
-		// store a copy of the current items for the next run
-		currentItems := make([]resultRow, len(ep.curResults))
-		for i, res := range ep.curResults {
+		// build a map containing the counts of the current items
+		for _, res := range ep.curResults {
 			if res.hash == 0 {
 				return nil, fmt.Errorf("output row %v did not "+
 					"have a precomputed hash", res.row)
 			}
 			ep.incrAndGetMultiplicity(&res, curHashes)
-			currentItems[i] = res
 		}
 		// emit only old tuples
 		counts := map[data.HashValue]int{}
-		for _, prevItem := range ep.prevItemsForDstream {
+		for _, prevItem := range ep.prevResults {
 			if prevItem.hash == 0 {
 				return nil, fmt.Errorf("output row %v did not "+
 					"have a precomputed hash", prevItem.row)
@@ -363,10 +357,6 @@ func (ep *streamRelationStreamExecutionPlan) computeResultTuples() ([]data.Map, 
 			// as often as in prevResults
 			output = append(output, prevItem.row)
 		}
-		// the hashes computed for the current items will be reused
-		// in the next run (we keep them in a list instead of only
-		// a map to prevent the order)
-		ep.prevItemsForDstream = currentItems
 		return output, nil
 	}
 
