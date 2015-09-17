@@ -82,11 +82,9 @@ type streamRelationStreamExecutionPlan struct {
 	// of the items from the previous run so that we can compute
 	// the check "is current item in previous results?" quickly
 	prevHashesForIstream map[data.HashValue]int
-	// prevHashesForDstream is only for DSTREAM and holds the
-	// hashes of the items from the previous run in the same order
-	// as the data, so we need to compute them only once and also
-	// preserve order
-	prevHashesForDstream []data.HashValue
+	// prevItemsForDstream is only for DSTREAM and holds a
+	// copy of the items from the previous
+	prevItemsForDstream []resultRow
 	// now holds the a time at the beginning of the execution of
 	// a statement
 	now time.Time
@@ -145,7 +143,7 @@ func newStreamRelationStreamExecutionPlan(lp *LogicalPlan, reg udf.FunctionRegis
 		curResults:           []resultRow{},
 		prevResults:          []resultRow{},
 		prevHashesForIstream: map[data.HashValue]int{},
-		prevHashesForDstream: []data.HashValue{},
+		prevItemsForDstream:  []resultRow{},
 		filteredInputRows:    list.New(),
 	}, nil
 }
@@ -278,6 +276,29 @@ func (ep *streamRelationStreamExecutionPlan) removeOutdatedTuplesFromBuffer(curT
 	return nil
 }
 
+// previousMultiplicity returns how often the given map was emitted
+// in the previous run. This is required for an ISTREAM emitter.
+func (ep *streamRelationStreamExecutionPlan) previousMultiplicity(r *resultRow) int {
+	return ep.prevHashesForIstream[r.hash]
+}
+
+// currentMultiplicity returns how often the given map is contained
+// in the current result, represented by the list of hashes passed
+// in as the second parameter.
+func (ep *streamRelationStreamExecutionPlan) currentMultiplicity(r *resultRow, curHashes map[data.HashValue]int) int {
+	return curHashes[r.hash]
+}
+
+// incrAndGetCurrentMultiplicity increases a counter how often the
+// given map has already been in the current run's result. For example
+// for ISTREAM we have to start emitting data when this gets larger
+// than emitMultiplicityPrevRun.
+func (ep *streamRelationStreamExecutionPlan) incrAndGetMultiplicity(r *resultRow, curHashes map[data.HashValue]int) int {
+	identicalRows := curHashes[r.hash] + 1
+	curHashes[r.hash] = identicalRows
+	return identicalRows
+}
+
 // computeResultTuples compares the results of this run's query with
 // the results of the previous run's query and returns the data to
 // be emitted as per the Emitter specification (Rstream = new,
@@ -290,20 +311,20 @@ func (ep *streamRelationStreamExecutionPlan) computeResultTuples() ([]data.Map, 
 		for _, res := range ep.curResults {
 			output = append(output, res.row)
 		}
+		return output, nil
+	}
 
-	} else if ep.emitterType == parser.Istream {
-		curHashes := make(map[data.HashValue]int, len(ep.curResults))
+	curHashes := make(map[data.HashValue]int, len(ep.curResults))
+	if ep.emitterType == parser.Istream {
 		// emit only new tuples
 		for _, res := range ep.curResults {
-			hash := res.hash
-			if hash == 0 {
+			if res.hash == 0 {
 				return nil, fmt.Errorf("output row %v did not "+
 					"have a precomputed hash", res.row)
 			}
-			identicalRows := curHashes[hash] + 1
-			curHashes[hash] = identicalRows
-			// check if this tuple is already present in the previous results
-			if prevRows := ep.prevHashesForIstream[hash]; identicalRows <= prevRows {
+			// check if this item is in the current results frequently
+			// enough to be emitted now; otherwise go to the next item
+			if ep.incrAndGetMultiplicity(&res, curHashes) <= ep.previousMultiplicity(&res) {
 				continue
 			}
 			// if we arrive here, `res` is not contained in prevResults
@@ -313,41 +334,43 @@ func (ep *streamRelationStreamExecutionPlan) computeResultTuples() ([]data.Map, 
 		// the hashes computed for the current items will be reused
 		// in the next run
 		ep.prevHashesForIstream = curHashes
+		return output, nil
 
 	} else if ep.emitterType == parser.Dstream {
-		// we only access the current items' hashes, not their values.
-		// however, in the next run, we *will* have to access their values.
-		curHashMap := make(map[data.HashValue]int, len(ep.curResults))
-		curHashList := make([]data.HashValue, len(ep.curResults))
+		// store a copy of the current items for the next run
+		currentItems := make([]resultRow, len(ep.curResults))
 		for i, res := range ep.curResults {
-			hash := res.hash
-			identicalRows := curHashMap[hash] + 1
-			curHashMap[hash] = identicalRows
-			curHashList[i] = hash
+			if res.hash == 0 {
+				return nil, fmt.Errorf("output row %v did not "+
+					"have a precomputed hash", res.row)
+			}
+			ep.incrAndGetMultiplicity(&res, curHashes)
+			currentItems[i] = res
 		}
 		// emit only old tuples
 		counts := map[data.HashValue]int{}
-		for i, prevHash := range ep.prevHashesForDstream {
-			identicalRows := counts[prevHash] + 1
-			counts[prevHash] = identicalRows
-			// check if this tuple is present in the current results
-			if curRows := curHashMap[prevHash]; identicalRows <= curRows {
+		for _, prevItem := range ep.prevItemsForDstream {
+			if prevItem.hash == 0 {
+				return nil, fmt.Errorf("output row %v did not "+
+					"have a precomputed hash", prevItem.row)
+			}
+			// check if this item is in the current results infrequently
+			// enough to be emitted now; otherwise go to the next item
+			if ep.incrAndGetMultiplicity(&prevItem, counts) <= ep.currentMultiplicity(&prevItem, curHashes) {
 				continue
 			}
-			// if we arrive here, `prevRes` is not contained in curResults
+			// if we arrive here, `prevItem` is not contained in curResults
 			// as often as in prevResults
-			prevRes := ep.prevResults[i]
-			output = append(output, prevRes.row)
+			output = append(output, prevItem.row)
 		}
 		// the hashes computed for the current items will be reused
 		// in the next run (we keep them in a list instead of only
 		// a map to prevent the order)
-		ep.prevHashesForDstream = curHashList
-
-	} else {
-		return nil, fmt.Errorf("emitter type '%s' not implemented", ep.emitterType)
+		ep.prevItemsForDstream = currentItems
+		return output, nil
 	}
-	return output, nil
+
+	return nil, fmt.Errorf("emitter type '%s' not implemented", ep.emitterType)
 }
 
 // Process takes an input tuple, a function that represents the "subclassing"
