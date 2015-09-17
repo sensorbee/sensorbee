@@ -11,7 +11,7 @@ type Expression interface {
 	ReferencedRelations() map[string]bool
 	RenameReferencedRelation(string, string) Expression
 	Foldable() bool
-	string() string
+	String() string
 }
 
 // This file holds a set of structs that make up the Abstract
@@ -307,9 +307,9 @@ type EvalStmt struct {
 }
 
 func (s EvalStmt) String() string {
-	str := []string{"EVAL", s.Expr.string()}
+	str := []string{"EVAL", s.Expr.String()}
 	if s.Input != nil {
-		str = append(str, "ON", s.Input.string())
+		str = append(str, "ON", s.Input.String())
 	}
 	return strings.Join(str, " ")
 }
@@ -375,7 +375,7 @@ type ProjectionsAST struct {
 func (a ProjectionsAST) string() string {
 	prj := []string{}
 	for _, e := range a.Projections {
-		prj = append(prj, e.string())
+		prj = append(prj, e.String())
 	}
 	return strings.Join(prj, ", ")
 }
@@ -397,8 +397,8 @@ func (a AliasAST) Foldable() bool {
 	return a.Expr.Foldable()
 }
 
-func (a AliasAST) string() string {
-	return a.Expr.string() + " AS " + a.Alias
+func (a AliasAST) String() string {
+	return a.Expr.String() + " AS " + a.Alias
 }
 
 type WindowedFromAST struct {
@@ -445,7 +445,7 @@ func (a StreamWindowAST) string() string {
 	case UDSFStream:
 		ps := []string{}
 		for _, p := range a.Stream.Params {
-			ps = append(ps, p.string())
+			ps = append(ps, p.String())
 		}
 		return a.Stream.Name + "(" + strings.Join(ps, ", ") + ") " + interval
 	}
@@ -459,7 +459,7 @@ type IntervalAST struct {
 }
 
 func (a IntervalAST) string() string {
-	return "[RANGE " + a.FloatLiteral.string() + " " + a.Unit.String() + "]"
+	return "[RANGE " + a.FloatLiteral.String() + " " + a.Unit.String() + "]"
 }
 
 type FilterAST struct {
@@ -470,7 +470,7 @@ func (a FilterAST) string() string {
 	if a.Filter == nil {
 		return ""
 	}
-	return "WHERE " + a.Filter.string()
+	return "WHERE " + a.Filter.String()
 }
 
 type GroupingAST struct {
@@ -484,7 +484,7 @@ func (a GroupingAST) string() string {
 
 	str := []string{}
 	for _, e := range a.GroupList {
-		str = append(str, e.string())
+		str = append(str, e.String())
 	}
 	return "GROUP BY " + strings.Join(str, ", ")
 }
@@ -497,7 +497,7 @@ func (a HavingAST) string() string {
 	if a.Having == nil {
 		return ""
 	}
-	return "HAVING " + a.Having.string()
+	return "HAVING " + a.Having.String()
 }
 
 type SourceSinkSpecsAST struct {
@@ -573,8 +573,8 @@ func (b BinaryOpAST) Foldable() bool {
 	return b.Left.Foldable() && b.Right.Foldable()
 }
 
-func (b BinaryOpAST) string() string {
-	str := []string{b.Left.string(), b.Op.String(), b.Right.string()}
+func (b BinaryOpAST) String() string {
+	str := []string{b.Left.String(), b.Op.String(), b.Right.String()}
 
 	// TODO: This implementation may add unnecessary parentheses.
 	// For example, in
@@ -631,9 +631,9 @@ func (u UnaryOpAST) Foldable() bool {
 	return u.Expr.Foldable()
 }
 
-func (u UnaryOpAST) string() string {
+func (u UnaryOpAST) String() string {
 	op := u.Op.String()
-	expr := u.Expr.string()
+	expr := u.Expr.String()
 
 	// Unary minus operator such as "- - 2"
 	if u.Op != UnaryMinus || strings.HasPrefix(expr, "-") {
@@ -666,16 +666,16 @@ func (u TypeCastAST) Foldable() bool {
 	return u.Expr.Foldable()
 }
 
-func (u TypeCastAST) string() string {
+func (u TypeCastAST) String() string {
 	if rv, ok := u.Expr.(RowValue); ok {
-		return rv.string() + "::" + u.Target.String()
+		return rv.String() + "::" + u.Target.String()
 	}
 
 	if rm, ok := u.Expr.(RowMeta); ok {
-		return rm.string() + "::" + u.Target.String()
+		return rm.String() + "::" + u.Target.String()
 	}
 
-	return "CAST(" + u.Expr.string() + " AS " + u.Target.String() + ")"
+	return "CAST(" + u.Expr.String() + " AS " + u.Target.String() + ")"
 }
 
 type FuncAppAST struct {
@@ -731,12 +731,12 @@ func (f FuncAppAST) Foldable() bool {
 	return foldable
 }
 
-func (f FuncAppAST) string() string {
+func (f FuncAppAST) String() string {
 	s := string(f.Function) + "(" + f.ExpressionsAST.string()
 	if len(f.Ordering) > 0 {
 		orderStrings := make([]string, len(f.Ordering))
 		for i, expr := range f.Ordering {
-			orderStrings[i] = expr.string()
+			orderStrings[i] = expr.String()
 		}
 		s += " ORDER BY " + strings.Join(orderStrings, ", ")
 	}
@@ -761,8 +761,8 @@ func (s SortedExpressionAST) Foldable() bool {
 	return s.Expr.Foldable()
 }
 
-func (s SortedExpressionAST) string() string {
-	ret := s.Expr.string()
+func (s SortedExpressionAST) String() string {
+	ret := s.Expr.String()
 	if s.Ascending == Yes {
 		ret += " ASC"
 	} else if s.Ascending == No {
@@ -804,7 +804,7 @@ func (a ArrayAST) Foldable() bool {
 	return foldable
 }
 
-func (a ArrayAST) string() string {
+func (a ArrayAST) String() string {
 	return "[" + a.ExpressionsAST.string() + "]"
 }
 
@@ -815,7 +815,7 @@ type ExpressionsAST struct {
 func (a ExpressionsAST) string() string {
 	str := []string{}
 	for _, e := range a.Expressions {
-		str = append(str, e.string())
+		str = append(str, e.String())
 	}
 	return strings.Join(str, ", ")
 }
@@ -856,7 +856,7 @@ func (m MapAST) Foldable() bool {
 	return foldable
 }
 
-func (m MapAST) string() string {
+func (m MapAST) String() string {
 	entries := []string{}
 	for _, pair := range m.Entries {
 		entries = append(entries, pair.string())
@@ -870,7 +870,7 @@ type KeyValuePairAST struct {
 }
 
 func (k KeyValuePairAST) string() string {
-	return `'` + k.Key + `':` + k.Value.string()
+	return `'` + k.Key + `':` + k.Value.String()
 }
 
 // Elementary Structures (all without *AST for now)
@@ -921,7 +921,7 @@ func NewWildcard(relation string) Wildcard {
 	return Wildcard{strings.TrimRight(relation, ":*")}
 }
 
-func (w Wildcard) string() string {
+func (w Wildcard) String() string {
 	if w.Relation != "" {
 		return w.Relation + ":*"
 	}
@@ -948,7 +948,7 @@ func (rv RowValue) Foldable() bool {
 	return false
 }
 
-func (rv RowValue) string() string {
+func (rv RowValue) String() string {
 	if rv.Relation != "" {
 		return rv.Relation + ":" + rv.Column
 	}
@@ -993,7 +993,7 @@ func (rm RowMeta) Foldable() bool {
 	return false
 }
 
-func (rm RowMeta) string() string {
+func (rm RowMeta) String() string {
 	if rm.Relation != "" {
 		return rm.Relation + ":" + rm.MetaType.string()
 	}
@@ -1034,7 +1034,7 @@ func (l NumericLiteral) Foldable() bool {
 	return true
 }
 
-func (l NumericLiteral) string() string {
+func (l NumericLiteral) String() string {
 	return fmt.Sprintf("%v", l.Value)
 }
 
@@ -1062,7 +1062,7 @@ func (l FloatLiteral) Foldable() bool {
 	return true
 }
 
-func (l FloatLiteral) string() string {
+func (l FloatLiteral) String() string {
 	return fmt.Sprintf("%v", l.Value)
 }
 
@@ -1089,7 +1089,7 @@ func (l NullLiteral) Foldable() bool {
 	return true
 }
 
-func (l NullLiteral) string() string {
+func (l NullLiteral) String() string {
 	return "NULL"
 }
 
@@ -1113,7 +1113,7 @@ func (l BoolLiteral) Foldable() bool {
 	return true
 }
 
-func (l BoolLiteral) string() string {
+func (l BoolLiteral) String() string {
 	if l.Value {
 		return "TRUE"
 	}
@@ -1140,7 +1140,7 @@ func (l StringLiteral) Foldable() bool {
 	return true
 }
 
-func (l StringLiteral) string() string {
+func (l StringLiteral) String() string {
 	return "'" + strings.Replace(l.Value, "'", "''", -1) + "'"
 }
 

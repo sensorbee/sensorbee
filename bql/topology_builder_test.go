@@ -994,7 +994,7 @@ func TestEvalStmt(t *testing.T) {
 
 			Convey("Then an error is returned", func() {
 				So(err, ShouldNotBeNil)
-				So(err.Error(), ShouldEqual, "expression is not foldable: {[{key { a}}]}")
+				So(err.Error(), ShouldEqual, "expression is not foldable: {'key':a}")
 			})
 		})
 
@@ -1009,7 +1009,7 @@ func TestEvalStmt(t *testing.T) {
 
 			Convey("Then an error is returned", func() {
 				So(err, ShouldNotBeNil)
-				So(err.Error(), ShouldEqual, "expression is not foldable: {|| {日本} { key}}")
+				So(err.Error(), ShouldEqual, "expression is not foldable: '日本' || key")
 			})
 		})
 
@@ -1035,7 +1035,7 @@ func TestEvalStmt(t *testing.T) {
 
 			Convey("Then an error is returned", func() {
 				So(err, ShouldNotBeNil)
-				So(err.Error(), ShouldEqual, "expression is not foldable: {[{key { a}}]}")
+				So(err.Error(), ShouldEqual, "expression is not foldable: {'key':a}")
 			})
 		})
 
