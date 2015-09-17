@@ -726,10 +726,26 @@ func (tb *TopologyBuilder) AddSelectUnionStmt(stmts *parser.SelectUnionStmt) (co
 // RunEvalStmt evaluates the expression contained in the given EvalStmt
 // and returns the evaluation result.
 func (tb *TopologyBuilder) RunEvalStmt(stmt *parser.EvalStmt) (data.Value, error) {
-	if stmt.Input != nil {
-		return nil, fmt.Errorf("evaluating an expression on an input is not implemented yet")
+	if stmt.Input == nil {
+		// there is no ON clause, therefore our expression must
+		// be foldable
+		return execution.EvaluateFoldable(stmt.Expr, tb.Reg)
 	}
-	return execution.EvaluateFoldable(stmt.Expr, tb.Reg)
+	// if we arrive here, there was an ON clause given. first of all, we
+	// must evaluate that ON expression
+	inputData, err := execution.EvaluateFoldable(*stmt.Input, tb.Reg)
+	if err != nil {
+		return nil, err
+	}
+	// check that the expression we got is sane in this context
+	usedRelations := stmt.Expr.ReferencedRelations()
+	if len(usedRelations) > 1 || (len(usedRelations) == 1 && !usedRelations[""]) {
+		return nil, fmt.Errorf("stream prefixes cannot be used inside EVAL")
+	}
+	expr := stmt.Expr.RenameReferencedRelation("", "input")
+	// nest the data so that access via JSON path works properly
+	inputRow := data.Map{"input": inputData}
+	return execution.EvaluateOnInput(expr, inputRow, tb.Reg)
 }
 
 func (tb *TopologyBuilder) saveState(name string) error {
