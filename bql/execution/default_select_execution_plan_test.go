@@ -561,7 +561,7 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 		})
 	})
 
-	Convey("Given a SELECT clause with a wildcard and an overriding column", t, func() {
+	Convey("Given a SELECT clause with a wildcard and a named column", t, func() {
 		tuples := getTuples(4)
 		s := `CREATE STREAM box AS SELECT ISTREAM *, (int-1)*2 AS int FROM src [RANGE 2 SECONDS]`
 		plan, err := createDefaultSelectPlan(s, t)
@@ -572,7 +572,7 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 				out, err := plan.Process(inTup)
 				So(err, ShouldBeNil)
 
-				Convey(fmt.Sprintf("Then those values should appear in %v", idx), func() {
+				Convey(fmt.Sprintf("Then the column is prioritized %v", idx), func() {
 					So(len(out), ShouldEqual, 1)
 					So(out[0], ShouldResemble,
 						data.Map{"int": data.Int(2 * idx)})
@@ -582,7 +582,7 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 		})
 	})
 
-	Convey("Given a SELECT clause with a stream wildcard and an overriding column", t, func() {
+	Convey("Given a SELECT clause with a stream wildcard and a named column", t, func() {
 		tuples := getTuples(4)
 		s := `CREATE STREAM box AS SELECT ISTREAM src:*, (src:int-1)*2 AS int FROM src [RANGE 2 SECONDS]`
 		plan, err := createDefaultSelectPlan(s, t)
@@ -593,7 +593,7 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 				out, err := plan.Process(inTup)
 				So(err, ShouldBeNil)
 
-				Convey(fmt.Sprintf("Then those values should appear in %v", idx), func() {
+				Convey(fmt.Sprintf("Then the column is prioritized %v", idx), func() {
 					So(len(out), ShouldEqual, 1)
 					So(out[0], ShouldResemble,
 						data.Map{"int": data.Int(2 * idx)})
@@ -603,7 +603,7 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 		})
 	})
 
-	Convey("Given a SELECT clause with a column and an overriding wildcard", t, func() {
+	Convey("Given a SELECT clause with a named column and a wildcard", t, func() {
 		tuples := getTuples(4)
 		s := `CREATE STREAM box AS SELECT ISTREAM (int-1)*2 AS int, * FROM src [RANGE 2 SECONDS]`
 		plan, err := createDefaultSelectPlan(s, t)
@@ -614,10 +614,10 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 				out, err := plan.Process(inTup)
 				So(err, ShouldBeNil)
 
-				Convey(fmt.Sprintf("Then those values should appear in %v", idx), func() {
+				Convey(fmt.Sprintf("Then the column is prioritzed %v", idx), func() {
 					So(len(out), ShouldEqual, 1)
 					So(out[0], ShouldResemble,
-						data.Map{"int": data.Int(idx + 1)})
+						data.Map{"int": data.Int(2 * idx)})
 				})
 			}
 
