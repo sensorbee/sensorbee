@@ -37,7 +37,9 @@ type Evaluator interface {
 // due to performance reasons.
 func EvaluateFoldable(expr parser.Expression, reg udf.FunctionRegistry) (data.Value, error) {
 	if !expr.Foldable() {
-		return nil, fmt.Errorf("expression is not foldable: %s", expr)
+		// TODO this must return an actual string representation, not
+		//      some nested struct representation
+		return nil, fmt.Errorf("expression is not foldable: %v", expr)
 	}
 	flatExpr, err := ParserExprToFlatExpr(expr, reg)
 	if err != nil {
@@ -48,6 +50,20 @@ func EvaluateFoldable(expr parser.Expression, reg udf.FunctionRegistry) (data.Va
 		return nil, err
 	}
 	return evaluator.Eval(nil)
+}
+
+// EvaluateOnInput evaluates a (not necessarily foldable)
+// expression, given a Map that represents a row of data.
+func EvaluateOnInput(expr parser.Expression, input data.Value, reg udf.FunctionRegistry) (data.Value, error) {
+	flatExpr, err := ParserExprToFlatExpr(expr, reg)
+	if err != nil {
+		return nil, err
+	}
+	evaluator, err := ExpressionToEvaluator(flatExpr, reg)
+	if err != nil {
+		return nil, err
+	}
+	return evaluator.Eval(input)
 }
 
 // ExpressionToEvaluator takes one of the Expression structs that result

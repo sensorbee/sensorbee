@@ -356,6 +356,18 @@ func TestTopologiesQueriesEvalStmt(t *testing.T) {
 			})
 		})
 
+		Convey("When issueing a non-foldable EVAL statement with input", func() {
+			res, js, err := do(r, Post, "/topologies/test_topology/queries", map[string]interface{}{
+				"queries": `EVAL '日本' || a ON {'a': '語'}`,
+			})
+
+			Convey("Then the result should be correct", func() {
+				So(err, ShouldBeNil)
+				So(res.Raw.StatusCode, ShouldEqual, http.StatusOK)
+				So(js["result"], ShouldEqual, "日本語")
+			})
+		})
+
 		Convey("When issueing a non-foldable EVAL statement without input", func() {
 			res, _, err := do(r, Post, "/topologies/test_topology/queries", map[string]interface{}{
 				"queries": `EVAL '日本' || go`,
