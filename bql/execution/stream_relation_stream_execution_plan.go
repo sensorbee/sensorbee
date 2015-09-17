@@ -282,10 +282,6 @@ func (ep *streamRelationStreamExecutionPlan) removeOutdatedTuplesFromBuffer(curT
 // the results of the previous run's query and returns the data to
 // be emitted as per the Emitter specification (Rstream = new,
 // Istream = new-old, Dstream = old-new).
-//
-// Currently there is no support for multiplicities, i.e., if an item
-// is 3 times in `new` and 1 time in `old` it will *not* be contained
-// in the result set.
 func (ep *streamRelationStreamExecutionPlan) computeResultTuples() ([]data.Map, error) {
 	// TODO turn this into an iterator/generator pattern
 	var output []data.Map
