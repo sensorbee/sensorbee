@@ -43,6 +43,14 @@ type resultRow struct {
 	hash data.HashValue
 }
 
+// resultRowCount stores a count for a particular data item. This is
+// necessary because we cannot use data.Map as a map key and also
+// the hash should not be considered a 1:1 mapping.
+type resultRowCount struct {
+	row   data.Map
+	count int
+}
+
 // partialList is a data structure representing a continuous sublist
 // of a linked list. An iteration must start at the `start` item
 // and must go on until `end` is reached (not including `end`!)
@@ -81,7 +89,7 @@ type streamRelationStreamExecutionPlan struct {
 	// prevHashesForIstream is only for ISTREAM and holds the hashes
 	// of the items from the previous run so that we can compute
 	// the check "is current item in previous results?" quickly
-	prevHashesForIstream map[data.HashValue]int
+	prevHashesForIstream map[data.HashValue][]resultRowCount
 	// now holds the a time at the beginning of the execution of
 	// a statement
 	now time.Time
@@ -139,7 +147,7 @@ func newStreamRelationStreamExecutionPlan(lp *LogicalPlan, reg udf.FunctionRegis
 		emitterType:          lp.EmitterType,
 		curResults:           []resultRow{},
 		prevResults:          []resultRow{},
-		prevHashesForIstream: map[data.HashValue]int{},
+		prevHashesForIstream: map[data.HashValue][]resultRowCount{},
 		filteredInputRows:    list.New(),
 	}, nil
 }
@@ -275,24 +283,52 @@ func (ep *streamRelationStreamExecutionPlan) removeOutdatedTuplesFromBuffer(curT
 // previousMultiplicity returns how often the given map was emitted
 // in the previous run. This is required for an ISTREAM emitter.
 func (ep *streamRelationStreamExecutionPlan) previousMultiplicity(r *resultRow) int {
-	return ep.prevHashesForIstream[r.hash]
+	return ep.currentMultiplicity(r, ep.prevHashesForIstream)
 }
 
 // currentMultiplicity returns how often the given map is contained
 // in the current result, represented by the list of hashes passed
 // in as the second parameter.
-func (ep *streamRelationStreamExecutionPlan) currentMultiplicity(r *resultRow, curHashes map[data.HashValue]int) int {
-	return curHashes[r.hash]
+func (ep *streamRelationStreamExecutionPlan) currentMultiplicity(r *resultRow, curHashes map[data.HashValue][]resultRowCount) int {
+	list, exists := curHashes[r.hash]
+	// if the hash is not in the map, we definitely have a multiplicity of 0
+	if !exists {
+		return 0
+	}
+	// if the hash is in the map, check all items there, and if one is found,
+	// return its multiplicity
+	for _, itemWithCount := range list {
+		if data.Equal(r.row, itemWithCount.row) {
+			return itemWithCount.count
+		}
+	}
+	// otherwise it does not exist
+	return 0
 }
 
 // incrAndGetCurrentMultiplicity increases a counter how often the
 // given map has already been in the current run's result. For example
 // for ISTREAM we have to start emitting data when this gets larger
 // than emitMultiplicityPrevRun.
-func (ep *streamRelationStreamExecutionPlan) incrAndGetMultiplicity(r *resultRow, curHashes map[data.HashValue]int) int {
-	identicalRows := curHashes[r.hash] + 1
-	curHashes[r.hash] = identicalRows
-	return identicalRows
+func (ep *streamRelationStreamExecutionPlan) incrAndGetMultiplicity(r *resultRow, curHashes map[data.HashValue][]resultRowCount) int {
+	list, exists := curHashes[r.hash]
+	// if the hash is not in the map, add a one-element list with count 1
+	if !exists {
+		curHashes[r.hash] = []resultRowCount{{r.row, 1}}
+		return 1
+	}
+	// if the hash is in the map, check all items there, and if one is found,
+	// increase its multiplicity
+	for i, itemWithCount := range list {
+		if data.Equal(r.row, itemWithCount.row) {
+			c := itemWithCount.count
+			list[i].count = c + 1
+			return c + 1
+		}
+	}
+	// otherwise it does not exist
+	curHashes[r.hash] = append(list, resultRowCount{r.row, 1})
+	return 1
 }
 
 // computeResultTuples compares the results of this run's query with
@@ -310,7 +346,7 @@ func (ep *streamRelationStreamExecutionPlan) computeResultTuples() ([]data.Map, 
 		return output, nil
 	}
 
-	curHashes := make(map[data.HashValue]int, len(ep.curResults))
+	curHashes := make(map[data.HashValue][]resultRowCount, len(ep.curResults))
 	if ep.emitterType == parser.Istream {
 		// emit only new tuples
 		for _, res := range ep.curResults {
@@ -342,7 +378,7 @@ func (ep *streamRelationStreamExecutionPlan) computeResultTuples() ([]data.Map, 
 			ep.incrAndGetMultiplicity(&res, curHashes)
 		}
 		// emit only old tuples
-		counts := map[data.HashValue]int{}
+		counts := map[data.HashValue][]resultRowCount{}
 		for _, prevItem := range ep.prevResults {
 			if prevItem.hash == 0 {
 				return nil, fmt.Errorf("output row %v did not "+
@@ -350,6 +386,11 @@ func (ep *streamRelationStreamExecutionPlan) computeResultTuples() ([]data.Map, 
 			}
 			// check if this item is in the current results infrequently
 			// enough to be emitted now; otherwise go to the next item
+			// TODO we could actually use the curHashes built in the previous run
+			//      and emit each item (currentMultiplicity(prevHash) - currentMultiplicity(curHash))
+			//      times, which would save us one time of building the count map,
+			//      but then we do actually change the output order, which
+			//      will break tests at the moment.
 			if ep.incrAndGetMultiplicity(&prevItem, counts) <= ep.currentMultiplicity(&prevItem, curHashes) {
 				continue
 			}

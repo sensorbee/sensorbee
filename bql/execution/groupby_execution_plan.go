@@ -102,6 +102,8 @@ func (ep *groupbyExecutionPlan) performQueryOnBuffer() error {
 
 	// groups holds one item for every combination of values that
 	// appear in the GROUP BY clause
+	// TODO we should not consider the HashValue a 1:1 mapping to
+	//      group keys, simply because it is a hash
 	groups := map[data.HashValue]*tmpGroupData{}
 	// we also keep a list of group keys so that we can still loop
 	// over them in the order they were added
