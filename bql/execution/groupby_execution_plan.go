@@ -102,9 +102,7 @@ func (ep *groupbyExecutionPlan) performQueryOnBuffer() error {
 
 	// groups holds one item for every combination of values that
 	// appear in the GROUP BY clause
-	// TODO we should not consider the HashValue a 1:1 mapping to
-	//      group keys, simply because it is a hash
-	groups := map[data.HashValue]*tmpGroupData{}
+	groups := map[data.HashValue][]*tmpGroupData{}
 	// we also keep a list of group keys so that we can still loop
 	// over them in the order they were added
 	groupKeys := []data.HashValue{}
@@ -114,10 +112,7 @@ func (ep *groupbyExecutionPlan) performQueryOnBuffer() error {
 	// group, a new one is created and a copy of the given map
 	// is used as a representative of this group's values.
 	findOrCreateGroup := func(groupValues []data.Value, groupHash data.HashValue, nonGroupValues data.Map) (*tmpGroupData, error) {
-		// find the correct group
-		group, exists := groups[groupHash]
-		// if there is no such group, create one
-		if !exists {
+		mkGroup := func() *tmpGroupData {
 			newGroup := &tmpGroupData{
 				// the values that make up this group
 				groupValues,
@@ -134,11 +129,33 @@ func (ep *groupbyExecutionPlan) performQueryOnBuffer() error {
 					newGroup.aggData[key] = make([]data.Value, 0, 1)
 				}
 			}
-			groups[groupHash] = newGroup
-			group = newGroup
-			groupKeys = append(groupKeys, groupHash)
+			return newGroup
 		}
 
+		// find the correct group
+		groupCandidates, exists := groups[groupHash]
+		var group *tmpGroupData
+		// if there is no such group, create one
+		if !exists {
+			group = mkGroup()
+			groups[groupHash] = []*tmpGroupData{group}
+			groupKeys = append(groupKeys, groupHash)
+		} else {
+			// if we arrive here, there is a group with the same hash value
+			// but we need to validate the data is actually the same
+			for _, groupCandidate := range groupCandidates {
+				if data.Equal(data.Array(groupValues), groupCandidate.group) {
+					group = groupCandidate
+					break
+				}
+			}
+			// no group with the same groupValues was found, so create
+			// one and append it to the list of groups with the same hash
+			if group == nil {
+				group = mkGroup()
+				groups[groupHash] = append(groupCandidates, group)
+			}
+		}
 		// return a pointer to the (found or created) group
 		return group, nil
 	}
@@ -282,10 +299,12 @@ func (ep *groupbyExecutionPlan) performQueryOnBuffer() error {
 	// is in the `group` list and we need to compute aggregation and output.
 	// NB. we do not directly loop over the `groups` map to avoid random order.
 	for _, groupKey := range groupKeys {
-		group := groups[groupKey]
-		if err := evalGroup(group); err != nil {
-			rollback()
-			return err
+		groupsWithSameHash := groups[groupKey]
+		for _, group := range groupsWithSameHash {
+			if err := evalGroup(group); err != nil {
+				rollback()
+				return err
+			}
 		}
 	}
 	if len(groups) == 0 {
