@@ -85,6 +85,10 @@ func (c *Context) log(depth int) *logrus.Entry {
 
 // droppedTuple records tuples dropped by errors.
 func (c *Context) droppedTuple(t *Tuple, nodeType NodeType, nodeName string, et EventType, err error) {
+	if t.Flags.IsSet(TFDropped) {
+		return // avoid infinite reporting
+	}
+
 	if c.Flags.DroppedTupleLog.Enabled() {
 		var js string
 		if c.Flags.DroppedTupleSummarization.Enabled() {
@@ -123,6 +127,7 @@ func (c *Context) droppedTuple(t *Tuple, nodeType NodeType, nodeName string, et 
 	if err != nil {
 		dt.Data["error"] = data.String(err.Error())
 	}
+	dt.Flags.Set(TFDropped)
 	shouldCopy := len(c.dtSources) > 1
 	for _, s := range c.dtSources {
 		// TODO: reduce copies
@@ -134,7 +139,7 @@ func (c *Context) droppedTuple(t *Tuple, nodeType NodeType, nodeName string, et 
 	}
 }
 
-// addDroppedTupleSource is a listener which receives dropped tuples. The
+// addDroppedTupleSource adds a listener which receives dropped tuples. The
 // return value is the ID of the listener and it'll be required for
 // removeDroppedTupleListener.
 func (c *Context) addDroppedTupleSource(s *droppedTupleCollectorSource) int64 {
@@ -197,12 +202,10 @@ type droppedTupleCollectorSource struct {
 
 // NewDroppedTupleCollectorSource returns a source which generates a stream
 // containing tuples dropped by other nodes. Tuples generated from this source
-// won't be reported again even if they're dropped later on. So, when a sink
-// is connected to two boxes and one of them is connected to the source,
-// tuples dropped by the sink won't be reported even if those tuples are sent
-// from another box which isn't connected to the source. Therefore, it's safe
-// to have a DAG having the source and isolate it from the regular processing
-// flow.
+// won't be reported again even if they're dropped later on. This is done by
+// setting TFDropped flag to the dropped tuple. Therefore, if a Box forgets to
+// copy the flag when it emits a tuple derived from the dropped one, the tuple
+// can infinitely be reported again and again.
 //
 // Tuples generated from this source has the following fields in Data:
 //

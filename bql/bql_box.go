@@ -97,12 +97,8 @@ func (b *bqlBox) Process(ctx *core.Context, t *core.Tuple, s core.Writer) error 
 
 	// emit result data as tuples
 	for _, data := range resultData {
-		tup := &core.Tuple{
-			Data:          data,
-			Timestamp:     t.Timestamp,
-			ProcTimestamp: t.ProcTimestamp,
-			BatchID:       t.BatchID,
-		}
+		tup := *t
+		tup.Data = data
 		if len(t.Trace) != 0 {
 			tup.Trace = make([]core.TraceEvent, len(t.Trace))
 			copy(tup.Trace, t.Trace)
@@ -122,7 +118,7 @@ func (b *bqlBox) Process(ctx *core.Context, t *core.Tuple, s core.Writer) error 
 			// we will never emit something from this function
 			// when the time-based emitter is used
 			b.timeEmitterMutex.Lock()
-			b.lastTuple = tup
+			b.lastTuple = &tup
 			b.lastWriter = s
 			b.timeEmitterMutex.Unlock()
 			continue
@@ -130,7 +126,7 @@ func (b *bqlBox) Process(ctx *core.Context, t *core.Tuple, s core.Writer) error 
 
 		// write the tuple to the connected box
 		if shouldWriteTuple {
-			if err := s.Write(ctx, tup); err != nil {
+			if err := s.Write(ctx, &tup); err != nil {
 				return err
 			}
 			b.emitCount += 1
