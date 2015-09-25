@@ -32,6 +32,12 @@ type Tuple struct {
 	// BatchID is reserved for future use.
 	BatchID int64
 
+	// Flags has bit flags which controls behavior of this tuple. When a Box
+	// emits a tuple derived from a received one, it must copy this field
+	// otherwise a problem like infinite reporting of a dropped tuple could
+	// occur.
+	Flags TupleFlags
+
 	// Trace is used during debugging to trace to way of a Tuple through
 	// a topology. See the documentation for TraceEvent.
 	Trace []TraceEvent
@@ -45,7 +51,8 @@ func (t *Tuple) AddEvent(ev TraceEvent) {
 }
 
 // Copy creates a deep copy of a Tuple, including the contained
-// data. This can be used, e.g., by fan-out pipes.
+// data. This can be used, e.g., by fan-out pipes. When Tuple.Data doesn't
+// need to be cloned, just use newTuple := *oldTuple instead of this method.
 func (t *Tuple) Copy() *Tuple {
 	// except for Data, there are only value types in
 	// Tuple, so we can use normal copy for everything
@@ -73,4 +80,28 @@ func NewTuple(d data.Map) *Tuple {
 		Timestamp:     now,
 		ProcTimestamp: now,
 	}
+}
+
+// TupleFlags has flags which controls behavior of a tuple.
+type TupleFlags uint32
+
+const (
+	// TFDropped is a flag which is set when a tuple is dropped. Once this flag
+	// is set to a tuple, the tuple will not be reported when it is dropped.
+	TFDropped TupleFlags = 1 << iota
+)
+
+// Set sets a set of flags at once.
+func (f *TupleFlags) Set(v TupleFlags) {
+	*f |= v
+}
+
+// IsSet returns true if the all given flags are set.
+func (f *TupleFlags) IsSet(v TupleFlags) bool {
+	return *f&v == v
+}
+
+// Clear clears a set of flags at once.
+func (f *TupleFlags) Clear(v TupleFlags) {
+	*f &= ^v
 }

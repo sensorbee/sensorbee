@@ -221,18 +221,13 @@ type dataSources struct {
 	// msgChs is a slice of channels which are connected to goroutines
 	// pouring tuples. They receive controlling messages through this channel.
 	msgChs []chan<- *dataSourcesMessage
-
-	// reportDroppedTuples is a flag (0,1) to control the behavior of dropped
-	// tuple logging. If this value is 0, dropped tuples won't be reported.
-	reportDroppedTuples int32
 }
 
 func newDataSources(nodeType NodeType, nodeName string) *dataSources {
 	s := &dataSources{
-		nodeType:            nodeType,
-		nodeName:            nodeName,
-		recvs:               map[string]*pipeReceiver{},
-		reportDroppedTuples: 1,
+		nodeType: nodeType,
+		nodeName: nodeName,
+		recvs:    map[string]*pipeReceiver{},
 	}
 	s.state = newTopologyStateHolder(&s.m)
 	return s
@@ -251,10 +246,6 @@ const (
 	ddscToggleGracefulStop
 	ddscStopOnDisconnect
 )
-
-func (s *dataSources) disableDroppedTupleReporting() {
-	atomic.StoreInt32(&s.reportDroppedTuples, 0)
-}
 
 func (s *dataSources) add(name string, r *pipeReceiver) error {
 	// Because dataSources is used internally and shouldn't return error
@@ -493,9 +484,6 @@ func (s *dataSources) pouringThread(ctx *Context, w Writer, cs []reflect.SelectC
 	stopOnDisconnect := false
 
 	reportDT := func(t *Tuple, err error) {
-		if atomic.LoadInt32(&s.reportDroppedTuples) == 0 {
-			return
-		}
 		ctx.droppedTuple(t, s.nodeType, s.nodeName, ETInput, err)
 	}
 
@@ -692,8 +680,6 @@ type dataDestinations struct {
 	paused   bool
 
 	callback func(ddEvent)
-
-	reportDroppedTuples bool
 }
 
 type ddEvent int
@@ -710,25 +696,12 @@ const (
 
 func newDataDestinations(nodeType NodeType, nodeName string) *dataDestinations {
 	d := &dataDestinations{
-		nodeType:            nodeType,
-		nodeName:            nodeName,
-		dsts:                map[string]*pipeSender{},
-		reportDroppedTuples: true,
+		nodeType: nodeType,
+		nodeName: nodeName,
+		dsts:     map[string]*pipeSender{},
 	}
 	d.cond = sync.NewCond(&d.rwm)
 	return d
-}
-
-func (d *dataDestinations) disableDroppedTupleReporting() {
-	d.rwm.Lock()
-	defer d.rwm.Unlock()
-	d.reportDroppedTuples = false
-}
-
-func (d *dataDestinations) isDroppedTupleReportingEnabled() bool {
-	d.rwm.RLock()
-	defer d.rwm.RUnlock()
-	return d.reportDroppedTuples
 }
 
 func (d *dataDestinations) add(name string, s *pipeSender) error {
@@ -811,16 +784,12 @@ func (d *dataDestinations) Write(ctx *Context, t *Tuple) error {
 
 	if len(d.dsts) == 0 {
 		atomic.AddInt64(&d.numDropped, 1)
-		if d.reportDroppedTuples {
-			ctx.droppedTuple(t, d.nodeType, d.nodeName, ETOutput, errors.New("no output destination is connected"))
-		}
+		ctx.droppedTuple(t, d.nodeType, d.nodeName, ETOutput, errors.New("no output destination is connected"))
 		return nil
 	}
 
 	reportFunc := func(dropped *Tuple) {
-		if d.reportDroppedTuples {
-			ctx.droppedTuple(t, d.nodeType, d.nodeName, ETOutput, errors.New("the output queue is full"))
-		}
+		ctx.droppedTuple(t, d.nodeType, d.nodeName, ETOutput, errors.New("the output queue is full"))
 	}
 
 	needsCopy := len(d.dsts) > 1
