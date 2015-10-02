@@ -101,8 +101,8 @@ func TestAssembleCreateState(t *testing.T) {
 		// reversed query with input query, so separate map parameter test.
 		Convey("When doing CREATE STATE with map parameter", func() {
 			mp1 := "'i':'I_1'"
-			mp2 := "'j':false"
-			mp3 := "'k':8"
+			mp2 := "'j\"j':false"
+			mp3 := "'k''k':8"
 			mapParams := "h={" + strings.Join([]string{mp1, mp2, mp3}, ",") + "}"
 			createQuery := "CREATE STATE a_1 TYPE b WITH "
 			boolParam := "l=true"
@@ -127,8 +127,8 @@ func TestAssembleCreateState(t *testing.T) {
 				hmap, err := data.AsMap(comp.Params[0].Value)
 				So(err, ShouldBeNil)
 				So(hmap["i"], ShouldEqual, data.String("I_1"))
-				So(hmap["j"], ShouldEqual, data.False)
-				So(hmap["k"], ShouldEqual, data.Int(8))
+				So(hmap["j\"j"], ShouldEqual, data.False)
+				So(hmap["k'k"], ShouldEqual, data.Int(8))
 				So(comp.Params[1].Key, ShouldEqual, "l")
 				So(comp.Params[1].Value, ShouldEqual, data.True)
 
