@@ -63,7 +63,7 @@ func TestAssembleUpdateState(t *testing.T) {
 		p := &bqlPeg{}
 
 		Convey("When doing a full UPDATE STATE", func() {
-			p.Buffer = "UPDATE STATE a_1 SET c=27, e_='f_1', f=[]"
+			p.Buffer = "UPDATE STATE a_1 SET c=27, e_='f_1', f=[], g={}"
 			p.Init()
 
 			Convey("Then the statement should be parsed correctly", func() {
@@ -78,13 +78,15 @@ func TestAssembleUpdateState(t *testing.T) {
 				comp := top.(UpdateStateStmt)
 
 				So(comp.Name, ShouldEqual, "a_1")
-				So(len(comp.Params), ShouldEqual, 3)
+				So(len(comp.Params), ShouldEqual, 4)
 				So(comp.Params[0].Key, ShouldEqual, "c")
 				So(comp.Params[0].Value, ShouldEqual, data.Int(27))
 				So(comp.Params[1].Key, ShouldEqual, "e_")
 				So(comp.Params[1].Value, ShouldEqual, data.String("f_1"))
 				So(comp.Params[2].Key, ShouldEqual, "f")
 				So(comp.Params[2].Value, ShouldResemble, data.Array{})
+				So(comp.Params[3].Key, ShouldEqual, "g")
+				So(comp.Params[3].Value, ShouldResemble, data.Map{})
 
 				Convey("And String() should return the original statement", func() {
 					So(comp.String(), ShouldEqual, p.Buffer)

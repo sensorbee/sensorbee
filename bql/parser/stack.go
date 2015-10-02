@@ -943,6 +943,12 @@ func (ps *parseStack) AssembleSourceSinkParam() {
 				arr[i] = toValue(item)
 			}
 			value = arr
+		case MapAST:
+			m := data.Map{}
+			for _, item := range lit.Entries {
+				m[item.Key] = toValue(item.Value)
+			}
+			value = m
 		}
 		return value
 	}
