@@ -303,13 +303,21 @@ SourceSinkParam <- SourceSinkParamKey '=' SourceSinkParamVal {
         p.AssembleSourceSinkParam()
     }
 
-SourceSinkParamVal <- ParamLiteral / ParamArrayExpr
+SourceSinkParamVal <- ParamLiteral / ParamArrayExpr / ParamMapExpr
 
 ParamLiteral <- BooleanLiteral / Literal
 
 ParamArrayExpr <- < '[' spOpt (ParamLiteral (',' spOpt ParamLiteral)*)? spOpt ','? spOpt ']' > {
         p.AssembleExpressions(begin, end)
         p.AssembleArray()
+    }
+
+ParamMapExpr <- < '{' spOpt (ParamKeyValuePair (spOpt ',' spOpt ParamKeyValuePair)*)? spOpt '}' > {
+        p.AssembleMap(begin, end)
+    }
+
+ParamKeyValuePair <- < StringLiteral spOpt ':' spOpt ParamLiteral > {
+        p.AssembleKeyValuePair()
     }
 
 PausedOpt <- < (sp (Paused / Unpaused))? > {
