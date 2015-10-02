@@ -540,6 +540,15 @@ func (a SourceSinkParamAST) string() string {
 			reps[i] = mkString(v)
 		}
 		valRepr = "[" + strings.Join(reps, ",") + "]"
+	} else if a.Value.Type() == data.TypeMap {
+		m, _ := data.AsMap(a.Value)
+		ret := make([]string, len(m))
+		i := 0
+		for k, v := range m {
+			ret[i] = "'" + k + "':" + mkString(v)
+			i++
+		}
+		valRepr = "{" + strings.Join(ret, ",") + "}"
 	} else {
 		valRepr = mkString(a.Value)
 	}
