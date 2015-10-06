@@ -21,6 +21,9 @@ func TestAssembleCreateStreamAsSelectUnion(t *testing.T) {
 			ps.PushComponent(10, 11, Stream{ActualStream, "c", nil})
 			ps.PushComponent(11, 12, IntervalAST{FloatLiteral{3}, Tuples})
 			ps.PushComponent(12, 13, NumericLiteral{2})
+			ps.EnsureCapacitySpec(12, 13)
+			ps.PushComponent(13, 14, DropOldest)
+			ps.EnsureSheddingSpec(13, 14)
 			ps.AssembleStreamWindow()
 			ps.EnsureAliasedStreamWindow()
 			ps.PushComponent(14, 15, Stream{ActualStream, "d", nil})
@@ -28,6 +31,7 @@ func TestAssembleCreateStreamAsSelectUnion(t *testing.T) {
 			ps.PushComponent(17, 18, Seconds)
 			ps.AssembleInterval()
 			ps.EnsureCapacitySpec(18, 18)
+			ps.EnsureSheddingSpec(18, 18)
 			ps.AssembleStreamWindow()
 			ps.PushComponent(18, 19, Identifier("x"))
 			ps.AssembleAliasedStreamWindow()
@@ -68,11 +72,13 @@ func TestAssembleCreateStreamAsSelectUnion(t *testing.T) {
 						So(comp.Relations[0].Value, ShouldEqual, 3)
 						So(comp.Relations[0].Unit, ShouldEqual, Tuples)
 						So(comp.Relations[0].Capacity, ShouldEqual, 2)
+						So(comp.Relations[0].Shedding, ShouldEqual, DropOldest)
 						So(comp.Relations[0].Alias, ShouldEqual, "")
 						So(comp.Relations[1].Name, ShouldEqual, "d")
 						So(comp.Relations[1].Value, ShouldEqual, 2)
 						So(comp.Relations[1].Unit, ShouldEqual, Seconds)
 						So(comp.Relations[1].Capacity, ShouldEqual, UnspecifiedCapacity)
+						So(comp.Relations[1].Shedding, ShouldEqual, UnspecifiedSheddingOption)
 						So(comp.Relations[1].Alias, ShouldEqual, "x")
 						So(comp.Filter, ShouldResemble, RowValue{"", "e"})
 						So(len(comp.GroupList), ShouldEqual, 2)
@@ -106,7 +112,7 @@ func TestAssembleCreateStreamAsSelectUnion(t *testing.T) {
 		p := &bqlPeg{}
 
 		Convey("When doing a full SELECT", func() {
-			p.Buffer = "CREATE STREAM x_2 AS SELECT ISTREAM '日本語' FROM c [RANGE 3 TUPLES, BUFFER SIZE 2] UNION ALL SELECT RSTREAM b AS y FROM d [RANGE 2 SECONDS] AS x WHERE e GROUP BY f, g HAVING h"
+			p.Buffer = "CREATE STREAM x_2 AS SELECT ISTREAM '日本語' FROM c [RANGE 3 TUPLES, BUFFER SIZE 2, DROP OLDEST IF FULL] UNION ALL SELECT RSTREAM b AS y FROM d [RANGE 2 SECONDS] AS x WHERE e GROUP BY f, g HAVING h"
 			p.Init()
 
 			Convey("Then the statement should be parsed correctly", func() {
@@ -132,6 +138,7 @@ func TestAssembleCreateStreamAsSelectUnion(t *testing.T) {
 				So(comp1.Relations[0].Value, ShouldEqual, 3)
 				So(comp1.Relations[0].Unit, ShouldEqual, Tuples)
 				So(comp1.Relations[0].Capacity, ShouldEqual, 2)
+				So(comp1.Relations[0].Shedding, ShouldEqual, DropOldest)
 				So(comp1.Relations[0].Alias, ShouldEqual, "")
 
 				comp2 := cssComp.Selects[1]
@@ -143,6 +150,7 @@ func TestAssembleCreateStreamAsSelectUnion(t *testing.T) {
 				So(comp2.Relations[0].Value, ShouldEqual, 2)
 				So(comp2.Relations[0].Unit, ShouldEqual, Seconds)
 				So(comp2.Relations[0].Capacity, ShouldEqual, UnspecifiedCapacity)
+				So(comp2.Relations[0].Shedding, ShouldEqual, UnspecifiedSheddingOption)
 				So(comp2.Relations[0].Alias, ShouldEqual, "x")
 				So(comp2.Filter, ShouldResemble, RowValue{"", "e"})
 				So(len(comp2.GroupList), ShouldEqual, 2)

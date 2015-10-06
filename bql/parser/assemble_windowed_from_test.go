@@ -12,10 +12,12 @@ func TestAssembleWindowedFrom(t *testing.T) {
 		Convey("When the stack contains only AliasedStreamWindows in the given range", func() {
 			ps.PushComponent(0, 6, Raw{"PRE"})
 			ps.PushComponent(6, 8, AliasedStreamWindowAST{
-				StreamWindowAST{Stream{ActualStream, "a", nil}, IntervalAST{FloatLiteral{3}, Tuples}, 2}, "",
+				StreamWindowAST{Stream{ActualStream, "a", nil}, IntervalAST{FloatLiteral{3}, Tuples},
+					2, UnspecifiedSheddingOption}, "",
 			})
 			ps.PushComponent(8, 10, AliasedStreamWindowAST{
-				StreamWindowAST{Stream{ActualStream, "b", nil}, IntervalAST{FloatLiteral{2}, Seconds}, UnspecifiedCapacity}, "",
+				StreamWindowAST{Stream{ActualStream, "b", nil}, IntervalAST{FloatLiteral{2}, Seconds},
+					UnspecifiedCapacity, Wait}, "",
 			})
 			ps.AssembleWindowedFrom(6, 10)
 
@@ -35,10 +37,12 @@ func TestAssembleWindowedFrom(t *testing.T) {
 						So(comp.Relations[0].Name, ShouldEqual, "a")
 						So(comp.Relations[0].Value, ShouldEqual, 3)
 						So(comp.Relations[0].Unit, ShouldEqual, Tuples)
+						So(comp.Relations[0].Shedding, ShouldEqual, UnspecifiedSheddingOption)
 						So(comp.Relations[0].Alias, ShouldEqual, "")
 						So(comp.Relations[1].Name, ShouldEqual, "b")
 						So(comp.Relations[1].Value, ShouldEqual, 2)
 						So(comp.Relations[1].Unit, ShouldEqual, Seconds)
+						So(comp.Relations[1].Shedding, ShouldEqual, Wait)
 						So(comp.Relations[1].Alias, ShouldEqual, "")
 					})
 				})
@@ -123,7 +127,7 @@ func TestAssembleWindowedFrom(t *testing.T) {
 		})
 
 		Convey("When selecting with a FROM", func() {
-			p.Buffer = "CREATE STREAM x AS SELECT ISTREAM a, b FROM c [RANGE 3 TUPLES] AS x, d [RANGE 2 SECONDS]"
+			p.Buffer = "CREATE STREAM x AS SELECT ISTREAM a, b FROM c [RANGE 3 TUPLES, WAIT IF FULL] AS x, d [RANGE 2 SECONDS]"
 			p.Init()
 
 			Convey("Then the statement should be parsed correctly", func() {
@@ -141,10 +145,12 @@ func TestAssembleWindowedFrom(t *testing.T) {
 				So(comp.Relations[0].Name, ShouldEqual, "c")
 				So(comp.Relations[0].Value, ShouldEqual, 3)
 				So(comp.Relations[0].Unit, ShouldEqual, Tuples)
+				So(comp.Relations[0].Shedding, ShouldEqual, Wait)
 				So(comp.Relations[0].Alias, ShouldEqual, "x")
 				So(comp.Relations[1].Name, ShouldEqual, "d")
 				So(comp.Relations[1].Value, ShouldEqual, 2)
 				So(comp.Relations[1].Unit, ShouldEqual, Seconds)
+				So(comp.Relations[1].Shedding, ShouldEqual, UnspecifiedSheddingOption)
 				So(comp.Relations[1].Alias, ShouldEqual, "")
 
 				Convey("And String() should return the original statement", func() {

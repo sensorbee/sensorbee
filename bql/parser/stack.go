@@ -841,14 +841,15 @@ func (ps *parseStack) EnsureAliasedStreamWindow() {
 //  StreamWindowAST{Stream, IntervalAST}
 func (ps *parseStack) AssembleStreamWindow() {
 	// pop the components from the stack in reverse order
-	_capacity, _range, _rel := ps.pop3()
+	_shedding, _capacity, _range, _rel := ps.pop4()
 
 	rel := _rel.comp.(Stream)
 	rangeAst := _range.comp.(IntervalAST)
 	capacity := _capacity.comp.(NumericLiteral)
+	shedding := _shedding.comp.(SheddingOption)
 
-	ps.PushComponent(_rel.begin, _range.end, StreamWindowAST{rel, rangeAst,
-		capacity.Value})
+	ps.PushComponent(_rel.begin, _shedding.end, StreamWindowAST{rel, rangeAst,
+		capacity.Value, shedding})
 }
 
 // AssembleUDSFFuncApp takes the topmost elements from the stack,
@@ -878,6 +879,23 @@ func (ps *parseStack) EnsureCapacitySpec(begin int, end int) {
 	} else {
 		// there is an item in the given range
 		_, ok := top.comp.(NumericLiteral)
+		if !ok {
+			panic(fmt.Sprintf("begin (%d) != end (%d), but there "+
+				"was a %T on the stack", begin, end, top.comp))
+		}
+	}
+}
+
+// EnsureSheddingSpec makes sure that the top element of the stack
+// is a SheddingOption element.
+func (ps *parseStack) EnsureSheddingSpec(begin int, end int) {
+	top := ps.Peek()
+	if top == nil || top.end <= begin {
+		// there is no item in the given range
+		ps.PushComponent(begin, end, UnspecifiedSheddingOption)
+	} else {
+		// there is an item in the given range
+		_, ok := top.comp.(SheddingOption)
 		if !ok {
 			panic(fmt.Sprintf("begin (%d) != end (%d), but there "+
 				"was a %T on the stack", begin, end, top.comp))
