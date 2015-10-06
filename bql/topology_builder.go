@@ -506,6 +506,14 @@ func (tb *TopologyBuilder) createStreamAsSelectStmt(stmt *parser.CreateStreamAsS
 				}
 				conf.Capacity = int(rel.Capacity)
 			}
+			// set drop mode for box
+			if rel.Shedding == parser.DropOldest {
+				conf.DropMode = core.DropOldest
+			} else if rel.Shedding == parser.DropNewest {
+				conf.DropMode = core.DropLatest
+			} else if rel.Shedding == parser.Wait {
+				conf.DropMode = core.DropNone
+			}
 			if err := dbox.Input(rel.Name, conf); err != nil {
 				return nil, err
 			}
@@ -609,6 +617,14 @@ func (tb *TopologyBuilder) setUpUDSFStream(subsequentBox core.BoxNode, rel *pars
 				return fmt.Errorf("specified buffer capacity %d must not be negative", rel.Capacity)
 			}
 			conf.Capacity = int(rel.Capacity)
+		}
+		// set drop mode for box
+		if rel.Shedding == parser.DropOldest {
+			conf.DropMode = core.DropOldest
+		} else if rel.Shedding == parser.DropNewest {
+			conf.DropMode = core.DropLatest
+		} else if rel.Shedding == parser.Wait {
+			conf.DropMode = core.DropNone
 		}
 		return subsequentBox.Input(temporaryName, conf)
 	}
