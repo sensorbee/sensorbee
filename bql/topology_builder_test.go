@@ -92,7 +92,7 @@ func TestCreateStreamAsSelectStmt(t *testing.T) {
 
 		Convey("When running CREATE STREAM AS SELECT on an existing stream", func() {
 			err := addBQLToTopology(tb, `CREATE STREAM t AS SELECT ISTREAM int FROM
-                s [RANGE 2 SECONDS, BUFFER SIZE 2] WHERE int=2`)
+                s [RANGE 2 SECONDS, BUFFER SIZE 2, WAIT IF FULL] WHERE int=2`)
 
 			Convey("Then there should be no error", func() {
 				So(err, ShouldBeNil)
