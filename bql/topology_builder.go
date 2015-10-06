@@ -3,6 +3,7 @@ package bql
 import (
 	"errors"
 	"fmt"
+	"math"
 	"pfi/sensorbee/sensorbee/bql/execution"
 	"pfi/sensorbee/sensorbee/bql/parser"
 	"pfi/sensorbee/sensorbee/bql/udf"
@@ -475,7 +476,7 @@ func (tb *TopologyBuilder) createStreamAsSelectStmt(stmt *parser.CreateStreamAsS
 				// and we already have connected x to this box before
 				continue
 			}
-			if err := dbox.Input(rel.Name, &core.BoxInputConfig{
+			conf := &core.BoxInputConfig{
 				// For self-join statements like
 				//   ... FROM x AS a [RANGE 2 TUPLES],
 				//            x AS b [RANGE 3 TUPLES],
@@ -492,7 +493,20 @@ func (tb *TopologyBuilder) createStreamAsSelectStmt(stmt *parser.CreateStreamAsS
 				// If we used the rel.Alias here, then we would have to make multiple
 				// input connections to the same box, which is not possible.
 				InputName: rel.Name,
-			}); err != nil {
+			}
+			// set capacity of input pipe
+			if rel.Capacity != parser.UnspecifiedCapacity {
+				if rel.Capacity > math.MaxInt32 {
+					return nil, fmt.Errorf("specified buffer capacity %d is too large",
+						rel.Capacity)
+				} else if rel.Capacity < 0 {
+					// the parser should not allow this to happen, actually
+					return nil, fmt.Errorf("specified buffer capacity %d must not be negative",
+						rel.Capacity)
+				}
+				conf.Capacity = int(rel.Capacity)
+			}
+			if err := dbox.Input(rel.Name, conf); err != nil {
 				return nil, err
 			}
 			connected[rel.Name] = true
@@ -573,7 +587,7 @@ func (tb *TopologyBuilder) setUpUDSFStream(subsequentBox core.BoxNode, rel *pars
 		if alias == "" {
 			alias = rel.Name
 		}
-		return subsequentBox.Input(temporaryName, &core.BoxInputConfig{
+		conf := &core.BoxInputConfig{
 			// As opposed to actual streams, for `udsf('s') AS a, udsf('s') AS b`,
 			// there will be *multiple* boxes and we will have one connection to
 			// udsf 1 (the one aliased to `a`) and udsf 2 (the one aliased to `b`).
@@ -585,7 +599,18 @@ func (tb *TopologyBuilder) setUpUDSFStream(subsequentBox core.BoxNode, rel *pars
 			// Note that `addTupleToBuffer` in defaultSelectExecutionPlan needs
 			// to use that same method.
 			InputName: fmt.Sprintf("%s/%s", rel.Name, alias),
-		})
+		}
+		// set capacity of input pipe
+		if rel.Capacity != parser.UnspecifiedCapacity {
+			if rel.Capacity > math.MaxInt32 {
+				return fmt.Errorf("specified buffer capacity %d is too large", rel.Capacity)
+			} else if rel.Capacity < 0 {
+				// the parser should not allow this to happen, actually
+				return fmt.Errorf("specified buffer capacity %d must not be negative", rel.Capacity)
+			}
+			conf.Capacity = int(rel.Capacity)
+		}
+		return subsequentBox.Input(temporaryName, conf)
 	}
 
 	if len(decl.ListInputs()) == 0 { // Source mode
