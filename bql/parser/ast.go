@@ -430,24 +430,32 @@ func (a AliasedStreamWindowAST) string() string {
 	return str
 }
 
+const UnspecifiedCapacity int64 = -1
+
 type StreamWindowAST struct {
 	Stream
 	IntervalAST
+	Capacity int64
 }
 
 func (a StreamWindowAST) string() string {
 	interval := a.IntervalAST.string()
+	capacity := ""
+	if a.Capacity != UnspecifiedCapacity {
+		capacity = fmt.Sprintf(", BUFFER SIZE %d", a.Capacity)
+	}
+	suffix := "[" + interval + capacity + "]"
 
 	switch a.Stream.Type {
 	case ActualStream:
-		return a.Stream.Name + " " + interval
+		return a.Stream.Name + " " + suffix
 
 	case UDSFStream:
 		ps := []string{}
 		for _, p := range a.Stream.Params {
 			ps = append(ps, p.String())
 		}
-		return a.Stream.Name + "(" + strings.Join(ps, ", ") + ") " + interval
+		return a.Stream.Name + "(" + strings.Join(ps, ", ") + ") " + suffix
 	}
 
 	return "UnknownStreamType"
@@ -459,7 +467,7 @@ type IntervalAST struct {
 }
 
 func (a IntervalAST) string() string {
-	return "[RANGE " + a.FloatLiteral.String() + " " + a.Unit.String() + "]"
+	return "RANGE " + a.FloatLiteral.String() + " " + a.Unit.String()
 }
 
 type FilterAST struct {
