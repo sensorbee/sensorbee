@@ -12,10 +12,10 @@ func TestAssembleWindowedFrom(t *testing.T) {
 		Convey("When the stack contains only AliasedStreamWindows in the given range", func() {
 			ps.PushComponent(0, 6, Raw{"PRE"})
 			ps.PushComponent(6, 8, AliasedStreamWindowAST{
-				StreamWindowAST{Stream{ActualStream, "a", nil}, IntervalAST{FloatLiteral{3}, Tuples}}, "",
+				StreamWindowAST{Stream{ActualStream, "a", nil}, IntervalAST{FloatLiteral{3}, Tuples}, 2}, "",
 			})
 			ps.PushComponent(8, 10, AliasedStreamWindowAST{
-				StreamWindowAST{Stream{ActualStream, "b", nil}, IntervalAST{FloatLiteral{2}, Seconds}}, "",
+				StreamWindowAST{Stream{ActualStream, "b", nil}, IntervalAST{FloatLiteral{2}, Seconds}, UnspecifiedCapacity}, "",
 			})
 			ps.AssembleWindowedFrom(6, 10)
 

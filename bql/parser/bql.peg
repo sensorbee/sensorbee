@@ -275,7 +275,7 @@ AliasedStreamWindow <- StreamWindow sp "AS" sp Identifier {
         p.AssembleAliasedStreamWindow()
     }
 
-StreamWindow <- StreamLike spOpt '[' spOpt "RANGE" sp Interval spOpt ']' {
+StreamWindow <- StreamLike spOpt '[' spOpt "RANGE" sp Interval CapacitySpecOpt spOpt ']' {
         p.AssembleStreamWindow()
     }
 
@@ -283,6 +283,11 @@ StreamLike <- UDSFFuncApp / Stream
 
 UDSFFuncApp <- FuncAppWithoutOrderBy {
         p.AssembleUDSFFuncApp()
+    }
+
+# Use NonNegativeNumericLiteral so that we can encode "unspecified" as -1.
+CapacitySpecOpt <- < (spOpt ',' spOpt "BUFFER" sp "SIZE" sp NonNegativeNumericLiteral)? > {
+        p.EnsureCapacitySpec(begin, end)
     }
 
 SourceSinkSpecs <- < (sp "WITH" sp SourceSinkParam (spOpt ',' spOpt SourceSinkParam)*)? > {
@@ -488,6 +493,11 @@ RowValue <- < (ident ':' !':')? jsonGetPath > {
     }
 
 NumericLiteral <- < '-'? [0-9]+ > {
+        substr := string([]rune(buffer)[begin:end])
+        p.PushComponent(begin, end, NewNumericLiteral(substr))
+    }
+
+NonNegativeNumericLiteral <- < [0-9]+ > {
         substr := string([]rune(buffer)[begin:end])
         p.PushComponent(begin, end, NewNumericLiteral(substr))
     }

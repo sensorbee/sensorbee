@@ -833,38 +833,22 @@ func (ps *parseStack) EnsureAliasedStreamWindow() {
 
 // AssembleStreamWindow takes the topmost elements from the stack, assuming
 // they are components of an AS clause, and replaces them by
-// a single StreamWindowAST element. If there is no IntervalAST element present,
-// a IntervalAST with IntervalUnit UnspecifiedIntervalUnit is created.
+// a single StreamWindowAST element.
 //
 //  IntervalAST
 //  Stream
 //   =>
 //  StreamWindowAST{Stream, IntervalAST}
-// or
-//  Stream
-//   =>
-//  StreamWindowAST{Stream, IntervalAST}
 func (ps *parseStack) AssembleStreamWindow() {
 	// pop the components from the stack in reverse order
-	_rangeOrRel := ps.Pop()
-	_rel := _rangeOrRel
-	_range := _rangeOrRel
+	_capacity, _range, _rel := ps.pop3()
 
-	var rangeAst IntervalAST
+	rel := _rel.comp.(Stream)
+	rangeAst := _range.comp.(IntervalAST)
+	capacity := _capacity.comp.(NumericLiteral)
 
-	// check if we have a Stream or a Interval
-	rel, ok := _rangeOrRel.comp.(Stream)
-	if ok {
-		// there was (only) a Stream, no Interval, so set the "no range" info
-		rangeAst = IntervalAST{FloatLiteral{0}, UnspecifiedIntervalUnit}
-	} else {
-		// there was no Stream, so it was a Interval
-		rangeAst = _rangeOrRel.comp.(IntervalAST)
-		_rel = ps.Pop()
-		rel = _rel.comp.(Stream)
-	}
-
-	ps.PushComponent(_rel.begin, _range.end, StreamWindowAST{rel, rangeAst})
+	ps.PushComponent(_rel.begin, _range.end, StreamWindowAST{rel, rangeAst,
+		capacity.Value})
 }
 
 // AssembleUDSFFuncApp takes the topmost elements from the stack,
@@ -882,6 +866,23 @@ func (ps *parseStack) AssembleUDSFFuncApp() {
 	se := ParsedComponent{_fun.begin, _fun.end,
 		Stream{UDSFStream, string(fun.Function), fun.Expressions}}
 	ps.Push(&se)
+}
+
+// EnsureCapacitySpec makes sure that the top element of the stack
+// is a NumericLiteral element.
+func (ps *parseStack) EnsureCapacitySpec(begin int, end int) {
+	top := ps.Peek()
+	if top == nil || top.end <= begin {
+		// there is no item in the given range
+		ps.PushComponent(begin, end, NumericLiteral{UnspecifiedCapacity})
+	} else {
+		// there is an item in the given range
+		_, ok := top.comp.(NumericLiteral)
+		if !ok {
+			panic(fmt.Sprintf("begin (%d) != end (%d), but there "+
+				"was a %T on the stack", begin, end, top.comp))
+		}
+	}
 }
 
 // AssembleSourceSinkSpecs takes the elements from the stack that
