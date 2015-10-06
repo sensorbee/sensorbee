@@ -841,12 +841,14 @@ func (ps *parseStack) EnsureAliasedStreamWindow() {
 //  StreamWindowAST{Stream, IntervalAST}
 func (ps *parseStack) AssembleStreamWindow() {
 	// pop the components from the stack in reverse order
-	_range, _rel := ps.pop2()
+	_capacity, _range, _rel := ps.pop3()
 
 	rel := _rel.comp.(Stream)
 	rangeAst := _range.comp.(IntervalAST)
+	capacity := _capacity.comp.(NumericLiteral)
 
-	ps.PushComponent(_rel.begin, _range.end, StreamWindowAST{rel, rangeAst})
+	ps.PushComponent(_rel.begin, _range.end, StreamWindowAST{rel, rangeAst,
+		capacity.Value})
 }
 
 // AssembleUDSFFuncApp takes the topmost elements from the stack,
@@ -864,6 +866,23 @@ func (ps *parseStack) AssembleUDSFFuncApp() {
 	se := ParsedComponent{_fun.begin, _fun.end,
 		Stream{UDSFStream, string(fun.Function), fun.Expressions}}
 	ps.Push(&se)
+}
+
+// EnsureCapacitySpec makes sure that the top element of the stack
+// is a NumericLiteral element.
+func (ps *parseStack) EnsureCapacitySpec(begin int, end int) {
+	top := ps.Peek()
+	if top == nil || top.end <= begin {
+		// there is no item in the given range
+		ps.PushComponent(begin, end, NumericLiteral{UnspecifiedCapacity})
+	} else {
+		// there is an item in the given range
+		_, ok := top.comp.(NumericLiteral)
+		if !ok {
+			panic(fmt.Sprintf("begin (%d) != end (%d), but there "+
+				"was a %T on the stack", begin, end, top.comp))
+		}
+	}
 }
 
 // AssembleSourceSinkSpecs takes the elements from the stack that
