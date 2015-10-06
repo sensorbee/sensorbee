@@ -833,36 +833,18 @@ func (ps *parseStack) EnsureAliasedStreamWindow() {
 
 // AssembleStreamWindow takes the topmost elements from the stack, assuming
 // they are components of an AS clause, and replaces them by
-// a single StreamWindowAST element. If there is no IntervalAST element present,
-// a IntervalAST with IntervalUnit UnspecifiedIntervalUnit is created.
+// a single StreamWindowAST element.
 //
 //  IntervalAST
 //  Stream
 //   =>
 //  StreamWindowAST{Stream, IntervalAST}
-// or
-//  Stream
-//   =>
-//  StreamWindowAST{Stream, IntervalAST}
 func (ps *parseStack) AssembleStreamWindow() {
 	// pop the components from the stack in reverse order
-	_rangeOrRel := ps.Pop()
-	_rel := _rangeOrRel
-	_range := _rangeOrRel
+	_range, _rel := ps.pop2()
 
-	var rangeAst IntervalAST
-
-	// check if we have a Stream or a Interval
-	rel, ok := _rangeOrRel.comp.(Stream)
-	if ok {
-		// there was (only) a Stream, no Interval, so set the "no range" info
-		rangeAst = IntervalAST{FloatLiteral{0}, UnspecifiedIntervalUnit}
-	} else {
-		// there was no Stream, so it was a Interval
-		rangeAst = _rangeOrRel.comp.(IntervalAST)
-		_rel = ps.Pop()
-		rel = _rel.comp.(Stream)
-	}
+	rel := _rel.comp.(Stream)
+	rangeAst := _range.comp.(IntervalAST)
 
 	ps.PushComponent(_rel.begin, _range.end, StreamWindowAST{rel, rangeAst})
 }

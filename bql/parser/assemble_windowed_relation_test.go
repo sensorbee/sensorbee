@@ -61,33 +61,9 @@ func TestAssembleStreamWindow(t *testing.T) {
 			})
 		})
 
-		Convey("When the stack contains one correct item", func() {
-			ps.PushComponent(0, 6, Raw{"PRE"})
-			ps.PushComponent(6, 8, Stream{ActualStream, "a", nil})
-			ps.AssembleStreamWindow()
-
-			Convey("Then AssembleStreamWindow transforms them into one item", func() {
-				So(ps.Len(), ShouldEqual, 2)
-
-				Convey("And that item is a StreamWindowAST", func() {
-					top := ps.Peek()
-					So(top, ShouldNotBeNil)
-					So(top.begin, ShouldEqual, 6)
-					So(top.end, ShouldEqual, 8)
-					So(top.comp, ShouldHaveSameTypeAs, StreamWindowAST{})
-
-					Convey("And it contains the previously pushed data", func() {
-						comp := top.comp.(StreamWindowAST)
-						So(comp.Name, ShouldEqual, "a")
-						So(comp.Value, ShouldEqual, 0)
-						So(comp.Unit, ShouldEqual, UnspecifiedIntervalUnit)
-					})
-				})
-			})
-		})
-
 		Convey("When the stack contains a wrong item", func() {
 			ps.PushComponent(0, 6, Raw{"PRE"})
+			ps.PushComponent(6, 8, Stream{ActualStream, "a", nil})
 
 			Convey("Then AssembleStreamWindow panics", func() {
 				So(ps.AssembleStreamWindow, ShouldPanic)
