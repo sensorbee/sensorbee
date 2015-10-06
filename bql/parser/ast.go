@@ -436,6 +436,7 @@ type StreamWindowAST struct {
 	Stream
 	IntervalAST
 	Capacity int64
+	Shedding SheddingOption
 }
 
 func (a StreamWindowAST) string() string {
@@ -444,7 +445,11 @@ func (a StreamWindowAST) string() string {
 	if a.Capacity != UnspecifiedCapacity {
 		capacity = fmt.Sprintf(", BUFFER SIZE %d", a.Capacity)
 	}
-	suffix := "[" + interval + capacity + "]"
+	shedding := ""
+	if a.Shedding != UnspecifiedSheddingOption {
+		shedding = fmt.Sprintf(", %s IF FULL", a.Shedding.String())
+	}
+	suffix := "[" + interval + capacity + shedding + "]"
 
 	switch a.Stream.Type {
 	case ActualStream:
@@ -1318,6 +1323,28 @@ func (k BinaryKeyword) string(yes, no string) string {
 		return no
 	}
 	return ""
+}
+
+type SheddingOption int
+
+const (
+	UnspecifiedSheddingOption SheddingOption = iota
+	Wait
+	DropOldest
+	DropNewest
+)
+
+func (t SheddingOption) String() string {
+	s := "UnspecifiedSheddingOption"
+	switch t {
+	case Wait:
+		s = "WAIT"
+	case DropOldest:
+		s = "DROP OLDEST"
+	case DropNewest:
+		s = "DROP NEWEST"
+	}
+	return s
 }
 
 type Type int

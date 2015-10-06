@@ -275,7 +275,7 @@ AliasedStreamWindow <- StreamWindow sp "AS" sp Identifier {
         p.AssembleAliasedStreamWindow()
     }
 
-StreamWindow <- StreamLike spOpt '[' spOpt "RANGE" sp Interval CapacitySpecOpt spOpt ']' {
+StreamWindow <- StreamLike spOpt '[' spOpt "RANGE" sp Interval CapacitySpecOpt SheddingSpecOpt spOpt ']' {
         p.AssembleStreamWindow()
     }
 
@@ -289,6 +289,12 @@ UDSFFuncApp <- FuncAppWithoutOrderBy {
 CapacitySpecOpt <- < (spOpt ',' spOpt "BUFFER" sp "SIZE" sp NonNegativeNumericLiteral)? > {
         p.EnsureCapacitySpec(begin, end)
     }
+
+SheddingSpecOpt <- < (spOpt ',' spOpt SheddingOption sp "IF" sp "FULL")? > {
+        p.EnsureSheddingSpec(begin, end)
+    }
+
+SheddingOption <- Wait / DropOldest / DropNewest
 
 SourceSinkSpecs <- < (sp "WITH" sp SourceSinkParam (spOpt ',' spOpt SourceSinkParam)*)? > {
         p.AssembleSourceSinkSpecs(begin, end)
@@ -558,6 +564,18 @@ SECONDS <- < "SECONDS" > {
 
 MILLISECONDS <- < "MILLISECONDS" > {
         p.PushComponent(begin, end, Milliseconds)
+    }
+
+Wait <- < "WAIT" > {
+        p.PushComponent(begin, end, Wait)
+    }
+
+DropOldest <- < "DROP" sp "OLDEST" > {
+        p.PushComponent(begin, end, DropOldest)
+    }
+
+DropNewest <- < "DROP" sp "NEWEST" > {
+        p.PushComponent(begin, end, DropNewest)
     }
 
 StreamIdentifier <- < ident > {
