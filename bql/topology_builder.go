@@ -859,7 +859,7 @@ func (tb *TopologyBuilder) loadState(typeName, name string, params data.Map) (bo
 	if err != nil {
 		return false, err
 	}
-	prev, err := reg.Replace(name, typeName, newState, true)
+	prev, err := reg.Replace(name, typeName, newState)
 	if err != nil {
 		return false, err
 	}
