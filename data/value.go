@@ -273,6 +273,7 @@ func MarshalMsgpack(m Map) ([]byte, error) {
 	return out, err
 }
 
+// NewIMap returns a map[string]interface{} object from Map.
 func NewIMap(m Map) map[string]interface{} {
 	result := map[string]interface{}{}
 	for k, v := range m {
