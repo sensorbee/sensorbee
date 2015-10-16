@@ -265,7 +265,7 @@ func NewValue(v interface{}) (Value, error) {
 // MarshalMsgpack returns a byte array encoded by msgpack serialization
 // from a Map object. Returns an error when msgpack serialization failed.
 func MarshalMsgpack(m Map) ([]byte, error) {
-	iMap := newIMap(m)
+	iMap := NewIMap(m)
 	var out []byte
 	enc := codec.NewEncoderBytes(&out, msgpackHandle)
 	err := enc.Encode(iMap)
@@ -273,7 +273,8 @@ func MarshalMsgpack(m Map) ([]byte, error) {
 	return out, err
 }
 
-func newIMap(m Map) map[string]interface{} {
+// NewIMap returns a map[string]interface{} object from Map.
+func NewIMap(m Map) map[string]interface{} {
 	result := map[string]interface{}{}
 	for k, v := range m {
 		value := newIValue(v)
@@ -311,7 +312,7 @@ func newIValue(v Value) interface{} {
 		result = newIArray(innerArray)
 	case TypeMap:
 		innerMap, _ := v.asMap()
-		result = newIMap(innerMap)
+		result = NewIMap(innerMap)
 	case TypeNull:
 		result = nil
 	default:
