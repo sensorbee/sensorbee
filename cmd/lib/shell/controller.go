@@ -55,7 +55,7 @@ func (a *App) prompt(line *liner.State) {
 			line.AppendHistory(input)
 
 			if strings.ToLower(input) == "exit" {
-				fmt.Fprintln(os.Stdout, "SensorBee is closed")
+				fmt.Fprintln(os.Stdout, "SensorBee shell tool is closed")
 				return
 			}
 
@@ -130,7 +130,7 @@ func (a *App) Run(requester *client.Requester) {
 }
 
 const (
-	appRunMsg          = "SensorBee client tool is started!"
+	appRunMsg          = "SensorBee shell tool is started!"
 	promptLineStart    = ">>> "
 	promptLineContinue = "... "
 )
