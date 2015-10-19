@@ -59,6 +59,10 @@ func (a *App) prompt(line *liner.State) {
 				return
 			}
 
+			if strings.HasPrefix(input, "--") { // BQL comment
+				continue
+			}
+
 			in := strings.ToLower(strings.Split(input, " ")[0])
 			if cmd, ok := a.commandMap[in]; ok {
 				a.processCommand(line, cmd, input)
