@@ -21,7 +21,7 @@ var (
 	currentTopology currentTopologyState
 )
 
-// NewBQLCommands return command list to execute BQL statement.
+// NewTopologiesCommands returns command list to execute BQL statement.
 func NewTopologiesCommands() []Command {
 	return []Command{
 		&changeTopologyCmd{},
@@ -118,27 +118,29 @@ func sendBQLQueries(requester *client.Requester, queries string) {
 		}
 
 		// TODO: enhance error message
-		fmt.Fprintf(os.Stderr, "request failed: %v: %v: %v\n", errRes.Code, errRes.Message, errRes.Meta)
+		fmt.Fprintf(os.Stderr, "request failed: %v: %v: %v\n", errRes.Code,
+			errRes.Message, errRes.Meta)
 		return
 	}
 
 	if res.IsStream() {
 		showStreamResponses(res)
 		return
-	} else {
-		// check if we have a JSON body that contains a "result" field;
-		// if so, print it.
-		// NB. We should also display some more status information that
-		// is reported by most statements.
-		var data map[string]interface{}
-		err := res.ReadJSON(&data)
-		if err == nil {
-			result, ok := data["result"]
-			if ok {
-				fmt.Println(result)
-			}
+	}
+
+	// check if we have a JSON body that contains a "result" field;
+	// if so, print it.
+	// NB. We should also display some more status information that
+	// is reported by most statements.
+	var data map[string]interface{}
+	err = res.ReadJSON(&data)
+	if err == nil {
+		result, ok := data["result"]
+		if ok {
+			fmt.Println(result)
 		}
 	}
+
 }
 
 func showStreamResponses(res *client.Response) {
