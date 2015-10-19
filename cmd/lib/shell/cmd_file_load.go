@@ -7,6 +7,7 @@ import (
 	"strings"
 )
 
+// NewFileLoadCommands returns command list to load BQL file.
 func NewFileLoadCommands() []Command {
 	return []Command{
 		&fileLoadCmd{},
