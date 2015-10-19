@@ -1,7 +1,6 @@
 package shell
 
 import (
-	"flag"
 	"fmt"
 	"github.com/peterh/liner"
 	"io"
@@ -13,10 +12,9 @@ import (
 
 // App is the application server of SensorBee.
 type App struct {
-	historyFn            string
-	executeExternalFiles *string
-	requester            *client.Requester
-	commandMap           map[string]Command
+	historyFn  string
+	requester  *client.Requester
+	commandMap map[string]Command
 }
 
 var tempDir = os.TempDir()
@@ -24,9 +22,8 @@ var tempDir = os.TempDir()
 // SetUpCommands set up application. Commands are initialized with it.
 func SetUpCommands(commands []Command) App {
 	app := App{
-		historyFn:            path.Join(tempDir, ".sensorbee_liner_history"),
-		executeExternalFiles: flag.String("file", "", "execute BQL commands from external files"),
-		commandMap:           map[string]Command{},
+		historyFn:  path.Join(tempDir, ".sensorbee_liner_history"),
+		commandMap: map[string]Command{},
 	}
 	if len(commands) == 0 {
 		return app
@@ -100,10 +97,6 @@ func (a *App) processCommand(line *liner.State, cmd Command, input string) {
 // Run begins SensorBee command line tool to management SensorBee
 // and execute BQL/UDF/UDTF statements.
 func (a *App) Run(requester *client.Requester) {
-	// set local value. For example, when stated with "-file=hoge.bql",
-	// `executeExternalFile` will set "hoge.bql"
-	flag.Parse()
-
 	line := liner.NewLiner()
 	defer line.Close()
 
