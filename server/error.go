@@ -27,6 +27,10 @@ const (
 	// processed successfully. When this error happens, Error.Meta should have
 	// an error message in Meta["error"] and statement in Meta["statement"].
 	bqlStmtProcessingErrorCode = "E0007"
+
+	// nonWebSocketRequestErrorCode is returned when a requested action only
+	// supports WebSocket and a request is a regular HTTP request.
+	nonWebSocketRequestErrorCode = "E0007"
 )
 
 const (
