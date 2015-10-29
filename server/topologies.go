@@ -305,203 +305,6 @@ func (tc *topologies) Queries(rw web.ResponseWriter, req *web.Request) {
 	})
 }
 
-// WebSocketQueries handles requests using WebSocket. A single WebSocket
-// connection can concurrently issue multiple requests including requests
-// containing a SELECT statement.
-//
-// All WebSocket request need to have following fields:
-//
-//	* rid
-//	* payload
-//
-// "rid" field is used at the client side to identify to which request a response
-// corresponds. All responses have "rid" field having the same value as the one
-// in its corresponding request. rid can be any number as long as the client can
-// distinguish responses.
-//
-// "payload" field contains a request data same as the one sent to the regular
-// HTTP request. Therefore, WebSocket requests have the same limitations such as
-// "A SELECT statement cannot be issued with other statements including another
-// SELECT statement". However, as it's mentioned earlier, a single WebSocket
-// connection can concurrently send multiple requests which have a single
-// SELECT statement.
-//
-// Example:
-//
-//	{
-//		"rid": 1,
-//		"payload": {
-//			"queries": "SELECT RSTREAM * FROM my_stream [RANGE 1 TUPLES];"
-//		}
-//	}
-//
-// All WebSocket responses have following fields:
-//
-//	* rid
-//	* type
-//	* payload
-//
-// "rid" field contains the ID of the request to which the response corresponds.
-//
-// "type" field contains the type of the response:
-//
-//	* "result"
-//	* "error"
-//	* "sos"
-//	* "ping"
-//	* "eos"
-//
-// When the type is "result", "payload" field contains the result obtained by
-// executing the query. The form of response depends on the type of a statement
-// and some statements returns multiple responses. When the type is "error",
-// "payload" has an error information which is same as the error response
-// that Queries action returns. "sos", start of stream, type is used by SELECT
-// statements to notify the client that a SELECT statement finishes setting up
-// all necessary nodes in the topology. Its payload is always null. "ping"
-// type is used by SELECT statements to validate connection. Its "payload" is
-// always null. SELECT statements send "ping" responses on a regular basis.
-// "eos", end of stream, responses are sent when SELECT statements has sent all
-// tuples. "payload" of "eos" is always null. "eos" isn't sent when an error
-// occurred.
-func (tc *topologies) WebSocketQueries(rw web.ResponseWriter, req *web.Request) {
-	// TODO: add a document describing which BQL statement returns which result.
-	if !strings.EqualFold(req.Header.Get("Upgrade"), "WebSocket") {
-		err := fmt.Errorf("the request isn't a WebSocket request")
-		tc.Log().Error(err)
-		tc.RenderErrorJSON(NewError(nonWebSocketRequestErrorCode, "This action only accepts WebSocket connections",
-			http.StatusBadRequest, err))
-		return
-	}
-
-	tb := tc.fetchTopology()
-	if tb == nil {
-		return
-	}
-
-	tc.Log().Info("Begin WebSocket connection")
-	defer tc.Log().Info("End WebSocket connection")
-
-	websocket.Handler(func(conn *websocket.Conn) {
-		sendErr := func(e *Error) {
-			err := websocket.JSON.Send(conn, e)
-			if err != nil {
-				tc.ErrLog(err).Error("Cannot send an error response to the WebSocket connection")
-			}
-		}
-		var js map[string]interface{}
-		if err := websocket.JSON.Receive(conn, &js); err != nil {
-			e := NewError(bqlStmtParseErrorCode,
-				"Cannot read or parse a JSON body received from the WebSocket connection",
-				http.StatusBadRequest, err)
-			tc.ErrLog(err).Error(e.Message)
-			sendErr(e)
-			return
-		}
-
-		form, err := data.NewMap(js)
-		if err != nil {
-			tc.ErrLog(err).WithField("body", js).Error("The request json may contain invalid value")
-			e := NewError(formValidationErrorCode, "The request json may contain invalid values.",
-				http.StatusBadRequest, err)
-			sendErr(e)
-			return
-		}
-
-		// TODO: use mapstructure or json schema for validation
-		// TODO: return as many errors at once as possible
-		var (
-			rid     int64
-			payload data.Map
-		)
-		if v, ok := form["rid"]; !ok {
-			tc.Log().Error("The required 'rid' field is missing")
-			e := NewError(formValidationErrorCode, "The request body is invalid.",
-				http.StatusBadRequest, err)
-			e.Meta["rid"] = []string{"field is missing"}
-			sendErr(e)
-			return
-
-		} else if r, err := data.ToInt(v); err != nil {
-			tc.ErrLog(err).Error("Cannot convert 'rid' to an integer")
-			e := NewError(formValidationErrorCode, "The request body is invalid.",
-				http.StatusBadRequest, err)
-			e.Meta["rid"] = []string{"value must be an integer"}
-			sendErr(e)
-			return
-
-		} else {
-			rid = r
-		}
-
-		if v, ok := form["payload"]; !ok {
-			tc.Log().Error("The required 'payload' field is missing")
-			e := NewError(formValidationErrorCode, "The request body is invalid.",
-				http.StatusBadRequest, err)
-			e.Meta["payload"] = []string{"field is missing"}
-			sendErr(e)
-			return
-
-		} else if p, err := data.AsMap(v); err != nil {
-			tc.ErrLog(err).Error("Cannot convert 'payload' to an integer")
-			e := NewError(formValidationErrorCode, "The request body is invalid.",
-				http.StatusBadRequest, err)
-			e.Meta["payload"] = []string{"value must be an object"}
-			sendErr(e)
-			return
-
-		} else {
-			payload = p
-		}
-
-		// TODO: merge the following implementation with Queries.
-		var stmts []interface{}
-		if ss, err := tc.parseQueries(payload); err != nil {
-			sendErr(err)
-			return
-		} else if len(ss) == 0 {
-			if err := websocket.JSON.Send(conn, map[string]interface{}{}); err != nil {
-				tc.ErrLog(err).Error("Cannot send a response to the WebSocket client")
-			}
-			return
-		} else {
-			stmts = ss
-		}
-
-		if len(stmts) == 1 {
-			stmtStr := fmt.Sprint(stmts[0])
-			if stmt, ok := stmts[0].(parser.SelectStmt); ok {
-				tc.handleSelectStmtWebSocket(conn, rid, stmt, stmtStr)
-				return
-			} else if stmt, ok := stmts[0].(parser.SelectUnionStmt); ok {
-				tc.handleSelectUnionStmtWebSocket(conn, rid, stmt, stmtStr)
-				return
-			} else if stmt, ok := stmts[0].(parser.EvalStmt); ok {
-				tc.handleEvalStmtWebSocket(conn, rid, stmt, stmtStr)
-				return
-			}
-		}
-
-		// TODO: handle this atomically
-		for _, stmt := range stmts {
-			// TODO: change the return value of AddStmt to support the new response format.
-			_, err = tb.AddStmt(stmt)
-			if err != nil {
-				tc.ErrLog(err).Error("Cannot process a statement")
-				e := NewError(bqlStmtProcessingErrorCode, "Cannot process a statement", http.StatusBadRequest, err)
-				e.Meta["error"] = err.Error()
-				e.Meta["statement"] = fmt.Sprint(stmt)
-				sendErr(e)
-				return
-			}
-		}
-
-		// TODO: define a proper response format
-		if err := websocket.JSON.Send(conn, map[string]interface{}{}); err != nil {
-			tc.ErrLog(err).Error("Cannot send a response to the WebSocket client")
-		}
-	}).ServeHTTP(rw, req.Request)
-}
-
 func (tc *topologies) parseQueries(form data.Map) ([]interface{}, *Error) {
 	// TODO: use mapstructure when parameters get too many
 	var queries string
@@ -734,37 +537,276 @@ func (tc *topologies) handleEvalStmt(rw web.ResponseWriter, stmt parser.EvalStmt
 	})
 }
 
-func (tc *topologies) handleSelectStmtWebSocket(conn *websocket.Conn, rid int64, stmt parser.SelectStmt, stmtStr string) {
-	tmpStmt := parser.SelectUnionStmt{[]parser.SelectStmt{stmt}}
-	tc.handleSelectUnionStmtWebSocket(conn, rid, tmpStmt, stmtStr)
+// WebSocketQueries handles requests using WebSocket. A single WebSocket
+// connection can concurrently issue multiple requests including requests
+// containing a SELECT statement.
+//
+// All WebSocket request need to have following fields:
+//
+//	* rid
+//	* payload
+//
+// "rid" field is used at the client side to identify to which request a response
+// corresponds. All responses have "rid" field having the same value as the one
+// in its corresponding request. rid can be any integer which is greather than
+// 0 as long as the client can distinguish responses. rid 0 is used by the
+// server when returning an error which happened before the actual rid can be
+// obtained.
+//
+// "payload" field contains a request data same as the one sent to the regular
+// HTTP request. Therefore, WebSocket requests have the same limitations such as
+// "A SELECT statement cannot be issued with other statements including another
+// SELECT statement". However, as it's mentioned earlier, a single WebSocket
+// connection can concurrently send multiple requests which have a single
+// SELECT statement.
+//
+// Example:
+//
+//	{
+//		"rid": 1,
+//		"payload": {
+//			"queries": "SELECT RSTREAM * FROM my_stream [RANGE 1 TUPLES];"
+//		}
+//	}
+//
+// All WebSocket responses have following fields:
+//
+//	* rid
+//	* type
+//	* payload
+//
+// "rid" field contains the ID of the request to which the response corresponds.
+//
+// "type" field contains the type of the response:
+//
+//	* "result"
+//	* "error"
+//	* "sos"
+//	* "ping"
+//	* "eos"
+//
+// When the type is "result", "payload" field contains the result obtained by
+// executing the query. The form of response depends on the type of a statement
+// and some statements returns multiple responses. When the type is "error",
+// "payload" has an error information which is same as the error response
+// that Queries action returns. "sos", start of stream, type is used by SELECT
+// statements to notify the client that a SELECT statement finishes setting up
+// all necessary nodes in the topology. Its payload is always null. "ping"
+// type is used by SELECT statements to validate connection. Its "payload" is
+// always null. SELECT statements send "ping" responses on a regular basis.
+// "eos", end of stream, responses are sent when SELECT statements has sent all
+// tuples. "payload" of "eos" is always null. "eos" isn't sent when an error
+// occurred.
+func (tc *topologies) WebSocketQueries(rw web.ResponseWriter, req *web.Request) {
+	// TODO: add a document describing which BQL statement returns which result.
+	if !strings.EqualFold(req.Header.Get("Upgrade"), "WebSocket") {
+		err := fmt.Errorf("the request isn't a WebSocket request")
+		tc.Log().Error(err)
+		tc.RenderErrorJSON(NewError(nonWebSocketRequestErrorCode, "This action only accepts WebSocket connections",
+			http.StatusBadRequest, err))
+		return
+	}
+
+	tb := tc.fetchTopology()
+	if tb == nil {
+		return
+	}
+
+	tc.Log().Info("Begin WebSocket connection")
+	defer tc.Log().Info("End WebSocket connection")
+
+	websocket.Handler(func(conn *websocket.Conn) {
+		for tc.processWebSocketMessage(conn, tb) {
+		}
+	}).ServeHTTP(rw, req.Request)
 }
 
-func (tc *topologies) handleSelectUnionStmtWebSocket(conn *websocket.Conn, rid int64, stmt parser.SelectUnionStmt, stmtStr string) {
+// processWebSocketMessage processes a request from the client. It returns true
+// if the caller can call this method again, in other words, the connection is
+// still alive.
+func (tc *topologies) processWebSocketMessage(conn *websocket.Conn, tb *bql.TopologyBuilder) bool {
+	w := &webSocketTopologyQueryHandler{
+		tc:   tc,
+		conn: conn,
+	}
+
+	var js map[string]interface{}
+	if err := w.receive(&js); err != nil {
+		e := NewError(bqlStmtParseErrorCode,
+			"Cannot read or parse a JSON body received from the WebSocket connection",
+			http.StatusBadRequest, err)
+		tc.ErrLog(err).Error(e.Message)
+		// When the error message cannot be sent back to the client, the connection
+		// might be lost. So, tell the caller about it
+		return w.sendErr(e)
+	}
+
+	form, err := data.NewMap(js)
+	if err != nil {
+		tc.ErrLog(err).WithField("body", js).Error("The request json may contain invalid value")
+		return w.sendErr(NewError(formValidationErrorCode, "The request json may contain invalid values.",
+			http.StatusBadRequest, err))
+	}
+
+	// TODO: use mapstructure or json schema for validation
+	// TODO: return as many errors at once as possible
+	var payload data.Map
+	if v, ok := form["rid"]; !ok {
+		tc.Log().Error("The required 'rid' field is missing")
+		e := NewError(formValidationErrorCode, "The request body is invalid.",
+			http.StatusBadRequest, err)
+		e.Meta["rid"] = []string{"field is missing"}
+		return w.sendErr(e)
+
+	} else if r, err := data.ToInt(v); err != nil {
+		tc.ErrLog(err).Error("Cannot convert 'rid' to an integer")
+		e := NewError(formValidationErrorCode, "The request body is invalid.",
+			http.StatusBadRequest, err)
+		e.Meta["rid"] = []string{"value must be an integer"}
+		return w.sendErr(e)
+
+	} else {
+		w.rid = r
+	}
+
+	// TODO: access logging
+
+	// rid should be logged from this point. So, following logging should be
+	// done by w.Log/w.ErrLog.
+
+	if v, ok := form["payload"]; !ok {
+		w.Log().Error("The required 'payload' field is missing")
+		e := NewError(formValidationErrorCode, "The request body is invalid.",
+			http.StatusBadRequest, err)
+		e.Meta["payload"] = []string{"field is missing"}
+		return w.sendErr(e)
+
+	} else if p, err := data.AsMap(v); err != nil {
+		w.ErrLog(err).Error("Cannot convert 'payload' to an integer")
+		e := NewError(formValidationErrorCode, "The request body is invalid.",
+			http.StatusBadRequest, err)
+		e.Meta["payload"] = []string{"value must be an object"}
+		return w.sendErr(e)
+
+	} else {
+		payload = p
+	}
+
+	// TODO: merge the following implementation with Queries.
+	var stmts []interface{}
+	if ss, err := tc.parseQueries(payload); err != nil { // TODO: logs from this method should have wsreqid, too
+		return w.sendErr(err)
+	} else if len(ss) == 0 {
+		if err := w.send("result", map[string]interface{}{}); err != nil {
+			w.ErrLog(err).Error("Cannot send a response to the WebSocket client")
+			return false
+		}
+		return true
+	} else {
+		stmts = ss
+	}
+
+	// Although these requests may fail asynchronously, the connect is probably
+	// still alive and next processWebSocketMessage can detect disconnection.
+	// So, the following code block always returns true.
+	go func() {
+		if len(stmts) == 1 {
+			stmtStr := fmt.Sprint(stmts[0])
+			if stmt, ok := stmts[0].(parser.SelectStmt); ok {
+				w.handleSelectStmtWebSocket(conn, stmt, stmtStr)
+				return
+			} else if stmt, ok := stmts[0].(parser.SelectUnionStmt); ok {
+				w.handleSelectUnionStmtWebSocket(conn, stmt, stmtStr)
+				return
+			} else if stmt, ok := stmts[0].(parser.EvalStmt); ok {
+				w.handleEvalStmtWebSocket(conn, stmt, stmtStr)
+				return
+			}
+		}
+
+		// TODO: handle this atomically
+		for _, stmt := range stmts {
+			// TODO: change the return value of AddStmt to support the new response format.
+			_, err = tb.AddStmt(stmt)
+			if err != nil {
+				w.ErrLog(err).Error("Cannot process a statement")
+				e := NewError(bqlStmtProcessingErrorCode, "Cannot process a statement", http.StatusBadRequest, err)
+				e.Meta["error"] = err.Error()
+				e.Meta["statement"] = fmt.Sprint(stmt)
+				w.sendErr(e)
+				return
+			}
+		}
+
+		// TODO: define a proper response format
+		if err := w.send("result", map[string]interface{}{}); err != nil {
+			w.ErrLog(err).Error("Cannot send a response to the WebSocket client")
+		}
+	}()
+	return true
+}
+
+type webSocketTopologyQueryHandler struct {
+	tc   *topologies
+	conn *websocket.Conn
+	rid  int64
+}
+
+func (w *webSocketTopologyQueryHandler) Log() *logrus.Entry {
+	return w.tc.Log().WithField("wsreqid", w.rid)
+}
+
+func (w *webSocketTopologyQueryHandler) ErrLog(err error) *logrus.Entry {
+	return w.tc.ErrLog(err).WithField("wsreqid", w.rid)
+}
+
+func (w *webSocketTopologyQueryHandler) receive(v interface{}) error {
+	return websocket.JSON.Receive(w.conn, v)
+}
+
+func (w *webSocketTopologyQueryHandler) send(msgType string, v interface{}) error {
+	return websocket.JSON.Send(w.conn, map[string]interface{}{
+		"rid":     w.rid,
+		"type":    msgType,
+		"payload": v,
+	})
+}
+
+// sendErr sends an error message to the client. It returns true when the
+// response could be sent.
+func (w *webSocketTopologyQueryHandler) sendErr(e *Error) bool {
+	if err := w.send("error", e); err != nil {
+		// TODO: this error message should have the caller's line number.
+		w.ErrLog(err).Error("Cannot send an error response to the WebSocket connection")
+		return false
+	}
+	return true
+}
+
+func (w *webSocketTopologyQueryHandler) handleSelectStmtWebSocket(conn *websocket.Conn, stmt parser.SelectStmt, stmtStr string) {
+	tmpStmt := parser.SelectUnionStmt{[]parser.SelectStmt{stmt}}
+	w.handleSelectUnionStmtWebSocket(conn, tmpStmt, stmtStr)
+}
+
+func (w *webSocketTopologyQueryHandler) handleSelectUnionStmtWebSocket(conn *websocket.Conn, stmt parser.SelectUnionStmt, stmtStr string) {
 	// TODO: merge this function with handleSelectUnionStmt if possible
-	tb := tc.fetchTopology()
+	tb := w.tc.fetchTopology()
 	if tb == nil { // just in case
 		return
 	}
 
 	sn, ch, err := tb.AddSelectUnionStmt(&stmt)
 	if err != nil {
-		tc.ErrLog(err).Error("Cannot process a statement")
+		w.ErrLog(err).Error("Cannot process a statement")
 		e := NewError(bqlStmtProcessingErrorCode, "Cannot process a statement", http.StatusBadRequest, err)
 		e.Meta["error"] = err.Error()
 		e.Meta["statement"] = stmtStr
-		if err := websocket.JSON.Send(conn, map[string]interface{}{
-			"rid":     rid,
-			"type":    "error",
-			"payload": e,
-		}); err != nil {
-			tc.ErrLog(err).Error("Cannot send an error response to the WebSocket client")
-			return
-		}
+		w.sendErr(e)
 		return
 	}
 	defer func() {
-		tc.Log().WithFields(logrus.Fields{
-			"topology":  tc.topologyName,
+		w.Log().WithFields(logrus.Fields{
+			"topology":  w.tc.topologyName,
 			"statement": stmtStr,
 		}).Info("Finish streaming SELECT responses")
 
@@ -774,24 +816,20 @@ func (tc *topologies) handleSelectUnionStmtWebSocket(conn *websocket.Conn, rid i
 			}
 		}()
 		if err := sn.Stop(); err != nil {
-			tc.ErrLog(err).WithFields(logrus.Fields{
+			w.ErrLog(err).WithFields(logrus.Fields{
 				"node_type": core.NTSink,
 				"node_name": sn.Name(),
 			}).Error("Cannot stop the temporary sink")
 		}
 	}()
 
-	tc.Log().WithFields(logrus.Fields{
-		"topology":  tc.topologyName,
+	w.Log().WithFields(logrus.Fields{
+		"topology":  w.tc.topologyName,
 		"statement": stmtStr,
 	}).Info("Start streaming SELECT responses")
 
-	if err := websocket.JSON.Send(conn, map[string]interface{}{
-		"rid":     rid,
-		"type":    "sos",
-		"payload": nil,
-	}); err != nil {
-		tc.ErrLog(err).Error("Cannot send an sos to the WebSocket client")
+	if err := w.send("sos", nil); err != nil {
+		w.ErrLog(err).Error("Cannot send an sos to the WebSocket client")
 		return
 	}
 
@@ -802,12 +840,8 @@ func (tc *topologies) handleSelectUnionStmtWebSocket(conn *websocket.Conn, rid i
 		select {
 		case v, ok := <-ch:
 			if !ok {
-				if err := websocket.JSON.Send(conn, map[string]interface{}{
-					"rid":     rid,
-					"type":    "eos",
-					"payload": nil,
-				}); err != nil {
-					tc.ErrLog(err).Error("Cannot send an EOS message to the WebSocket client")
+				if err := w.send("eos", nil); err != nil {
+					w.ErrLog(err).Error("Cannot send an EOS message to the WebSocket client")
 				}
 				return
 			}
@@ -820,59 +854,41 @@ func (tc *topologies) handleSelectUnionStmtWebSocket(conn *websocket.Conn, rid i
 				continue
 			}
 
-			if err := websocket.JSON.Send(conn, map[string]interface{}{
-				"rid":     rid,
-				"type":    "ping",
-				"payload": nil,
-			}); err != nil {
-				tc.ErrLog(err).Error("The connection may be closed from the client side")
+			if err := w.send("ping", nil); err != nil {
+				w.ErrLog(err).Error("The connection may be closed from the client side")
 				return
 			}
 			ping = time.After(1 * time.Minute)
 			continue
 		}
 
-		if err := websocket.JSON.Send(conn, map[string]interface{}{
-			"rid":     rid,
-			"type":    "result",
-			"payload": t.Data,
-		}); err != nil {
-			tc.ErrLog(err).Error("Cannot send an error response to the WebSocket client")
+		if err := w.send("result", t.Data); err != nil {
+			w.ErrLog(err).Error("Cannot send an error response to the WebSocket client")
 			return
 		}
 	}
 }
 
-func (tc *topologies) handleEvalStmtWebSocket(conn *websocket.Conn, rid int64, stmt parser.EvalStmt, stmtStr string) {
-	tb := tc.fetchTopology()
+func (w *webSocketTopologyQueryHandler) handleEvalStmtWebSocket(conn *websocket.Conn, stmt parser.EvalStmt, stmtStr string) {
+	tb := w.tc.fetchTopology()
 	if tb == nil { // just in case
 		return
 	}
 
 	result, err := tb.RunEvalStmt(&stmt)
 	if err != nil {
-		tc.ErrLog(err).Error("Cannot process a statement")
+		w.ErrLog(err).Error("Cannot process a statement")
 		e := NewError(bqlStmtProcessingErrorCode, "Cannot process a statement", http.StatusBadRequest, err)
 		e.Meta["error"] = err.Error()
 		e.Meta["statement"] = stmtStr
-		if err := websocket.JSON.Send(conn, map[string]interface{}{
-			"rid":     rid,
-			"type":    "error",
-			"payload": e,
-		}); err != nil {
-			tc.ErrLog(err).Error("Cannot send an error response to the WebSocket client")
-		}
+		w.sendErr(e)
 		return
 	}
 
-	if err := websocket.JSON.Send(conn, map[string]interface{}{
-		"rid":  rid,
-		"type": "result",
-		"payload": map[string]interface{}{
-			"result": result,
-		},
+	if err := w.send("result", map[string]interface{}{
+		"result": result,
 	}); err != nil {
-		tc.ErrLog(err).Error("Cannot send data to the WebSocket client")
+		w.ErrLog(err).Error("Cannot send data to the WebSocket client")
 		return
 	}
 }
