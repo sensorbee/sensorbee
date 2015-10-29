@@ -30,7 +30,7 @@ const (
 
 	// nonWebSocketRequestErrorCode is returned when a requested action only
 	// supports WebSocket and a request is a regular HTTP request.
-	nonWebSocketRequestErrorCode = "E0007"
+	nonWebSocketRequestErrorCode = "E0008"
 )
 
 const (
