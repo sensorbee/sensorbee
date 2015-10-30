@@ -101,10 +101,14 @@ func assignOutputValue(where data.Map, key string, path data.Path, value data.Va
 	if key == "*" {
 		valMap, err := data.AsMap(value)
 		if err != nil {
-			return err
+			return fmt.Errorf("tried to use value %#v as columns, but is not a map", value)
 		}
 		for k, v := range valMap {
-			where[k] = v
+			// in the wildcard case, if a column with the same
+			// name already exists, don't overwrite it
+			if _, exists := where[k]; !exists {
+				where[k] = v
+			}
 		}
 	} else {
 		if path == nil {

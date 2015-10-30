@@ -28,7 +28,7 @@ type bqlBox struct {
 	emitterLimit int64
 	// emitterSampling holds a positive value if this box should only
 	// emit a certain subset of items (defined by emitterSamplingType)
-	emitterSampling int64
+	emitterSampling float64
 	// emitterSamplingType holds a value different from
 	// parser.UnspecifiedSamplingType if output sampling is active
 	emitterSamplingType parser.EmitterSamplingType
@@ -97,12 +97,8 @@ func (b *bqlBox) Process(ctx *core.Context, t *core.Tuple, s core.Writer) error 
 
 	// emit result data as tuples
 	for _, data := range resultData {
-		tup := &core.Tuple{
-			Data:          data,
-			Timestamp:     t.Timestamp,
-			ProcTimestamp: t.ProcTimestamp,
-			BatchID:       t.BatchID,
-		}
+		tup := *t
+		tup.Data = data
 		if len(t.Trace) != 0 {
 			tup.Trace = make([]core.TraceEvent, len(t.Trace))
 			copy(tup.Trace, t.Trace)
@@ -111,17 +107,18 @@ func (b *bqlBox) Process(ctx *core.Context, t *core.Tuple, s core.Writer) error 
 		// decide if we should emit a tuple for this item
 		shouldWriteTuple := true
 		if b.emitterSamplingType == parser.CountBasedSampling {
-			shouldWriteTuple = b.genCount%b.emitterSampling == 0
+			shouldWriteTuple = b.genCount%int64(b.emitterSampling) == 0
 			// with 1,000,000 items per second, the counter below will
 			// overflow after running for 292,471 years. probably ok.
 			b.genCount += 1
 		} else if b.emitterSamplingType == parser.RandomizedSampling {
-			shouldWriteTuple = rand.Int63n(100) < b.emitterSampling
+			// emitterSampling is in [0,1], not [0,100] any more
+			shouldWriteTuple = rand.Float64() < b.emitterSampling
 		} else if b.emitterSamplingType == parser.TimeBasedSampling {
 			// we will never emit something from this function
 			// when the time-based emitter is used
 			b.timeEmitterMutex.Lock()
-			b.lastTuple = tup
+			b.lastTuple = &tup
 			b.lastWriter = s
 			b.timeEmitterMutex.Unlock()
 			continue
@@ -129,7 +126,7 @@ func (b *bqlBox) Process(ctx *core.Context, t *core.Tuple, s core.Writer) error 
 
 		// write the tuple to the connected box
 		if shouldWriteTuple {
-			if err := s.Write(ctx, tup); err != nil {
+			if err := s.Write(ctx, &tup); err != nil {
 				return err
 			}
 			b.emitCount += 1
@@ -160,7 +157,7 @@ func (b *bqlBox) timeEmitter(ctx *core.Context) {
 	// invariant: b.emitterSamplingType == TimeBasedSampling
 
 	// generate a ticker that will tick every time we need to emit a tuple
-	ticker := time.NewTicker(time.Duration(b.emitterSampling) * time.Millisecond)
+	ticker := time.NewTicker(time.Duration(b.emitterSampling * float64(time.Second)))
 	for _ = range ticker.C {
 		// we need to lock here because we access the `stopped` flag, the
 		// `lastTuple` and `lastWriter` pointer, as well as`emitCount`

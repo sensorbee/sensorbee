@@ -86,6 +86,7 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 	// Select a column with changing values
 	Convey("Given a SELECT clause with only a column", t, func() {
 		tuples := getTuples(4)
+		tuples[2].Data["int"] = data.Null{}
 		s := `CREATE STREAM box AS SELECT ISTREAM int::string AS int FROM src [RANGE 2 SECONDS]`
 		plan, err := createDefaultSelectPlan(s, t)
 		So(err, ShouldBeNil)
@@ -97,8 +98,13 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 
 				Convey(fmt.Sprintf("Then those values should appear in %v", idx), func() {
 					So(len(out), ShouldEqual, 1)
-					So(out[0], ShouldResemble,
-						data.Map{"int": data.String(fmt.Sprintf("%d", idx+1))})
+					if idx == 2 {
+						So(out[0], ShouldResemble,
+							data.Map{"int": data.Null{}})
+					} else {
+						So(out[0], ShouldResemble,
+							data.Map{"int": data.String(fmt.Sprintf("%d", idx+1))})
+					}
 				})
 			}
 
@@ -448,6 +454,49 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 		})
 	})
 
+	Convey("Given a SELECT clause with an AS * flattening", t, func() {
+		tuples := getTuples(4)
+		for i := range tuples {
+			if i == 1 {
+				tuples[i].Data["nest"] = data.Int(i)
+			} else {
+				tuples[i].Data["nest"] = data.Map{"c": data.Int(i), "d": data.Float(i + 1)}
+			}
+		}
+		s := `CREATE STREAM box AS SELECT ISTREAM nest AS * FROM src [RANGE 2 TUPLES]`
+		plan, err := createDefaultSelectPlan(s, t)
+		So(err, ShouldBeNil)
+
+		Convey("When feeding it with tuples", func() {
+			for idx, inTup := range tuples {
+				out, err := plan.Process(inTup)
+				if idx == 0 {
+					So(err, ShouldBeNil)
+					Convey(fmt.Sprintf("Then those values should appear in %v", idx), func() {
+						So(len(out), ShouldEqual, 1)
+						So(out[0], ShouldResemble,
+							data.Map{"c": data.Int(0), "d": data.Float(1.0)})
+					})
+
+				} else if idx == 1 || idx == 2 { // window size is 2!
+					So(err, ShouldNotBeNil)
+					So(err.Error(), ShouldEqual, "tried to use value 1 as columns, but is not a map")
+
+				} else {
+					So(err, ShouldBeNil)
+					Convey(fmt.Sprintf("Then those values should appear in %v", idx), func() {
+						So(len(out), ShouldEqual, 2)
+						So(out[0], ShouldResemble,
+							data.Map{"c": data.Int(2), "d": data.Float(3.0)})
+						So(out[1], ShouldResemble,
+							data.Map{"c": data.Int(3), "d": data.Float(4.0)})
+					})
+				}
+			}
+
+		})
+	})
+
 	// Use wildcard
 	Convey("Given a SELECT clause with a wildcard", t, func() {
 		tuples := getTuples(4)
@@ -512,7 +561,7 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 		})
 	})
 
-	Convey("Given a SELECT clause with a wildcard and an overriding column", t, func() {
+	Convey("Given a SELECT clause with a wildcard and a named column", t, func() {
 		tuples := getTuples(4)
 		s := `CREATE STREAM box AS SELECT ISTREAM *, (int-1)*2 AS int FROM src [RANGE 2 SECONDS]`
 		plan, err := createDefaultSelectPlan(s, t)
@@ -523,7 +572,7 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 				out, err := plan.Process(inTup)
 				So(err, ShouldBeNil)
 
-				Convey(fmt.Sprintf("Then those values should appear in %v", idx), func() {
+				Convey(fmt.Sprintf("Then the column is prioritized %v", idx), func() {
 					So(len(out), ShouldEqual, 1)
 					So(out[0], ShouldResemble,
 						data.Map{"int": data.Int(2 * idx)})
@@ -533,7 +582,7 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 		})
 	})
 
-	Convey("Given a SELECT clause with a stream wildcard and an overriding column", t, func() {
+	Convey("Given a SELECT clause with a stream wildcard and a named column", t, func() {
 		tuples := getTuples(4)
 		s := `CREATE STREAM box AS SELECT ISTREAM src:*, (src:int-1)*2 AS int FROM src [RANGE 2 SECONDS]`
 		plan, err := createDefaultSelectPlan(s, t)
@@ -544,7 +593,7 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 				out, err := plan.Process(inTup)
 				So(err, ShouldBeNil)
 
-				Convey(fmt.Sprintf("Then those values should appear in %v", idx), func() {
+				Convey(fmt.Sprintf("Then the column is prioritized %v", idx), func() {
 					So(len(out), ShouldEqual, 1)
 					So(out[0], ShouldResemble,
 						data.Map{"int": data.Int(2 * idx)})
@@ -554,7 +603,7 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 		})
 	})
 
-	Convey("Given a SELECT clause with a column and an overriding wildcard", t, func() {
+	Convey("Given a SELECT clause with a named column and a wildcard", t, func() {
 		tuples := getTuples(4)
 		s := `CREATE STREAM box AS SELECT ISTREAM (int-1)*2 AS int, * FROM src [RANGE 2 SECONDS]`
 		plan, err := createDefaultSelectPlan(s, t)
@@ -565,10 +614,10 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 				out, err := plan.Process(inTup)
 				So(err, ShouldBeNil)
 
-				Convey(fmt.Sprintf("Then those values should appear in %v", idx), func() {
+				Convey(fmt.Sprintf("Then the column is prioritzed %v", idx), func() {
 					So(len(out), ShouldEqual, 1)
 					So(out[0], ShouldResemble,
-						data.Map{"int": data.Int(idx + 1)})
+						data.Map{"int": data.Int(2 * idx)})
 				})
 			}
 
@@ -1018,7 +1067,7 @@ func TestDefaultSelectExecutionPlanEmitters(t *testing.T) {
 	})
 
 	// RSTREAM/2 TUPLES window
-	Convey("Given an RSTREAM emitter selecting a constant and a 2 SECONDS window", t, func() {
+	Convey("Given an RSTREAM emitter selecting a constant and a 2 TUPLES window", t, func() {
 		tuples := getTuples(4)
 		s := `CREATE STREAM box AS SELECT RSTREAM 2 AS a FROM src [RANGE 2 TUPLES]`
 		plan, err := createDefaultSelectPlan(s, t)
@@ -1050,7 +1099,7 @@ func TestDefaultSelectExecutionPlanEmitters(t *testing.T) {
 		})
 	})
 
-	Convey("Given an RSTREAM emitter selecting a column and a 2 SECONDS window", t, func() {
+	Convey("Given an RSTREAM emitter selecting a column and a 2 TUPLES window", t, func() {
 		tuples := getTuples(4)
 		s := `CREATE STREAM box AS SELECT RSTREAM int AS a FROM src [RANGE 2 TUPLES]`
 		plan, err := createDefaultSelectPlan(s, t)
@@ -1333,6 +1382,71 @@ func TestDefaultSelectExecutionPlanEmitters(t *testing.T) {
 				So(output[4][0], ShouldResemble, data.Map{"a": data.Int(3)})
 				So(len(output[3]), ShouldEqual, 1)
 				So(output[5][0], ShouldResemble, data.Map{"a": data.Int(4)})
+			})
+
+		})
+	})
+
+	// fractional RANGE sizes
+	Convey("Given an RSTREAM emitter selecting a column and a 1.9 SECONDS (=2 TUPLES) window", t, func() {
+		tuples := getTuples(4)
+		s := `CREATE STREAM box AS SELECT RSTREAM int AS a FROM src [RANGE 1.9 SECONDS]`
+		plan, err := createDefaultSelectPlan(s, t)
+		So(err, ShouldBeNil)
+
+		Convey("When feeding it with tuples", func() {
+			output := [][]data.Map{}
+			for _, inTup := range tuples {
+				out, err := plan.Process(inTup)
+				So(err, ShouldBeNil)
+				output = append(output, out)
+			}
+
+			Convey("Then the whole window state should be emitted", func() {
+				So(len(output), ShouldEqual, 4)
+				So(len(output[0]), ShouldEqual, 1)
+				So(output[0][0], ShouldResemble, data.Map{"a": data.Int(1)})
+				So(len(output[1]), ShouldEqual, 2)
+				So(output[1][0], ShouldResemble, data.Map{"a": data.Int(1)})
+				So(output[1][1], ShouldResemble, data.Map{"a": data.Int(2)})
+				So(len(output[2]), ShouldEqual, 2)
+				So(output[2][0], ShouldResemble, data.Map{"a": data.Int(2)})
+				So(output[2][1], ShouldResemble, data.Map{"a": data.Int(3)})
+				So(len(output[3]), ShouldEqual, 2)
+				So(output[3][0], ShouldResemble, data.Map{"a": data.Int(3)})
+				So(output[3][1], ShouldResemble, data.Map{"a": data.Int(4)})
+			})
+
+		})
+	})
+
+	Convey("Given an RSTREAM emitter selecting a column and a 1900.9 MILLISECONDS (=2 TUPLES) window", t, func() {
+		tuples := getTuples(4)
+		s := `CREATE STREAM box AS SELECT RSTREAM int AS a FROM src [RANGE 1900.9 MILLISECONDS]`
+		plan, err := createDefaultSelectPlan(s, t)
+		So(err, ShouldBeNil)
+
+		Convey("When feeding it with tuples", func() {
+			output := [][]data.Map{}
+			for _, inTup := range tuples {
+				out, err := plan.Process(inTup)
+				So(err, ShouldBeNil)
+				output = append(output, out)
+			}
+
+			Convey("Then the whole window state should be emitted", func() {
+				So(len(output), ShouldEqual, 4)
+				So(len(output[0]), ShouldEqual, 1)
+				So(output[0][0], ShouldResemble, data.Map{"a": data.Int(1)})
+				So(len(output[1]), ShouldEqual, 2)
+				So(output[1][0], ShouldResemble, data.Map{"a": data.Int(1)})
+				So(output[1][1], ShouldResemble, data.Map{"a": data.Int(2)})
+				So(len(output[2]), ShouldEqual, 2)
+				So(output[2][0], ShouldResemble, data.Map{"a": data.Int(2)})
+				So(output[2][1], ShouldResemble, data.Map{"a": data.Int(3)})
+				So(len(output[3]), ShouldEqual, 2)
+				So(output[3][0], ShouldResemble, data.Map{"a": data.Int(3)})
+				So(output[3][1], ShouldResemble, data.Map{"a": data.Int(4)})
 			})
 
 		})

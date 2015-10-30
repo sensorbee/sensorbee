@@ -43,17 +43,13 @@ func (ds *defaultSinkNode) Input(refname string, config *SinkInputConfig) error 
 	}
 
 	recv, send := newPipe("output", config.capacity())
+	send.dropMode = config.DropMode
 	if err := s.destinations().add(ds.name, send); err != nil {
 		return err
 	}
 	if err := ds.srcs.add(s.Name(), recv); err != nil {
 		s.destinations().remove(ds.name)
 		return err
-	}
-
-	if !s.destinations().isDroppedTupleReportingEnabled() {
-		// disable dropped tuple reporting to avoid infinite reporting loop
-		ds.srcs.disableDroppedTupleReporting()
 	}
 	return nil
 }

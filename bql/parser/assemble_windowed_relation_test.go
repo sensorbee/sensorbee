@@ -12,7 +12,11 @@ func TestAssembleStreamWindow(t *testing.T) {
 		Convey("When the stack contains two correct items", func() {
 			ps.PushComponent(0, 6, Raw{"PRE"})
 			ps.PushComponent(6, 8, Stream{ActualStream, "a", nil})
-			ps.PushComponent(8, 10, IntervalAST{NumericLiteral{2}, Seconds})
+			ps.PushComponent(8, 10, IntervalAST{FloatLiteral{2}, Seconds})
+			ps.PushComponent(10, 12, NumericLiteral{2})
+			ps.EnsureCapacitySpec(10, 12)
+			ps.PushComponent(12, 14, DropOldest)
+			ps.EnsureSheddingSpec(12, 14)
 			ps.AssembleStreamWindow()
 
 			Convey("Then AssembleStreamWindow transforms them into one item", func() {
@@ -22,7 +26,7 @@ func TestAssembleStreamWindow(t *testing.T) {
 					top := ps.Peek()
 					So(top, ShouldNotBeNil)
 					So(top.begin, ShouldEqual, 6)
-					So(top.end, ShouldEqual, 10)
+					So(top.end, ShouldEqual, 14)
 					So(top.comp, ShouldHaveSameTypeAs, StreamWindowAST{})
 
 					Convey("And it contains the previously pushed data", func() {
@@ -30,14 +34,21 @@ func TestAssembleStreamWindow(t *testing.T) {
 						So(comp.Name, ShouldEqual, "a")
 						So(comp.Value, ShouldEqual, 2)
 						So(comp.Unit, ShouldEqual, Seconds)
+						So(comp.Capacity, ShouldEqual, 2)
+						So(comp.Shedding, ShouldEqual, DropOldest)
 					})
 				})
 			})
 		})
 
-		Convey("When the stack contains one correct item", func() {
+		Convey("When the stack contains two correct items (float)", func() {
 			ps.PushComponent(0, 6, Raw{"PRE"})
 			ps.PushComponent(6, 8, Stream{ActualStream, "a", nil})
+			ps.PushComponent(8, 10, IntervalAST{FloatLiteral{0.2}, Seconds})
+			ps.PushComponent(10, 12, NumericLiteral{2})
+			ps.EnsureCapacitySpec(10, 12)
+			ps.PushComponent(12, 14, DropNewest)
+			ps.EnsureSheddingSpec(12, 14)
 			ps.AssembleStreamWindow()
 
 			Convey("Then AssembleStreamWindow transforms them into one item", func() {
@@ -47,14 +58,16 @@ func TestAssembleStreamWindow(t *testing.T) {
 					top := ps.Peek()
 					So(top, ShouldNotBeNil)
 					So(top.begin, ShouldEqual, 6)
-					So(top.end, ShouldEqual, 8)
+					So(top.end, ShouldEqual, 14)
 					So(top.comp, ShouldHaveSameTypeAs, StreamWindowAST{})
 
 					Convey("And it contains the previously pushed data", func() {
 						comp := top.comp.(StreamWindowAST)
 						So(comp.Name, ShouldEqual, "a")
-						So(comp.Value, ShouldEqual, 0)
-						So(comp.Unit, ShouldEqual, UnspecifiedIntervalUnit)
+						So(comp.Value, ShouldEqual, 0.2)
+						So(comp.Unit, ShouldEqual, Seconds)
+						So(comp.Capacity, ShouldEqual, 2)
+						So(comp.Shedding, ShouldEqual, DropNewest)
 					})
 				})
 			})
@@ -62,6 +75,7 @@ func TestAssembleStreamWindow(t *testing.T) {
 
 		Convey("When the stack contains a wrong item", func() {
 			ps.PushComponent(0, 6, Raw{"PRE"})
+			ps.PushComponent(6, 8, Stream{ActualStream, "a", nil})
 
 			Convey("Then AssembleStreamWindow panics", func() {
 				So(ps.AssembleStreamWindow, ShouldPanic)
@@ -78,8 +92,8 @@ func TestAssembleStreamWindow(t *testing.T) {
 	Convey("Given a parser", t, func() {
 		p := &bqlPeg{}
 
-		Convey("When selecting with a FROM", func() {
-			p.Buffer = "CREATE STREAM x AS SELECT ISTREAM a, b FROM c [RANGE 3 TUPLES]"
+		Convey("When selecting with a FROM (TUPLES/int)", func() {
+			p.Buffer = "CREATE STREAM x AS SELECT ISTREAM a, b FROM c [RANGE 3 TUPLES, BUFFER SIZE 1, DROP OLDEST IF FULL]"
 			p.Init()
 
 			Convey("Then the statement should be parsed correctly", func() {
@@ -95,6 +109,74 @@ func TestAssembleStreamWindow(t *testing.T) {
 				So(comp.Relations[0].Name, ShouldEqual, "c")
 				So(comp.Relations[0].Value, ShouldEqual, 3)
 				So(comp.Relations[0].Unit, ShouldEqual, Tuples)
+				So(comp.Relations[0].Capacity, ShouldEqual, 1)
+				So(comp.Relations[0].Shedding, ShouldEqual, DropOldest)
+				So(comp.Relations[0].Alias, ShouldEqual, "")
+
+				Convey("And String() should return the original statement", func() {
+					stmt := top.(CreateStreamAsSelectStmt)
+					So(stmt.String(), ShouldEqual, p.Buffer)
+				})
+			})
+		})
+
+		Convey("When selecting with a FROM (TUPLES/float)", func() {
+			p.Buffer = "CREATE STREAM x AS SELECT ISTREAM a, b FROM c [RANGE 3.0 TUPLES]"
+			p.Init()
+
+			Convey("Then parsing the statement should fail", func() {
+				err := p.Parse()
+				So(err, ShouldNotEqual, nil)
+			})
+		})
+
+		Convey("When selecting with a FROM (SECONDS/int)", func() {
+			p.Buffer = "CREATE STREAM x AS SELECT ISTREAM a, b FROM c [RANGE 3 SECONDS, DROP NEWEST IF FULL]"
+			p.Init()
+
+			Convey("Then the statement should be parsed correctly", func() {
+				err := p.Parse()
+				So(err, ShouldEqual, nil)
+				p.Execute()
+
+				ps := p.parseStack
+				So(ps.Len(), ShouldEqual, 1)
+				top := ps.Peek().comp
+				So(top, ShouldHaveSameTypeAs, CreateStreamAsSelectStmt{})
+				comp := top.(CreateStreamAsSelectStmt).Select
+				So(comp.Relations[0].Name, ShouldEqual, "c")
+				So(comp.Relations[0].Value, ShouldEqual, 3)
+				So(comp.Relations[0].Unit, ShouldEqual, Seconds)
+				So(comp.Relations[0].Capacity, ShouldEqual, UnspecifiedCapacity)
+				So(comp.Relations[0].Shedding, ShouldEqual, DropNewest)
+				So(comp.Relations[0].Alias, ShouldEqual, "")
+
+				Convey("And String() should return the original statement", func() {
+					stmt := top.(CreateStreamAsSelectStmt)
+					So(stmt.String(), ShouldEqual, p.Buffer)
+				})
+			})
+		})
+
+		Convey("When selecting with a FROM (MILLISECONDS/float)", func() {
+			p.Buffer = "CREATE STREAM x AS SELECT ISTREAM a, b FROM c [RANGE 0.2 MILLISECONDS]"
+			p.Init()
+
+			Convey("Then the statement should be parsed correctly", func() {
+				err := p.Parse()
+				So(err, ShouldEqual, nil)
+				p.Execute()
+
+				ps := p.parseStack
+				So(ps.Len(), ShouldEqual, 1)
+				top := ps.Peek().comp
+				So(top, ShouldHaveSameTypeAs, CreateStreamAsSelectStmt{})
+				comp := top.(CreateStreamAsSelectStmt).Select
+				So(comp.Relations[0].Name, ShouldEqual, "c")
+				So(comp.Relations[0].Value, ShouldEqual, 0.2)
+				So(comp.Relations[0].Unit, ShouldEqual, Milliseconds)
+				So(comp.Relations[0].Capacity, ShouldEqual, UnspecifiedCapacity)
+				So(comp.Relations[0].Shedding, ShouldEqual, UnspecifiedSheddingOption)
 				So(comp.Relations[0].Alias, ShouldEqual, "")
 
 				Convey("And String() should return the original statement", func() {

@@ -50,6 +50,20 @@ func EvaluateFoldable(expr parser.Expression, reg udf.FunctionRegistry) (data.Va
 	return evaluator.Eval(nil)
 }
 
+// EvaluateOnInput evaluates a (not necessarily foldable)
+// expression, given a Map that represents a row of data.
+func EvaluateOnInput(expr parser.Expression, input data.Value, reg udf.FunctionRegistry) (data.Value, error) {
+	flatExpr, err := ParserExprToFlatExpr(expr, reg)
+	if err != nil {
+		return nil, err
+	}
+	evaluator, err := ExpressionToEvaluator(flatExpr, reg)
+	if err != nil {
+		return nil, err
+	}
+	return evaluator.Eval(input)
+}
+
 // ExpressionToEvaluator takes one of the Expression structs that result
 // from parsing a BQL Expression (see parser/ast.go) and turns it into
 // an Evaluator that can be used to evaluate an expression given a particular
@@ -312,6 +326,10 @@ func (t *typeCast) Eval(input data.Value) (data.Value, error) {
 	val, err := t.underlying.Eval(input)
 	if err != nil {
 		return nil, err
+	}
+	// null propagation
+	if val.Type() == data.TypeNull {
+		return data.Null{}, nil
 	}
 	return t.converter(val)
 }

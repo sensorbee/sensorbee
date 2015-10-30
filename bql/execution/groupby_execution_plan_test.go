@@ -267,6 +267,58 @@ func TestGroupbyExecutionPlan(t *testing.T) {
 		})
 	})
 
+	SkipConvey("Given a SELECT clause with a simple aggregation and GROUP BY (hash collision)", t, func() {
+		tuples := getOtherTuples()
+		// TODO this test is working because the two numbers below are not
+		//      *actually* causing a hash collision for the group value.
+		//      in order to test whether that works correctly we need to
+		//      find two such numbers
+		collision1 := 1
+		collision2 := 2
+		tuples[0].Data["foo"] = data.Int(collision1)
+		tuples[1].Data["foo"] = data.Int(collision1)
+		tuples[2].Data["foo"] = data.Int(collision2)
+		tuples[3].Data["foo"] = data.Int(collision2)
+		// TODO make sure we do actually have a hash collision
+		// So(data.Hash(data.Array{tuples[1].Data["foo"]}), ShouldEqual, data.Hash(data.Array{tuples[2].Data["foo"]}))
+		s := `CREATE STREAM box AS SELECT RSTREAM foo, count(int) FROM src [RANGE 3 TUPLES] GROUP BY foo`
+		plan, err := createGroupbyPlan(s, t)
+		So(err, ShouldBeNil)
+
+		Convey("When feeding it with tuples", func() {
+			for idx, inTup := range tuples {
+				out, err := plan.Process(inTup)
+				So(err, ShouldBeNil)
+
+				Convey(fmt.Sprintf("Then those values should appear in %v", idx), func() {
+					if idx == 0 {
+						So(len(out), ShouldEqual, 1)
+						So(out[0], ShouldResemble,
+							data.Map{"foo": data.Int(collision1), "count": data.Int(1)})
+					} else if idx == 1 {
+						So(len(out), ShouldEqual, 1)
+						So(out[0], ShouldResemble,
+							data.Map{"foo": data.Int(collision1), "count": data.Int(2)})
+					} else if idx == 2 {
+						// TODO the test below fails because we have the hash collision
+						So(len(out), ShouldEqual, 2)
+						So(out[0], ShouldResemble,
+							data.Map{"foo": data.Int(collision1), "count": data.Int(2)})
+						So(out[1], ShouldResemble,
+							data.Map{"foo": data.Int(collision2), "count": data.Int(1)})
+					} else {
+						// TODO the test below fails because we have the hash collision
+						So(len(out), ShouldEqual, 2)
+						So(out[0], ShouldResemble,
+							data.Map{"foo": data.Int(collision1), "count": data.Int(1)})
+						So(out[1], ShouldResemble,
+							data.Map{"foo": data.Int(collision2), "count": data.Int(2)})
+					}
+				})
+			}
+		})
+	})
+
 	Convey("Given a SELECT clause with an structure of aggregations and GROUP BY", t, func() {
 		tuples := getOtherTuples()
 		tuples[3].Data["int"] = data.Null{} // NULL should not be counted

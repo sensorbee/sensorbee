@@ -7,6 +7,8 @@ import (
 	"pfi/sensorbee/sensorbee/client"
 )
 
+// SetUp SensorBee shell tool. The tool sets up HTTP client and access to
+// SensorBee server.
 func SetUp() cli.Command {
 	cmd := cli.Command{
 		Name:        "shell",

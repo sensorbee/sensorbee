@@ -43,6 +43,27 @@ func (r *pipeReceiver) close() {
 	}()
 }
 
+// OutputDropMode is a mode which controls the behavior of dropping tuples when
+// an output queue of a Source or a Box is full. This mode doesn't care about
+// precision of computation results. When a Box connected to an output queue
+// supports sophisticated load shedding algorithm, specify DropNone.
+type OutputDropMode int
+
+const (
+	// DropNone is one of OutputDropMode that a Source or Box doesn't drop any
+	// tuple when its output queue is full. This is the default mode.
+	DropNone OutputDropMode = iota
+
+	// DropLatest is one of OutputDropMode that a Source and a Box drops the
+	// latest tuple (i.e. the tuple which is being sent) when its output queue
+	// is full.
+	DropLatest
+
+	// DropOldest is one of OutputDropMode that a Source and a Box drops the
+	// oldest tuple being queued when its output queue is full.
+	DropOldest
+)
+
 // pipeSender represents a pipe sender. An object of this struct must be
 // placed in a global variable or in memory allocated from the heap.
 // Using an array or a slice of pipeSender may cause panic even if it is
@@ -59,7 +80,8 @@ type pipeSender struct {
 	cnt int64
 
 	inputName string
-	out       chan<- *Tuple
+	out       chan *Tuple
+	dropMode  OutputDropMode
 
 	// rwm protects out from write-close conflicts.
 	rwm sync.RWMutex
@@ -74,6 +96,12 @@ type pipeSender struct {
 // Write outputs the given tuple to the pipe. This method only returns
 // errPipeClosed and never panics.
 func (s *pipeSender) Write(ctx *Context, t *Tuple) error {
+	// A benchmark result has shown that passing a closure here is 10% faster
+	// than passing a function which does nothing.
+	return s.write(ctx, t, func(*Tuple) {})
+}
+
+func (s *pipeSender) write(ctx *Context, t *Tuple, droppedTuple func(*Tuple)) error {
 	s.rwm.RLock()
 	defer s.rwm.RUnlock()
 
@@ -82,7 +110,30 @@ func (s *pipeSender) Write(ctx *Context, t *Tuple) error {
 	}
 
 	t.InputName = s.inputName
-	s.out <- t
+	if s.dropMode == DropNone {
+		s.out <- t
+	} else {
+	sendLoop:
+		for {
+			select {
+			case s.out <- t:
+				break sendLoop
+			default:
+				if s.dropMode == DropLatest {
+					droppedTuple(t)
+					return nil
+				}
+
+				// The mode is DropOldest, so it takes the oldest one and try
+				// again in the next iteration. This loop can cause starvation.
+				select {
+				case dropped := <-s.out:
+					droppedTuple(dropped)
+				default: // Another thread may drop it before this thread does.
+				}
+			}
+		}
+	}
 	atomic.AddInt64(&s.cnt, 1)
 	return nil
 }
@@ -170,18 +221,13 @@ type dataSources struct {
 	// msgChs is a slice of channels which are connected to goroutines
 	// pouring tuples. They receive controlling messages through this channel.
 	msgChs []chan<- *dataSourcesMessage
-
-	// reportDroppedTuples is a flag (0,1) to control the behavior of dropped
-	// tuple logging. If this value is 0, dropped tuples won't be reported.
-	reportDroppedTuples int32
 }
 
 func newDataSources(nodeType NodeType, nodeName string) *dataSources {
 	s := &dataSources{
-		nodeType:            nodeType,
-		nodeName:            nodeName,
-		recvs:               map[string]*pipeReceiver{},
-		reportDroppedTuples: 1,
+		nodeType: nodeType,
+		nodeName: nodeName,
+		recvs:    map[string]*pipeReceiver{},
 	}
 	s.state = newTopologyStateHolder(&s.m)
 	return s
@@ -200,10 +246,6 @@ const (
 	ddscToggleGracefulStop
 	ddscStopOnDisconnect
 )
-
-func (s *dataSources) disableDroppedTupleReporting() {
-	atomic.StoreInt32(&s.reportDroppedTuples, 0)
-}
 
 func (s *dataSources) add(name string, r *pipeReceiver) error {
 	// Because dataSources is used internally and shouldn't return error
@@ -442,9 +484,6 @@ func (s *dataSources) pouringThread(ctx *Context, w Writer, cs []reflect.SelectC
 	stopOnDisconnect := false
 
 	reportDT := func(t *Tuple, err error) {
-		if atomic.LoadInt32(&s.reportDroppedTuples) == 0 {
-			return
-		}
 		ctx.droppedTuple(t, s.nodeType, s.nodeName, ETInput, err)
 	}
 
@@ -641,8 +680,6 @@ type dataDestinations struct {
 	paused   bool
 
 	callback func(ddEvent)
-
-	reportDroppedTuples bool
 }
 
 type ddEvent int
@@ -659,25 +696,12 @@ const (
 
 func newDataDestinations(nodeType NodeType, nodeName string) *dataDestinations {
 	d := &dataDestinations{
-		nodeType:            nodeType,
-		nodeName:            nodeName,
-		dsts:                map[string]*pipeSender{},
-		reportDroppedTuples: true,
+		nodeType: nodeType,
+		nodeName: nodeName,
+		dsts:     map[string]*pipeSender{},
 	}
 	d.cond = sync.NewCond(&d.rwm)
 	return d
-}
-
-func (d *dataDestinations) disableDroppedTupleReporting() {
-	d.rwm.Lock()
-	defer d.rwm.Unlock()
-	d.reportDroppedTuples = false
-}
-
-func (d *dataDestinations) isDroppedTupleReportingEnabled() bool {
-	d.rwm.RLock()
-	defer d.rwm.RUnlock()
-	return d.reportDroppedTuples
 }
 
 func (d *dataDestinations) add(name string, s *pipeSender) error {
@@ -760,10 +784,12 @@ func (d *dataDestinations) Write(ctx *Context, t *Tuple) error {
 
 	if len(d.dsts) == 0 {
 		atomic.AddInt64(&d.numDropped, 1)
-		if d.reportDroppedTuples {
-			ctx.droppedTuple(t, d.nodeType, d.nodeName, ETOutput, errors.New("no output destination is connected"))
-		}
+		ctx.droppedTuple(t, d.nodeType, d.nodeName, ETOutput, errors.New("no output destination is connected"))
 		return nil
+	}
+
+	reportFunc := func(dropped *Tuple) {
+		ctx.droppedTuple(t, d.nodeType, d.nodeName, ETOutput, errors.New("the output queue is full"))
 	}
 
 	needsCopy := len(d.dsts) > 1
@@ -777,7 +803,7 @@ func (d *dataDestinations) Write(ctx *Context, t *Tuple) error {
 			s = t.Copy()
 		}
 
-		if err := dst.Write(ctx, s); err != nil { // never panics
+		if err := dst.write(ctx, s, reportFunc); err != nil { // never panics
 			// err is always errPipeClosed when it isn't nil.
 			// Because the closed destination doesn't do anything harmful,
 			// it'll be removed later for performance reason.

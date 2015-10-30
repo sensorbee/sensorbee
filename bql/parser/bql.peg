@@ -38,7 +38,7 @@ StatementWithoutRest <- < Statement spOpt > {
         p.IncludeTrailingWhitespace(begin, end)
     }
 
-Statement <- (SelectUnionStmt / SelectStmt / SourceStmt / SinkStmt / StateStmt / StreamStmt)
+Statement <- (SelectUnionStmt / SelectStmt / SourceStmt / SinkStmt / StateStmt / StreamStmt / EvalStmt)
 
 SourceStmt <- CreateSourceStmt / UpdateSourceStmt / DropSourceStmt /
               PauseSourceStmt / ResumeSourceStmt / RewindSourceStmt
@@ -175,6 +175,10 @@ SaveStateStmt <- "SAVE" sp "STATE" sp StreamIdentifier {
         p.AssembleSaveState()
     }
 
+EvalStmt <- "EVAL" sp Expression < (sp "ON" sp MapExpr)? > {
+        p.AssembleEval(begin, end)
+    }
+
 ################################
 ##### STATEMENT COMPONENTS #####
 ################################
@@ -199,18 +203,18 @@ CountBasedSampling <- "EVERY" sp NumericLiteral spOpt '-'? spOpt ("ST" / "ND" / 
         p.AssembleEmitterSampling(CountBasedSampling, 1)
     }
 
-RandomizedSampling <- "SAMPLE" sp NumericLiteral spOpt '%' {
+RandomizedSampling <- "SAMPLE" sp (FloatLiteral / NumericLiteral) spOpt '%' {
         p.AssembleEmitterSampling(RandomizedSampling, 1)
     }
 
 TimeBasedSampling <- TimeBasedSamplingSeconds / TimeBasedSamplingMilliseconds
 
-TimeBasedSamplingSeconds <- "EVERY" sp NumericLiteral sp "SECONDS" {
-        p.AssembleEmitterSampling(TimeBasedSampling, 1000)
+TimeBasedSamplingSeconds <- "EVERY" sp (FloatLiteral / NumericLiteral) sp "SECONDS" {
+        p.AssembleEmitterSampling(TimeBasedSampling, 1)
     }
 
-TimeBasedSamplingMilliseconds <- "EVERY" sp NumericLiteral sp "MILLISECONDS" {
-        p.AssembleEmitterSampling(TimeBasedSampling, 1)
+TimeBasedSamplingMilliseconds <- "EVERY" sp (FloatLiteral / NumericLiteral) sp "MILLISECONDS" {
+        p.AssembleEmitterSampling(TimeBasedSampling, 0.001)
     }
 
 Projections <- < sp Projection (spOpt ',' spOpt Projection)* > {
@@ -231,7 +235,7 @@ WindowedFrom <- < (sp "FROM" sp Relations)? > {
 
 Interval <- TimeInterval / TuplesInterval
 
-TimeInterval <- NumericLiteral sp (SECONDS / MILLISECONDS) {
+TimeInterval <- (FloatLiteral / NumericLiteral) sp (SECONDS / MILLISECONDS) {
         p.AssembleInterval()
     }
 
@@ -271,7 +275,7 @@ AliasedStreamWindow <- StreamWindow sp "AS" sp Identifier {
         p.AssembleAliasedStreamWindow()
     }
 
-StreamWindow <- StreamLike spOpt '[' spOpt "RANGE" sp Interval spOpt ']' {
+StreamWindow <- StreamLike spOpt '[' spOpt "RANGE" sp Interval CapacitySpecOpt SheddingSpecOpt spOpt ']' {
         p.AssembleStreamWindow()
     }
 
@@ -280,6 +284,17 @@ StreamLike <- UDSFFuncApp / Stream
 UDSFFuncApp <- FuncAppWithoutOrderBy {
         p.AssembleUDSFFuncApp()
     }
+
+# Use NonNegativeNumericLiteral so that we can encode "unspecified" as -1.
+CapacitySpecOpt <- < (spOpt ',' spOpt "BUFFER" sp "SIZE" sp NonNegativeNumericLiteral)? > {
+        p.EnsureCapacitySpec(begin, end)
+    }
+
+SheddingSpecOpt <- < (spOpt ',' spOpt SheddingOption sp "IF" sp "FULL")? > {
+        p.EnsureSheddingSpec(begin, end)
+    }
+
+SheddingOption <- Wait / DropOldest / DropNewest
 
 SourceSinkSpecs <- < (sp "WITH" sp SourceSinkParam (spOpt ',' spOpt SourceSinkParam)*)? > {
         p.AssembleSourceSinkSpecs(begin, end)
@@ -299,13 +314,21 @@ SourceSinkParam <- SourceSinkParamKey '=' SourceSinkParamVal {
         p.AssembleSourceSinkParam()
     }
 
-SourceSinkParamVal <- ParamLiteral / ParamArrayExpr
+SourceSinkParamVal <- ParamLiteral / ParamArrayExpr / ParamMapExpr
 
 ParamLiteral <- BooleanLiteral / Literal
 
 ParamArrayExpr <- < '[' spOpt (ParamLiteral (',' spOpt ParamLiteral)*)? spOpt ','? spOpt ']' > {
         p.AssembleExpressions(begin, end)
         p.AssembleArray()
+    }
+
+ParamMapExpr <- < '{' spOpt (ParamKeyValuePair (spOpt ',' spOpt ParamKeyValuePair)*)? spOpt '}' > {
+        p.AssembleMap(begin, end)
+    }
+
+ParamKeyValuePair <- < StringLiteral spOpt ':' spOpt ParamLiteral > {
+        p.AssembleKeyValuePair()
     }
 
 PausedOpt <- < (sp (Paused / Unpaused))? > {
@@ -480,6 +503,11 @@ NumericLiteral <- < '-'? [0-9]+ > {
         p.PushComponent(begin, end, NewNumericLiteral(substr))
     }
 
+NonNegativeNumericLiteral <- < [0-9]+ > {
+        substr := string([]rune(buffer)[begin:end])
+        p.PushComponent(begin, end, NewNumericLiteral(substr))
+    }
+
 FloatLiteral <- < '-'? [0-9]+ '.' [0-9]+ > {
         substr := string([]rune(buffer)[begin:end])
         p.PushComponent(begin, end, NewFloatLiteral(substr))
@@ -536,6 +564,18 @@ SECONDS <- < "SECONDS" > {
 
 MILLISECONDS <- < "MILLISECONDS" > {
         p.PushComponent(begin, end, Milliseconds)
+    }
+
+Wait <- < "WAIT" > {
+        p.PushComponent(begin, end, Wait)
+    }
+
+DropOldest <- < "DROP" sp "OLDEST" > {
+        p.PushComponent(begin, end, DropOldest)
+    }
+
+DropNewest <- < "DROP" sp "NEWEST" > {
+        p.PushComponent(begin, end, DropNewest)
     }
 
 StreamIdentifier <- < ident > {
@@ -680,7 +720,7 @@ Identifier <- < ident > {
         p.PushComponent(begin, end, Identifier(substr))
     }
 
-TargetIdentifier <- < jsonSetPath > {
+TargetIdentifier <- < '*' / jsonSetPath > {
         substr := string([]rune(buffer)[begin:end])
         p.PushComponent(begin, end, Identifier(substr))
     }

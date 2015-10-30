@@ -80,7 +80,7 @@ func ToBool(v Value) (bool, error) {
 	defaultValue := false
 	switch v.Type() {
 	case TypeNull:
-		return false, nil
+		return defaultValue, nil
 	case TypeBool:
 		return v.asBool()
 	case TypeInt:
@@ -113,7 +113,7 @@ func ToBool(v Value) (bool, error) {
 // ToInt converts a given Value to an int64, if possible. The conversion
 // rules are as follows:
 //
-//  * Null: (error)
+//  * Null: 0
 //  * Bool: 0 if false, 1 if true
 //  * Int: actual value
 //  * Float: conversion as done by int64(value)
@@ -128,6 +128,8 @@ func ToBool(v Value) (bool, error) {
 func ToInt(v Value) (int64, error) {
 	defaultValue := int64(0)
 	switch v.Type() {
+	case TypeNull:
+		return defaultValue, nil
 	case TypeBool:
 		val, _ := v.asBool()
 		if val {
@@ -165,7 +167,7 @@ func ToInt(v Value) (int64, error) {
 // ToFloat converts a given Value to a float64, if possible. The conversion
 // rules are as follows:
 //
-//  * Null: (error)
+//  * Null: 0.0
 //  * Bool: 0.0 if false, 1.0 if true
 //  * Int: conversion as done by float64(value)
 //  * Float: actual value
@@ -179,6 +181,8 @@ func ToInt(v Value) (int64, error) {
 func ToFloat(v Value) (float64, error) {
 	defaultValue := float64(0)
 	switch v.Type() {
+	case TypeNull:
+		return defaultValue, nil
 	case TypeBool:
 		val, _ := v.asBool()
 		if val {
@@ -209,7 +213,7 @@ func ToFloat(v Value) (float64, error) {
 // ToString converts a given Value to a string. The conversion
 // rules are as follows:
 //
-//  * Null: "null"
+//  * Null: ""
 //  * String: the actual string
 //  * Blob: string just copied from []byte
 //  * Timestamp: ISO 8601 representation, see time.RFC3339
@@ -217,7 +221,7 @@ func ToFloat(v Value) (float64, error) {
 func ToString(v Value) (string, error) {
 	switch v.Type() {
 	case TypeNull:
-		return "null", nil
+		return "", nil
 	case TypeString:
 		// if we used "%#v", we will get a quoted string; if
 		// we used "%v", we will get the result of String()
@@ -303,5 +307,32 @@ func ToTimestamp(v Value) (time.Time, error) {
 	default:
 		return defaultValue,
 			fmt.Errorf("cannot convert %T to Time", v)
+	}
+}
+
+// ToDuration converts a Value to time.Duration, if possible.
+// The conversion rules are as follows:
+//
+//  * Null: 0
+//	* Int: Converted to seconds (e.g. 3 is equal to 3 seconds)
+//	* Float: Converted to seconds (e.g. 3.141592 equals 3s + 141ms + 592us)
+//	* String: time.ParseDuration will be called
+//	* other: (error)
+func ToDuration(v Value) (time.Duration, error) {
+	switch v.Type() {
+	case TypeNull:
+		var defaultValue time.Duration
+		return defaultValue, nil
+	case TypeInt:
+		i, _ := v.asInt()
+		return time.Duration(i) * time.Second, nil
+	case TypeFloat:
+		f, _ := v.asFloat()
+		return time.Duration(f * float64(time.Second)), nil
+	case TypeString:
+		s, _ := v.asString()
+		return time.ParseDuration(s)
+	default:
+		return 0, fmt.Errorf("cannot convert %T to Duration", v)
 	}
 }

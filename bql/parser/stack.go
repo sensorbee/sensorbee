@@ -509,6 +509,42 @@ func (ps *parseStack) AssembleSaveState() {
 	ps.Push(&se)
 }
 
+// AssembleEval takes the topmost one or two elements from the
+// stack, assuming they are components of an EVAL statement, and
+// replaces them by a single EvalStmt element.
+//
+//  Expression
+//  Expression
+//   =>
+//  EvalStmt{Expression, Expression}
+// or
+//  Expression
+//   =>
+//  EvalStmt{Expression, nil}
+func (ps *parseStack) AssembleEval(begin, end int) {
+	var exprBegin int
+	var expr Expression
+	var inputRow *MapAST
+
+	// pop a different number of items depending on whether we have the
+	// optional ON clause or not
+	if begin == end {
+		// the `... ON input` clause is empty
+		_expr := ps.Pop()
+		exprBegin = _expr.begin
+		expr = _expr.comp.(Expression)
+	} else {
+		_input, _expr := ps.pop2()
+		exprBegin = _expr.begin
+		expr = _expr.comp.(Expression)
+		input := _input.comp.(MapAST)
+		inputRow = &input
+	}
+
+	se := ParsedComponent{exprBegin, end, EvalStmt{expr, inputRow}}
+	ps.Push(&se)
+}
+
 /* Projections/Columns */
 
 // AssembleEmitter takes the topmost elements from the stack, assuming
@@ -571,12 +607,18 @@ func (ps *parseStack) AssembleEmitterLimit() {
 //  ...
 //   =>
 //  EmitterSampling{NumericLiteral, EmitterSamplingType}
-func (ps *parseStack) AssembleEmitterSampling(samplingType EmitterSamplingType, factor int64) {
+func (ps *parseStack) AssembleEmitterSampling(samplingType EmitterSamplingType, factor float64) {
 	_value := ps.Pop()
 
-	value := _value.comp.(NumericLiteral)
+	var value float64
+	if num, ok := _value.comp.(NumericLiteral); ok {
+		value = float64(num.Value)
+	} else {
+		num := _value.comp.(FloatLiteral)
+		value = num.Value
+	}
 
-	ps.PushComponent(_value.begin, _value.end, EmitterSampling{value.Value * factor, samplingType})
+	ps.PushComponent(_value.begin, _value.end, EmitterSampling{value * factor, samplingType})
 }
 
 // AssembleProjections takes the elements from the stack that
@@ -652,7 +694,12 @@ func (ps *parseStack) AssembleWindowedFrom(begin int, end int) {
 //  IntervalUnit
 //  NumericLiteral
 //   =>
-//  IntervalAST{NumericLiteral, IntervalUnit}
+//  IntervalAST{FloatLiteral, IntervalUnit}
+// or
+//  IntervalUnit
+//  FloatLiteral
+//   =>
+//  IntervalAST{FloatLiteral, IntervalUnit}
 func (ps *parseStack) AssembleInterval() {
 	// pop the components from the stack in reverse order
 	_unit, _num := ps.pop2()
@@ -660,10 +707,16 @@ func (ps *parseStack) AssembleInterval() {
 	// extract and convert the contained structure
 	// (if this fails, this is a fundamental parser bug => panic ok)
 	unit := _unit.comp.(IntervalUnit)
-	num := _num.comp.(NumericLiteral)
+	var val float64
+	if num, ok := _num.comp.(NumericLiteral); ok {
+		val = float64(num.Value)
+	} else {
+		num := _num.comp.(FloatLiteral)
+		val = num.Value
+	}
 
 	// assemble the IntervalAST and push it back
-	ps.PushComponent(_num.begin, _unit.end, IntervalAST{num, unit})
+	ps.PushComponent(_num.begin, _unit.end, IntervalAST{FloatLiteral{val}, unit})
 }
 
 /* WHERE clause */
@@ -780,38 +833,23 @@ func (ps *parseStack) EnsureAliasedStreamWindow() {
 
 // AssembleStreamWindow takes the topmost elements from the stack, assuming
 // they are components of an AS clause, and replaces them by
-// a single StreamWindowAST element. If there is no IntervalAST element present,
-// a IntervalAST with IntervalUnit UnspecifiedIntervalUnit is created.
+// a single StreamWindowAST element.
 //
 //  IntervalAST
 //  Stream
 //   =>
 //  StreamWindowAST{Stream, IntervalAST}
-// or
-//  Stream
-//   =>
-//  StreamWindowAST{Stream, IntervalAST}
 func (ps *parseStack) AssembleStreamWindow() {
 	// pop the components from the stack in reverse order
-	_rangeOrRel := ps.Pop()
-	_rel := _rangeOrRel
-	_range := _rangeOrRel
+	_shedding, _capacity, _range, _rel := ps.pop4()
 
-	var rangeAst IntervalAST
+	rel := _rel.comp.(Stream)
+	rangeAst := _range.comp.(IntervalAST)
+	capacity := _capacity.comp.(NumericLiteral)
+	shedding := _shedding.comp.(SheddingOption)
 
-	// check if we have a Stream or a Interval
-	rel, ok := _rangeOrRel.comp.(Stream)
-	if ok {
-		// there was (only) a Stream, no Interval, so set the "no range" info
-		rangeAst = IntervalAST{NumericLiteral{0}, UnspecifiedIntervalUnit}
-	} else {
-		// there was no Stream, so it was a Interval
-		rangeAst = _rangeOrRel.comp.(IntervalAST)
-		_rel = ps.Pop()
-		rel = _rel.comp.(Stream)
-	}
-
-	ps.PushComponent(_rel.begin, _range.end, StreamWindowAST{rel, rangeAst})
+	ps.PushComponent(_rel.begin, _shedding.end, StreamWindowAST{rel, rangeAst,
+		capacity.Value, shedding})
 }
 
 // AssembleUDSFFuncApp takes the topmost elements from the stack,
@@ -829,6 +867,40 @@ func (ps *parseStack) AssembleUDSFFuncApp() {
 	se := ParsedComponent{_fun.begin, _fun.end,
 		Stream{UDSFStream, string(fun.Function), fun.Expressions}}
 	ps.Push(&se)
+}
+
+// EnsureCapacitySpec makes sure that the top element of the stack
+// is a NumericLiteral element.
+func (ps *parseStack) EnsureCapacitySpec(begin int, end int) {
+	top := ps.Peek()
+	if top == nil || top.end <= begin {
+		// there is no item in the given range
+		ps.PushComponent(begin, end, NumericLiteral{UnspecifiedCapacity})
+	} else {
+		// there is an item in the given range
+		_, ok := top.comp.(NumericLiteral)
+		if !ok {
+			panic(fmt.Sprintf("begin (%d) != end (%d), but there "+
+				"was a %T on the stack", begin, end, top.comp))
+		}
+	}
+}
+
+// EnsureSheddingSpec makes sure that the top element of the stack
+// is a SheddingOption element.
+func (ps *parseStack) EnsureSheddingSpec(begin int, end int) {
+	top := ps.Peek()
+	if top == nil || top.end <= begin {
+		// there is no item in the given range
+		ps.PushComponent(begin, end, UnspecifiedSheddingOption)
+	} else {
+		// there is an item in the given range
+		_, ok := top.comp.(SheddingOption)
+		if !ok {
+			panic(fmt.Sprintf("begin (%d) != end (%d), but there "+
+				"was a %T on the stack", begin, end, top.comp))
+		}
+	}
 }
 
 // AssembleSourceSinkSpecs takes the elements from the stack that
@@ -890,6 +962,12 @@ func (ps *parseStack) AssembleSourceSinkParam() {
 				arr[i] = toValue(item)
 			}
 			value = arr
+		case MapAST:
+			m := data.Map{}
+			for _, item := range lit.Entries {
+				m[item.Key] = toValue(item.Value)
+			}
+			value = m
 		}
 		return value
 	}

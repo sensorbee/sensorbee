@@ -4,6 +4,7 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 	"pfi/sensorbee/sensorbee/bql/parser"
 	"pfi/sensorbee/sensorbee/core"
+	"pfi/sensorbee/sensorbee/data"
 	"testing"
 )
 
@@ -91,7 +92,7 @@ func TestCreateStreamAsSelectStmt(t *testing.T) {
 
 		Convey("When running CREATE STREAM AS SELECT on an existing stream", func() {
 			err := addBQLToTopology(tb, `CREATE STREAM t AS SELECT ISTREAM int FROM
-                s [RANGE 2 SECONDS] WHERE int=2`)
+                s [RANGE 2 SECONDS, BUFFER SIZE 2, WAIT IF FULL] WHERE int=2`)
 
 			Convey("Then there should be no error", func() {
 				So(err, ShouldBeNil)
@@ -943,6 +944,114 @@ func TestSelectUnionStmt(t *testing.T) {
 			_, _, err = tb.AddSelectUnionStmt(&stmt)
 			So(err, ShouldNotBeNil) // unknown data source
 			So(len(tb.topology.Nodes()), ShouldEqual, numNodes)
+		})
+	})
+}
+
+func TestEvalStmt(t *testing.T) {
+	Convey("Given a BQL TopologyBuilder", t, func() {
+		dt := newTestTopology()
+		Reset(func() {
+			dt.Stop()
+		})
+		tb, err := NewTopologyBuilder(dt)
+		So(err, ShouldBeNil)
+
+		// foldable
+
+		Convey("When issuing an EVAL stmt with a foldable expression without ON", func() {
+			bp := parser.New()
+			istmt, _, err := bp.ParseStmt(`EVAL '日本' || (2+3)`)
+			So(err, ShouldBeNil)
+			stmt := istmt.(parser.EvalStmt)
+			val, err := tb.RunEvalStmt(&stmt)
+
+			Convey("Then the correct result is returned", func() {
+				So(err, ShouldBeNil)
+				So(val, ShouldResemble, data.String("日本5"))
+			})
+		})
+
+		Convey("When issuing an EVAL stmt with a foldable expression and a foldable ON expression", func() {
+			bp := parser.New()
+			istmt, _, err := bp.ParseStmt(`EVAL '日本' || (2+3) ON {'key': 5}`)
+			So(err, ShouldBeNil)
+			stmt := istmt.(parser.EvalStmt)
+			val, err := tb.RunEvalStmt(&stmt)
+
+			Convey("Then the correct result is returned", func() {
+				So(err, ShouldBeNil)
+				So(val, ShouldResemble, data.String("日本5"))
+			})
+		})
+
+		Convey("When issuing an EVAL stmt with a foldable expression and a non-foldable ON expression", func() {
+			bp := parser.New()
+			istmt, _, err := bp.ParseStmt(`EVAL '日本' || (2+3) ON {'key': a}`)
+			So(err, ShouldBeNil)
+			stmt := istmt.(parser.EvalStmt)
+			_, err = tb.RunEvalStmt(&stmt)
+
+			Convey("Then an error is returned", func() {
+				So(err, ShouldNotBeNil)
+				So(err.Error(), ShouldEqual, "expression is not foldable: {'key':a}")
+			})
+		})
+
+		// non-foldable
+
+		Convey("When issuing an EVAL stmt with a non-foldable expression without ON", func() {
+			bp := parser.New()
+			istmt, _, err := bp.ParseStmt(`EVAL '日本' || key`)
+			So(err, ShouldBeNil)
+			stmt := istmt.(parser.EvalStmt)
+			_, err = tb.RunEvalStmt(&stmt)
+
+			Convey("Then an error is returned", func() {
+				So(err, ShouldNotBeNil)
+				So(err.Error(), ShouldEqual, "expression is not foldable: '日本' || key")
+			})
+		})
+
+		Convey("When issuing an EVAL stmt with a non-foldable expression and a foldable ON expression", func() {
+			bp := parser.New()
+			istmt, _, err := bp.ParseStmt(`EVAL '日本' || key ON {'key': 5}`)
+			So(err, ShouldBeNil)
+			stmt := istmt.(parser.EvalStmt)
+			val, err := tb.RunEvalStmt(&stmt)
+
+			Convey("Then the correct result is returned", func() {
+				So(err, ShouldBeNil)
+				So(val, ShouldResemble, data.String("日本5"))
+			})
+		})
+
+		Convey("When issuing an EVAL stmt with a non-foldable expression and a non-foldable ON expression", func() {
+			bp := parser.New()
+			istmt, _, err := bp.ParseStmt(`EVAL '日本' || key ON {'key': a}`)
+			So(err, ShouldBeNil)
+			stmt := istmt.(parser.EvalStmt)
+			_, err = tb.RunEvalStmt(&stmt)
+
+			Convey("Then an error is returned", func() {
+				So(err, ShouldNotBeNil)
+				So(err.Error(), ShouldEqual, "expression is not foldable: {'key':a}")
+			})
+		})
+
+		// stream prefixes
+
+		Convey("When issuing an EVAL stmt with an expression using a stream prefix", func() {
+			bp := parser.New()
+			istmt, _, err := bp.ParseStmt(`EVAL '日本' || s:key ON {'key': 5}`)
+			So(err, ShouldBeNil)
+			stmt := istmt.(parser.EvalStmt)
+			_, err = tb.RunEvalStmt(&stmt)
+
+			Convey("Then an error is returned", func() {
+				So(err, ShouldNotBeNil)
+				So(err.Error(), ShouldEqual, "stream prefixes cannot be used inside EVAL")
+			})
 		})
 	})
 }

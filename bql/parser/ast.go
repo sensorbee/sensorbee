@@ -11,7 +11,7 @@ type Expression interface {
 	ReferencedRelations() map[string]bool
 	RenameReferencedRelation(string, string) Expression
 	Foldable() bool
-	string() string
+	String() string
 }
 
 // This file holds a set of structs that make up the Abstract
@@ -301,6 +301,19 @@ func (s SaveStateStmt) String() string {
 	return strings.Join(str, " ")
 }
 
+type EvalStmt struct {
+	Expr  Expression
+	Input *MapAST
+}
+
+func (s EvalStmt) String() string {
+	str := []string{"EVAL", s.Expr.String()}
+	if s.Input != nil {
+		str = append(str, "ON", s.Input.String())
+	}
+	return strings.Join(str, " ")
+}
+
 type EmitterAST struct {
 	EmitterType    Emitter
 	EmitterOptions []interface{}
@@ -328,14 +341,14 @@ type EmitterLimit struct {
 }
 
 type EmitterSampling struct {
-	Value int64
+	Value float64
 	Type  EmitterSamplingType
 }
 
 func (e EmitterSampling) string() string {
 	if e.Type == CountBasedSampling {
 		countWord := "TH"
-		switch e.Value {
+		switch int64(e.Value) {
 		case 1:
 			countWord = "ST"
 		case 2:
@@ -343,14 +356,14 @@ func (e EmitterSampling) string() string {
 		case 3:
 			countWord = "RD"
 		}
-		return fmt.Sprintf("EVERY %d-%s TUPLE", e.Value, countWord)
+		return fmt.Sprintf("EVERY %d-%s TUPLE", int64(e.Value), countWord)
 	} else if e.Type == RandomizedSampling {
-		return fmt.Sprintf("SAMPLE %d%%", e.Value)
+		return fmt.Sprintf("SAMPLE %v%%", e.Value)
 	} else if e.Type == TimeBasedSampling {
-		if e.Value%1000 == 0 {
-			return fmt.Sprintf("EVERY %d SECONDS", e.Value/1000)
+		if e.Value < 1 {
+			return fmt.Sprintf("EVERY %v MILLISECONDS", e.Value*1000)
 		}
-		return fmt.Sprintf("EVERY %d MILLISECONDS", e.Value)
+		return fmt.Sprintf("EVERY %v SECONDS", e.Value)
 	}
 	return ""
 }
@@ -362,7 +375,7 @@ type ProjectionsAST struct {
 func (a ProjectionsAST) string() string {
 	prj := []string{}
 	for _, e := range a.Projections {
-		prj = append(prj, e.string())
+		prj = append(prj, e.String())
 	}
 	return strings.Join(prj, ", ")
 }
@@ -384,8 +397,8 @@ func (a AliasAST) Foldable() bool {
 	return a.Expr.Foldable()
 }
 
-func (a AliasAST) string() string {
-	return a.Expr.string() + " AS " + a.Alias
+func (a AliasAST) String() string {
+	return a.Expr.String() + " AS " + a.Alias
 }
 
 type WindowedFromAST struct {
@@ -417,36 +430,49 @@ func (a AliasedStreamWindowAST) string() string {
 	return str
 }
 
+const UnspecifiedCapacity int64 = -1
+
 type StreamWindowAST struct {
 	Stream
 	IntervalAST
+	Capacity int64
+	Shedding SheddingOption
 }
 
 func (a StreamWindowAST) string() string {
 	interval := a.IntervalAST.string()
+	capacity := ""
+	if a.Capacity != UnspecifiedCapacity {
+		capacity = fmt.Sprintf(", BUFFER SIZE %d", a.Capacity)
+	}
+	shedding := ""
+	if a.Shedding != UnspecifiedSheddingOption {
+		shedding = fmt.Sprintf(", %s IF FULL", a.Shedding.String())
+	}
+	suffix := "[" + interval + capacity + shedding + "]"
 
 	switch a.Stream.Type {
 	case ActualStream:
-		return a.Stream.Name + " " + interval
+		return a.Stream.Name + " " + suffix
 
 	case UDSFStream:
 		ps := []string{}
 		for _, p := range a.Stream.Params {
-			ps = append(ps, p.string())
+			ps = append(ps, p.String())
 		}
-		return a.Stream.Name + "(" + strings.Join(ps, ", ") + ") " + interval
+		return a.Stream.Name + "(" + strings.Join(ps, ", ") + ") " + suffix
 	}
 
 	return "UnknownStreamType"
 }
 
 type IntervalAST struct {
-	NumericLiteral
+	FloatLiteral
 	Unit IntervalUnit
 }
 
 func (a IntervalAST) string() string {
-	return "[RANGE " + a.NumericLiteral.string() + " " + a.Unit.String() + "]"
+	return "RANGE " + a.FloatLiteral.String() + " " + a.Unit.String()
 }
 
 type FilterAST struct {
@@ -457,7 +483,7 @@ func (a FilterAST) string() string {
 	if a.Filter == nil {
 		return ""
 	}
-	return "WHERE " + a.Filter.string()
+	return "WHERE " + a.Filter.String()
 }
 
 type GroupingAST struct {
@@ -471,7 +497,7 @@ func (a GroupingAST) string() string {
 
 	str := []string{}
 	for _, e := range a.GroupList {
-		str = append(str, e.string())
+		str = append(str, e.String())
 	}
 	return "GROUP BY " + strings.Join(str, ", ")
 }
@@ -484,7 +510,7 @@ func (a HavingAST) string() string {
 	if a.Having == nil {
 		return ""
 	}
-	return "HAVING " + a.Having.string()
+	return "HAVING " + a.Having.String()
 }
 
 type SourceSinkSpecsAST struct {
@@ -513,7 +539,7 @@ func (a SourceSinkParamAST) string() string {
 	mkString := func(v data.Value) string {
 		s, _ := data.ToString(v)
 		if v.Type() == data.TypeString {
-			return "'" + strings.Replace(s, "'", "''", -1) + "'"
+			return StringLiteral{Value: s}.String()
 		}
 		return s
 	}
@@ -527,6 +553,15 @@ func (a SourceSinkParamAST) string() string {
 			reps[i] = mkString(v)
 		}
 		valRepr = "[" + strings.Join(reps, ",") + "]"
+	} else if a.Value.Type() == data.TypeMap {
+		m, _ := data.AsMap(a.Value)
+		ret := make([]string, len(m))
+		i := 0
+		for k, v := range m {
+			ret[i] = StringLiteral{Value: k}.String() + ":" + mkString(v)
+			i++
+		}
+		valRepr = "{" + strings.Join(ret, ",") + "}"
 	} else {
 		valRepr = mkString(a.Value)
 	}
@@ -560,8 +595,8 @@ func (b BinaryOpAST) Foldable() bool {
 	return b.Left.Foldable() && b.Right.Foldable()
 }
 
-func (b BinaryOpAST) string() string {
-	str := []string{b.Left.string(), b.Op.String(), b.Right.string()}
+func (b BinaryOpAST) String() string {
+	str := []string{b.Left.String(), b.Op.String(), b.Right.String()}
 
 	// TODO: This implementation may add unnecessary parentheses.
 	// For example, in
@@ -618,9 +653,9 @@ func (u UnaryOpAST) Foldable() bool {
 	return u.Expr.Foldable()
 }
 
-func (u UnaryOpAST) string() string {
+func (u UnaryOpAST) String() string {
 	op := u.Op.String()
-	expr := u.Expr.string()
+	expr := u.Expr.String()
 
 	// Unary minus operator such as "- - 2"
 	if u.Op != UnaryMinus || strings.HasPrefix(expr, "-") {
@@ -653,16 +688,16 @@ func (u TypeCastAST) Foldable() bool {
 	return u.Expr.Foldable()
 }
 
-func (u TypeCastAST) string() string {
+func (u TypeCastAST) String() string {
 	if rv, ok := u.Expr.(RowValue); ok {
-		return rv.string() + "::" + u.Target.String()
+		return rv.String() + "::" + u.Target.String()
 	}
 
 	if rm, ok := u.Expr.(RowMeta); ok {
-		return rm.string() + "::" + u.Target.String()
+		return rm.String() + "::" + u.Target.String()
 	}
 
-	return "CAST(" + u.Expr.string() + " AS " + u.Target.String() + ")"
+	return "CAST(" + u.Expr.String() + " AS " + u.Target.String() + ")"
 }
 
 type FuncAppAST struct {
@@ -718,12 +753,12 @@ func (f FuncAppAST) Foldable() bool {
 	return foldable
 }
 
-func (f FuncAppAST) string() string {
+func (f FuncAppAST) String() string {
 	s := string(f.Function) + "(" + f.ExpressionsAST.string()
 	if len(f.Ordering) > 0 {
 		orderStrings := make([]string, len(f.Ordering))
 		for i, expr := range f.Ordering {
-			orderStrings[i] = expr.string()
+			orderStrings[i] = expr.String()
 		}
 		s += " ORDER BY " + strings.Join(orderStrings, ", ")
 	}
@@ -748,8 +783,8 @@ func (s SortedExpressionAST) Foldable() bool {
 	return s.Expr.Foldable()
 }
 
-func (s SortedExpressionAST) string() string {
-	ret := s.Expr.string()
+func (s SortedExpressionAST) String() string {
+	ret := s.Expr.String()
 	if s.Ascending == Yes {
 		ret += " ASC"
 	} else if s.Ascending == No {
@@ -791,7 +826,7 @@ func (a ArrayAST) Foldable() bool {
 	return foldable
 }
 
-func (a ArrayAST) string() string {
+func (a ArrayAST) String() string {
 	return "[" + a.ExpressionsAST.string() + "]"
 }
 
@@ -802,7 +837,7 @@ type ExpressionsAST struct {
 func (a ExpressionsAST) string() string {
 	str := []string{}
 	for _, e := range a.Expressions {
-		str = append(str, e.string())
+		str = append(str, e.String())
 	}
 	return strings.Join(str, ", ")
 }
@@ -843,7 +878,7 @@ func (m MapAST) Foldable() bool {
 	return foldable
 }
 
-func (m MapAST) string() string {
+func (m MapAST) String() string {
 	entries := []string{}
 	for _, pair := range m.Entries {
 		entries = append(entries, pair.string())
@@ -857,7 +892,7 @@ type KeyValuePairAST struct {
 }
 
 func (k KeyValuePairAST) string() string {
-	return `'` + k.Key + `':` + k.Value.string()
+	return `'` + k.Key + `':` + k.Value.String()
 }
 
 // Elementary Structures (all without *AST for now)
@@ -908,7 +943,7 @@ func NewWildcard(relation string) Wildcard {
 	return Wildcard{strings.TrimRight(relation, ":*")}
 }
 
-func (w Wildcard) string() string {
+func (w Wildcard) String() string {
 	if w.Relation != "" {
 		return w.Relation + ":*"
 	}
@@ -935,7 +970,7 @@ func (rv RowValue) Foldable() bool {
 	return false
 }
 
-func (rv RowValue) string() string {
+func (rv RowValue) String() string {
 	if rv.Relation != "" {
 		return rv.Relation + ":" + rv.Column
 	}
@@ -980,7 +1015,7 @@ func (rm RowMeta) Foldable() bool {
 	return false
 }
 
-func (rm RowMeta) string() string {
+func (rm RowMeta) String() string {
 	if rm.Relation != "" {
 		return rm.Relation + ":" + rm.MetaType.string()
 	}
@@ -1021,7 +1056,7 @@ func (l NumericLiteral) Foldable() bool {
 	return true
 }
 
-func (l NumericLiteral) string() string {
+func (l NumericLiteral) String() string {
 	return fmt.Sprintf("%v", l.Value)
 }
 
@@ -1049,7 +1084,7 @@ func (l FloatLiteral) Foldable() bool {
 	return true
 }
 
-func (l FloatLiteral) string() string {
+func (l FloatLiteral) String() string {
 	return fmt.Sprintf("%v", l.Value)
 }
 
@@ -1076,7 +1111,7 @@ func (l NullLiteral) Foldable() bool {
 	return true
 }
 
-func (l NullLiteral) string() string {
+func (l NullLiteral) String() string {
 	return "NULL"
 }
 
@@ -1100,7 +1135,7 @@ func (l BoolLiteral) Foldable() bool {
 	return true
 }
 
-func (l BoolLiteral) string() string {
+func (l BoolLiteral) String() string {
 	if l.Value {
 		return "TRUE"
 	}
@@ -1127,7 +1162,7 @@ func (l StringLiteral) Foldable() bool {
 	return true
 }
 
-func (l StringLiteral) string() string {
+func (l StringLiteral) String() string {
 	return "'" + strings.Replace(l.Value, "'", "''", -1) + "'"
 }
 
@@ -1288,6 +1323,28 @@ func (k BinaryKeyword) string(yes, no string) string {
 		return no
 	}
 	return ""
+}
+
+type SheddingOption int
+
+const (
+	UnspecifiedSheddingOption SheddingOption = iota
+	Wait
+	DropOldest
+	DropNewest
+)
+
+func (t SheddingOption) String() string {
+	s := "UnspecifiedSheddingOption"
+	switch t {
+	case Wait:
+		s = "WAIT"
+	case DropOldest:
+		s = "DROP OLDEST"
+	case DropNewest:
+		s = "DROP NEWEST"
+	}
+	return s
 }
 
 type Type int
