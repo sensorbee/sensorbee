@@ -19,8 +19,8 @@ func init() {
 func main() {
 	app := cli.NewApp()
 	app.Name = "sensorbee"
-	app.Usage = "SenserBee"
-	app.Version = "0.0.3" // TODO get dynamic, will be get from external file
+	app.Usage = "SensorBee"
+	app.Version = "0.3.1" // TODO get dynamic, will be get from external file
 	app.Commands = []cli.Command{
 		run.SetUp(),
 		shell.SetUp(),
