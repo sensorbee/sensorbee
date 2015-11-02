@@ -310,11 +310,10 @@ func setUpTopologies(logger *logrus.Logger, r TopologyRegistry, conf *config.Con
 
 	for name := range conf.Topologies {
 		logger.WithField("topology", name).Info("Setting up the topology")
-		tb, err := setUpTopology(logger, name, conf)
+		tb, err := setUpTopology(logger, name, conf, us)
 		if err != nil {
 			return err
 		}
-		tb.UDSStorage = us
 		if err := r.Register(name, tb); err != nil {
 			logger.WithFields(logrus.Fields{
 				"err":      err,
@@ -328,7 +327,7 @@ func setUpTopologies(logger *logrus.Logger, r TopologyRegistry, conf *config.Con
 	return nil
 }
 
-func setUpTopology(logger *logrus.Logger, name string, conf *config.Config) (*bql.TopologyBuilder, error) {
+func setUpTopology(logger *logrus.Logger, name string, conf *config.Config, us udf.UDSStorage) (*bql.TopologyBuilder, error) {
 	cc := &core.ContextConfig{
 		Logger: logger,
 	}
@@ -344,6 +343,7 @@ func setUpTopology(logger *logrus.Logger, name string, conf *config.Config) (*bq
 		}).Error("Cannot create a topology builder")
 		return nil, err
 	}
+	tb.UDSStorage = us
 
 	bqlFilePath := conf.Topologies[name].BQLFile
 	if bqlFilePath == "" {
