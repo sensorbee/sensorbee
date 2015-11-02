@@ -310,7 +310,7 @@ SetOptSpecs <- < (sp "SET" sp SourceSinkParam (spOpt ',' spOpt SourceSinkParam)*
         p.AssembleSourceSinkSpecs(begin, end)
     }
 
-SourceSinkParam <- SourceSinkParamKey '=' SourceSinkParamVal {
+SourceSinkParam <- SourceSinkParamKey spOpt '=' spOpt SourceSinkParamVal {
         p.AssembleSourceSinkParam()
     }
 

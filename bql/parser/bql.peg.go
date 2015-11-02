@@ -9833,7 +9833,7 @@ func (p *bqlPegBackend) Init() {
 			position, tokenIndex, depth = position1006, tokenIndex1006, depth1006
 			return false
 		},
-		/* 64 SourceSinkParam <- <(SourceSinkParamKey '=' SourceSinkParamVal Action49)> */
+		/* 64 SourceSinkParam <- <(SourceSinkParamKey spOpt '=' spOpt SourceSinkParamVal Action49)> */
 		func() bool {
 			position1019, tokenIndex1019, depth1019 := position, tokenIndex, depth
 			{
@@ -9842,10 +9842,16 @@ func (p *bqlPegBackend) Init() {
 				if !_rules[ruleSourceSinkParamKey]() {
 					goto l1019
 				}
+				if !_rules[rulespOpt]() {
+					goto l1019
+				}
 				if buffer[position] != rune('=') {
 					goto l1019
 				}
 				position++
+				if !_rules[rulespOpt]() {
+					goto l1019
+				}
 				if !_rules[ruleSourceSinkParamVal]() {
 					goto l1019
 				}
