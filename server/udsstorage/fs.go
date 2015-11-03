@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"pfi/sensorbee/sensorbee/bql/udf"
+	"pfi/sensorbee/sensorbee/core"
 	"regexp"
 )
 
@@ -52,8 +53,15 @@ func validateDir(dir string) error {
 	return nil
 }
 
-func (s *fsUDSStorage) Save(topology, state string) (udf.UDSStorageWriter, error) {
-	f, err := s.stateTempFile(topology, state)
+func (s *fsUDSStorage) Save(topology, state, tag string) (udf.UDSStorageWriter, error) {
+	if tag == "" {
+		tag = "default"
+	}
+	if err := core.ValidateNodeName(tag); err != nil {
+		return nil, err
+	}
+
+	f, err := s.stateTempFile(topology, state, tag)
 	if err != nil {
 		return nil, err
 	}
@@ -61,16 +69,23 @@ func (s *fsUDSStorage) Save(topology, state string) (udf.UDSStorageWriter, error
 		s:          s,
 		f:          f,
 		w:          bufio.NewWriter(f),
-		targetPath: s.stateFilepath(topology, state),
+		targetPath: s.stateFilepath(topology, state, tag),
 	}, nil
 }
 
-func (s *fsUDSStorage) stateTempFile(topology, state string) (*os.File, error) {
-	return ioutil.TempFile(s.tempDirPath, s.stateFilename(topology, state))
+func (s *fsUDSStorage) stateTempFile(topology, state, tag string) (*os.File, error) {
+	return ioutil.TempFile(s.tempDirPath, s.stateFilename(topology, state, tag))
 }
 
-func (s *fsUDSStorage) Load(topology, state string) (io.ReadCloser, error) {
-	f, err := os.Open(s.stateFilepath(topology, state))
+func (s *fsUDSStorage) Load(topology, state, tag string) (io.ReadCloser, error) {
+	if tag == "" {
+		tag = "default"
+	}
+	if err := core.ValidateNodeName(tag); err != nil {
+		return nil, err
+	}
+
+	f, err := os.Open(s.stateFilepath(topology, state, tag))
 	if err != nil {
 		return nil, err
 	}
@@ -78,10 +93,27 @@ func (s *fsUDSStorage) Load(topology, state string) (io.ReadCloser, error) {
 }
 
 var (
-	fsUDSStorageFilePathRegexp = regexp.MustCompile(`^(.+)-(.+).state$`)
+	fsUDSStorageFilePathRegexp = regexp.MustCompile(`^(.+)-(.+)-(.+).state$`)
 )
 
-func (s *fsUDSStorage) List() (map[string][]string, error) {
+func (s *fsUDSStorage) ListTopologies() ([]string, error) {
+	fs, err := ioutil.ReadDir(s.dirPath)
+	if err != nil {
+		return nil, err
+	}
+
+	res := []string{}
+	for _, f := range fs {
+		m := fsUDSStorageFilePathRegexp.FindStringSubmatch(f.Name())
+		if m == nil {
+			continue
+		}
+		res = append(res, m[1])
+	}
+	return res, nil
+}
+
+func (s *fsUDSStorage) List(topology string) (map[string][]string, error) {
 	fs, err := ioutil.ReadDir(s.dirPath)
 	if err != nil {
 		return nil, err
@@ -93,17 +125,23 @@ func (s *fsUDSStorage) List() (map[string][]string, error) {
 		if m == nil {
 			continue
 		}
-		res[m[1]] = append(res[m[1]], m[2])
+		if m[1] != topology {
+			continue
+		}
+		res[m[2]] = append(res[m[2]], m[3])
+	}
+	if len(res) == 0 {
+		return nil, core.NotExistError(fmt.Errorf("a topology '%v' was not found", topology))
 	}
 	return res, nil
 }
 
-func (s *fsUDSStorage) stateFilename(topology, state string) string {
-	return fmt.Sprintf("%v-%v.state", topology, state)
+func (s *fsUDSStorage) stateFilename(topology, state, tag string) string {
+	return fmt.Sprintf("%v-%v-%v.state", topology, state, tag)
 }
 
-func (s *fsUDSStorage) stateFilepath(topology, state string) string {
-	return filepath.Join(s.dirPath, s.stateFilename(topology, state))
+func (s *fsUDSStorage) stateFilepath(topology, state, tag string) string {
+	return filepath.Join(s.dirPath, s.stateFilename(topology, state, tag))
 }
 
 type onDiskUDSStorageWriter struct {

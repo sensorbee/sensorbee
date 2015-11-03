@@ -222,14 +222,17 @@ func (tb *TopologyBuilder) AddStmt(stmt interface{}) (core.Node, error) {
 		return nil, u.Update(ctx, tb.mkParamsMap(stmt.Params))
 
 	case parser.SaveStateStmt:
-		return nil, tb.saveState(string(stmt.Name))
+		// TODO: add TAG
+		return nil, tb.saveState(string(stmt.Name), "")
 
 	case parser.LoadStateStmt:
-		_, err := tb.loadState(string(stmt.Type), string(stmt.Name), tb.mkParamsMap(stmt.Params))
+		// TODO: add TAG
+		_, err := tb.loadState(string(stmt.Type), string(stmt.Name), "", tb.mkParamsMap(stmt.Params))
 		return nil, err
 
 	case parser.LoadStateOrCreateStmt:
-		shouldCreate, err := tb.loadState(string(stmt.Type), string(stmt.Name), tb.mkParamsMap(stmt.LoadSpecs.Params))
+		// TODO: add TAG
+		shouldCreate, err := tb.loadState(string(stmt.Type), string(stmt.Name), "", tb.mkParamsMap(stmt.LoadSpecs.Params))
 		if shouldCreate {
 			c := parser.CreateStateStmt{}
 			c.Type = stmt.Type
@@ -789,18 +792,18 @@ func (tb *TopologyBuilder) RunEvalStmt(stmt *parser.EvalStmt) (data.Value, error
 	return execution.EvaluateOnInput(expr, inputRow, tb.Reg)
 }
 
-func (tb *TopologyBuilder) saveState(name string) error {
+func (tb *TopologyBuilder) saveState(name, tag string) error {
 	st, err := tb.topology.Context().SharedStates.Get(name)
 	if err != nil {
 		return err
 	}
 	s, ok := st.(core.SavableSharedState)
 	if !ok {
-		return fmt.Errorf("the state '%v' cannot be saved", name)
+		return fmt.Errorf("the state '%v-%v' cannot be saved", name, tag)
 	}
 
 	// Appropriate header information should be written by the storage.
-	w, err := tb.UDSStorage.Save(tb.topology.Name(), name)
+	w, err := tb.UDSStorage.Save(tb.topology.Name(), name, tag)
 	if err != nil {
 		return err
 	}
@@ -809,6 +812,7 @@ func (tb *TopologyBuilder) saveState(name string) error {
 		if shouldAbort {
 			if err := w.Abort(); err != nil {
 				tb.topology.Context().ErrLog(err).WithField("state_name", name).
+					WithField("state_tag", tag).
 					Error("saving the state panicked")
 			}
 		}
@@ -823,8 +827,8 @@ func (tb *TopologyBuilder) saveState(name string) error {
 
 // loadState loads a state from the storage. It returns true when the state was
 // not saved and LOAD STATE OR CREATE IF NOT EXISTS should fall back to CREATE STATE.
-func (tb *TopologyBuilder) loadState(typeName, name string, params data.Map) (bool, error) {
-	r, err := tb.UDSStorage.Load(tb.topology.Name(), name)
+func (tb *TopologyBuilder) loadState(typeName, name, tag string, params data.Map) (bool, error) {
+	r, err := tb.UDSStorage.Load(tb.topology.Name(), name, tag)
 	if err != nil {
 		return core.IsNotExist(err), err
 	}
@@ -836,7 +840,7 @@ func (tb *TopologyBuilder) loadState(typeName, name string, params data.Map) (bo
 	}
 	loader, ok := c.(udf.UDSLoader)
 	if !ok {
-		return false, fmt.Errorf("the state '%v' cannot be loaded", name)
+		return false, fmt.Errorf("the state '%v-%v' cannot be loaded", name, tag)
 	}
 
 	// If the state is loaded and it provides Load method, Load method will be

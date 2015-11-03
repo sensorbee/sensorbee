@@ -43,13 +43,13 @@ var (
 // be [a-zA-Z][a-zA-Z0-9_]*.
 func ValidateNodeName(name string) error {
 	if l := len(name); l < 1 {
-		return fmt.Errorf("node name is empty")
+		return fmt.Errorf("the name is empty")
 	} else if l > 127 {
-		return fmt.Errorf("node name can be at most 127 letters: %v", len(name))
+		return fmt.Errorf("the name can be at most 127 letters: %v", len(name))
 	}
 
 	if !nodeNameRegexp.MatchString(name) {
-		return fmt.Errorf("node name doesn't follow the format [a-zA-Z][a-zA-Z0-9_]*: %v", name)
+		return fmt.Errorf("the name doesn't follow the format [a-zA-Z][a-zA-Z0-9_]*: %v", name)
 	}
 	return nil
 }
