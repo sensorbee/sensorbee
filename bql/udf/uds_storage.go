@@ -29,7 +29,12 @@ type UDSStorage interface {
 	// Save can write header information or other data such as a space for
 	// storing checksum later to UDSStorageWriter before returning it. Save can
 	// also manipulate the written data as long as the data can be loaded again.
-	Save(topology, state string) (UDSStorageWriter, error)
+	//
+	// A caller can assign a tag to the saved state so that multiple versions of
+	// the UDS can be managed with unique names. When a tag is an empty string,
+	// "default" will be used. The valid format of tags is same as node names,
+	// which is validated by core.ValidateNodeName.
+	Save(topology, state, tag string) (UDSStorageWriter, error)
 
 	// Load loads the previously saved data of the state. io.ReadCloser.Close
 	// has to be called when it gets unnecessary.
@@ -40,11 +45,17 @@ type UDSStorage interface {
 	// data.
 	//
 	// Load returns core.NotExistError when the state doesn't exist.
-	Load(topology, state string) (io.ReadCloser, error)
+	//
+	// When a tag is an empty string, "default" will be used.
+	Load(topology, state, tag string) (io.ReadCloser, error)
 
-	// List returns a list of names of saved states as a map whose key is a
-	// name of a topology. Each value contains names of states in a topology.
-	List() (map[string][]string, error)
+	// ListTopologies returns a list of topologies that have saved states.
+	ListTopologies() ([]string, error)
+
+	// List returns a list of names of saved states in a topology as a map
+	// whose key is a name of a UDS. Each value contains tags assigned to
+	// the state as an array.
+	List(topology string) (map[string][]string, error)
 }
 
 // UDSStorageWriter is used to save a state. An instance of UDSStorageWriter
@@ -76,14 +87,21 @@ func NewInMemoryUDSStorage() UDSStorage {
 	}
 }
 
-func (s *inMemoryUDSStorage) Save(topology, state string) (UDSStorageWriter, error) {
+func (s *inMemoryUDSStorage) Save(topology, state, tag string) (UDSStorageWriter, error) {
+	if tag == "" {
+		tag = "default"
+	}
+	if err := core.ValidateNodeName(tag); err != nil {
+		return nil, fmt.Errorf("tag is ill-formatted: %v", err)
+	}
+
 	s.m.Lock()
 	defer s.m.Unlock()
 	t, ok := s.topologies[topology]
 	if !ok {
 		t = &topologyUDSStorage{
 			topologyName: topology,
-			states:       map[string][]byte{},
+			states:       map[string]map[string][]byte{},
 		}
 		s.topologies[topology] = t
 	}
@@ -91,10 +109,18 @@ func (s *inMemoryUDSStorage) Save(topology, state string) (UDSStorageWriter, err
 		storage:   t,
 		buf:       bytes.NewBuffer(nil),
 		stateName: state,
+		tag:       tag,
 	}, nil
 }
 
-func (s *inMemoryUDSStorage) Load(topology, state string) (io.ReadCloser, error) {
+func (s *inMemoryUDSStorage) Load(topology, state, tag string) (io.ReadCloser, error) {
+	if tag == "" {
+		tag = "default"
+	}
+	if err := core.ValidateNodeName(tag); err != nil {
+		return nil, fmt.Errorf("tag is ill-formatted: %v", err)
+	}
+
 	s.m.RLock()
 	defer s.m.RUnlock()
 	t, ok := s.topologies[topology]
@@ -105,33 +131,47 @@ func (s *inMemoryUDSStorage) Load(topology, state string) (io.ReadCloser, error)
 	if !ok {
 		return nil, core.NotExistError(fmt.Errorf("a UDS '%v' was not found", state))
 	}
-	return ioutil.NopCloser(bytes.NewReader(st)), nil
+	data, ok := st[tag]
+	if !ok {
+		return nil, core.NotExistError(fmt.Errorf("a UDS '%v' doesn't have a tag '%v'", state, tag))
+	}
+	return ioutil.NopCloser(bytes.NewReader(data)), nil
 }
 
-func (s *inMemoryUDSStorage) List() (map[string][]string, error) {
+func (s *inMemoryUDSStorage) ListTopologies() ([]string, error) {
 	s.m.RLock()
 	defer s.m.RUnlock()
-	res := make(map[string][]string, len(s.topologies))
-	for name, t := range s.topologies {
-		res[name] = t.list()
+	res := make([]string, 0, len(s.topologies))
+	for name := range s.topologies {
+		res = append(res, name)
 	}
 	return res, nil
+}
+
+func (s *inMemoryUDSStorage) List(topology string) (map[string][]string, error) {
+	s.m.RLock()
+	defer s.m.RUnlock()
+	t, ok := s.topologies[topology]
+	if !ok {
+		return nil, core.NotExistError(fmt.Errorf("a topology '%v' was not found", topology))
+	}
+	return t.list(), nil
 }
 
 type topologyUDSStorage struct {
 	m            sync.RWMutex
 	topologyName string
-	states       map[string][]byte
+	states       map[string]map[string][]byte
 }
 
-func (t *topologyUDSStorage) list() []string {
+func (t *topologyUDSStorage) list() map[string][]string {
 	t.m.RLock()
 	defer t.m.RUnlock()
-	res := make([]string, len(t.states))
-	i := 0
-	for name := range t.states {
-		res[i] = name
-		i++
+	res := map[string][]string{}
+	for name, tags := range t.states {
+		for tag := range tags {
+			res[name] = append(res[name], tag)
+		}
 	}
 	return res
 }
@@ -140,6 +180,7 @@ type inMemoryUDSStorageWriter struct {
 	storage   *topologyUDSStorage
 	buf       *bytes.Buffer
 	stateName string
+	tag       string
 }
 
 func (w *inMemoryUDSStorageWriter) Write(data []byte) (int, error) {
@@ -156,7 +197,12 @@ func (w *inMemoryUDSStorageWriter) Commit() error {
 
 	w.storage.m.Lock()
 	defer w.storage.m.Unlock()
-	w.storage.states[w.stateName] = w.buf.Bytes()
+	m := w.storage.states[w.stateName]
+	if m == nil {
+		m = map[string][]byte{}
+	}
+	m[w.tag] = w.buf.Bytes()
+	w.storage.states[w.stateName] = m
 	w.buf = nil
 	return nil
 }
