@@ -701,6 +701,56 @@ func TestSaveLoadStateStmt(t *testing.T) {
 			})
 		})
 
+		Convey("When saving a savable state with a tag", func() {
+			So(addBQLToTopology(tb, `SAVE STATE s2 TAG mytag;`), ShouldBeNil)
+
+			Convey("Then it should be able to be loaded with that tag", func() {
+				So(addBQLToTopology(tb, `LOAD STATE s2 TYPE dummy_updatable_uds TAG mytag;`), ShouldBeNil)
+
+				Convey("And the state should have the correct data", func() {
+					s, err := dt.Context().SharedStates.Get("s2")
+					So(err, ShouldBeNil)
+					So(s.(*dummyUpdatableUDS).num, ShouldEqual, 2)
+				})
+			})
+
+			Convey("Then it should not be able to be loaded without a tag", func() {
+				So(addBQLToTopology(tb, `LOAD STATE s2 TYPE dummy_updatable_uds;`), ShouldNotBeNil)
+			})
+
+			Convey("And updating the state", func() {
+				So(addBQLToTopology(tb, `UPDATE STATE s2 SET num=20;`), ShouldBeNil)
+				s, err := dt.Context().SharedStates.Get("s2")
+				So(err, ShouldBeNil)
+				So(s.(*dummyUpdatableUDS).num, ShouldEqual, 20)
+
+				Convey("Then loading it should revert the state", func() {
+					So(addBQLToTopology(tb, `LOAD STATE s2 TYPE dummy_updatable_uds TAG mytag;`), ShouldBeNil)
+					s, err := dt.Context().SharedStates.Get("s2")
+					So(err, ShouldBeNil)
+					So(s.(*dummyUpdatableUDS).num, ShouldEqual, 2)
+				})
+			})
+
+			Convey("And dropping the state", func() {
+				So(addBQLToTopology(tb, `DROP STATE s2;`), ShouldBeNil)
+
+				Convey("Then it should be able to be loaded again", func() {
+					So(addBQLToTopology(tb, `LOAD STATE s2 TYPE dummy_updatable_uds TAG mytag;`), ShouldBeNil)
+					s, err := dt.Context().SharedStates.Get("s2")
+					So(err, ShouldBeNil)
+					So(s.(*dummyUpdatableUDS).num, ShouldEqual, 2)
+				})
+
+				Convey("Then it should be able to be created", func() {
+					So(addBQLToTopology(tb, `LOAD STATE s2 TYPE dummy_updatable_uds TAG mytag OR CREATE IF NOT EXISTS;`), ShouldBeNil)
+					s, err := dt.Context().SharedStates.Get("s2")
+					So(err, ShouldBeNil)
+					So(s.(*dummyUpdatableUDS).num, ShouldEqual, 2)
+				})
+			})
+		})
+
 		Convey("When saving a self loadable state", func() {
 			So(addBQLToTopology(tb, `SAVE STATE s3;`), ShouldBeNil)
 

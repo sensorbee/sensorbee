@@ -447,21 +447,23 @@ func (ps *parseStack) AssembleDropState() {
 // assuming they are components of a LOAD STATE statement, and
 // replaces them by a single LoadStateStmt element.
 //
-//  StreamIdentifier
-//  SourceSinkType
 //  SourceSinkSpecsAST
+//  Identifier
+//  SourceSinkType
+//  StreamIdentifier
 //   =>
 //  LoadStateStmt{StreamIdentifier, SourceSinkType,
-//    SourceSinkSpecsAST}
+//    string, SourceSinkSpecsAST}
 func (ps *parseStack) AssembleLoadState() {
 	// pop the components from the stack in reverse order
-	_specs, _sinkType, _name := ps.pop3()
+	_specs, _tag, _sinkType, _name := ps.pop4()
 
 	specs := _specs.comp.(SourceSinkSpecsAST)
+	tag := _tag.comp.(Identifier)
 	sinkType := _sinkType.comp.(SourceSinkType)
 	name := _name.comp.(StreamIdentifier)
 
-	s := LoadStateStmt{name, sinkType, specs}
+	s := LoadStateStmt{name, sinkType, string(tag), specs}
 	se := ParsedComponent{_name.begin, _specs.end, s}
 	ps.Push(&se)
 }
@@ -470,13 +472,11 @@ func (ps *parseStack) AssembleLoadState() {
 // assuming they are components of a LOAD STATE OR CREATE statement, and
 // replaces them by a single LoadStateOrCreateStmt element.
 //
-//  StreamIdentifier
-//  SourceSinkType
 //  SourceSinkSpecsAST
-//  SourceSinkSpecsAST
+//  LoadStateStmt
 //   =>
 //  LoadStateOrCreateStmt{StreamIdentifier, SourceSinkType,
-//    SourceSinkSpecsAST, SourceSinkSpecsAST}
+//    string, SourceSinkSpecsAST, SourceSinkSpecsAST}
 func (ps *parseStack) AssembleLoadStateOrCreate() {
 	// pop the components from the stack in reverse order
 	_createSpecs, _loadStateStmt := ps.pop2()
@@ -484,10 +484,11 @@ func (ps *parseStack) AssembleLoadStateOrCreate() {
 
 	createSpecs := _createSpecs.comp.(SourceSinkSpecsAST)
 	specs := loadStateStmt.SourceSinkSpecsAST
+	tag := loadStateStmt.Tag
 	sinkType := loadStateStmt.Type
 	name := loadStateStmt.Name
 
-	s := LoadStateOrCreateStmt{name, sinkType, specs, createSpecs}
+	s := LoadStateOrCreateStmt{name, sinkType, tag, specs, createSpecs}
 	se := ParsedComponent{_loadStateStmt.begin, _createSpecs.end, s}
 	ps.Push(&se)
 }
@@ -496,16 +497,18 @@ func (ps *parseStack) AssembleLoadStateOrCreate() {
 // assuming they are components of a SAVE STATE statement, and
 // replaces them by a single SaveStateStmt element.
 //
+//  Identifier
 //  StreamIdentifier
 //   =>
-//  SaveStateStmt{StreamIdentifier}
+//  SaveStateStmt{StreamIdentifier, string}
 func (ps *parseStack) AssembleSaveState() {
 	// pop the components from the stack in reverse order
-	_name := ps.Pop()
+	_tag, _name := ps.pop2()
 
+	tag := _tag.comp.(Identifier)
 	name := _name.comp.(StreamIdentifier)
 
-	se := ParsedComponent{_name.begin, _name.end, SaveStateStmt{name}}
+	se := ParsedComponent{_name.begin, _tag.end, SaveStateStmt{name, string(tag)}}
 	ps.Push(&se)
 }
 
@@ -977,6 +980,26 @@ func (ps *parseStack) AssembleSourceSinkParam() {
 
 	ss := SourceSinkParamAST{key, value}
 	ps.PushComponent(_key.begin, _value.end, ss)
+}
+
+// EnsureIdentifier makes sure that the top element of the stack
+// is an Identifier element. If there was no Identifier on top,
+// an empty Identifier is pushed there. Note that since regular
+// identifiers must always be empty, an empty identifier is
+// semantically equivalent to "not given".
+func (ps *parseStack) EnsureIdentifier(begin int, end int) {
+	top := ps.Peek()
+	if top == nil || top.end <= begin {
+		// there is no item in the given range
+		ps.PushComponent(begin, end, Identifier(""))
+	} else {
+		// there is an item in the given range, don't touch it
+		_, ok := top.comp.(Identifier)
+		if !ok {
+			panic(fmt.Sprintf("begin (%d) != end (%d), but there "+
+				"was a %T on the stack", begin, end, top.comp))
+		}
+	}
 }
 
 // EnsureKeywordPresent makes sure that the top element of the stack

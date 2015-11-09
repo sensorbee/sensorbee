@@ -162,7 +162,7 @@ DropStateStmt <- "DROP" sp "STATE" sp StreamIdentifier {
     }
 
 LoadStateStmt <- "LOAD" sp "STATE" sp StreamIdentifier sp
-                    "TYPE" sp SourceSinkType SetOptSpecs {
+                    "TYPE" sp SourceSinkType StateTagOpt SetOptSpecs {
         p.AssembleLoadState()
     }
 
@@ -171,7 +171,7 @@ LoadStateOrCreateStmt <- LoadStateStmt sp
         p.AssembleLoadStateOrCreate()
     }
 
-SaveStateStmt <- "SAVE" sp "STATE" sp StreamIdentifier {
+SaveStateStmt <- "SAVE" sp "STATE" sp StreamIdentifier StateTagOpt {
         p.AssembleSaveState()
     }
 
@@ -308,6 +308,10 @@ UpdateSourceSinkSpecs <- < sp "SET" sp SourceSinkParam (spOpt ',' spOpt SourceSi
 # will not be called if the SET clause is not present.
 SetOptSpecs <- < (sp "SET" sp SourceSinkParam (spOpt ',' spOpt SourceSinkParam)*)? > {
         p.AssembleSourceSinkSpecs(begin, end)
+    }
+
+StateTagOpt <- < (sp "TAG" sp Identifier )? > {
+        p.EnsureIdentifier(begin, end)
     }
 
 SourceSinkParam <- SourceSinkParamKey spOpt '=' spOpt SourceSinkParamVal {

@@ -257,11 +257,15 @@ func (s DropStateStmt) String() string {
 type LoadStateStmt struct {
 	Name StreamIdentifier
 	Type SourceSinkType
+	Tag  string
 	SourceSinkSpecsAST
 }
 
 func (s LoadStateStmt) String() string {
 	str := []string{"LOAD", "STATE", string(s.Name), "TYPE", string(s.Type)}
+	if s.Tag != "" {
+		str = append(str, "TAG", s.Tag)
+	}
 	specs := s.SourceSinkSpecsAST.string("SET")
 	if specs != "" {
 		str = append(str, specs)
@@ -272,12 +276,16 @@ func (s LoadStateStmt) String() string {
 type LoadStateOrCreateStmt struct {
 	Name        StreamIdentifier
 	Type        SourceSinkType
+	Tag         string
 	LoadSpecs   SourceSinkSpecsAST
 	CreateSpecs SourceSinkSpecsAST
 }
 
 func (s LoadStateOrCreateStmt) String() string {
 	str := []string{"LOAD", "STATE", string(s.Name), "TYPE", string(s.Type)}
+	if s.Tag != "" {
+		str = append(str, "TAG", s.Tag)
+	}
 	specs := s.LoadSpecs.string("SET")
 	if specs != "" {
 		str = append(str, specs)
@@ -294,10 +302,14 @@ func (s LoadStateOrCreateStmt) String() string {
 
 type SaveStateStmt struct {
 	Name StreamIdentifier
+	Tag  string
 }
 
 func (s SaveStateStmt) String() string {
 	str := []string{"SAVE", "STATE", string(s.Name)}
+	if s.Tag != "" {
+		str = append(str, "TAG", s.Tag)
+	}
 	return strings.Join(str, " ")
 }
 
