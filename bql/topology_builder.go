@@ -222,17 +222,14 @@ func (tb *TopologyBuilder) AddStmt(stmt interface{}) (core.Node, error) {
 		return nil, u.Update(ctx, tb.mkParamsMap(stmt.Params))
 
 	case parser.SaveStateStmt:
-		// TODO: add TAG
-		return nil, tb.saveState(string(stmt.Name), "")
+		return nil, tb.saveState(string(stmt.Name), stmt.Tag)
 
 	case parser.LoadStateStmt:
-		// TODO: add TAG
-		_, err := tb.loadState(string(stmt.Type), string(stmt.Name), "", tb.mkParamsMap(stmt.Params))
+		_, err := tb.loadState(string(stmt.Type), string(stmt.Name), stmt.Tag, tb.mkParamsMap(stmt.Params))
 		return nil, err
 
 	case parser.LoadStateOrCreateStmt:
-		// TODO: add TAG
-		shouldCreate, err := tb.loadState(string(stmt.Type), string(stmt.Name), "", tb.mkParamsMap(stmt.LoadSpecs.Params))
+		shouldCreate, err := tb.loadState(string(stmt.Type), string(stmt.Name), stmt.Tag, tb.mkParamsMap(stmt.LoadSpecs.Params))
 		if shouldCreate {
 			c := parser.CreateStateStmt{}
 			c.Type = stmt.Type
