@@ -418,7 +418,7 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 				"nantoka": data.Map{"x": data.String("y")},
 			}
 		}
-		s := `CREATE STREAM box AS SELECT ISTREAM d..b AS bs, d.foo[1:].hoge[0].a AS as FROM src [RANGE 2 SECONDS]`
+		s := `CREATE STREAM box AS SELECT ISTREAM d..b AS bs, d..b, d.foo[1:].hoge[0].a AS as, d.foo[1:].hoge[0].a FROM src [RANGE 2 SECONDS]`
 		plan, err := createDefaultSelectPlan(s, t)
 		So(err, ShouldBeNil)
 
@@ -434,7 +434,13 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 							data.Map{"bs": data.Array{
 								data.Int(2), data.Int(4), data.Int(6), data.Int(8), data.Int(10),
 							},
+								"col_2": data.Array{
+									data.Int(2), data.Int(4), data.Int(6), data.Int(8), data.Int(10),
+								},
 								"as": data.Array{
+									data.Int(6), data.Int(10),
+								},
+								"col_4": data.Array{
 									data.Int(6), data.Int(10),
 								},
 							})
@@ -443,7 +449,13 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 							data.Map{"bs": data.Array{
 								data.Int(4), data.Int(8), data.Int(12), data.Int(16), data.Int(20),
 							},
+								"col_2": data.Array{
+									data.Int(4), data.Int(8), data.Int(12), data.Int(16), data.Int(20),
+								},
 								"as": data.Array{
+									data.Int(7), data.Int(11),
+								},
+								"col_4": data.Array{
 									data.Int(7), data.Int(11),
 								},
 							})
