@@ -201,6 +201,34 @@ func TestFilterPlan(t *testing.T) {
 		compareWithRef(t, plan, refPlan, tuples)
 	})
 
+	Convey("Given a SELECT clause with a complex JSON Path", t, func() {
+		tuples := getTuples(4)
+		for i, t := range tuples {
+			k := i + 1
+			t.Data["d"] = data.Map{
+				"foo": data.Array{
+					data.Map{"hoge": data.Array{
+						data.Map{"a": data.Int(1 + k), "b": data.Int(2 * k)},
+						data.Map{"a": data.Int(3 + k), "b": data.Int(4 * k)},
+					}, "bar": data.Int(5)},
+					data.Map{"hoge": data.Array{
+						data.Map{"a": data.Int(5 + k), "b": data.Int(6 * k)},
+						data.Map{"a": data.Int(7 + k), "b": data.Int(8 * k)},
+					}, "bar": data.Int(2)},
+					data.Map{"hoge": data.Array{
+						data.Map{"a": data.Int(9 + k), "b": data.Int(10 * k)},
+					}, "bar": data.Int(8)},
+				},
+				"nantoka": data.Map{"x": data.String("y")},
+			}
+		}
+		s := `CREATE STREAM box AS SELECT RSTREAM d..b AS bs, d..b, d.foo[1:].hoge[0].a AS as, d.foo[1:].hoge[0].a FROM src [RANGE 1 TUPLES]`
+		plan, refPlan, err := createFilterPlan(s, t)
+		So(err, ShouldBeNil)
+
+		compareWithRef(t, plan, refPlan, tuples)
+	})
+
 	// Use wildcard
 	Convey("Given a SELECT clause with a wildcard", t, func() {
 		tuples := getTuples(4)
