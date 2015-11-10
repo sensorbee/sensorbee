@@ -7,6 +7,7 @@ import (
 	"pfi/sensorbee/sensorbee/bql/udf"
 	"pfi/sensorbee/sensorbee/core"
 	"pfi/sensorbee/sensorbee/data"
+	"regexp"
 	"strings"
 )
 
@@ -21,6 +22,10 @@ in three phases:
 - LogicalOptimize
 - MakePhysicalPlan
 */
+
+var (
+	simpleColumnNameRe = regexp.MustCompile("^[a-z][a-zA-Z0-9_]*$")
+)
 
 // LogicalPlan represents a parsed and analyzed version of a SELECT
 // statement. A LogicalPlan as returned by `Analyze` should not contain
@@ -125,7 +130,13 @@ func flattenExpressions(s *parser.SelectStmt, reg udf.FunctionRegistry) (*Logica
 				colHeader = "ts"
 			}
 		case parser.RowValue:
-			colHeader = projType.Column
+			// We can only use the column name as an alias if it is not
+			// a complex JSON Path. For example, `SELECT a` will be treated
+			// like `SELECT a AS a`, but for `SELECT a..b` we will have to
+			// use the col_N form.
+			if simpleColumnNameRe.MatchString(projType.Column) {
+				colHeader = projType.Column
+			}
 		case parser.AliasAST:
 			colHeader = projType.Alias
 		case parser.FuncAppAST:
