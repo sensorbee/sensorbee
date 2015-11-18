@@ -1208,8 +1208,8 @@ func (ps *parseStack) AssembleMap(begin int, end int) {
 // assuming they are components of a key-value pair expression, and
 // replaces them by a single KeyValuePairAST element.
 //
-//  StringLiteral
 //  Expression
+//  StringLiteral
 //   =>
 //  KeyValuePairAST{string, Expression}
 func (ps *parseStack) AssembleKeyValuePair() {
@@ -1219,6 +1219,67 @@ func (ps *parseStack) AssembleKeyValuePair() {
 	key := _key.comp.(StringLiteral).Value
 
 	ps.PushComponent(_key.begin, _expr.end, KeyValuePairAST{key, expr})
+}
+
+// AssembleExpressionCase takes the elements from the stack that
+// correspond to the input[begin:end] string plus the surrounding
+// Expression elements and wraps an ExpressionCaseAST struct around
+// them.
+//
+//  Expression
+//  WhenThenPairAST
+//  WhenThenPairAST
+//  Expression
+//   =>
+//  ExpressionCaseAST{Expression, [KeyValuePairAST, KeyValuePairAST], Expression}
+//
+// or
+//
+//  WhenThenPairAST
+//  WhenThenPairAST
+//  Expression
+//   =>
+//  ExpressionCaseAST{Expression, [KeyValuePairAST, KeyValuePairAST], nil}
+func (ps *parseStack) AssembleExpressionCase(begin int, end int) {
+	top := ps.Peek()
+	// check if the top element is an expression (then it is
+	// the ELSE part
+	var elseExpr Expression
+	if _else, ok := top.comp.(Expression); ok {
+		ps.Pop()
+		elseExpr = _else
+	}
+	// collect the WHEN ... THEN pairs
+	elems := ps.collectElements(begin, end)
+	if len(elems) < 1 {
+		panic("no WHEN-THEN pairs on the stack!")
+	}
+	pairs := make([]WhenThenPairAST, len(elems))
+	for i := range elems {
+		pairs[i] = elems[i].(WhenThenPairAST)
+	}
+	// get the CASE part
+	_case := ps.Pop()
+	caseExpr := _case.comp.(Expression)
+	// push the grouped list back
+	ps.PushComponent(_case.begin, top.end, ExpressionCaseAST{caseExpr, pairs, elseExpr})
+}
+
+// AssembleWhenThenPair takes the topmost elements from the stack,
+// assuming they are components of a when-then pair expression, and
+// replaces them by a single WhenThenPairAST element.
+//
+//  Expression
+//  Expression
+//   =>
+//  WhenThenPairAST{Expression, Expression}
+func (ps *parseStack) AssembleWhenThenPair() {
+	_then, _when := ps.pop2()
+
+	then := _then.comp.(Expression)
+	when := _when.comp.(Expression)
+
+	ps.PushComponent(_when.begin, _then.end, WhenThenPairAST{when, then})
 }
 
 // AssembleExpressions takes the elements from the stack that

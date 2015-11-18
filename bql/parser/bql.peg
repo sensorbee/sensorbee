@@ -405,6 +405,7 @@ baseExpr <-
     MapExpr /
     BooleanLiteral /
     NullLiteral /
+    Case /
     RowMeta /
     FuncTypeCast /
     FuncApp /
@@ -454,6 +455,16 @@ MapExpr <- < '{' spOpt (KeyValuePair (spOpt ',' spOpt KeyValuePair)*)? spOpt '}'
 
 KeyValuePair <- < StringLiteral spOpt ':' spOpt ExpressionOrWildcard > {
         p.AssembleKeyValuePair()
+    }
+
+Case <- ExpressionCase
+
+ExpressionCase <- "CASE" sp Expression < (sp WhenThenPair)+ (sp "ELSE" sp Expression)? sp "END" > {
+        p.AssembleExpressionCase(begin, end)
+    }
+
+WhenThenPair <- "WHEN" sp Expression sp "THEN" sp ExpressionOrWildcard {
+        p.AssembleWhenThenPair()
     }
 
 Literal <-
