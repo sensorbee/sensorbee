@@ -1221,6 +1221,45 @@ func (ps *parseStack) AssembleKeyValuePair() {
 	ps.PushComponent(_key.begin, _expr.end, KeyValuePairAST{key, expr})
 }
 
+// AssembleConditionCase takes the elements from the stack that
+// correspond to the input[begin:end] string plus an additional
+// Expression element and wraps an ConditionCaseAST struct around
+// them.
+//
+//  Expression
+//  WhenThenPairAST
+//  WhenThenPairAST
+//   =>
+//  ConditionCaseAST{[KeyValuePairAST, KeyValuePairAST], Expression}
+//
+// or
+//
+//  WhenThenPairAST
+//  WhenThenPairAST
+//   =>
+//  ConditionCaseAST{[KeyValuePairAST, KeyValuePairAST], nil}
+func (ps *parseStack) AssembleConditionCase(begin int, end int) {
+	top := ps.Peek()
+	// check if the top element is an expression (then it is
+	// the ELSE part
+	var elseExpr Expression
+	if _else, ok := top.comp.(Expression); ok {
+		ps.Pop()
+		elseExpr = _else
+	}
+	// collect the WHEN ... THEN pairs
+	elems := ps.collectElements(begin, end)
+	if len(elems) < 1 {
+		panic("no WHEN-THEN pairs on the stack!")
+	}
+	pairs := make([]WhenThenPairAST, len(elems))
+	for i := range elems {
+		pairs[i] = elems[i].(WhenThenPairAST)
+	}
+	// push the grouped list back
+	ps.PushComponent(begin, top.end, ConditionCaseAST{pairs, elseExpr})
+}
+
 // AssembleExpressionCase takes the elements from the stack that
 // correspond to the input[begin:end] string plus the surrounding
 // Expression elements and wraps an ExpressionCaseAST struct around
@@ -1241,29 +1280,15 @@ func (ps *parseStack) AssembleKeyValuePair() {
 //   =>
 //  ExpressionCaseAST{Expression, ConditionCaseAST{[KeyValuePairAST, KeyValuePairAST], nil}}
 func (ps *parseStack) AssembleExpressionCase(begin int, end int) {
-	top := ps.Peek()
-	// check if the top element is an expression (then it is
-	// the ELSE part
-	var elseExpr Expression
-	if _else, ok := top.comp.(Expression); ok {
-		ps.Pop()
-		elseExpr = _else
-	}
-	// collect the WHEN ... THEN pairs
-	elems := ps.collectElements(begin, end)
-	if len(elems) < 1 {
-		panic("no WHEN-THEN pairs on the stack!")
-	}
-	pairs := make([]WhenThenPairAST, len(elems))
-	for i := range elems {
-		pairs[i] = elems[i].(WhenThenPairAST)
-	}
+	// transform the WHEN-THEN and ELSE parts
+	ps.AssembleConditionCase(begin, end)
+	_cc := ps.Pop()
+	cc := _cc.comp.(ConditionCaseAST)
 	// get the CASE part
 	_case := ps.Pop()
 	caseExpr := _case.comp.(Expression)
 	// push the grouped list back
-	cc := ConditionCaseAST{pairs, elseExpr}
-	ps.PushComponent(_case.begin, top.end, ExpressionCaseAST{caseExpr, cc})
+	ps.PushComponent(_case.begin, _cc.end, ExpressionCaseAST{caseExpr, cc})
 }
 
 // AssembleWhenThenPair takes the topmost elements from the stack,

@@ -457,7 +457,11 @@ KeyValuePair <- < StringLiteral spOpt ':' spOpt ExpressionOrWildcard > {
         p.AssembleKeyValuePair()
     }
 
-Case <- ExpressionCase
+Case <- ConditionCase / ExpressionCase
+
+ConditionCase <- "CASE" < (sp WhenThenPair)+ (sp "ELSE" sp Expression)? sp "END" > {
+        p.AssembleConditionCase(begin, end)
+    }
 
 ExpressionCase <- "CASE" sp Expression < (sp WhenThenPair)+ (sp "ELSE" sp Expression)? sp "END" > {
         p.AssembleExpressionCase(begin, end)
