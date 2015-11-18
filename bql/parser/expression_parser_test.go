@@ -111,8 +111,8 @@ func TestExpressionParser(t *testing.T) {
 			{"a", Wildcard{"a"}}, {"b", Wildcard{"b"}}}}}, "{'a':a:*, 'b':b:*}"},
 		// CASE
 		"CASE a END":                         {nil, ""}, // WHEN-THEN is mandatory
-		"CASE a WHEN 2 THEN 3 END":           {[]Expression{ExpressionCaseAST{RowValue{"", "a"}, []WhenThenPairAST{{NumericLiteral{2}, NumericLiteral{3}}}, nil}}, "CASE a WHEN 2 THEN 3 END"},
-		"CASE when WHEN 2 THEN 3 ELSE 6 END": {[]Expression{ExpressionCaseAST{RowValue{"", "when"}, []WhenThenPairAST{{NumericLiteral{2}, NumericLiteral{3}}}, NumericLiteral{6}}}, "CASE when WHEN 2 THEN 3 ELSE 6 END"},
+		"CASE a WHEN 2 THEN 3 END":           {[]Expression{ExpressionCaseAST{RowValue{"", "a"}, ConditionCaseAST{[]WhenThenPairAST{{NumericLiteral{2}, NumericLiteral{3}}}, nil}}}, "CASE a WHEN 2 THEN 3 END"},
+		"CASE when WHEN 2 THEN 3 ELSE 6 END": {[]Expression{ExpressionCaseAST{RowValue{"", "when"}, ConditionCaseAST{[]WhenThenPairAST{{NumericLiteral{2}, NumericLiteral{3}}}, NumericLiteral{6}}}}, "CASE when WHEN 2 THEN 3 ELSE 6 END"},
 		// NumericLiteral
 		"2":    {[]Expression{NumericLiteral{2}}, "2"},
 		"-2":   {[]Expression{UnaryOpAST{UnaryMinus, NumericLiteral{2}}}, "-2"},

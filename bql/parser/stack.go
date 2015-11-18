@@ -1231,7 +1231,7 @@ func (ps *parseStack) AssembleKeyValuePair() {
 //  WhenThenPairAST
 //  Expression
 //   =>
-//  ExpressionCaseAST{Expression, [KeyValuePairAST, KeyValuePairAST], Expression}
+//  ExpressionCaseAST{Expression, ConditionCaseAST{[KeyValuePairAST, KeyValuePairAST], Expression}}
 //
 // or
 //
@@ -1239,7 +1239,7 @@ func (ps *parseStack) AssembleKeyValuePair() {
 //  WhenThenPairAST
 //  Expression
 //   =>
-//  ExpressionCaseAST{Expression, [KeyValuePairAST, KeyValuePairAST], nil}
+//  ExpressionCaseAST{Expression, ConditionCaseAST{[KeyValuePairAST, KeyValuePairAST], nil}}
 func (ps *parseStack) AssembleExpressionCase(begin int, end int) {
 	top := ps.Peek()
 	// check if the top element is an expression (then it is
@@ -1262,7 +1262,8 @@ func (ps *parseStack) AssembleExpressionCase(begin int, end int) {
 	_case := ps.Pop()
 	caseExpr := _case.comp.(Expression)
 	// push the grouped list back
-	ps.PushComponent(_case.begin, top.end, ExpressionCaseAST{caseExpr, pairs, elseExpr})
+	cc := ConditionCaseAST{pairs, elseExpr}
+	ps.PushComponent(_case.begin, top.end, ExpressionCaseAST{caseExpr, cc})
 }
 
 // AssembleWhenThenPair takes the topmost elements from the stack,
