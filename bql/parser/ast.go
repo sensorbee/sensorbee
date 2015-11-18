@@ -1007,6 +1007,89 @@ func NewRowValue(s string) RowValue {
 	return RowValue{components[0], components[1]}
 }
 
+type WhenThenPairAST struct {
+	When Expression
+	Then Expression
+}
+
+func (wt WhenThenPairAST) string() string {
+	return fmt.Sprintf("WHEN %s THEN %s", wt.When.String(), wt.Then.String())
+}
+
+type ExpressionCaseAST struct {
+	Expr   Expression
+	Checks []WhenThenPairAST
+	Else   Expression
+}
+
+func (c ExpressionCaseAST) ReferencedRelations() map[string]bool {
+	rels := c.Expr.ReferencedRelations()
+	for _, pair := range c.Checks {
+		for rel := range pair.When.ReferencedRelations() {
+			rels[rel] = true
+		}
+		for rel := range pair.Then.ReferencedRelations() {
+			rels[rel] = true
+		}
+	}
+	if c.Else != nil {
+		for rel := range c.Else.ReferencedRelations() {
+			rels[rel] = true
+		}
+	}
+	return rels
+}
+
+func (c ExpressionCaseAST) RenameReferencedRelation(from, to string) Expression {
+	newChecks := make([]WhenThenPairAST, len(c.Checks))
+	for i, pair := range c.Checks {
+		newChecks[i] = WhenThenPairAST{
+			pair.When.RenameReferencedRelation(from, to),
+			pair.Then.RenameReferencedRelation(from, to),
+		}
+	}
+	if c.Else != nil {
+		return ExpressionCaseAST{
+			c.Expr.RenameReferencedRelation(from, to),
+			newChecks,
+			c.Else.RenameReferencedRelation(from, to),
+		}
+	}
+	return ExpressionCaseAST{
+		c.Expr.RenameReferencedRelation(from, to),
+		newChecks,
+		nil,
+	}
+}
+
+func (c ExpressionCaseAST) Foldable() bool {
+	if !c.Expr.Foldable() {
+		return false
+	}
+	for _, pair := range c.Checks {
+		if !pair.When.Foldable() || !pair.Then.Foldable() {
+			return false
+		}
+	}
+	if c.Else != nil && !c.Else.Foldable() {
+		return false
+	}
+	return true
+}
+
+func (c ExpressionCaseAST) String() string {
+	entries := []string{}
+	for _, pair := range c.Checks {
+		entries = append(entries, pair.string())
+	}
+	if c.Else != nil {
+		return fmt.Sprintf("CASE %s %s ELSE %s END",
+			c.Expr.String(), strings.Join(entries, " "), c.Else.String())
+	}
+	return fmt.Sprintf("CASE %s %s END",
+		c.Expr.String(), strings.Join(entries, " "))
+}
+
 type RowMeta struct {
 	Relation string
 	MetaType MetaInformation
