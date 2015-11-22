@@ -43,23 +43,24 @@ func (r *pipeReceiver) close() {
 	}()
 }
 
-// OutputDropMode is a mode which controls the behavior of dropping tuples when
-// an output queue of a Source or a Box is full. This mode doesn't care about
-// precision of computation results. When a Box connected to an output queue
-// supports sophisticated load shedding algorithm, specify DropNone.
-type OutputDropMode int
+// QueueDropMode is a mode which controls the behavior of dropping tuples from
+// a pipe when an output tuple is written to its queue that is full. This mode
+// doesn't care about precision of computation results. When a Box connected to
+// an output queue supports sophisticated load shedding algorithm, specify
+// DropNone.
+type QueueDropMode int
 
 const (
-	// DropNone is one of OutputDropMode that a Source or Box doesn't drop any
+	// DropNone is one of QueueDropMode that a Source or Box doesn't drop any
 	// tuple when its output queue is full. This is the default mode.
-	DropNone OutputDropMode = iota
+	DropNone QueueDropMode = iota
 
-	// DropLatest is one of OutputDropMode that a Source and a Box drops the
+	// DropLatest is one of QueueDropMode that a Source and a Box drops the
 	// latest tuple (i.e. the tuple which is being sent) when its output queue
 	// is full.
 	DropLatest
 
-	// DropOldest is one of OutputDropMode that a Source and a Box drops the
+	// DropOldest is one of QueueDropMode that a Source and a Box drops the
 	// oldest tuple being queued when its output queue is full.
 	DropOldest
 )
@@ -81,7 +82,7 @@ type pipeSender struct {
 
 	inputName string
 	out       chan *Tuple
-	dropMode  OutputDropMode
+	dropMode  QueueDropMode
 
 	// rwm protects out from write-close conflicts.
 	rwm sync.RWMutex

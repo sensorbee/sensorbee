@@ -272,7 +272,7 @@ type BoxInputConfig struct {
 
 	// DropMode is a mode which controls the behavior of dropping tuples at the
 	// output side of the queue when it is full.
-	DropMode OutputDropMode
+	DropMode QueueDropMode
 }
 
 func (c *BoxInputConfig) inputName() string {
@@ -328,7 +328,7 @@ type SinkInputConfig struct {
 
 	// DropMode is a mode which controls the behavior of dropping tuples at the
 	// output side of the queue when it is full.
-	DropMode OutputDropMode
+	DropMode QueueDropMode
 }
 
 func (c *SinkInputConfig) capacity() int {
