@@ -260,6 +260,9 @@ func NewSharedStateSink(ctx *Context, name string) (Sink, error) {
 		return nil, fmt.Errorf("'%v' state cannot be written", name)
 	}
 
+	// TODO: check whether the state is a LoadableSharedState for optimization.
+	// When the state is a LoadableSharedState, we can omit state loading in Write() method.
+
 	s := &sharedStateSink{
 		name: name,
 	}
