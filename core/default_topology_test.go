@@ -1375,7 +1375,7 @@ func TestJoinDefaultTopology(t *testing.T) {
 	})
 }
 
-func TestDefaultTopologyOutputDropMode(t *testing.T) {
+func TestDefaultTopologyQueueDropMode(t *testing.T) {
 	Convey("Given a simple linear topology", t, func() {
 		dt := NewDefaultTopology(NewContext(nil), "dt1")
 		t := dt.(*defaultTopology)
