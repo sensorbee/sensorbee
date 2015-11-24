@@ -241,8 +241,7 @@ func (r *defaultSharedStateRegistry) Remove(name string) (SharedState, error) {
 	return s, nil
 }
 
-// writer points a shared state. sharedStateSink will point to the same shared state
-// even after the state is removed from the context.
+// sharedStateSink represents a shared state. sharedStateSink refers to a shared state by name.
 type sharedStateSink struct {
 	name string
 }
