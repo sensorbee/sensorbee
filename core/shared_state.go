@@ -241,10 +241,9 @@ func (r *defaultSharedStateRegistry) Remove(name string) (SharedState, error) {
 	return s, nil
 }
 
-// writer points a shared state. sharedStateSink will point to the same shared state
-// even after the state is removed from the context.
+// sharedStateSink represents a shared state. sharedStateSink refers to a shared state by name.
 type sharedStateSink struct {
-	writer Writer
+	name string
 }
 
 // NewSharedStateSink creates a sink that writes to SharedState.
@@ -256,19 +255,33 @@ func NewSharedStateSink(ctx *Context, name string) (Sink, error) {
 	}
 
 	// It fails if the shared state cannot be written
-	writer, ok := state.(Writer)
+	_, ok := state.(Writer)
 	if !ok {
 		return nil, fmt.Errorf("'%v' state cannot be written", name)
 	}
 
+	// TODO: check whether the state is a LoadableSharedState for optimization.
+	// When the state is a LoadableSharedState, we can omit state loading in Write() method.
+
 	s := &sharedStateSink{
-		writer: writer,
+		name: name,
 	}
 	return s, nil
 }
 
 func (s *sharedStateSink) Write(ctx *Context, t *Tuple) error {
-	return s.writer.Write(ctx, t)
+	state, err := ctx.SharedStates.Get(s.name)
+	if err != nil {
+		return err
+	}
+
+	// It fails if the shared state cannot be written
+	writer, ok := state.(Writer)
+	if !ok {
+		return fmt.Errorf("'%v' state cannot be written", s.name)
+	}
+
+	return writer.Write(ctx, t)
 }
 
 func (s *sharedStateSink) Close(ctx *Context) error {
