@@ -636,6 +636,10 @@ func TestAggregateChecker(t *testing.T) {
 			rowValue{"x", "a"},
 			nil},
 
+		{"CASE a WHEN 3 THEN 'ok' END FROM x [RANGE 1 TUPLES]", "",
+			caseAST{rowValue{"x", "a"}, []whenThenPair{{numericLiteral{3}, stringLiteral{"ok"}}}, nullLiteral{}},
+			nil},
+
 		// f(a) is no aggregate call, so the `aggrs` list is empty
 		// and the selected expression is transformed normally
 		{"f(a) FROM x [RANGE 1 TUPLES]", "",
@@ -700,6 +704,18 @@ func TestAggregateChecker(t *testing.T) {
 					funcAppAST{"count", []FlatExpression{aggInputRef{"g_f12cd6bc"}}},
 				}},
 			},
+			map[string]FlatExpression{
+				"g_2d5e5764": binaryOpAST{parser.Plus,
+					rowValue{"x", "a"},
+					numericLiteral{1},
+				},
+				"g_f12cd6bc": rowValue{"x", "a"},
+			}},
+
+		{"CASE count(a) WHEN g(3) THEN udaf(a + 1) END FROM x [RANGE 1 TUPLES]", "",
+			caseAST{funcAppAST{"count", []FlatExpression{aggInputRef{"g_f12cd6bc"}}},
+				[]whenThenPair{{funcAppAST{"g", []FlatExpression{numericLiteral{3}}},
+					funcAppAST{"udaf", []FlatExpression{aggInputRef{"g_2d5e5764"}}}}}, nullLiteral{}},
 			map[string]FlatExpression{
 				"g_2d5e5764": binaryOpAST{parser.Plus,
 					rowValue{"x", "a"},
