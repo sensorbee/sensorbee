@@ -587,7 +587,7 @@ receiveLoop:
 }
 
 // enableGracefulStop enables graceful stop mode. If the mode is enabled, the
-// suorce automatically stops when it doesn't receive any input after stop is
+// source automatically stops when it doesn't receive any input after stop is
 // called.
 func (s *dataSources) enableGracefulStop() {
 	// Perhaps this function should be something like 'toggle', but it wasn't

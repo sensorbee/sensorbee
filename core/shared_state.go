@@ -8,7 +8,7 @@ import (
 )
 
 // SharedState is a state which nodes in a topology can access. It can be a
-// machine learning model, a data structure for aggregation (like a histgram),
+// machine learning model, a data structure for aggregation (like a histogram),
 // a configuration information for specific Boxes, and so on.
 //
 // SharedState doesn't have methods to read it's internal data because internal
