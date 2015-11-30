@@ -220,7 +220,7 @@ func (s *TupleIncrementalEmitterSource) EmitTuples(n int) {
 	s.WaitForEmission()
 }
 
-// EmitTupelsNB emits n tuples asynchronously and doesn't wait until
+// EmitTuplesNB emits n tuples asynchronously and doesn't wait until
 // all tuples are emitted.
 func (s *TupleIncrementalEmitterSource) EmitTuplesNB(n int) {
 	s.m.Lock()
