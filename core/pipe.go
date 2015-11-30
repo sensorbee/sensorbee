@@ -356,14 +356,28 @@ func (s *dataSources) pour(ctx *Context, w Writer, paralellism int) error {
 			return cs
 		}
 
+		// ensureLocked ensures proper lock for s. Removing this introduces
+		// race conditions because genCases requires locked s and genCases is
+		// called in goroutines.
+		var ensureLocked sync.WaitGroup
 		for i := 0; i < paralellism; i++ {
 			msgCh := make(chan *dataSourcesMessage)
 			s.msgChs = append(s.msgChs, msgCh)
 
 			wg.Add(1)
+			ensureLocked.Add(1)
 			go func() {
 				defer wg.Done()
-				ins, err := s.pouringThread(ctx, w, genCases(msgCh))
+				needDone := true
+				defer func() {
+					if needDone {
+						ensureLocked.Done()
+					}
+				}()
+				cs := genCases(msgCh)
+				ensureLocked.Done()
+				needDone = false
+				ins, err := s.pouringThread(ctx, w, cs)
 				collectInputs.Do(func() {
 					// It's sufficient to collect input only once. The only
 					// problem which might happen is that ins has old receivers.
@@ -393,6 +407,7 @@ func (s *dataSources) pour(ctx *Context, w Writer, paralellism int) error {
 				}
 			}()
 		}
+		ensureLocked.Wait()
 		return nil
 	}()
 	if err != nil {
