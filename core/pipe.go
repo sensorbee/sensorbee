@@ -306,9 +306,9 @@ func (s *dataSources) remove(name string) {
 
 // pour pours out tuples for the target Writer. The target must directly be
 // connected to a Box or a Sink.
-func (s *dataSources) pour(ctx *Context, w Writer, paralellism int) error {
-	if paralellism == 0 {
-		paralellism = 1
+func (s *dataSources) pour(ctx *Context, w Writer, parallelism int) error {
+	if parallelism == 0 {
+		parallelism = 1
 	}
 
 	var (
@@ -360,7 +360,7 @@ func (s *dataSources) pour(ctx *Context, w Writer, paralellism int) error {
 		// race conditions because genCases requires locked s and genCases is
 		// called in goroutines.
 		var ensureLocked sync.WaitGroup
-		for i := 0; i < paralellism; i++ {
+		for i := 0; i < parallelism; i++ {
 			msgCh := make(chan *dataSourcesMessage)
 			s.msgChs = append(s.msgChs, msgCh)
 
