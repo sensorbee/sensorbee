@@ -265,10 +265,13 @@ func (s *dataSources) add(name string, r *pipeReceiver) error {
 		return fmt.Errorf("node '%v' is already receiving tuples from '%v'", s.nodeName, name)
 	}
 	s.recvs[name] = r
-	s.sendMessageWithoutLock(&dataSourcesMessage{
-		cmd: ddscAddReceiver,
-		v:   r,
-	})
+	// It is not necessary to send messages before pour() call.
+	if len(s.msgChs) > 0 {
+		s.sendMessageWithoutLock(&dataSourcesMessage{
+			cmd: ddscAddReceiver,
+			v:   r,
+		})
+	}
 	return nil
 }
 
@@ -279,6 +282,13 @@ func (s *dataSources) sendMessage(msg *dataSourcesMessage) {
 }
 
 func (s *dataSources) sendMessageWithoutLock(msg *dataSourcesMessage) {
+	// wait for pour().
+	// Note that it is the user's responsibility to avoid deadlock.
+	// Users must call a function which modify s.state to TSRunning or greater
+	// (e.g. pour()) before call of this function or in another goroutine.
+	s.state.waitWithoutLock(TSRunning)
+	// Applying range-based for to a nil slice is valid, so this loop is safe
+	// even when s.state is TSStopping or TSStopped.
 	for _, ch := range s.msgChs {
 		ch <- msg
 	}
