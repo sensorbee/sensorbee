@@ -1,9 +1,11 @@
 package core
 
 import (
+	"errors"
 	. "github.com/smartystreets/goconvey/convey"
 	"pfi/sensorbee/sensorbee/data"
 	"testing"
+	"time"
 )
 
 func TestRewindableSource(t *testing.T) {
@@ -124,6 +126,137 @@ func TestRewindableSource(t *testing.T) {
 
 			Convey("Then it should fail", func() {
 				So(son.Rewind(), ShouldNotBeNil)
+			})
+		})
+	})
+}
+
+type dummyNonstoppableSource struct {
+	stopped bool
+}
+
+func (d *dummyNonstoppableSource) GenerateStream(ctx *Context, w Writer) error {
+	defer func() {
+		d.stopped = true
+	}()
+	for {
+		if err := w.Write(ctx, NewTuple(data.Map{"a": data.True})); err != nil {
+			return err
+		}
+	}
+}
+
+func (d *dummyNonstoppableSource) Stop(ctx *Context) error {
+	return nil
+}
+
+func TestImplementSourceStop(t *testing.T) {
+	Convey("Given a stoppable source via ImplementSourceStop", t, func() {
+		ctx := NewContext(nil)
+		s := ImplementSourceStop(NewTupleEmitterSource(freshTuples()))
+		Reset(func() {
+			s.Stop(ctx)
+		})
+
+		ch := make(chan error, 1)
+		go func() {
+			ch <- s.GenerateStream(ctx, WriterFunc(func(ctx *Context, t *Tuple) error {
+				return nil
+			}))
+		}()
+
+		Convey("When waiting for the source to be stopped", func() {
+			err := <-ch
+
+			Convey("Then it should stop without explicitly calling Stop method", func() {
+				So(err, ShouldBeNil)
+			})
+		})
+	})
+
+	Convey("Given a non stoppable source via ImplementSourceStop", t, func() {
+		ctx := NewContext(nil)
+		ns := &dummyNonstoppableSource{}
+		s := ImplementSourceStop(ns)
+		Reset(func() {
+			s.Stop(ctx)
+		})
+
+		ch := make(chan error, 1)
+		go func() {
+			ch <- s.GenerateStream(ctx, WriterFunc(func(ctx *Context, t *Tuple) error {
+				return nil
+			}))
+		}()
+
+		Convey("When stopping the source", func() {
+			So(s.Stop(ctx), ShouldBeNil)
+
+			Convey("Then the original source should stop", func() {
+				So(ns.stopped, ShouldBeTrue)
+			})
+
+			Convey("Then GenerateStream should return", func() {
+				So(<-ch, ShouldBeNil)
+			})
+		})
+
+		Convey("When rewinding the source", func() {
+			rs := s.(RewindableSource)
+			err := rs.Rewind(ctx)
+
+			Convey("Then it shoudl fail", func() {
+				So(err, ShouldNotBeNil)
+			})
+		})
+	})
+}
+
+type dummyBlockingSource struct {
+}
+
+func (d *dummyBlockingSource) GenerateStream(ctx *Context, w Writer) error {
+	// This sleep is only for avoiding a goroutine leak and all tests assume
+	// that they finish before this method returns.
+	time.Sleep(10 * time.Second)
+	return nil
+}
+
+func (d *dummyBlockingSource) Stop(ctx *Context) error {
+	return errors.New("cannot stop blocking source")
+}
+
+func TestRewindableSourceForceStop(t *testing.T) {
+	Convey("Given a source whose GenerateStream will never return and whose Stop fails", t, func() {
+		ctx := NewContext(nil)
+		s := ImplementSourceStop(&dummyBlockingSource{})
+		Reset(func() {
+			s.Stop(ctx)
+		})
+
+		ch := make(chan error, 1)
+		go func() {
+			ch <- s.GenerateStream(ctx, WriterFunc(func(ctx *Context, t *Tuple) error {
+				return nil
+			}))
+		}()
+
+		Convey("When stopping the source", func() {
+			err := s.Stop(ctx)
+
+			Convey("Then it should fail", func() {
+				So(err, ShouldNotBeNil)
+				So(err.Error(), ShouldEqual, "cannot stop blocking source")
+			})
+
+			Convey("Then GenerateStream should stop", func() {
+				var err error
+				select {
+				case err = <-ch:
+				default:
+				}
+
+				So(err, ShouldNotBeNil)
 			})
 		})
 	})

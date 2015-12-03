@@ -55,7 +55,12 @@ type rewindableSource struct {
 	rewind           bool
 	waitingForRewind bool
 
-	source Source
+	// rewindEnabled indicates if this rewindableSource actually supports
+	// Rewind method. When this is false, Rewind method always returns an error.
+	rewindEnabled bool
+
+	forceStop chan struct{}
+	source    Source
 
 	// TODO: add methods to satisfy other important interfaces
 }
@@ -88,15 +93,30 @@ var (
 // have to implement Stop method (i.e. it can just return nil), either, although
 // it has to provide it. Instead of implementing Stop method, it can return
 // from GenerateStream when the writer returned ErrSourceStopped. If the Source
-// has to clean up resources, it can implement Stop to do it.
+// has to clean up resources, it can implement Stop to do it. However,
+// GenerateStream is still running while Stop is being called. Therefore, all
+// resource allocation and deallocation should be done in GenerateStream rather
+// than in an initialization function and Stop.
 //
 // The interface returned from this function will support following interfaces
 // if the given source implements them:
 //
 //	* Statuser
+//
+// Known issue: There's one problem with NewRewindableSource. Stop method could
+// block when the original source's GenerateStream doesn't generate any tuple
+// (i.e. doesn't write any tuple) without returning from GenerateStream since
+// whether the source is stopped is only determined by the error returned from
+// Write.
 func NewRewindableSource(s Source) RewindableSource {
+	return newRewindableSource(s, true)
+}
+
+func newRewindableSource(s Source, rewindEnabled bool) RewindableSource {
 	r := &rewindableSource{
-		source: s,
+		rewindEnabled: rewindEnabled,
+		forceStop:     make(chan struct{}, 1),
+		source:        s,
 	}
 	r.state = newTopologyStateHolder(&r.rwm)
 	return r
@@ -141,55 +161,86 @@ func (r *rewindableSource) GenerateStream(ctx *Context, w Writer) error {
 		return w.Write(ctx, t) // pass the tuple to the original writer
 	})
 
-	for {
-		if err := r.source.GenerateStream(ctx, rewindWriter); err != nil {
-			if err != ErrSourceRewound {
-				r.rwm.Lock()
-				r.rewind = false
-				r.state.cond.Broadcast()
-				r.rwm.Unlock()
-				if err == ErrSourceStopped {
-					return nil
+	ch := make(chan error, 1)
+	go func() {
+		for {
+			if err := r.source.GenerateStream(ctx, rewindWriter); err != nil {
+				if err != ErrSourceRewound {
+					r.rwm.Lock()
+					r.rewind = false
+					r.state.cond.Broadcast()
+					r.rwm.Unlock()
+					if err == ErrSourceStopped {
+						ch <- nil
+						return
+					}
+					ch <- err
+					return
 				}
-				return err
 			}
-		}
 
-		// wait for rewind or stop
-		shouldReturn := func() bool {
-			r.rwm.Lock()
-			defer func() {
-				r.rewind = false
-				r.waitingForRewind = false
-				r.state.cond.Broadcast()
-				r.rwm.Unlock()
-			}()
-			r.waitingForRewind = true
-
-			for {
-				if r.state.getWithoutLock() >= TSStopping {
+			// wait for rewind or stop
+			shouldReturn := func() bool {
+				r.rwm.Lock()
+				defer r.rwm.Unlock()
+				if !r.rewindEnabled {
 					return true
 				}
-				if r.rewind {
-					return false
+
+				defer func() {
+					r.rewind = false
+					r.waitingForRewind = false
+					r.state.cond.Broadcast()
+				}()
+				r.waitingForRewind = true
+
+				for {
+					if r.state.getWithoutLock() >= TSStopping {
+						return true
+					}
+					if r.rewind {
+						return false
+					}
+					r.state.cond.Wait() // wait until the status is updated.
 				}
-				r.state.cond.Wait() // wait until the status is updated.
+			}()
+			if shouldReturn {
+				ch <- nil
+				return
+			}
+
+			// rewindableSource must not stop (i.e. return) until Stop is called.
+		}
+	}()
+
+	select {
+	case err := <-ch:
+		return err
+	case <-r.forceStop:
+		go func() {
+			// Wait until the source
+			if err := <-ch; err == nil {
+				ctx.ErrLog(err).Info("The source which has forcibly been stopped finished generating stream")
+			} else {
+				ctx.ErrLog(err).Warn("The source which has forcibly been stopped returned an error")
 			}
 		}()
-		if shouldReturn {
-			return nil
-		}
-
-		// rewindableSource must not stop (i.e. return) until Stop is called.
+		return errors.New("the source has been stopped forcibly")
 	}
 }
 
 func (r *rewindableSource) Stop(ctx *Context) error {
+	if r.state.Get() >= TSStopping { // just in case
+		r.state.Wait(TSStopped)
+		return nil
+	}
+
 	r.state.Set(TSStopping)
+	defer r.state.Wait(TSStopped)
 	if err := r.source.Stop(ctx); err != nil {
+		r.forceStop <- struct{}{}
 		return err
 	}
-	r.state.Wait(TSStopped)
 	return nil
 }
 
@@ -204,6 +255,10 @@ func (r *rewindableSource) Resume(ctx *Context) error {
 func (r *rewindableSource) Rewind(ctx *Context) error {
 	r.rwm.Lock()
 	defer r.rwm.Unlock()
+	if !r.rewindEnabled {
+		return errors.New("this source doesn't support rewind")
+	}
+
 	r.rewind = true
 	r.state.cond.Broadcast()
 
@@ -216,13 +271,23 @@ func (r *rewindableSource) Rewind(ctx *Context) error {
 func (r *rewindableSource) Status() data.Map {
 	r.rwm.RLock()
 	waiting := r.waitingForRewind
+	enabled := r.rewindEnabled
 	r.rwm.RUnlock()
 	m := data.Map{
-		"rewindable":         data.True,
+		"rewindable":         data.Bool(enabled),
 		"waiting_for_rewind": data.Bool(waiting),
 	}
 	if s, ok := r.source.(Statuser); ok {
 		m["internal_source"] = s.Status()
 	}
 	return m
+}
+
+// ImplementSourceStop implements Stop method of a Source in a thread-safe
+// manner on behalf of the given Source. Source passed to this function must
+// follow the rule described in NewRewindableSource with one exception that
+// the Writer doesn't return ErrSourceRewound.
+func ImplementSourceStop(s Source) Source {
+	// This is implemented as a rewindableSource with rewind disabled.
+	return newRewindableSource(s, false)
 }
