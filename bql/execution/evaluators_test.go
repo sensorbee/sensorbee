@@ -147,6 +147,51 @@ func TestFoldableExecution(t *testing.T) {
 			false, nil},
 		{parser.MapAST{[]parser.KeyValuePairAST{{"a", parser.NumericLiteral{7}}}},
 			true, data.Map{"a": data.Int(7)}},
+		{parser.ExpressionCaseAST{parser.RowValue{"", "a"}, parser.ConditionCaseAST{[]parser.WhenThenPairAST{
+			{parser.NumericLiteral{2}, parser.NumericLiteral{3}}}, parser.NullLiteral{}}},
+			false, nil},
+		{parser.ExpressionCaseAST{parser.NumericLiteral{2}, parser.ConditionCaseAST{[]parser.WhenThenPairAST{
+			{parser.RowValue{"", "a"}, parser.NumericLiteral{3}}}, parser.NullLiteral{}}},
+			false, nil},
+		{parser.ExpressionCaseAST{parser.NumericLiteral{3}, parser.ConditionCaseAST{[]parser.WhenThenPairAST{
+			{parser.NumericLiteral{2}, parser.RowValue{"", "a"}}}, parser.NullLiteral{}}},
+			false, nil},
+		{parser.ExpressionCaseAST{parser.NumericLiteral{3}, parser.ConditionCaseAST{[]parser.WhenThenPairAST{
+			{parser.NumericLiteral{2}, parser.NullLiteral{}}}, parser.RowValue{"", "a"}}},
+			false, nil},
+		{parser.ExpressionCaseAST{parser.NumericLiteral{3}, parser.ConditionCaseAST{[]parser.WhenThenPairAST{
+			{parser.NumericLiteral{3}, parser.NumericLiteral{4}}, {parser.NumericLiteral{3}, parser.RowValue{"", "a"}}}, parser.NullLiteral{}}},
+			false, nil},
+		{parser.ExpressionCaseAST{parser.BinaryOpAST{parser.Plus, parser.NumericLiteral{1}, parser.NumericLiteral{2}}, parser.ConditionCaseAST{[]parser.WhenThenPairAST{
+			{parser.NumericLiteral{3}, parser.NumericLiteral{4}}}, parser.NullLiteral{}}},
+			true, data.Int(4)},
+		{parser.ExpressionCaseAST{parser.BinaryOpAST{parser.Plus, parser.NumericLiteral{1}, parser.NumericLiteral{3}}, parser.ConditionCaseAST{[]parser.WhenThenPairAST{
+			{parser.NumericLiteral{3}, parser.NumericLiteral{4}}}, parser.NullLiteral{}}},
+			true, data.Null{}},
+		{parser.ExpressionCaseAST{parser.BinaryOpAST{parser.Plus, parser.NumericLiteral{1}, parser.NumericLiteral{3}}, parser.ConditionCaseAST{[]parser.WhenThenPairAST{
+			{parser.NumericLiteral{3}, parser.NumericLiteral{4}}, {parser.NumericLiteral{4}, parser.NumericLiteral{5}}}, parser.NullLiteral{}}},
+			true, data.Int(5)},
+		{parser.ConditionCaseAST{[]parser.WhenThenPairAST{
+			{parser.RowValue{"", "a"}, parser.NumericLiteral{3}}}, parser.NullLiteral{}},
+			false, nil},
+		{parser.ConditionCaseAST{[]parser.WhenThenPairAST{
+			{parser.BoolLiteral{true}, parser.RowValue{"", "a"}}}, parser.NullLiteral{}},
+			false, nil},
+		{parser.ConditionCaseAST{[]parser.WhenThenPairAST{
+			{parser.BoolLiteral{true}, parser.NullLiteral{}}}, parser.RowValue{"", "a"}},
+			false, nil},
+		{parser.ConditionCaseAST{[]parser.WhenThenPairAST{
+			{parser.BoolLiteral{true}, parser.NumericLiteral{4}}, {parser.NumericLiteral{3}, parser.RowValue{"", "a"}}}, parser.NullLiteral{}},
+			false, nil},
+		{parser.ConditionCaseAST{[]parser.WhenThenPairAST{
+			{parser.BoolLiteral{true}, parser.NumericLiteral{4}}}, parser.NullLiteral{}},
+			true, data.Int(4)},
+		{parser.ConditionCaseAST{[]parser.WhenThenPairAST{
+			{parser.BoolLiteral{false}, parser.NumericLiteral{4}}}, parser.NullLiteral{}},
+			true, data.Null{}},
+		{parser.ConditionCaseAST{[]parser.WhenThenPairAST{
+			{parser.BoolLiteral{false}, parser.NumericLiteral{4}}, {parser.BoolLiteral{true}, parser.NumericLiteral{5}}}, parser.NullLiteral{}},
+			true, data.Int(5)},
 	}
 
 	reg := &testFuncRegistry{ctx: core.NewContext(nil)}
@@ -1674,6 +1719,68 @@ func getTestCases() []struct {
 				{data.Map{"a": data.Array{data.Int(3)}}, data.Map{"two": data.Int(2), "a": data.Array{data.Int(3)}}},
 				{data.Map{"a": data.Map{"b": data.Int(3)}}, data.Map{"two": data.Int(2), "a": data.Map{"b": data.Int(3)}}},
 				{data.Map{"a": data.Null{}}, data.Map{"two": data.Int(2), "a": data.Null{}}},
+			},
+		},
+		// CASE a WHEN ... THEN ... ELSE ... END
+		{parser.ExpressionCaseAST{parser.RowValue{"", "a"}, parser.ConditionCaseAST{[]parser.WhenThenPairAST{
+			{parser.NumericLiteral{2}, parser.NumericLiteral{3}}}, parser.NullLiteral{}}},
+			[]evalTest{
+				// not a map:
+				{data.Int(17), nil},
+				// keys not present:
+				{data.Map{"x": data.Int(17)}, nil},
+				// key present and matches
+				{data.Map{"a": data.Int(2)}, data.Int(3)},
+				// key present and doesn't match
+				{data.Map{"a": data.Int(3)}, data.Null{}},
+				{data.Map{"a": data.String("3")}, data.Null{}},
+			},
+		},
+		{parser.ExpressionCaseAST{parser.RowValue{"", "a"}, parser.ConditionCaseAST{[]parser.WhenThenPairAST{
+			{parser.NumericLiteral{2}, parser.NumericLiteral{3}},
+			{parser.StringLiteral{"3"}, parser.StringLiteral{"hoge"}}}, parser.NumericLiteral{7}}},
+			[]evalTest{
+				// not a map:
+				{data.Int(17), nil},
+				// keys not present:
+				{data.Map{"x": data.Int(17)}, nil},
+				// key present and matches first
+				{data.Map{"a": data.Int(2)}, data.Int(3)},
+				// key present and matches second
+				{data.Map{"a": data.String("3")}, data.String("hoge")},
+				// key present and doesn't match
+				{data.Map{"a": data.Int(3)}, data.Int(7)},
+			},
+		},
+		// CASE WHEN ... THEN ... ELSE ... END
+		{parser.ConditionCaseAST{[]parser.WhenThenPairAST{
+			{parser.BinaryOpAST{parser.Equal, parser.RowValue{"", "a"}, parser.NumericLiteral{2}}, parser.NumericLiteral{3}}}, parser.NullLiteral{}},
+			[]evalTest{
+				// not a map:
+				{data.Int(17), nil},
+				// keys not present:
+				{data.Map{"x": data.Int(17)}, nil},
+				// key present and matches
+				{data.Map{"a": data.Int(2)}, data.Int(3)},
+				// key present and doesn't match
+				{data.Map{"a": data.Int(3)}, data.Null{}},
+				{data.Map{"a": data.String("3")}, data.Null{}},
+			},
+		},
+		{parser.ConditionCaseAST{[]parser.WhenThenPairAST{
+			{parser.BinaryOpAST{parser.Equal, parser.RowValue{"", "a"}, parser.NumericLiteral{2}}, parser.NumericLiteral{3}},
+			{parser.BinaryOpAST{parser.Greater, parser.RowValue{"", "a"}, parser.NumericLiteral{2}}, parser.NumericLiteral{7}}}, parser.StringLiteral{"hoge"}},
+			[]evalTest{
+				// not a map:
+				{data.Int(17), nil},
+				// keys not present:
+				{data.Map{"x": data.Int(17)}, nil},
+				// key present and matches first
+				{data.Map{"a": data.Int(2)}, data.Int(3)},
+				// key present and matches second
+				{data.Map{"a": data.Int(6)}, data.Int(7)},
+				// key present and doesn't match
+				{data.Map{"a": data.Int(1)}, data.String("hoge")},
 			},
 		},
 		// Using now() should find the timestamp at the
