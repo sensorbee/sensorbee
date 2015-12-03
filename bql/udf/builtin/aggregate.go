@@ -7,6 +7,7 @@ import (
 	"pfi/sensorbee/sensorbee/bql/udf"
 	"pfi/sensorbee/sensorbee/core"
 	"pfi/sensorbee/sensorbee/data"
+	"sort"
 )
 
 // singleParamAggFunc is a template for aggregate functions that
@@ -135,6 +136,54 @@ var avgFunc udf.UDF = &singleParamAggFunc{
 			return data.Null{}, nil
 		}
 		return data.Float(sum / float64(count)), nil
+	},
+}
+
+// medianFunc is an aggregate function that computes the median
+// of all input values. Null values are ignored, non-numeric
+// values lead to an error.
+//
+// It can be used in BQL as `median`.
+//
+//  Input: Int or Float (aggregated)
+//  Return Type: Float (Null on empty input)
+var medianFunc udf.UDF = &singleParamAggFunc{
+	// this uses a simple algorithm that first sorts all numbers,
+	// then takes the one in the middle, i.e., it has time
+	// complexity O(n log n)
+	aggFun: func(arr []data.Value) (data.Value, error) {
+		if len(arr) == 0 {
+			return data.Null{}, nil
+		}
+		// collect all non-null numeric values
+		floatVals := make([]float64, 0, len(arr))
+		for _, item := range arr {
+			if item.Type() == data.TypeInt {
+				i, _ := data.AsInt(item)
+				floatVals = append(floatVals, float64(i))
+			} else if item.Type() == data.TypeFloat {
+				f, _ := data.AsFloat(item)
+				floatVals = append(floatVals, f)
+			} else if item.Type() == data.TypeNull {
+				continue
+			} else {
+				return nil, fmt.Errorf("cannot interpret %s (%T) as a number",
+					item, item)
+			}
+		}
+		if len(floatVals) == 0 {
+			// only null inputs
+			return data.Null{}, nil
+		}
+		// sort the input
+		sort.Float64s(floatVals)
+		// take the middle element (or the average of two middle elements)
+		middle := len(floatVals) / 2
+		result := floatVals[middle]
+		if len(floatVals)%2 == 0 {
+			result = (result + floatVals[middle-1]) / 2
+		}
+		return data.Float(result), nil
 	},
 }
 

@@ -70,6 +70,7 @@ func init() {
 	udf.RegisterGlobalUDF("bool_or", boolOrFunc)
 	udf.RegisterGlobalUDF("json_object_agg", jsonObjectAggFunc)
 	udf.RegisterGlobalUDF("max", maxFunc)
+	udf.RegisterGlobalUDF("median", medianFunc)
 	udf.RegisterGlobalUDF("min", minFunc)
 	udf.RegisterGlobalUDF("string_agg", stringAggFunc)
 	udf.RegisterGlobalUDF("sum", sumFunc)
