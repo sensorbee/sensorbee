@@ -3,7 +3,9 @@ package core
 import (
 	. "github.com/smartystreets/goconvey/convey"
 	"pfi/sensorbee/sensorbee/data"
+	"sync/atomic"
 	"testing"
+	"time"
 )
 
 func TestNodeStatus(t *testing.T) {
@@ -18,12 +20,15 @@ func TestNodeStatus(t *testing.T) {
 		son, err := t.AddSource("source", so, nil)
 		So(err, ShouldBeNil)
 		so.EmitTuples(2) // send before a box is connected
+		waitForNumDropped(son, 2)
 
 		bn, err := t.AddBox("box", BoxFunc(forwardBox), nil)
 		So(err, ShouldBeNil)
 		So(bn.Input("source", nil), ShouldBeNil)
 		bn.StopOnDisconnect(Inbound)
+		bn.State().Wait(TSRunning)
 		so.EmitTuples(1) // send before a sink is connected
+		waitForNumDropped(bn, 1)
 
 		si := NewTupleCollectorSink()
 		sin, err := t.AddSink("sink", si, nil)
@@ -102,7 +107,7 @@ func TestNodeStatus(t *testing.T) {
 
 		Convey("When getting status of the source after the source is stopped", func() {
 			so.EmitTuples(2)
-			si.Wait(5)
+			son.State().Wait(TSStopped)
 
 			st := son.Status()
 
@@ -245,6 +250,7 @@ func TestNodeStatus(t *testing.T) {
 		Convey("When getting status of the box after the box is stopped", func() {
 			so.EmitTuples(2)
 			si.Wait(5)
+			bn.State().Wait(TSStopped)
 
 			st := bn.Status()
 
@@ -409,3 +415,16 @@ func TestNodeStatus(t *testing.T) {
 
 // TODO: test run failures
 // TODO: test Write failures of Boxes and Sinks
+
+func waitForNumDropped(node Node, n int64) {
+	var dsts *dataDestinations
+	switch t := node.(type) {
+	case *defaultSourceNode:
+		dsts = t.dsts
+	case *defaultBoxNode:
+		dsts = t.dsts
+	}
+	for n > atomic.LoadInt64(&dsts.numDropped) {
+		time.Sleep(time.Nanosecond)
+	}
+}
