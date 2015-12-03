@@ -130,6 +130,18 @@ func TestUnaryAggregateFuncs(t *testing.T) {
 			// incompatible data
 			{data.Array{data.Int(7), data.Timestamp(someTime)}, nil},
 		}},
+		{"median", medianFunc, []udfUnaryTestCaseInput{
+			// empty array: Null
+			{data.Array{}, data.Null{}},
+			// array with only Null
+			{data.Array{data.Null{}}, data.Null{}},
+			// normal inputs
+			{data.Array{data.Int(7), data.Int(3)}, data.Float(5.0)},
+			{data.Array{data.Int(7), data.Int(3), data.Int(10)}, data.Float(7.0)},
+			{data.Array{data.Int(7), data.Null{}, data.Float(3.0)}, data.Float(5.0)},
+			// incompatible data
+			{data.Array{data.Int(7), data.Timestamp(someTime)}, nil},
+		}},
 		{"min", minFunc, []udfUnaryTestCaseInput{
 			// empty array: Null
 			{data.Array{}, data.Null{}},
