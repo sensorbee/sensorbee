@@ -239,6 +239,33 @@ func ExpressionToEvaluator(ast FlatExpression, reg udf.FunctionRegistry) (Evalua
 			names[i] = pair.Key
 		}
 		return newMapBuilder(names, evals)
+	case caseAST:
+		// compute the Evaluator for the thing we match against
+		ref, err := ExpressionToEvaluator(obj.Reference, reg)
+		if err != nil {
+			return nil, err
+		}
+		// compute Evaluators for all possible WHEN-THEN clauses
+		whens := make([]Evaluator, len(obj.Checks))
+		thens := make([]Evaluator, len(obj.Checks))
+		for i, pair := range obj.Checks {
+			eval, err := ExpressionToEvaluator(pair.When, reg)
+			if err != nil {
+				return nil, err
+			}
+			whens[i] = eval
+			eval, err = ExpressionToEvaluator(pair.Then, reg)
+			if err != nil {
+				return nil, err
+			}
+			thens[i] = eval
+		}
+		// compute the Evaluator for the default value (if nothing matches)
+		def, err := ExpressionToEvaluator(obj.Default, reg)
+		if err != nil {
+			return nil, err
+		}
+		return newCaseBuilder(ref, whens, thens, def)
 	case wildcardAST:
 		return &wildcard{obj.Relation}, nil
 	}
@@ -1092,6 +1119,40 @@ func newMapBuilder(names []string, elems []Evaluator) (Evaluator, error) {
 		return nil, fmt.Errorf("number of keys and values does not match")
 	}
 	return &mapBuilder{names, elems}, nil
+}
+
+// CASE statement
+type caseBuilder struct {
+	reference   Evaluator
+	whens       []Evaluator
+	thens       []Evaluator
+	defaultEval Evaluator
+}
+
+func (c *caseBuilder) Eval(input data.Value) (v data.Value, err error) {
+	predicate, err := c.reference.Eval(input)
+	if err != nil {
+		return nil, err
+	}
+	resultEval := c.defaultEval
+	for i, when := range c.whens {
+		whenValue, err := when.Eval(input)
+		if err != nil {
+			return nil, err
+		}
+		if data.Equal(predicate, whenValue) {
+			resultEval = c.thens[i]
+			break
+		}
+	}
+	return resultEval.Eval(input)
+}
+
+func newCaseBuilder(ref Evaluator, whens []Evaluator, thens []Evaluator, def Evaluator) (Evaluator, error) {
+	if len(whens) != len(thens) {
+		return nil, fmt.Errorf("number of when and then expressions does not match")
+	}
+	return &caseBuilder{ref, whens, thens, def}, nil
 }
 
 // wildcard only works on Maps, assumes that the elements which do not contain

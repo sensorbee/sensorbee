@@ -397,6 +397,32 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 		})
 	})
 
+	Convey("Given a SELECT clause with various expressions", t, func() {
+		tuples := getTuples(4)
+		s := `CREATE STREAM box AS SELECT ISTREAM CASE int WHEN 1 THEN int+1 WHEN 3 THEN 'b' ELSE 'c' END AS x FROM src [RANGE 2 SECONDS]`
+		plan, err := createDefaultSelectPlan(s, t)
+		So(err, ShouldBeNil)
+
+		Convey("When feeding it with tuples", func() {
+			for idx, inTup := range tuples {
+				out, err := plan.Process(inTup)
+				So(err, ShouldBeNil)
+
+				Convey(fmt.Sprintf("Then those values should appear in %v", idx), func() {
+					So(len(out), ShouldEqual, 1)
+					if idx == 0 {
+						So(out[0], ShouldResemble, data.Map{"x": data.Int(2)})
+					} else if idx == 2 {
+						So(out[0], ShouldResemble, data.Map{"x": data.String("b")})
+					} else {
+						So(out[0], ShouldResemble, data.Map{"x": data.String("c")})
+					}
+				})
+			}
+
+		})
+	})
+
 	Convey("Given a SELECT clause with a complex JSON Path", t, func() {
 		tuples := getTuples(4)
 		for i, t := range tuples {

@@ -52,6 +52,14 @@ func TestFlatExpressionConverter(t *testing.T) {
 			{"now", stmtMeta{parser.NowMeta}}}}, Stable, []rowValue{{"", "a"}}},
 		"{'f':f(a),'b':true}": {mapAST{[]keyValuePair{{"f", funcAppAST{parser.FuncName("f"),
 			[]FlatExpression{rowValue{"", "a"}}}}, {"b", boolLiteral{true}}}}, Volatile, []rowValue{{"", "a"}}},
+		// CASE expressions
+		"CASE a WHEN 2 THEN 3 END":            {caseAST{rowValue{"", "a"}, []whenThenPair{{numericLiteral{2}, numericLiteral{3}}}, nullLiteral{}}, Immutable, nil},
+		"CASE WHEN true THEN 3 END":           {caseAST{boolLiteral{true}, []whenThenPair{{boolLiteral{true}, numericLiteral{3}}}, nullLiteral{}}, Immutable, nil},
+		"CASE WHEN false THEN 3 ELSE 6 END":   {caseAST{boolLiteral{true}, []whenThenPair{{boolLiteral{false}, numericLiteral{3}}}, numericLiteral{6}}, Immutable, nil},
+		"CASE now() WHEN 2 THEN 3 END":        {caseAST{stmtMeta{parser.NowMeta}, []whenThenPair{{numericLiteral{2}, numericLiteral{3}}}, nullLiteral{}}, Stable, nil},
+		"CASE a WHEN now() THEN 3 END":        {caseAST{rowValue{"", "a"}, []whenThenPair{{stmtMeta{parser.NowMeta}, numericLiteral{3}}}, nullLiteral{}}, Stable, nil},
+		"CASE a WHEN 2 THEN now() END":        {caseAST{rowValue{"", "a"}, []whenThenPair{{numericLiteral{2}, stmtMeta{parser.NowMeta}}}, nullLiteral{}}, Stable, nil},
+		"CASE a WHEN 2 THEN 3 ELSE now() END": {caseAST{rowValue{"", "a"}, []whenThenPair{{numericLiteral{2}, numericLiteral{3}}}, stmtMeta{parser.NowMeta}}, Stable, nil},
 		// Composed Expressions
 		"a OR 2":    {binaryOpAST{parser.Or, rowValue{"", "a"}, numericLiteral{2}}, Immutable, []rowValue{{"", "a"}}},
 		"a IS NULL": {binaryOpAST{parser.Is, rowValue{"", "a"}, nullLiteral{}}, Immutable, []rowValue{{"", "a"}}},

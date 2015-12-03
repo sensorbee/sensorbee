@@ -1007,6 +1007,120 @@ func NewRowValue(s string) RowValue {
 	return RowValue{components[0], components[1]}
 }
 
+type WhenThenPairAST struct {
+	When Expression
+	Then Expression
+}
+
+func (wt WhenThenPairAST) string() string {
+	return fmt.Sprintf("WHEN %s THEN %s", wt.When.String(), wt.Then.String())
+}
+
+type ConditionCaseAST struct {
+	Checks []WhenThenPairAST
+	Else   Expression
+}
+
+func (c ConditionCaseAST) ReferencedRelations() map[string]bool {
+	rels := map[string]bool{}
+	for _, pair := range c.Checks {
+		for rel := range pair.When.ReferencedRelations() {
+			rels[rel] = true
+		}
+		for rel := range pair.Then.ReferencedRelations() {
+			rels[rel] = true
+		}
+	}
+	if c.Else != nil {
+		for rel := range c.Else.ReferencedRelations() {
+			rels[rel] = true
+		}
+	}
+	return rels
+}
+
+func (c ConditionCaseAST) RenameReferencedRelation(from, to string) Expression {
+	newChecks := make([]WhenThenPairAST, len(c.Checks))
+	for i, pair := range c.Checks {
+		newChecks[i] = WhenThenPairAST{
+			pair.When.RenameReferencedRelation(from, to),
+			pair.Then.RenameReferencedRelation(from, to),
+		}
+	}
+	if c.Else != nil {
+		return ConditionCaseAST{
+			newChecks,
+			c.Else.RenameReferencedRelation(from, to),
+		}
+	}
+	return ConditionCaseAST{
+		newChecks,
+		nil,
+	}
+}
+
+func (c ConditionCaseAST) Foldable() bool {
+	for _, pair := range c.Checks {
+		if !pair.When.Foldable() || !pair.Then.Foldable() {
+			return false
+		}
+	}
+	if c.Else != nil && !c.Else.Foldable() {
+		return false
+	}
+	return true
+}
+
+func (c ConditionCaseAST) String() string {
+	entries := []string{}
+	for _, pair := range c.Checks {
+		entries = append(entries, pair.string())
+	}
+	if c.Else != nil {
+		return fmt.Sprintf("CASE %s ELSE %s END",
+			strings.Join(entries, " "), c.Else.String())
+	}
+	return fmt.Sprintf("CASE %s END",
+		strings.Join(entries, " "))
+}
+
+type ExpressionCaseAST struct {
+	Expr Expression
+	ConditionCaseAST
+}
+
+func (c ExpressionCaseAST) ReferencedRelations() map[string]bool {
+	rels := c.Expr.ReferencedRelations()
+	for rel := range c.ConditionCaseAST.ReferencedRelations() {
+		rels[rel] = true
+	}
+	return rels
+}
+
+func (c ExpressionCaseAST) RenameReferencedRelation(from, to string) Expression {
+	return ExpressionCaseAST{
+		c.Expr.RenameReferencedRelation(from, to),
+		c.ConditionCaseAST.RenameReferencedRelation(from, to).(ConditionCaseAST),
+	}
+}
+
+func (c ExpressionCaseAST) Foldable() bool {
+	return c.Expr.Foldable() && c.ConditionCaseAST.Foldable()
+}
+
+func (c ExpressionCaseAST) String() string {
+	entries := []string{}
+	for _, pair := range c.Checks {
+		entries = append(entries, pair.string())
+	}
+	if c.Else != nil {
+		return fmt.Sprintf("CASE %s %s ELSE %s END",
+			c.Expr.String(), strings.Join(entries, " "), c.Else.String())
+	}
+	return fmt.Sprintf("CASE %s %s END",
+		c.Expr.String(), strings.Join(entries, " "))
+}
+
 type RowMeta struct {
 	Relation string
 	MetaType MetaInformation

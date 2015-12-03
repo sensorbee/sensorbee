@@ -109,6 +109,12 @@ func TestExpressionParser(t *testing.T) {
 		}}}, "{'foo':x:a, 'bar':{'a':[2]}}"},
 		"{'a': a:*, 'b': b:*}": {[]Expression{MapAST{[]KeyValuePairAST{
 			{"a", Wildcard{"a"}}, {"b", Wildcard{"b"}}}}}, "{'a':a:*, 'b':b:*}"},
+		// CASE
+		"CASE a END":                         {nil, ""}, // WHEN-THEN is mandatory
+		"CASE a WHEN 2 THEN 3 END":           {[]Expression{ExpressionCaseAST{RowValue{"", "a"}, ConditionCaseAST{[]WhenThenPairAST{{NumericLiteral{2}, NumericLiteral{3}}}, nil}}}, "CASE a WHEN 2 THEN 3 END"},
+		"CASE when WHEN 2 THEN 3 ELSE 6 END": {[]Expression{ExpressionCaseAST{RowValue{"", "when"}, ConditionCaseAST{[]WhenThenPairAST{{NumericLiteral{2}, NumericLiteral{3}}}, NumericLiteral{6}}}}, "CASE when WHEN 2 THEN 3 ELSE 6 END"},
+		"CASE WHEN true THEN 3 END":          {[]Expression{ConditionCaseAST{[]WhenThenPairAST{{BoolLiteral{true}, NumericLiteral{3}}}, nil}}, "CASE WHEN TRUE THEN 3 END"},
+		"CASE WHEN false THEN 3 ELSE 6 END":  {[]Expression{ConditionCaseAST{[]WhenThenPairAST{{BoolLiteral{false}, NumericLiteral{3}}}, NumericLiteral{6}}}, "CASE WHEN FALSE THEN 3 ELSE 6 END"},
 		// NumericLiteral
 		"2":    {[]Expression{NumericLiteral{2}}, "2"},
 		"-2":   {[]Expression{UnaryOpAST{UnaryMinus, NumericLiteral{2}}}, "-2"},

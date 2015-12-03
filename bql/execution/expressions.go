@@ -178,6 +178,42 @@ func ParserExprToFlatExpr(e parser.Expression, reg udf.FunctionRegistry) (FlatEx
 			pairs[i] = keyValuePair{pair.Key, expr}
 		}
 		return mapAST{pairs}, nil
+	case parser.ConditionCaseAST:
+		// compute child expressions
+		pairs := make([]whenThenPair, len(obj.Checks))
+		for i, pair := range obj.Checks {
+			expr1, err := ParserExprToFlatExpr(pair.When, reg)
+			if err != nil {
+				return nil, err
+			}
+			expr2, err := ParserExprToFlatExpr(pair.Then, reg)
+			if err != nil {
+				return nil, err
+			}
+			pairs[i] = whenThenPair{expr1, expr2}
+		}
+		var defaultExpr FlatExpression = nullLiteral{}
+		if obj.Else != nil {
+			var err error
+			defaultExpr, err = ParserExprToFlatExpr(obj.Else, reg)
+			if err != nil {
+				return nil, err
+			}
+		}
+		return caseAST{boolLiteral{true}, pairs, defaultExpr}, nil
+	case parser.ExpressionCaseAST:
+		// compute child expressions
+		_c, err := ParserExprToFlatExpr(obj.ConditionCaseAST, reg)
+		if err != nil {
+			return nil, err
+		}
+		c := _c.(caseAST)
+		ref, err := ParserExprToFlatExpr(obj.Expr, reg)
+		if err != nil {
+			return nil, err
+		}
+		// return a new object
+		return caseAST{ref, c.Checks, c.Default}, nil
 	case parser.Wildcard:
 		return wildcardAST{obj.Relation}, nil
 	}
@@ -400,6 +436,77 @@ func ParserExprToMaybeAggregate(e parser.Expression, aggIdx int, reg udf.Functio
 			returnAgg = nil
 		}
 		return mapAST{pairs}, returnAgg, nil
+	case parser.ConditionCaseAST:
+		// compute child expressions
+		pairs := make([]whenThenPair, len(obj.Checks))
+		returnAgg := map[string]FlatExpression{}
+		for i, pair := range obj.Checks {
+			// compute the correct aggIdx
+			newAggIdx := aggIdx + len(returnAgg)
+			expr1, agg, err := ParserExprToMaybeAggregate(pair.When, newAggIdx, reg)
+			if err != nil {
+				return nil, nil, err
+			}
+			for key, val := range agg {
+				returnAgg[key] = val
+			}
+
+			newAggIdx = aggIdx + len(returnAgg)
+			expr2, agg, err := ParserExprToMaybeAggregate(pair.Then, newAggIdx, reg)
+			if err != nil {
+				return nil, nil, err
+			}
+			for key, val := range agg {
+				returnAgg[key] = val
+			}
+			pairs[i] = whenThenPair{expr1, expr2}
+		}
+
+		newAggIdx := aggIdx + len(returnAgg)
+		var defaultExpr FlatExpression = nullLiteral{}
+		if obj.Else != nil {
+			var err error
+			var agg map[string]FlatExpression
+			defaultExpr, agg, err = ParserExprToMaybeAggregate(obj.Else, newAggIdx, reg)
+			if err != nil {
+				return nil, nil, err
+			}
+			for key, val := range agg {
+				returnAgg[key] = val
+			}
+		}
+
+		if len(returnAgg) == 0 {
+			returnAgg = nil
+		}
+		return caseAST{boolLiteral{true}, pairs, defaultExpr}, returnAgg, nil
+
+	case parser.ExpressionCaseAST:
+		// compute child expressions
+		returnAgg := map[string]FlatExpression{}
+		newAggIdx := aggIdx + len(returnAgg)
+		_c, agg, err := ParserExprToMaybeAggregate(obj.ConditionCaseAST, newAggIdx, reg)
+		if err != nil {
+			return nil, nil, err
+		}
+		for key, val := range agg {
+			returnAgg[key] = val
+		}
+		c := _c.(caseAST)
+
+		newAggIdx = aggIdx + len(returnAgg)
+		ref, agg, err := ParserExprToMaybeAggregate(obj.Expr, newAggIdx, reg)
+		if err != nil {
+			return nil, nil, err
+		}
+		for key, val := range agg {
+			returnAgg[key] = val
+		}
+
+		if len(returnAgg) == 0 {
+			returnAgg = nil
+		}
+		return caseAST{ref, c.Checks, c.Default}, returnAgg, nil
 	}
 	err := fmt.Errorf("don't know how to convert type %#v", e)
 	return nil, nil, err
@@ -637,6 +744,55 @@ func (m mapAST) Volatility() VolatilityType {
 type keyValuePair struct {
 	Key   string
 	Value FlatExpression
+}
+
+type caseAST struct {
+	Reference FlatExpression
+	Checks    []whenThenPair
+	Default   FlatExpression
+}
+
+func (c caseAST) Repr() string {
+	reprs := make([]string, len(c.Checks))
+	for i, p := range c.Checks {
+		reprs[i] = fmt.Sprintf("%s->%s", p.When.Repr(), p.Then.Repr())
+	}
+	return fmt.Sprintf("case(%s:%s,%s)",
+		c.Reference.Repr(), strings.Join(reprs, ","), c.Default.Repr())
+}
+
+func (c caseAST) Columns() []rowValue {
+	allColumns := c.Default.Columns()
+	for _, p := range c.Checks {
+		allColumns = append(allColumns, p.When.Columns()...)
+		allColumns = append(allColumns, p.Then.Columns()...)
+	}
+	allColumns = append(allColumns, c.Default.Columns()...)
+	return allColumns
+}
+
+func (c caseAST) Volatility() VolatilityType {
+	lv := c.Reference.Volatility()
+	for _, p := range c.Checks {
+		v := p.When.Volatility()
+		if v < lv {
+			lv = v
+		}
+		v = p.Then.Volatility()
+		if v < lv {
+			lv = v
+		}
+	}
+	v := c.Default.Volatility()
+	if v < lv {
+		lv = v
+	}
+	return lv
+}
+
+type whenThenPair struct {
+	When FlatExpression
+	Then FlatExpression
 }
 
 type wildcardAST struct {
