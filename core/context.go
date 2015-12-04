@@ -195,9 +195,11 @@ type ContextFlags struct {
 }
 
 type droppedTupleCollectorSource struct {
-	w  Writer
-	id int64
-	wg sync.WaitGroup
+	w        Writer
+	id       int64
+	m        sync.Mutex
+	gsCond   *sync.Cond
+	stopCond *sync.Cond
 }
 
 // NewDroppedTupleCollectorSource returns a source which generates a stream
@@ -215,19 +217,30 @@ type droppedTupleCollectorSource struct {
 //	- error(optional): the error information if any
 //	- data: the original content in which the dropped tuple had
 func NewDroppedTupleCollectorSource() Source {
-	return &droppedTupleCollectorSource{}
+	src := &droppedTupleCollectorSource{}
+	src.gsCond = sync.NewCond(&src.m)
+	src.stopCond = sync.NewCond(&src.m)
+	return src
 }
 
 func (s *droppedTupleCollectorSource) GenerateStream(ctx *Context, w Writer) error {
+	s.m.Lock()
+	defer s.m.Unlock()
 	s.w = w
 	s.id = ctx.addDroppedTupleSource(s)
-	s.wg.Add(1)
-	s.wg.Wait()
+	s.stopCond.Broadcast()
+	s.gsCond.Wait()
 	return nil
 }
 
 func (s *droppedTupleCollectorSource) Stop(ctx *Context) error {
+	s.m.Lock()
+	defer s.m.Unlock()
+	// wait until GenerateStream() is called
+	for s.w == nil {
+		s.stopCond.Wait()
+	}
 	ctx.removeDroppedTupleSource(s.id)
-	s.wg.Done()
+	s.gsCond.Signal()
 	return nil
 }
