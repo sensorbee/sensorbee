@@ -1,6 +1,7 @@
 package core
 
 import (
+	"errors"
 	"github.com/Sirupsen/logrus"
 	"path/filepath"
 	"pfi/sensorbee/sensorbee/data"
@@ -195,11 +196,10 @@ type ContextFlags struct {
 }
 
 type droppedTupleCollectorSource struct {
-	w        Writer
-	id       int64
-	m        sync.Mutex
-	gsCond   *sync.Cond
-	stopCond *sync.Cond
+	w     Writer
+	id    int64
+	m     sync.Mutex
+	state *topologyStateHolder
 }
 
 // NewDroppedTupleCollectorSource returns a source which generates a stream
@@ -218,29 +218,36 @@ type droppedTupleCollectorSource struct {
 //	- data: the original content in which the dropped tuple had
 func NewDroppedTupleCollectorSource() Source {
 	src := &droppedTupleCollectorSource{}
-	src.gsCond = sync.NewCond(&src.m)
-	src.stopCond = sync.NewCond(&src.m)
+	src.state = newTopologyStateHolder(&src.m)
 	return src
 }
 
 func (s *droppedTupleCollectorSource) GenerateStream(ctx *Context, w Writer) error {
 	s.m.Lock()
 	defer s.m.Unlock()
+	if s.state.getWithoutLock() >= TSStopping {
+		return errors.New("the source is already stopped")
+	}
 	s.w = w
 	s.id = ctx.addDroppedTupleSource(s)
-	s.stopCond.Broadcast()
-	s.gsCond.Wait()
+	s.state.setWithoutLock(TSRunning)
+	defer s.state.setWithoutLock(TSStopped)
+	s.state.waitWithoutLock(TSStopping)
 	return nil
 }
 
 func (s *droppedTupleCollectorSource) Stop(ctx *Context) error {
 	s.m.Lock()
 	defer s.m.Unlock()
-	// wait until GenerateStream() is called
-	for s.w == nil {
-		s.stopCond.Wait()
+	switch s.state.getWithoutLock() {
+	case TSStopping:
+		s.state.waitWithoutLock(TSStopped)
+		return nil
+	case TSStopped:
+		return nil
 	}
 	ctx.removeDroppedTupleSource(s.id)
-	s.gsCond.Signal()
+	s.state.setWithoutLock(TSStopping)
+	s.state.waitWithoutLock(TSStopped)
 	return nil
 }
