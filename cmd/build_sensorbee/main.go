@@ -157,7 +157,7 @@ func init() {
 func main() {
 	app := cli.NewApp()
 	app.Name = "sensorbee"
-	app.Usage = "SenserBee"
+	app.Usage = "SensorBee"
 	app.Version = "0.3.1" // TODO get dynamic, will be get from external file
 	app.Commands = []cli.Command{
 {{range $_, $sub := .SubCommands}}		{{$sub}}.SetUp(),
