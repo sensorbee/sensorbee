@@ -563,7 +563,7 @@ func TestDefaultTopologyFailure(t *testing.T) {
 				So(sin.Input("source", nil), ShouldBeNil)
 				so.EmitTuples(3)
 				si.Wait(3)
-				So(len(si.Tuples), ShouldEqual, 3)
+				So(si.len(), ShouldEqual, 3)
 			})
 		})
 
@@ -577,7 +577,7 @@ func TestDefaultTopologyFailure(t *testing.T) {
 
 			Convey("Then a tuple should be lost", func() {
 				si.Wait(7)
-				So(len(si.Tuples), ShouldEqual, 7)
+				So(si.len(), ShouldEqual, 7)
 			})
 		})
 
@@ -597,7 +597,7 @@ func TestDefaultTopologyFailure(t *testing.T) {
 
 			Convey("Then the sink should receive tuples sent before the fatal error", func() {
 				si.Wait(3)
-				So(len(si.Tuples), ShouldEqual, 3)
+				So(si.len(), ShouldEqual, 3)
 			})
 		})
 
@@ -678,7 +678,7 @@ func TestDefaultTopologyFailure(t *testing.T) {
 
 			Convey("Then a tuple should be lost", func() {
 				si.Wait(7)
-				So(len(si.Tuples), ShouldEqual, 7)
+				So(si.len(), ShouldEqual, 7)
 			})
 		})
 

@@ -51,10 +51,10 @@ func TestDefaultTopologyTupleTracingConfiguration(t *testing.T) {
 			so1.EmitTuples(1)
 			si.Wait(3)
 			Convey("Then trace should be according to configuration", func() {
-				So(len(si.Tuples), ShouldEqual, 3)
-				So(len(si.Tuples[0].Trace), ShouldEqual, 0)
-				So(len(si.Tuples[1].Trace), ShouldEqual, 4)
-				So(len(si.Tuples[2].Trace), ShouldEqual, 0)
+				So(si.len(), ShouldEqual, 3)
+				So(len(si.get(0).Trace), ShouldEqual, 0)
+				So(len(si.get(1).Trace), ShouldEqual, 4)
+				So(len(si.get(2).Trace), ShouldEqual, 0)
 			})
 		})
 	})
@@ -182,13 +182,13 @@ func TestDefaultTopologyTupleTracing(t *testing.T) {
 					strings.Join(route4, "->"),
 				}
 				var aRoutes []string
-				for _, tu := range si1.Tuples {
+				si1.forEachTuple(func(t *Tuple) {
 					var aRoute []string
-					for _, ev := range tu.Trace {
+					for _, ev := range t.Trace {
 						aRoute = append(aRoute, ev.Type.String()+" "+ev.Msg)
 					}
 					aRoutes = append(aRoutes, strings.Join(aRoute, "->"))
-				}
+				})
 				So(len(aRoutes), ShouldEqual, 4)
 				So(aRoutes, ShouldContain, eRoutes[0])
 				So(aRoutes, ShouldContain, eRoutes[1])
@@ -221,14 +221,14 @@ func TestDefaultTopologyTupleTracing(t *testing.T) {
 					strings.Join(route4, "->"),
 				}
 				var aRoutes []string
-				for _, tu := range si2.Tuples {
+				si2.forEachTuple(func(t *Tuple) {
 					var aRoute []string
-					for _, ev := range tu.Trace {
+					for _, ev := range t.Trace {
 						aRoute = append(aRoute, ev.Type.String()+" "+ev.Msg)
 					}
 					aRoutes = append(aRoutes, strings.Join(aRoute, "->"))
-				}
-				So(len(si2.Tuples), ShouldEqual, 4)
+				})
+				So(si2.len(), ShouldEqual, 4)
 				So(len(aRoutes), ShouldEqual, 4)
 				So(aRoutes, ShouldContain, eRoutes[0])
 				So(aRoutes, ShouldContain, eRoutes[1])

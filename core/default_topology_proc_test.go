@@ -78,14 +78,13 @@ func TestDefaultTopologyTupleProcessing(t *testing.T) {
 			})
 
 			Convey("Then the sink receives the same object", func() {
-				So(si.Tuples, ShouldNotBeNil)
-				So(len(si.Tuples), ShouldEqual, 2)
+				So(si.len(), ShouldEqual, 2)
 				// pointers point to the same objects
-				So(si.Tuples[0], ShouldPointTo, tup1)
-				So(si.Tuples[1], ShouldPointTo, tup2)
+				So(si.get(0), ShouldPointTo, tup1)
+				So(si.get(1), ShouldPointTo, tup2)
 
 				Convey("And the InputName is set to \"output\"", func() {
-					So(si.Tuples[0].InputName, ShouldEqual, "output")
+					So(si.get(0).InputName, ShouldEqual, "output")
 				})
 			})
 		})
@@ -239,48 +238,46 @@ func TestDefaultTopologyTupleProcessing(t *testing.T) {
 			})
 
 			Convey("Then the sink 1 receives a copy", func() {
-				So(si1.Tuples, ShouldNotBeNil)
-				So(len(si1.Tuples), ShouldEqual, 1)
+				So(si1.len(), ShouldEqual, 1)
 
 				// contents are the same
-				si := si1
-				So(tup1.Data, ShouldResemble, si.Tuples[0].Data)
-				So(tup1.Timestamp, ShouldResemble, si.Tuples[0].Timestamp)
-				So(tup1.ProcTimestamp, ShouldResemble, si.Tuples[0].ProcTimestamp)
-				So(tup1.BatchID, ShouldEqual, si.Tuples[0].BatchID)
+				t := si1.get(0)
+				So(tup1.Data, ShouldResemble, t.Data)
+				So(tup1.Timestamp, ShouldResemble, t.Timestamp)
+				So(tup1.ProcTimestamp, ShouldResemble, t.ProcTimestamp)
+				So(tup1.BatchID, ShouldEqual, t.BatchID)
 
 				// source has two received boxes, so tuples are copied
 				// TODO: This is a little to specific to the current implementation.
-				So(tup1, ShouldNotPointTo, si.Tuples[0])
+				So(tup1, ShouldNotPointTo, t)
 
 				Convey("And the InputName is set to \"output\"", func() {
-					So(si.Tuples[0].InputName, ShouldEqual, "output")
+					So(t.InputName, ShouldEqual, "output")
 				})
 			})
 
 			Convey("And the sink 2 receives a copy", func() {
-				So(si2.Tuples, ShouldNotBeNil)
-				So(len(si2.Tuples), ShouldEqual, 1)
+				So(si2.len(), ShouldEqual, 1)
 
 				// contents are the same
-				si := si2
-				So(tup1.Data, ShouldResemble, si.Tuples[0].Data)
-				So(tup1.Timestamp, ShouldResemble, si.Tuples[0].Timestamp)
-				So(tup1.ProcTimestamp, ShouldResemble, si.Tuples[0].ProcTimestamp)
-				So(tup1.BatchID, ShouldEqual, si.Tuples[0].BatchID)
+				t := si2.get(0)
+				So(tup1.Data, ShouldResemble, t.Data)
+				So(tup1.Timestamp, ShouldResemble, t.Timestamp)
+				So(tup1.ProcTimestamp, ShouldResemble, t.ProcTimestamp)
+				So(tup1.BatchID, ShouldEqual, t.BatchID)
 
 				// pointers point to different objects
-				So(tup1, ShouldNotPointTo, si.Tuples[0])
+				So(tup1, ShouldNotPointTo, t)
 
 				Convey("And the InputName is set to \"output\"", func() {
-					So(si.Tuples[0].InputName, ShouldEqual, "output")
+					So(t.InputName, ShouldEqual, "output")
 				})
 			})
 
 			Convey("And the traces of the tuple differ", func() {
-				So(len(si1.Tuples), ShouldEqual, 1)
-				So(len(si2.Tuples), ShouldEqual, 1)
-				So(si1.Tuples[0].Trace, ShouldNotResemble, si2.Tuples[0].Trace)
+				So(si1.len(), ShouldEqual, 1)
+				So(si2.len(), ShouldEqual, 1)
+				So(si1.get(0).Trace, ShouldNotResemble, si2.get(0).Trace)
 			})
 		})
 	})

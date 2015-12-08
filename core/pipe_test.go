@@ -169,7 +169,7 @@ func TestDataSources(t *testing.T) {
 			Convey("Then the sink should receive anything", func() {
 				srcs.stop(ctx)
 				<-stopped
-				So(si.Tuples, ShouldBeEmpty)
+				So(si.len(), ShouldEqual, 0)
 			})
 		})
 
@@ -182,7 +182,7 @@ func TestDataSources(t *testing.T) {
 			<-stopped
 
 			Convey("Then the sink receive the tuple", func() {
-				So(len(si.Tuples), ShouldEqual, 1)
+				So(si.len(), ShouldEqual, 1)
 			})
 		})
 	})
@@ -235,7 +235,7 @@ func TestDataSources(t *testing.T) {
 			So(<-stopped, ShouldBeNil)
 
 			Convey("Then the sink should receive all tuples", func() {
-				So(len(si.Tuples), ShouldEqual, 5)
+				So(si.len(), ShouldEqual, 5)
 			})
 		})
 
@@ -248,7 +248,7 @@ func TestDataSources(t *testing.T) {
 			So(<-stopped, ShouldBeNil)
 
 			Convey("Then the sink should receive all tuples", func() {
-				So(len(si.Tuples), ShouldEqual, 10)
+				So(si.len(), ShouldEqual, 10)
 			})
 		})
 
@@ -298,7 +298,7 @@ func TestDataSources(t *testing.T) {
 			So(<-stopped, ShouldBeNil)
 
 			Convey("Then the sink should receive all tuples", func() {
-				So(len(si.Tuples), ShouldEqual, 8)
+				So(si.len(), ShouldEqual, 8)
 			})
 		})
 
@@ -310,7 +310,7 @@ func TestDataSources(t *testing.T) {
 			So(<-stopped, ShouldBeNil)
 
 			Convey("Then the sink should receive the tuple", func() {
-				So(len(si.Tuples), ShouldEqual, 1)
+				So(si.len(), ShouldEqual, 1)
 			})
 		})
 
@@ -341,14 +341,14 @@ func TestDataSources(t *testing.T) {
 			Convey("Then the sink should receive it", func() {
 				srcs.stop(ctx)
 				So(<-stopped, ShouldBeNil)
-				So(len(si.Tuples), ShouldEqual, 1)
+				So(si.len(), ShouldEqual, 1)
 			})
 
 			Convey("Then the other input should still work", func() {
 				So(dsts[1].Write(ctx, t), ShouldBeNil)
 				srcs.stop(ctx)
 				So(<-stopped, ShouldBeNil)
-				So(len(si.Tuples), ShouldEqual, 2)
+				So(si.len(), ShouldEqual, 2)
 			})
 		})
 	})

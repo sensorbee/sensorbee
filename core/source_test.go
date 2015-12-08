@@ -53,7 +53,7 @@ func TestRewindableSource(t *testing.T) {
 			si.Wait(8)
 
 			Convey("Then the sink should receive all tuples", func() {
-				So(len(si.Tuples), ShouldEqual, 8)
+				So(si.len(), ShouldEqual, 8)
 			})
 		})
 
@@ -76,8 +76,8 @@ func TestRewindableSource(t *testing.T) {
 
 				// Due to concurrency, the number of tuples arriving to the sink
 				// can be either 12 or 13. It could be 11 but very rare.
-				So(len(si.Tuples), ShouldBeGreaterThanOrEqualTo, 12)
-				So(len(si.Tuples), ShouldBeLessThanOrEqualTo, 13)
+				So(si.len(), ShouldBeGreaterThanOrEqualTo, 12)
+				So(si.len(), ShouldBeLessThanOrEqualTo, 13)
 			})
 		})
 
@@ -88,7 +88,7 @@ func TestRewindableSource(t *testing.T) {
 			Convey("The source should be able to be rewound", func() {
 				So(son.Rewind(), ShouldBeNil)
 				si.Wait(16)
-				So(len(si.Tuples), ShouldEqual, 16)
+				So(si.len(), ShouldEqual, 16)
 			})
 
 			Convey("Then source should stop without rewinding", func() {
