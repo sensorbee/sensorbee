@@ -205,6 +205,26 @@ func (s *tupleCollectorSink) Close(ctx *core.Context) error {
 	return nil
 }
 
+func (s *tupleCollectorSink) get(n int) *core.Tuple {
+	s.m.Lock()
+	defer s.m.Unlock()
+	return s.Tuples[n]
+}
+
+func (s *tupleCollectorSink) len() int {
+	s.m.Lock()
+	defer s.m.Unlock()
+	return len(s.Tuples)
+}
+
+func (s *tupleCollectorSink) forEachTuple(f func(*core.Tuple)) {
+	s.m.Lock()
+	defer s.m.Unlock()
+	for _, t := range s.Tuples {
+		f(t)
+	}
+}
+
 type tupleCollectorUpdatableSink struct {
 	*tupleCollectorSink
 }
