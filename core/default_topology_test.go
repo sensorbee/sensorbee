@@ -208,14 +208,14 @@ func TestDefaultTopologySetup(t *testing.T) {
 
 			Convey("Then the sink should've received nothing", func() {
 				So(t.Stop(), ShouldBeNil)
-				So(si.Tuples, ShouldBeEmpty)
+				So(si.len(), ShouldEqual, 0)
 			})
 
 			Convey("Then the sink should receive all tuples by resuming the source", func() {
 				So(son.Resume(), ShouldBeNil)
 				si.Wait(8)
 				So(t.Stop(), ShouldBeNil)
-				So(len(si.Tuples), ShouldEqual, 8)
+				So(si.len(), ShouldEqual, 8)
 			})
 		})
 
@@ -735,7 +735,7 @@ func TestLinearDefaultTopology(t *testing.T) {
 			checkPostCond()
 
 			Convey("Then the sink should receive all of generated tuples", func() {
-				So(len(si.Tuples), ShouldEqual, 4)
+				So(si.len(), ShouldEqual, 4)
 			})
 		})
 
@@ -755,7 +755,7 @@ func TestLinearDefaultTopology(t *testing.T) {
 			checkPostCond()
 
 			Convey("Then the sink should receive all of those tuples", func() {
-				So(len(si.Tuples), ShouldEqual, 3)
+				So(si.len(), ShouldEqual, 3)
 			})
 		})
 
@@ -769,7 +769,7 @@ func TestLinearDefaultTopology(t *testing.T) {
 			checkPostCond()
 
 			Convey("Then the sink should only receive those tuples", func() {
-				So(len(si.Tuples), ShouldEqual, 4)
+				So(si.len(), ShouldEqual, 4)
 			})
 		})
 
@@ -787,7 +787,7 @@ func TestLinearDefaultTopology(t *testing.T) {
 			checkPostCond()
 
 			Convey("Then the sink should receive all tuples", func() {
-				So(len(si.Tuples), ShouldEqual, 8)
+				So(si.len(), ShouldEqual, 8)
 			})
 		})
 
@@ -806,7 +806,7 @@ func TestLinearDefaultTopology(t *testing.T) {
 			checkPostCond()
 
 			Convey("Then the sink should receive all of those tuples", func() {
-				So(len(si.Tuples), ShouldEqual, 8)
+				So(si.len(), ShouldEqual, 8)
 			})
 		})
 
@@ -820,7 +820,7 @@ func TestLinearDefaultTopology(t *testing.T) {
 			checkPostCond()
 
 			Convey("Then the sink should receive all tuples", func() {
-				So(len(si.Tuples), ShouldEqual, 8)
+				So(si.len(), ShouldEqual, 8)
 			})
 		})
 
@@ -848,7 +848,7 @@ func TestLinearDefaultTopology(t *testing.T) {
 
 			Convey("Then the sink should receive the tuples", func() {
 				si.Wait(2)
-				So(len(si.Tuples), ShouldEqual, 2)
+				So(si.len(), ShouldEqual, 2)
 			})
 		})
 
@@ -871,7 +871,7 @@ func TestLinearDefaultTopology(t *testing.T) {
 			})
 
 			Convey("Then sink should only receive the processed tuples", func() {
-				So(len(si.Tuples), ShouldEqual, 2)
+				So(si.len(), ShouldEqual, 2)
 			})
 
 			Convey("And connecting another box in the topology", func() {
@@ -884,7 +884,7 @@ func TestLinearDefaultTopology(t *testing.T) {
 
 				Convey("Then the sink should receive the correct number of tuples", func() {
 					si.Wait(6) // 2 tuples which send just after box1 was removed were lost.
-					So(len(si.Tuples), ShouldEqual, 6)
+					So(si.len(), ShouldEqual, 6)
 				})
 			})
 
@@ -894,7 +894,7 @@ func TestLinearDefaultTopology(t *testing.T) {
 
 				Convey("Then the sink should receive the correct number of tuples", func() {
 					si.Wait(6) // 2 tuples which send just after box1 was removed were lost.
-					So(len(si.Tuples), ShouldEqual, 6)
+					So(si.len(), ShouldEqual, 6)
 				})
 			})
 		})
@@ -918,7 +918,7 @@ func TestLinearDefaultTopology(t *testing.T) {
 			})
 
 			Convey("Then sink shouldn't receive tuples generated after it got removed", func() {
-				So(len(si.Tuples), ShouldEqual, 2)
+				So(si.len(), ShouldEqual, 2)
 			})
 		})
 
@@ -932,7 +932,7 @@ func TestLinearDefaultTopology(t *testing.T) {
 
 			Convey("Then the sink should only receive generated tuples", func() {
 				si.Wait(4)
-				So(len(si.Tuples), ShouldEqual, 4)
+				So(si.len(), ShouldEqual, 4)
 			})
 
 			Convey("And resuming after that", func() {
@@ -940,7 +940,7 @@ func TestLinearDefaultTopology(t *testing.T) {
 
 				Convey("Then the sink should receive all tuples", func() {
 					si.Wait(8)
-					So(len(si.Tuples), ShouldEqual, 8)
+					So(si.len(), ShouldEqual, 8)
 				})
 			})
 		})
@@ -1039,8 +1039,8 @@ func TestForkDefaultTopology(t *testing.T) {
 			checkPostCond()
 
 			Convey("Then the sink shouldn't receive anything", func() {
-				So(si1.Tuples, ShouldBeEmpty)
-				So(si2.Tuples, ShouldBeEmpty)
+				So(si1.len(), ShouldEqual, 0)
+				So(si2.len(), ShouldEqual, 0)
 			})
 		})
 
@@ -1060,8 +1060,8 @@ func TestForkDefaultTopology(t *testing.T) {
 			checkPostCond()
 
 			Convey("Then the sink should receive all of generated tuples", func() {
-				So(len(si1.Tuples), ShouldEqual, 4)
-				So(len(si2.Tuples), ShouldEqual, 4)
+				So(si1.len(), ShouldEqual, 4)
+				So(si2.len(), ShouldEqual, 4)
 			})
 		})
 
@@ -1082,8 +1082,8 @@ func TestForkDefaultTopology(t *testing.T) {
 			checkPostCond()
 
 			Convey("Then the sink should receive all of those tuples", func() {
-				So(len(si1.Tuples), ShouldEqual, 3)
-				So(len(si2.Tuples), ShouldEqual, 3)
+				So(si1.len(), ShouldEqual, 3)
+				So(si2.len(), ShouldEqual, 3)
 			})
 		})
 
@@ -1098,8 +1098,8 @@ func TestForkDefaultTopology(t *testing.T) {
 			checkPostCond()
 
 			Convey("Then the sink should only receive those tuples", func() {
-				So(len(si1.Tuples), ShouldEqual, 4)
-				So(len(si2.Tuples), ShouldEqual, 4)
+				So(si1.len(), ShouldEqual, 4)
+				So(si2.len(), ShouldEqual, 4)
 			})
 		})
 
@@ -1117,8 +1117,8 @@ func TestForkDefaultTopology(t *testing.T) {
 			checkPostCond()
 
 			Convey("Then the sink should receive all tuples", func() {
-				So(len(si1.Tuples), ShouldEqual, 8)
-				So(len(si2.Tuples), ShouldEqual, 8)
+				So(si1.len(), ShouldEqual, 8)
+				So(si2.len(), ShouldEqual, 8)
 			})
 		})
 
@@ -1138,8 +1138,8 @@ func TestForkDefaultTopology(t *testing.T) {
 			checkPostCond()
 
 			Convey("Then the sink should receive all of those tuples", func() {
-				So(len(si1.Tuples), ShouldEqual, 8)
-				So(len(si2.Tuples), ShouldEqual, 8)
+				So(si1.len(), ShouldEqual, 8)
+				So(si2.len(), ShouldEqual, 8)
 			})
 		})
 
@@ -1161,8 +1161,8 @@ func TestForkDefaultTopology(t *testing.T) {
 			checkPostCond()
 
 			Convey("Then the sink should receive all of those tuples", func() {
-				So(len(si1.Tuples), ShouldEqual, 8)
-				So(len(si2.Tuples), ShouldEqual, 8)
+				So(si1.len(), ShouldEqual, 8)
+				So(si2.len(), ShouldEqual, 8)
 			})
 		})
 
@@ -1177,8 +1177,8 @@ func TestForkDefaultTopology(t *testing.T) {
 			checkPostCond()
 
 			Convey("Then the sink should receive all tuples", func() {
-				So(len(si1.Tuples), ShouldEqual, 8)
-				So(len(si2.Tuples), ShouldEqual, 8)
+				So(si1.len(), ShouldEqual, 8)
+				So(si2.len(), ShouldEqual, 8)
 			})
 		})
 	})
@@ -1237,7 +1237,7 @@ func TestJoinDefaultTopology(t *testing.T) {
 			checkPostCond()
 
 			Convey("Then the sink shouldn't receive anything", func() {
-				So(si.Tuples, ShouldBeEmpty)
+				So(si.len(), ShouldEqual, 0)
 			})
 		})
 
@@ -1258,7 +1258,7 @@ func TestJoinDefaultTopology(t *testing.T) {
 			checkPostCond()
 
 			Convey("Then the sink should receive all of generated tuples", func() {
-				So(len(si.Tuples), ShouldEqual, 4)
+				So(si.len(), ShouldEqual, 4)
 			})
 		})
 
@@ -1278,7 +1278,7 @@ func TestJoinDefaultTopology(t *testing.T) {
 			checkPostCond()
 
 			Convey("Then the sink should receive all of generated tuples", func() {
-				So(len(si.Tuples), ShouldEqual, 3)
+				So(si.len(), ShouldEqual, 3)
 			})
 		})
 
@@ -1300,7 +1300,7 @@ func TestJoinDefaultTopology(t *testing.T) {
 			checkPostCond()
 
 			Convey("Then the sink should receive all of those tuples", func() {
-				So(len(si.Tuples), ShouldEqual, 3)
+				So(si.len(), ShouldEqual, 3)
 			})
 		})
 
@@ -1315,7 +1315,7 @@ func TestJoinDefaultTopology(t *testing.T) {
 			checkPostCond()
 
 			Convey("Then the sink should only receive those tuples", func() {
-				So(len(si.Tuples), ShouldEqual, 3)
+				So(si.len(), ShouldEqual, 3)
 			})
 		})
 
@@ -1334,7 +1334,7 @@ func TestJoinDefaultTopology(t *testing.T) {
 			checkPostCond()
 
 			Convey("Then the sink should receive all tuples", func() {
-				So(len(si.Tuples), ShouldEqual, 8)
+				So(si.len(), ShouldEqual, 8)
 			})
 		})
 
@@ -1354,7 +1354,7 @@ func TestJoinDefaultTopology(t *testing.T) {
 			checkPostCond()
 
 			Convey("Then the sink should receive all of those tuples", func() {
-				So(len(si.Tuples), ShouldEqual, 8)
+				So(si.len(), ShouldEqual, 8)
 			})
 		})
 
@@ -1369,7 +1369,7 @@ func TestJoinDefaultTopology(t *testing.T) {
 			checkPostCond()
 
 			Convey("Then the sink should receive all tuples", func() {
-				So(len(si.Tuples), ShouldEqual, 8)
+				So(si.len(), ShouldEqual, 8)
 			})
 		})
 	})
@@ -1407,8 +1407,8 @@ func TestDefaultTopologyQueueDropMode(t *testing.T) {
 				so.EmitTuples(8)
 				b1.EmitTuples(8)
 				si.Wait(1)
-				So(len(si.Tuples), ShouldEqual, 1)
-				So(si.Tuples[0], ShouldResemble, ts[0])
+				So(si.len(), ShouldEqual, 1)
+				So(si.get(0), ShouldResemble, ts[0])
 			})
 		})
 
@@ -1426,14 +1426,15 @@ func TestDefaultTopologyQueueDropMode(t *testing.T) {
 			sic := &sinkCloseChecker{s: si}
 			sin, err := t.AddSink("sink", sic, nil)
 			So(err, ShouldBeNil)
+			sin.State().Wait(TSRunning)
 			So(sin.Input("BOX1", nil), ShouldBeNil)
 
 			Convey("Then it only receives the latest tuple", func() {
 				so.EmitTuples(8)
 				b1.EmitTuples(8)
 				si.Wait(1)
-				So(len(si.Tuples), ShouldEqual, 1)
-				So(si.Tuples[0], ShouldResemble, ts[len(ts)-1])
+				So(si.len(), ShouldEqual, 1)
+				So(si.get(0), ShouldResemble, ts[len(ts)-1])
 			})
 		})
 
@@ -1450,8 +1451,8 @@ func TestDefaultTopologyQueueDropMode(t *testing.T) {
 			Convey("Then it only receives the oldest tuple", func() {
 				so.EmitTuples(8)
 				si.Wait(1)
-				So(len(si.Tuples), ShouldEqual, 1)
-				So(si.Tuples[0], ShouldResemble, ts[0])
+				So(si.len(), ShouldEqual, 1)
+				So(si.get(0), ShouldResemble, ts[0])
 			})
 		})
 
@@ -1468,8 +1469,8 @@ func TestDefaultTopologyQueueDropMode(t *testing.T) {
 			Convey("Then it only receives the latest tuple", func() {
 				so.EmitTuples(8)
 				si.Wait(1)
-				So(len(si.Tuples), ShouldEqual, 1)
-				So(si.Tuples[0], ShouldResemble, ts[len(ts)-1])
+				So(si.len(), ShouldEqual, 1)
+				So(si.get(0), ShouldResemble, ts[len(ts)-1])
 			})
 		})
 	})

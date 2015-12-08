@@ -309,9 +309,11 @@ func TestSharedStateInTopology(t *testing.T) {
 
 		Convey("When running a topology with boxes refering to the state", func() {
 			Convey("Then each tuple has correct counters", func() {
-				for i, t := range si.Tuples {
+				var i int
+				si.forEachTuple(func(t *Tuple) {
 					So(t.Data["cur_cnt"], ShouldBeGreaterThanOrEqualTo, (i+1)*(i+2)/2)
-				}
+					i++
+				})
 			})
 
 			Convey("Then the cnt should be 10", func() {

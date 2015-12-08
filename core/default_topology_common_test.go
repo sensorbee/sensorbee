@@ -353,6 +353,26 @@ func (s *TupleCollectorSink) Close(ctx *Context) error {
 	return nil
 }
 
+func (s *TupleCollectorSink) get(n int) *Tuple {
+	s.m.Lock()
+	defer s.m.Unlock()
+	return s.Tuples[n]
+}
+
+func (s *TupleCollectorSink) len() int {
+	s.m.Lock()
+	defer s.m.Unlock()
+	return len(s.Tuples)
+}
+
+func (s *TupleCollectorSink) forEachTuple(f func(*Tuple)) {
+	s.m.Lock()
+	defer s.m.Unlock()
+	for _, t := range s.Tuples {
+		f(t)
+	}
+}
+
 /**************************************************/
 
 type stubForwardBox struct {
