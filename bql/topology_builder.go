@@ -99,7 +99,7 @@ func (tb *TopologyBuilder) AddStmt(stmt interface{}) (core.Node, error) {
 		// load params into map for faster access
 		paramsMap := tb.mkParamsMap(stmt.Params)
 
-		// check if we know whis type of source
+		// check if we know this type of source
 		creator, err := tb.SourceCreators.Lookup(string(stmt.Type))
 		if err != nil {
 			return nil, err
