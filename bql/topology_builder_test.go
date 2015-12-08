@@ -504,9 +504,11 @@ func TestInsertEquivalence(t *testing.T) {
 				bar.Wait(4)
 				for i := 0; i < 4; i++ {
 					// they go different paths, but everything else should be the same
-					foo.Tuples[i].Trace = nil
-					bar.Tuples[i].Trace = nil
-					So(foo.Tuples[i], ShouldResemble, bar.Tuples[i])
+					tf := foo.get(i)
+					bf := bar.get(i)
+					tf.Trace = nil
+					bf.Trace = nil
+					So(tf, ShouldResemble, bf)
 				}
 			})
 		})

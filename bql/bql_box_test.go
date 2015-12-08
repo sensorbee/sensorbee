@@ -64,17 +64,17 @@ func TestBasicBQLBoxConnectivity(t *testing.T) {
 
 			Convey("Then the sink receives 2 tuples", func() {
 				si.Wait(2)
-				So(si.Tuples, ShouldNotBeNil)
-				So(len(si.Tuples), ShouldEqual, 2)
+				So(si.len(), ShouldEqual, 2)
 
 				Convey("And the first tuple has tup2's data and timestamp", func() {
-					si.Tuples[0].InputName = "input"
-					si.Tuples[0].Trace = nil // don't check trace here
-					So(*si.Tuples[0], ShouldResemble, tup2)
+					t := si.get(0)
+					t.InputName = "input"
+					t.Trace = nil // don't check trace here
+					So(*t, ShouldResemble, tup2)
 				})
 
 				Convey("And the first tuple has trace", func() {
-					ts := si.Tuples[0].Trace
+					ts := si.get(0).Trace
 					So(len(ts), ShouldEqual, 4)
 					So(ts[0].Type, ShouldEqual, core.ETOutput)
 					So(ts[0].Msg, ShouldEqual, "source")
@@ -87,13 +87,14 @@ func TestBasicBQLBoxConnectivity(t *testing.T) {
 				})
 
 				Convey("And the second tuple has tup4's data and timestamp", func() {
-					si.Tuples[1].InputName = "input"
-					si.Tuples[1].Trace = nil // don't check trace here
-					So(*si.Tuples[1], ShouldResemble, tup4)
+					t := si.get(1)
+					t.InputName = "input"
+					t.Trace = nil // don't check trace here
+					So(*t, ShouldResemble, tup4)
 				})
 
 				Convey("And the second tuple has trace", func() {
-					ts := si.Tuples[1].Trace
+					ts := si.get(1).Trace
 					So(len(ts), ShouldEqual, 4)
 					So(ts[0].Type, ShouldEqual, core.ETOutput)
 					So(ts[0].Msg, ShouldEqual, "source")
@@ -113,7 +114,7 @@ func TestBasicBQLBoxConnectivity(t *testing.T) {
 
 			Convey("Then the sinkreceives tuples again", func() {
 				si.Wait(4)
-				So(len(si.Tuples), ShouldEqual, 4)
+				So(si.len(), ShouldEqual, 4)
 			})
 		})
 	})
@@ -142,13 +143,13 @@ func TestBQLBoxEmitterParams(t *testing.T) {
 
 			Convey("Then the sink receives 1 tuple", func() {
 				si.Wait(1)
-				So(si.Tuples, ShouldNotBeNil)
-				So(len(si.Tuples), ShouldEqual, 1)
+				So(si.len(), ShouldEqual, 1)
 
 				Convey("And that tuple has tup2's data and timestamp", func() {
-					si.Tuples[0].InputName = "input"
-					si.Tuples[0].Trace = nil // don't check trace here
-					So(*si.Tuples[0], ShouldResemble, tup2)
+					t := si.get(0)
+					t.InputName = "input"
+					t.Trace = nil // don't check trace here
+					So(*t, ShouldResemble, tup2)
 				})
 			})
 		})
@@ -159,7 +160,7 @@ func TestBQLBoxEmitterParams(t *testing.T) {
 
 			Convey("Then the sink receives no more tuples", func() {
 				si.Wait(1)
-				So(len(si.Tuples), ShouldEqual, 1)
+				So(si.len(), ShouldEqual, 1)
 			})
 		})
 	})
@@ -183,12 +184,11 @@ func TestBQLBoxEmitterParams(t *testing.T) {
 
 			Convey("Then the sink receives 2 tuples", func() {
 				si.Wait(2)
-				So(si.Tuples, ShouldNotBeNil)
-				So(len(si.Tuples), ShouldEqual, 2)
-				So(si.Tuples[0].Data["int"], ShouldEqual, data.Int(2))
+				So(si.len(), ShouldEqual, 2)
+				So(si.get(0).Data["int"], ShouldEqual, data.Int(2))
 				// the second Int(2) is dropped due to sampling
 				// the first Int(4) is dropped due to sampling
-				So(si.Tuples[1].Data["int"], ShouldEqual, data.Int(4))
+				So(si.get(1).Data["int"], ShouldEqual, data.Int(4))
 			})
 		})
 
@@ -198,8 +198,8 @@ func TestBQLBoxEmitterParams(t *testing.T) {
 
 			Convey("Then the sink receives one more tuple", func() {
 				si.Wait(3)
-				So(len(si.Tuples), ShouldEqual, 3)
-				So(si.Tuples[2].Data["int"], ShouldEqual, data.Int(4))
+				So(si.len(), ShouldEqual, 3)
+				So(si.get(2).Data["int"], ShouldEqual, data.Int(4))
 			})
 		})
 	})
@@ -223,12 +223,11 @@ func TestBQLBoxEmitterParams(t *testing.T) {
 
 			Convey("Then the sink receives 2 tuples", func() {
 				si.Wait(2)
-				So(si.Tuples, ShouldNotBeNil)
-				So(len(si.Tuples), ShouldEqual, 2)
-				So(si.Tuples[0].Data["int"], ShouldEqual, data.Int(2))
+				So(si.len(), ShouldEqual, 2)
+				So(si.get(0).Data["int"], ShouldEqual, data.Int(2))
 				// the second Int(2) is dropped due to sampling
 				// the first Int(4) is dropped due to sampling
-				So(si.Tuples[1].Data["int"], ShouldEqual, data.Int(4))
+				So(si.get(1).Data["int"], ShouldEqual, data.Int(4))
 			})
 		})
 
@@ -238,7 +237,7 @@ func TestBQLBoxEmitterParams(t *testing.T) {
 
 			Convey("Then the sink receives no more tuples", func() {
 				si.Wait(2)
-				So(len(si.Tuples), ShouldEqual, 2)
+				So(si.len(), ShouldEqual, 2)
 			})
 		})
 	})
@@ -265,9 +264,8 @@ func TestBQLBoxEmitterParams(t *testing.T) {
 				// takes the execution plan to process all tuples. therefore only
 				// one tuple will be emitted, even if we wait a long time.
 				time.Sleep(30 * time.Millisecond)
-				So(si.Tuples, ShouldNotBeNil)
-				So(len(si.Tuples), ShouldEqual, 1)
-				So(si.Tuples[0].Data["int"], ShouldEqual, data.Int(4))
+				So(si.len(), ShouldEqual, 1)
+				So(si.get(0).Data["int"], ShouldEqual, data.Int(4))
 			})
 		})
 	})
@@ -293,10 +291,9 @@ func TestBQLBoxEmitterParams(t *testing.T) {
 
 			Convey("Then the sink receives multiple tuples", func() {
 				time.Sleep(2 * time.Millisecond)
-				So(si.Tuples, ShouldNotBeNil)
-				So(len(si.Tuples), ShouldEqual, 2)
-				So(si.Tuples[0].Data["int"], ShouldEqual, data.Int(4))
-				So(si.Tuples[1].Data["int"], ShouldEqual, data.Int(4))
+				So(si.len(), ShouldEqual, 2)
+				So(si.get(0).Data["int"], ShouldEqual, data.Int(4))
+				So(si.get(1).Data["int"], ShouldEqual, data.Int(4))
 			})
 		})
 	})
@@ -322,9 +319,8 @@ func TestBQLBoxEmitterParams(t *testing.T) {
 
 			Convey("Then the sink receives only one tuple", func() {
 				time.Sleep(2 * time.Millisecond)
-				So(si.Tuples, ShouldNotBeNil)
-				So(len(si.Tuples), ShouldEqual, 1)
-				So(si.Tuples[0].Data["int"], ShouldEqual, data.Int(4))
+				So(si.len(), ShouldEqual, 1)
+				So(si.get(0).Data["int"], ShouldEqual, data.Int(4))
 			})
 		})
 	})
@@ -347,9 +343,8 @@ func TestBQLBoxEmitterParams(t *testing.T) {
 
 			Convey("Then the sink receives more or less half of them", func() {
 				si.Wait(10)
-				So(si.Tuples, ShouldNotBeNil)
-				So(len(si.Tuples), ShouldBeGreaterThan, 10)
-				So(len(si.Tuples), ShouldBeLessThan, 30)
+				So(si.len(), ShouldBeGreaterThan, 10)
+				So(si.len(), ShouldBeLessThan, 30)
 			})
 		})
 	})
@@ -372,8 +367,7 @@ func TestBQLBoxEmitterParams(t *testing.T) {
 
 			Convey("Then the sink receives more or less half of them", func() {
 				si.Wait(10)
-				So(si.Tuples, ShouldNotBeNil)
-				So(len(si.Tuples), ShouldEqual, 10)
+				So(si.len(), ShouldEqual, 10)
 			})
 		})
 	})
@@ -398,16 +392,15 @@ func TestBasicBQLBoxUnionCapability(t *testing.T) {
 		Convey("When 4 tuples are emitted by the source", func() {
 			Convey("Then the sink receives 4 tuples", func() {
 				si.Wait(4)
-				So(si.Tuples, ShouldNotBeNil)
-				So(len(si.Tuples), ShouldEqual, 4)
+				So(si.len(), ShouldEqual, 4)
 
 				Convey("And they are the union of two filtered streams", func() {
 					found := map[int64]bool{}
-					for _, t := range si.Tuples {
+					si.forEachTuple(func(t *core.Tuple) {
 						v := t.Data["int"]
 						i, _ := data.AsInt(v)
 						found[i] = true
-					}
+					})
 					So(found, ShouldResemble, map[int64]bool{
 						2: true, 4: true,
 					})
@@ -421,7 +414,7 @@ func TestBasicBQLBoxUnionCapability(t *testing.T) {
 
 			Convey("Then the sinkreceives tuples again", func() {
 				si.Wait(8)
-				So(len(si.Tuples), ShouldEqual, 8)
+				So(si.len(), ShouldEqual, 8)
 			})
 		})
 	})
@@ -444,16 +437,15 @@ func TestBasicBQLBoxUnionCapability(t *testing.T) {
 		Convey("When 4 tuples are emitted by the source", func() {
 			Convey("Then the sink receives 3 tuples", func() {
 				si.Wait(3)
-				So(si.Tuples, ShouldNotBeNil)
-				So(len(si.Tuples), ShouldEqual, 3)
+				So(si.len(), ShouldEqual, 3)
 
 				Convey("And they are the union of two filtered streams", func() {
 					found := map[int64]bool{}
-					for _, t := range si.Tuples {
+					si.forEachTuple(func(t *core.Tuple) {
 						v := t.Data["int"]
 						i, _ := data.AsInt(v)
 						found[i] = true
-					}
+					})
 					So(found, ShouldResemble, map[int64]bool{
 						2: true, 4: true,
 					})
@@ -467,7 +459,7 @@ func TestBasicBQLBoxUnionCapability(t *testing.T) {
 
 			Convey("Then the sink receives just one more tuple", func() {
 				si.Wait(4)
-				So(len(si.Tuples), ShouldEqual, 4)
+				So(si.len(), ShouldEqual, 4)
 			})
 		})
 	})
@@ -490,16 +482,15 @@ func TestBasicBQLBoxUnionCapability(t *testing.T) {
 		Convey("When 4 tuples are emitted by the source", func() {
 			Convey("Then the sink receives 4 tuples", func() {
 				si.Wait(4)
-				So(si.Tuples, ShouldNotBeNil)
-				So(len(si.Tuples), ShouldEqual, 4)
+				So(si.len(), ShouldEqual, 4)
 
 				Convey("And they are the union of two filtered streams", func() {
 					found := map[int64]bool{}
-					for _, t := range si.Tuples {
+					si.forEachTuple(func(t *core.Tuple) {
 						v := t.Data["int"]
 						i, _ := data.AsInt(v)
 						found[i] = true
-					}
+					})
 					So(found, ShouldResemble, map[int64]bool{
 						1: true, 2: true, 3: true, 4: true,
 					})
@@ -513,7 +504,7 @@ func TestBasicBQLBoxUnionCapability(t *testing.T) {
 
 			Convey("Then the sinkreceives tuples again", func() {
 				si.Wait(8)
-				So(len(si.Tuples), ShouldEqual, 8)
+				So(si.len(), ShouldEqual, 8)
 			})
 		})
 	})
@@ -537,11 +528,10 @@ func TestBasicBQLBoxUnionCapability(t *testing.T) {
 		Convey("When 4 tuples are emitted by the source", func() {
 			Convey("Then the sink receives 4 tuples", func() {
 				si.Wait(4)
-				So(si.Tuples, ShouldNotBeNil)
-				So(len(si.Tuples), ShouldEqual, 4)
+				So(si.len(), ShouldEqual, 4)
 
 				Convey("And they are the union of three filtered streams", func() {
-					for _, t := range si.Tuples {
+					si.forEachTuple(func(t *core.Tuple) {
 						v := t.Data["int"]
 						i, _ := data.AsInt(v)
 						if i == 0 {
@@ -554,7 +544,7 @@ func TestBasicBQLBoxUnionCapability(t *testing.T) {
 							So(len(t.Data), ShouldEqual, 2)
 							So(t.Data["z"], ShouldResemble, data.String("c"))
 						}
-					}
+					})
 				})
 			})
 		})
@@ -565,7 +555,7 @@ func TestBasicBQLBoxUnionCapability(t *testing.T) {
 
 			Convey("Then the sinkreceives tuples again", func() {
 				si.Wait(8)
-				So(len(si.Tuples), ShouldEqual, 8)
+				So(si.len(), ShouldEqual, 8)
 			})
 		})
 	})
@@ -596,27 +586,26 @@ func TestBQLBoxJoinCapability(t *testing.T) {
 		Convey("When 4 tuples are emitted by the source", func() {
 			Convey("Then the sink receives a number of tuples", func() {
 				si.Wait(2)
-				So(si.Tuples, ShouldNotBeNil)
-				So(len(si.Tuples), ShouldBeGreaterThanOrEqualTo, 2)
+				So(si.len(), ShouldBeGreaterThanOrEqualTo, 2)
 
 				// the number and order or result tuples varies,
 				// so there is not a lot of stuff we can check...
 				Convey("And all tuples should have keys a,b,c,d", func() {
-					t := si.Tuples[0]
+					t := si.get(0)
 					// the first tuple should definitely have the same timestamp
 					// as the first tuple in the input set
 					So(t.Timestamp, ShouldResemble, tuples[0].Timestamp)
 
-					for _, tup := range si.Tuples {
-						_, hasA := tup.Data["a"]
+					si.forEachTuple(func(t *core.Tuple) {
+						_, hasA := t.Data["a"]
 						So(hasA, ShouldBeTrue)
-						_, hasB := tup.Data["d"]
+						_, hasB := t.Data["d"]
 						So(hasB, ShouldBeTrue)
-						_, hasC := tup.Data["c"]
+						_, hasC := t.Data["c"]
 						So(hasC, ShouldBeTrue)
-						_, hasD := tup.Data["d"]
+						_, hasD := t.Data["d"]
 						So(hasD, ShouldBeTrue)
-					}
+					})
 				})
 			})
 		})
@@ -642,15 +631,14 @@ func TestBQLBoxGroupByCapability(t *testing.T) {
 
 			Convey("Then the sink receives 3 tuples", func() {
 				si.Wait(3)
-				So(si.Tuples, ShouldNotBeNil)
-				So(len(si.Tuples), ShouldEqual, 3)
+				So(si.len(), ShouldEqual, 3)
 
 				Convey("And the tuples have the correct counts", func() {
-					So(si.Tuples[0].Data["count"], ShouldResemble, data.Int(0))
-					So(si.Tuples[1].Data["count"], ShouldResemble, data.Int(1))
+					So(si.get(0).Data["count"], ShouldResemble, data.Int(0))
+					So(si.get(1).Data["count"], ShouldResemble, data.Int(1))
 					// the third tuple is not counted because of WHERE, so
 					// ISTREAM doesn't emit anything
-					So(si.Tuples[2].Data["count"], ShouldResemble, data.Int(2))
+					So(si.get(2).Data["count"], ShouldResemble, data.Int(2))
 				})
 			})
 		})
@@ -673,7 +661,7 @@ func TestBQLBoxUDSF(t *testing.T) {
 		Convey("When 4 tuples are emitted by the source", func() {
 			Convey("Then the sink should receive 12 tuples", func() {
 				si.Wait(12)
-				So(len(si.Tuples), ShouldEqual, 12)
+				So(si.len(), ShouldEqual, 12)
 			})
 		})
 	})
@@ -707,7 +695,7 @@ func TestBQLBoxSourceUDSF(t *testing.T) {
 		Convey("When 5 tuples are emitted by the source", func() {
 			Convey("Then the sink should receive all tuples", func() {
 				si.Wait(5)
-				So(len(si.Tuples), ShouldEqual, 5)
+				So(si.len(), ShouldEqual, 5)
 			})
 		})
 	})
