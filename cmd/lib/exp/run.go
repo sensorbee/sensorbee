@@ -187,6 +187,9 @@ func execute(cache *Cache, stmts *Statements, ith int) error {
 			if err != nil {
 				return fmt.Errorf("cannot find the source %v: %v", name, err)
 			}
+			if _, ok := s.Source().(core.RewindableSource); ok {
+				return fmt.Errorf(`rewindable source "%v" isn't supported`, name)
+			}
 			if err := s.Resume(); err != nil {
 				return fmt.Errorf("cannot resume the source %v: %v", name, err)
 			}
