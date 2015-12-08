@@ -42,23 +42,22 @@ func TestDroppedTupleCollectorSource(t *testing.T) {
 
 			Convey("Then it should receive all dropped tuples", func() {
 				si.Wait(8)
-				So(len(si.Tuples), ShouldEqual, 8)
+				So(si.len(), ShouldEqual, 8)
 
 				Convey("And tuples should have the documented format", func() {
-					So(si.Tuples[0].Data["node_type"], ShouldEqual, NTSource.String())
-					So(si.Tuples[0].Data["node_name"], ShouldEqual, "source")
-					So(si.Tuples[0].Data["event_type"], ShouldEqual, ETOutput.String())
-					So(si.Tuples[0].Data["error"], ShouldNotBeNil)
-					So(si.Tuples[0].Data["data"], ShouldResemble, freshTuples()[0].Data)
+					data := si.get(0).Data
+					So(data["node_type"], ShouldEqual, NTSource.String())
+					So(data["node_name"], ShouldEqual, "source")
+					So(data["event_type"], ShouldEqual, ETOutput.String())
+					So(data["error"], ShouldNotBeNil)
+					So(data["data"], ShouldResemble, freshTuples()[0].Data)
 				})
 			})
 		})
 
-		locationChecker := func(ts []*Tuple, n Node) {
-			for _, t := range ts {
-				So(t.Data["node_type"], ShouldEqual, n.Type().String())
-				So(t.Data["node_name"], ShouldEqual, n.Name())
-			}
+		locationChecker := func(t *Tuple, n Node) {
+			So(t.Data["node_type"], ShouldEqual, n.Type().String())
+			So(t.Data["node_name"], ShouldEqual, n.Name())
 		}
 
 		Convey("When tuples are dropped from a Box", func() {
@@ -71,8 +70,10 @@ func TestDroppedTupleCollectorSource(t *testing.T) {
 
 			Convey("Then they should be reported", func() {
 				si.Wait(8)
-				So(len(si.Tuples), ShouldEqual, 8)
-				locationChecker(si.Tuples, bn)
+				So(si.len(), ShouldEqual, 8)
+				si.forEachTuple(func(t *Tuple) {
+					locationChecker(t, bn)
+				})
 			})
 		})
 
@@ -84,8 +85,10 @@ func TestDroppedTupleCollectorSource(t *testing.T) {
 
 			Convey("Then they should be reported", func() {
 				si.Wait(8)
-				So(len(si.Tuples), ShouldEqual, 8)
-				locationChecker(si.Tuples, sin2)
+				So(si.len(), ShouldEqual, 8)
+				si.forEachTuple(func(t *Tuple) {
+					locationChecker(t, sin2)
+				})
 			})
 		})
 
@@ -100,8 +103,10 @@ func TestDroppedTupleCollectorSource(t *testing.T) {
 
 			Convey("Then they should be reported", func() {
 				si.Wait(8)
-				So(len(si.Tuples), ShouldEqual, 8)
-				locationChecker(si.Tuples, sin2)
+				So(si.len(), ShouldEqual, 8)
+				si.forEachTuple(func(t *Tuple) {
+					locationChecker(t, sin2)
+				})
 			})
 		})
 
@@ -115,8 +120,10 @@ func TestDroppedTupleCollectorSource(t *testing.T) {
 
 			Convey("Then tuples dropped again shouldn't be reported twice", func() {
 				si.Wait(8)
-				So(len(si.Tuples), ShouldEqual, 8)
-				locationChecker(si.Tuples, son)
+				So(si.len(), ShouldEqual, 8)
+				si.forEachTuple(func(t *Tuple) {
+					locationChecker(t, son)
+				})
 			})
 		})
 
@@ -128,8 +135,10 @@ func TestDroppedTupleCollectorSource(t *testing.T) {
 
 			Convey("Then tuples dropped again shouldn't be reported twice", func() {
 				si.Wait(8)
-				So(len(si.Tuples), ShouldEqual, 8)
-				locationChecker(si.Tuples, son)
+				So(si.len(), ShouldEqual, 8)
+				si.forEachTuple(func(t *Tuple) {
+					locationChecker(t, son)
+				})
 			})
 		})
 
