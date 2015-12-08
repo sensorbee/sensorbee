@@ -159,13 +159,17 @@ func TestDefaultTopologySetup(t *testing.T) {
 			Convey("Then the topology should have it", func() {
 				n, err := t.Source("SOURCE1")
 				So(err, ShouldBeNil)
-				So(n, ShouldPointTo, sn)
+				sn1 := n.(*defaultSourceNode)
+				sn2 := sn.(*defaultSourceNode)
+				So(sn1, ShouldEqual, sn2)
 			})
 
 			Convey("Then it can be obtained as a node", func() {
 				n, err := t.Node("SOURCE1")
 				So(err, ShouldBeNil)
-				So(n, ShouldPointTo, sn)
+				sn1 := n.(*defaultSourceNode)
+				sn2 := sn.(*defaultSourceNode)
+				So(sn1, ShouldEqual, sn2)
 			})
 
 			Convey("Then calling Resume on the running source shouldn't fail", func() {
@@ -647,7 +651,9 @@ func TestLinearDefaultTopology(t *testing.T) {
 			Convey("Then the topology should return all nodes", func() {
 				ns := t.Nodes()
 				So(len(ns), ShouldEqual, 4)
-				So(ns["source"], ShouldPointTo, son)
+				dson1 := ns["source"].(*defaultSourceNode)
+				dson2 := son.(*defaultSourceNode)
+				So(dson1, ShouldEqual, dson2)
 				So(ns["box1"], ShouldPointTo, bn1)
 				So(ns["box2"], ShouldPointTo, bn2)
 				So(ns["sink"], ShouldPointTo, sin)
@@ -656,13 +662,17 @@ func TestLinearDefaultTopology(t *testing.T) {
 			Convey("Then source should be able to be obtained", func() {
 				s, err := t.Source("source")
 				So(err, ShouldBeNil)
-				So(s, ShouldPointTo, son)
+				dson1 := s.(*defaultSourceNode)
+				dson2 := son.(*defaultSourceNode)
+				So(dson1, ShouldEqual, dson2)
 			})
 
 			Convey("Then source should be able to be obtained through Sources", func() {
 				ss := t.Sources()
 				So(len(ss), ShouldEqual, 1)
-				So(ss["source"], ShouldPointTo, son)
+				dson1 := ss["source"].(*defaultSourceNode)
+				dson2 := son.(*defaultSourceNode)
+				So(dson1, ShouldEqual, dson2)
 			})
 
 			Convey("Then box1 should be able to be obtained", func() {
