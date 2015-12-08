@@ -77,7 +77,7 @@ type Topology interface {
 	// from this method can safely be modified.
 	Boxes() map[string]BoxNode
 
-	// Sink returns a sink registereed to the topology. It returns NotExistError
+	// Sink returns a sink registered to the topology. It returns NotExistError
 	// when the topology doesn't have the sink.
 	Sink(name string) (SinkNode, error)
 
