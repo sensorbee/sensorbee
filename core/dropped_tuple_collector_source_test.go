@@ -153,7 +153,7 @@ func TestDroppedTupleCollectorSource(t *testing.T) {
 
 			Convey("Then no tuple should be reported", func() {
 				si.Wait(0)
-				So(len(si.Tuples), ShouldEqual, 0)
+				So(si.len(), ShouldEqual, 0)
 			})
 		})
 
@@ -169,7 +169,7 @@ func TestDroppedTupleCollectorSource(t *testing.T) {
 
 			Convey("Then no tuple should be reported", func() {
 				si.Wait(0)
-				So(len(si.Tuples), ShouldEqual, 0)
+				So(si.len(), ShouldEqual, 0)
 			})
 		})
 	})
