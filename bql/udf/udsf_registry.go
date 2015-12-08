@@ -94,7 +94,7 @@ var (
 )
 
 // RegisterGlobalUDSFCreator adds a UDSFCreator which can be referred from
-// alltopologies. UDSFCreators registered after running topologies might not
+// all topologies. UDSFCreators registered after running topologies might not
 // be seen by those topologies. Call it from init functions to avoid such
 // conditions.
 func RegisterGlobalUDSFCreator(typeName string, c UDSFCreator) error {
