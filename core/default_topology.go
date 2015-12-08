@@ -100,7 +100,10 @@ func (t *defaultTopology) AddSource(name string, s Source, config *SourceConfig)
 			t.ctx.ErrLog(err).WithFields(nodeLogFields(NTSource, name)).
 				Error("Cannot generate a stream from the source")
 		}
-		if ds.config.RemoveOnStop {
+		ds.stateMutex.Lock()
+		removeOnStop := ds.config.RemoveOnStop
+		ds.stateMutex.Unlock()
+		if removeOnStop {
 			if err := t.Remove(name); err != nil {
 				t.ctx.ErrLog(err).WithFields(nodeLogFields(NTSource, name)).
 					Error("Cannot remove the source from topology")
@@ -186,7 +189,10 @@ func (t *defaultTopology) AddBox(name string, b Box, config *BoxConfig) (BoxNode
 			t.ctx.ErrLog(err).WithFields(nodeLogFields(NTBox, db.name)).
 				Error("The box failed")
 		}
-		if db.config.RemoveOnStop {
+		db.stateMutex.Lock()
+		removeOnStop := db.config.RemoveOnStop
+		db.stateMutex.Unlock()
+		if removeOnStop {
 			if err := t.Remove(name); err != nil {
 				t.ctx.ErrLog(err).WithFields(nodeLogFields(NTBox, db.name)).
 					Error("Cannot remove the box from topology")
@@ -251,7 +257,10 @@ func (t *defaultTopology) AddSink(name string, s Sink, config *SinkConfig) (Sink
 			t.ctx.ErrLog(err).WithFields(nodeLogFields(NTSink, ds.name)).
 				Error("The sink failed")
 		}
-		if ds.config.RemoveOnStop {
+		ds.stateMutex.Lock()
+		removeOnStop := ds.config.RemoveOnStop
+		ds.stateMutex.Unlock()
+		if removeOnStop {
 			if err := t.Remove(name); err != nil {
 				t.ctx.ErrLog(err).WithFields(nodeLogFields(NTSink, ds.name)).
 					Error("Cannot remove the sink from topology")
@@ -265,7 +274,7 @@ func (t *defaultTopology) AddSink(name string, s Sink, config *SinkConfig) (Sink
 func (t *defaultTopology) Stop() error {
 	t.nodeMutex.Lock()
 	defer t.nodeMutex.Unlock()
-	if stopped, err := t.state.checkAndPrepareForStoppingWithoutLock(false); err != nil {
+	if stopped, err := t.state.checkAndPrepareForStopping(false); err != nil {
 		return fmt.Errorf("the topology has an invalid state: %v", t.state.Get())
 	} else if stopped {
 		return nil
