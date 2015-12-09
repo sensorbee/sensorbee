@@ -85,7 +85,11 @@ func (b *bqlBox) Process(ctx *core.Context, t *core.Tuple, s core.Writer) error 
 
 	// deal with statements that have an emitter limit. in particular,
 	// if we are already over the limit, exit here
-	if b.emitterLimit >= 0 && b.emitCount >= b.emitterLimit {
+	b.timeEmitterMutex.Lock()
+	emitterLimit := b.emitterLimit
+	emitCount := b.emitCount
+	b.timeEmitterMutex.Unlock()
+	if emitterLimit >= 0 && emitCount >= emitterLimit {
 		return nil
 	}
 
@@ -129,26 +133,32 @@ func (b *bqlBox) Process(ctx *core.Context, t *core.Tuple, s core.Writer) error 
 			if err := s.Write(ctx, &tup); err != nil {
 				return err
 			}
+			b.timeEmitterMutex.Lock()
 			b.emitCount += 1
+			b.timeEmitterMutex.Unlock()
 		}
 		// stop emitting if we have hit the limit
-		if b.emitterLimit >= 0 && b.emitCount >= b.emitterLimit {
+		b.timeEmitterMutex.Lock()
+		emitterLimit := b.emitterLimit
+		emitCount := b.emitCount
+		b.timeEmitterMutex.Unlock()
+		if emitterLimit >= 0 && emitCount >= emitterLimit {
 			break
 		}
 	}
 
 	// remove this box if we are over the limit
+	b.timeEmitterMutex.Lock()
 	if b.emitterLimit >= 0 && b.emitCount >= b.emitterLimit {
 		// avoid conflict with the timeEmitter (which will also perform
 		// the same operation under some conditions)
-		b.timeEmitterMutex.Lock()
 		if b.removeMe != nil {
 			b.removeMe()
 			// don't call twice
 			b.removeMe = nil
 		}
-		b.timeEmitterMutex.Unlock()
 	}
+	b.timeEmitterMutex.Unlock()
 
 	return nil
 }
