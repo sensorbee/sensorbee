@@ -177,6 +177,7 @@ func TestDataSources(t *testing.T) {
 			r, s := newPipe("test1", 1)
 			So(srcs.add("test_node_1", r), ShouldBeNil)
 			So(s.Write(ctx, t), ShouldBeNil)
+			si.Wait(1)
 			s.close()
 			srcs.stop(ctx)
 			<-stopped
@@ -244,6 +245,7 @@ func TestDataSources(t *testing.T) {
 				So(dsts[0].Write(ctx, t), ShouldBeNil)
 				So(dsts[1].Write(ctx, t), ShouldBeNil)
 			}
+			si.Wait(10)
 			srcs.stop(ctx)
 			So(<-stopped, ShouldBeNil)
 
@@ -257,6 +259,7 @@ func TestDataSources(t *testing.T) {
 
 			Convey("Then it should eventually stop", func() {
 				for _, d := range dsts {
+					d.waitUntilClosed()
 					So(d.Write(ctx, t), ShouldPointTo, errPipeClosed)
 				}
 				So(<-stopped, ShouldBeNil)
@@ -292,6 +295,7 @@ func TestDataSources(t *testing.T) {
 			for i := 0; i < 3; i++ {
 				So(dsts[1].Write(ctx, t), ShouldBeNil)
 			}
+			si.Wait(8)
 			dsts[0].close()
 			dsts[1].close()
 			srcs.stop(ctx)
@@ -306,6 +310,7 @@ func TestDataSources(t *testing.T) {
 			r, s := newPipe("test3", 1)
 			srcs.add("test_node_3", r)
 			So(s.Write(ctx, t), ShouldBeNil)
+			si.Wait(1)
 			srcs.stop(ctx)
 			So(<-stopped, ShouldBeNil)
 
@@ -352,6 +357,17 @@ func TestDataSources(t *testing.T) {
 			})
 		})
 	})
+}
+
+func (s *pipeSender) waitUntilClosed() {
+	for {
+		s.rwm.RLock()
+		if s.closed {
+			s.rwm.RUnlock()
+			return
+		}
+		s.rwm.RUnlock()
+	}
 }
 
 // TODO: add fail tests of dataSources
@@ -442,7 +458,7 @@ func TestDataDestinations(t *testing.T) {
 					}
 				}()
 				for {
-					if _, ok := dsts.dsts["test_node_1"]; !ok {
+					if !dsts.has("test_node_1") {
 						break
 					}
 					dsts.Write(ctx, t)
@@ -567,4 +583,11 @@ func TestDataDestinations(t *testing.T) {
 			})
 		})
 	})
+}
+
+func (d *dataDestinations) has(name string) bool {
+	d.rwm.RLock()
+	defer d.rwm.RUnlock()
+	_, ok := d.dsts[name]
+	return ok
 }
