@@ -153,7 +153,7 @@ func (b *bqlBox) Process(ctx *core.Context, t *core.Tuple, s core.Writer) error 
 		// avoid conflict with the timeEmitter (which will also perform
 		// the same operation under some conditions)
 		if b.removeMe != nil {
-			b.removeMe()
+			b.callRemoveMeIgnoringPanic()
 			// don't call twice
 			b.removeMe = nil
 		}
@@ -204,7 +204,7 @@ func (b *bqlBox) timeEmitter(ctx *core.Context) {
 				// flag is set by Terminate, we must not call removeMe,
 				// therefore we cannot move this behind the loop.)
 				if b.removeMe != nil {
-					b.removeMe()
+					b.callRemoveMeIgnoringPanic()
 					// don't call twice
 					b.removeMe = nil
 				}
@@ -221,4 +221,11 @@ func (b *bqlBox) Terminate(ctx *core.Context) error {
 	b.stopped = true
 	b.timeEmitterMutex.Unlock()
 	return nil
+}
+
+func (b *bqlBox) callRemoveMeIgnoringPanic() {
+	defer func() {
+		recover()
+	}()
+	b.removeMe()
 }
