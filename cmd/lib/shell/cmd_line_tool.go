@@ -29,7 +29,7 @@ func SetUp() cli.Command {
 			Usage: "target API version",
 		},
 		cli.StringFlag{
-			Name:  "topology",
+			Name:  "topology,t",
 			Usage: "the SensorBee topology to use (instead of USE command)",
 		},
 	}
