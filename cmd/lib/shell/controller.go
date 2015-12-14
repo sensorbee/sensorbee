@@ -39,63 +39,90 @@ func SetUpCommands(commands []Command) App {
 }
 
 func (a *App) prompt(line *liner.State) {
-	for {
+	// create a function to read from the terminal
+	// and output an appropriate prompt
+	// (if `continued` is true, then the prompt
+	// for a continued statement will be shown)
+	getNextLine := func(continued bool) (string, error) {
+		// create prompt
 		promptStart := "(no topology)" + promptLineStart
 		if currentTopology.name != "" {
 			promptStart = fmt.Sprintf("(%s)%s", currentTopology.name,
 				promptLineStart)
 		}
+		if continued {
+			promptStart = promptLineContinue
+		}
+
+		// get line from terminal
 		input, err := line.Prompt(promptStart)
-		if err != nil {
-			if err != io.EOF {
-				fmt.Fprintf(os.Stderr, "error reading line: %v", err)
-			}
-			// there was an EOF control character, e.g., the
-			// user pressed Ctrl+D. in order not to mess up the
-			// terminal, write an additional newline character
-			fmt.Println("")
-			return
-		}
-
-		if input != "" {
+		if err == nil && input != "" {
 			line.AppendHistory(input)
-
-			if strings.ToLower(input) == "exit" {
-				fmt.Fprintln(os.Stdout, "SensorBee shell tool is closed")
-				return
-			}
-
-			if strings.HasPrefix(input, "--") { // BQL comment
-				continue
-			}
-
-			in := strings.ToLower(strings.Split(input, " ")[0])
-			if cmd, ok := a.commandMap[in]; ok {
-				a.processCommand(line, cmd, input)
-			} else {
-				fmt.Fprintf(os.Stderr, "undefined command: %v\n", in)
-			}
 		}
+		return input, err
+	}
+
+	// continue as long as there is input
+	for a.readStartOfNextCommand(getNextLine) {
 	}
 }
 
-func (a *App) processCommand(line *liner.State, cmd Command, input string) {
+func (a *App) readStartOfNextCommand(getNextLine func(bool) (string, error)) bool {
+	input, err := getNextLine(false)
+	// if there is no next line, stop
+	if err != nil {
+		if err != io.EOF {
+			fmt.Fprintf(os.Stderr, "error reading line: %v", err)
+		}
+		// there was an EOF control character, e.g., the
+		// user pressed Ctrl+D. in order not to mess up the
+		// terminal, write an additional newline character
+		fmt.Println("")
+		return false
+	}
+
+	// if there is input, find the type of command that was input
+	if input != "" {
+		if strings.ToLower(input) == "exit" {
+			fmt.Fprintln(os.Stdout, "SensorBee shell tool is closed")
+			return false
+		}
+
+		if strings.HasPrefix(input, "--") { // BQL comment
+			return true
+		}
+
+		// detect which type of command we have
+		in := strings.ToLower(strings.Split(input, " ")[0])
+		if cmd, ok := a.commandMap[in]; ok {
+			// continue to read until the end of the statement
+			a.readCompleteCommand(cmd, input, getNextLine)
+		} else {
+			fmt.Fprintf(os.Stderr, "undefined command: %v\n", in)
+		}
+	}
+	return true
+}
+
+func (a *App) readCompleteCommand(cmd Command, input string, getNextLine func(bool) (string, error)) {
 	for {
 		if input != "" {
-			line.AppendHistory(input)
+			// feed string to the command we detected and check
+			// if the command accepts this as valid continuation
 			status, err := cmd.Input(input)
 			switch status {
 			case invalidCMD:
 				fmt.Fprintf(os.Stderr, "input command is invalid: %v\n", err)
 				return
 			case preparedCMD:
+				// if the statement is complete, evaluate it
 				cmd.Eval(a.requester)
 				return
 			}
 		}
 
 		var err error
-		input, err = line.Prompt(promptLineContinue)
+		input, err = getNextLine(true)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			return
