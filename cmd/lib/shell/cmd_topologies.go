@@ -99,6 +99,10 @@ func (b *bqlCmd) Eval(requester *client.Requester) {
 }
 
 func sendBQLQueries(requester *client.Requester, queries string) {
+	if currentTopology.name == "" {
+		fmt.Fprintln(os.Stderr, "cannot make request: no topology set")
+		return
+	}
 	uri := topologiesHeader + "/" + currentTopology.name + "/queries"
 	res, err := requester.Do(client.Post, uri, map[string]interface{}{
 		"queries": queries,
