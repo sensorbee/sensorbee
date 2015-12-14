@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"text/template"
 )
 
@@ -16,6 +17,10 @@ func main() {
 	app := cli.NewApp()
 	app.Name = "build_sensorbee"
 	app.Usage = "Build an custom sensorbee command"
+	binaryName := "sensorbee"
+	if runtime.GOOS == "windows" {
+		binaryName = "sensorbee.exe"
+	}
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
 			Name:  "config, c",
@@ -24,7 +29,7 @@ func main() {
 		},
 		cli.StringFlag{
 			Name:  "out, o",
-			Value: "sensorbee",
+			Value: binaryName,
 			Usage: "the filename of the custom sensorbee command",
 		},
 		cli.StringFlag{
