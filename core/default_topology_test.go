@@ -1418,6 +1418,8 @@ func TestDefaultTopologyQueueDropMode(t *testing.T) {
 				b1.EmitTuples(8)
 				si.Wait(1)
 				So(si.len(), ShouldEqual, 1)
+				so.m.Lock() // lock for ts[0].InputName
+				Reset(so.m.Unlock)
 				So(si.get(0), ShouldResemble, ts[0])
 			})
 		})
@@ -1444,6 +1446,8 @@ func TestDefaultTopologyQueueDropMode(t *testing.T) {
 				b1.EmitTuples(8)
 				si.Wait(1)
 				So(si.len(), ShouldEqual, 1)
+				so.m.Lock() // lock for ts[len(ts)-1].InputName
+				Reset(so.m.Unlock)
 				So(si.get(0), ShouldResemble, ts[len(ts)-1])
 			})
 		})
@@ -1462,6 +1466,8 @@ func TestDefaultTopologyQueueDropMode(t *testing.T) {
 				so.EmitTuples(8)
 				si.Wait(1)
 				So(si.len(), ShouldEqual, 1)
+				so.m.Lock() // lock for ts[0].InputName
+				Reset(so.m.Unlock)
 				So(si.get(0), ShouldResemble, ts[0])
 			})
 		})
@@ -1480,6 +1486,8 @@ func TestDefaultTopologyQueueDropMode(t *testing.T) {
 				so.EmitTuples(8)
 				si.Wait(1)
 				So(si.len(), ShouldEqual, 1)
+				so.m.Lock() // lock for ts[len(ts)-1].InputName
+				Reset(so.m.Unlock)
 				So(si.get(0), ShouldResemble, ts[len(ts)-1])
 			})
 		})
