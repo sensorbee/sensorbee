@@ -64,28 +64,34 @@ func (a *App) prompt(line *liner.State) {
 	}
 
 	// continue as long as there is input
-	for a.readStartOfNextCommand(getNextLine) {
+	for a.readStartOfNextCommand(getNextLine, true) {
 	}
 }
 
-func (a *App) readStartOfNextCommand(getNextLine func(bool) (string, error)) bool {
+func (a *App) readStartOfNextCommand(getNextLine func(bool) (string, error), topLevel bool) bool {
 	input, err := getNextLine(false)
 	// if there is no next line, stop
 	if err != nil {
 		if err != io.EOF {
 			fmt.Fprintf(os.Stderr, "error reading line: %v", err)
 		}
-		// there was an EOF control character, e.g., the
-		// user pressed Ctrl+D. in order not to mess up the
-		// terminal, write an additional newline character
-		fmt.Println("")
+		if topLevel {
+			// there was an EOF control character, e.g., the
+			// user pressed Ctrl+D. in order not to mess up the
+			// terminal, write an additional newline character
+			fmt.Println("")
+		}
 		return false
 	}
 
 	// if there is input, find the type of command that was input
 	if input != "" {
 		if strings.ToLower(input) == "exit" {
-			fmt.Fprintln(os.Stdout, "SensorBee shell tool is closed")
+			if topLevel {
+				fmt.Fprintln(os.Stdout, "SensorBee shell tool is closed")
+			} else {
+				fmt.Fprintln(os.Stdout, "exit from file processing")
+			}
 			return false
 		}
 
@@ -125,7 +131,7 @@ func (a *App) readCompleteCommand(cmd Command, input string, getNextLine func(bo
 						return strings.TrimSuffix(s, "\n"), err
 					}
 					// continue as long as there is input
-					for a.readStartOfNextCommand(getNextLineInFile) {
+					for a.readStartOfNextCommand(getNextLineInFile, false) {
 					}
 					return
 				}
