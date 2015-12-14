@@ -6,6 +6,7 @@ import (
 	"pfi/sensorbee/sensorbee/core"
 	"pfi/sensorbee/sensorbee/data"
 	"testing"
+	"time"
 )
 
 func TestCreateSourceStmt(t *testing.T) {
@@ -931,6 +932,9 @@ func TestSelectStmt(t *testing.T) {
 			stmt := istmt.(parser.SelectStmt)
 			_, _, err = tb.AddSelectStmt(&stmt)
 			So(err, ShouldNotBeNil) // unknown data source
+			waitForExpectedCondition(func() bool {
+				return len(tb.topology.Sinks()) == 0
+			})
 			So(len(tb.topology.Nodes()), ShouldEqual, numNodes)
 		})
 	})
@@ -1242,9 +1246,18 @@ func TestSelectInsertIntoSelectStmtEnabledRemoveOnStop(t *testing.T) {
 			Convey("And the Box should be removed from the topology", func() {
 				bn.State().Wait(core.TSStopped)
 
-				_, err := dt.Box(bn.Name())
+				waitForExpectedCondition(func() bool {
+					return len(dt.Boxes()) == 0
+				})
+				_, err = dt.Box(bn.Name())
 				So(err, ShouldNotBeNil)
 			})
 		})
 	})
+}
+
+func waitForExpectedCondition(f func() bool) {
+	for !f() {
+		time.Sleep(time.Nanosecond)
+	}
 }
