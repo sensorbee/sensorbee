@@ -131,8 +131,11 @@ func (a *App) readCompleteCommand(cmd Command, input string, getNextLine func(bo
 						return strings.TrimSuffix(s, "\n"), err
 					}
 					// continue as long as there is input
+					path := fileCmd.filePath
+					fmt.Printf("-- process %s --\n", path)
 					for a.readStartOfNextCommand(getNextLineInFile, false) {
 					}
+					fmt.Printf("-- end %s --\n", path)
 					return
 				}
 				cmd.Eval(a.requester)
