@@ -40,11 +40,20 @@ func SetUpCommands(commands []Command) App {
 
 func (a *App) prompt(line *liner.State) {
 	for {
-		input, err := line.Prompt(promptLineStart)
+		promptStart := "(no topology)" + promptLineStart
+		if currentTopology.name != "" {
+			promptStart = fmt.Sprintf("(%s)%s", currentTopology.name,
+				promptLineStart)
+		}
+		input, err := line.Prompt(promptStart)
 		if err != nil {
 			if err != io.EOF {
 				fmt.Fprintf(os.Stderr, "error reading line: %v", err)
 			}
+			// there was an EOF control character, e.g., the
+			// user pressed Ctrl+D. in order not to mess up the
+			// terminal, write an additional newline character
+			fmt.Println("")
 			return
 		}
 

@@ -28,6 +28,10 @@ func SetUp() cli.Command {
 			Value: "v1",
 			Usage: "target API version",
 		},
+		cli.StringFlag{
+			Name:  "topology",
+			Usage: "the SensorBee topology to use (instead of USE command)",
+		},
 	}
 	return cmd
 }
@@ -36,6 +40,9 @@ func SetUp() cli.Command {
 func Launch(c *cli.Context) {
 	defer panicHandler()
 	validateFlags(c)
+	if c.IsSet("topology") {
+		currentTopology.name = c.String("topology")
+	}
 	cmds := []Command{}
 	for _, c := range NewTopologiesCommands() {
 		cmds = append(cmds, c)
