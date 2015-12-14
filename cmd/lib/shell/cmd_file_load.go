@@ -43,5 +43,5 @@ func (f *fileLoadCmd) Input(input string) (cmdInputStatusType, error) {
 }
 
 func (f *fileLoadCmd) Eval(requester *client.Requester) {
-	sendBQLQueries(requester, f.queries)
+	fmt.Println("Eval() not implemented for fileLoadCmd, use App instead")
 }

@@ -1,6 +1,7 @@
 package shell
 
 import (
+	"bufio"
 	"fmt"
 	"github.com/peterh/liner"
 	"io"
@@ -116,6 +117,18 @@ func (a *App) readCompleteCommand(cmd Command, input string, getNextLine func(bo
 				return
 			case preparedCMD:
 				// if the statement is complete, evaluate it
+				if fileCmd, ok := cmd.(*fileLoadCmd); ok {
+					r := strings.NewReader(fileCmd.queries)
+					b := bufio.NewReader(r)
+					getNextLineInFile := func(continued bool) (string, error) {
+						s, err := b.ReadString('\n')
+						return strings.TrimSuffix(s, "\n"), err
+					}
+					// continue as long as there is input
+					for a.readStartOfNextCommand(getNextLineInFile) {
+					}
+					return
+				}
 				cmd.Eval(a.requester)
 				return
 			}
