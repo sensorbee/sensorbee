@@ -45,6 +45,10 @@ func (a *App) prompt(line *liner.State) {
 			if err != io.EOF {
 				fmt.Fprintf(os.Stderr, "error reading line: %v", err)
 			}
+			// there was an EOF control character, e.g., the
+			// user pressed Ctrl+D. in order not to mess up the
+			// terminal, write an additional newline character
+			fmt.Println("")
 			return
 		}
 
