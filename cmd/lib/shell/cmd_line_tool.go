@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/codegangsta/cli"
 	"gopkg.in/sensorbee/sensorbee.v0/client"
+	"gopkg.in/sensorbee/sensorbee.v0/server/config"
 	"os"
 )
 
@@ -19,7 +20,7 @@ func SetUp() cli.Command {
 	cmd.Flags = []cli.Flag{
 		cli.StringFlag{
 			Name:   "uri",
-			Value:  "http://localhost:8090/",
+			Value:  fmt.Sprintf("http://localhost:%d/", config.DefaultPort),
 			Usage:  "the address of the target SensorBee server",
 			EnvVar: "SENSORBEE_URI",
 		},

@@ -1,8 +1,13 @@
 package config
 
 import (
+	"fmt"
 	"github.com/xeipuuv/gojsonschema"
 	"gopkg.in/sensorbee/sensorbee.v0/data"
+)
+
+const (
+	DefaultPort = 8090
 )
 
 // Network has configuration parameters related to the network.
@@ -43,6 +48,6 @@ func NewNetwork(m data.Map) (*Network, error) {
 
 func newNetwork(m data.Map) *Network {
 	return &Network{
-		ListenOn: mustAsString(getWithDefault(m, "listen_on", data.String(":8090"))),
+		ListenOn: mustAsString(getWithDefault(m, "listen_on", data.String(fmt.Sprintf(":%d", DefaultPort)))),
 	}
 }
