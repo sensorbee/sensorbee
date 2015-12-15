@@ -95,9 +95,7 @@ func (a *App) readStartOfNextCommand(getNextLine func(bool) (string, error), top
 	// if there is input, find the type of command that was input
 	if input != "" {
 		if strings.ToLower(input) == "exit" {
-			if topLevel {
-				fmt.Fprintln(os.Stdout, "SensorBee shell tool is closed")
-			} else {
+			if !topLevel {
 				fmt.Fprintln(os.Stdout, "exit from file processing")
 			}
 			return false
@@ -176,7 +174,6 @@ func (a *App) Run(requester *client.Requester) {
 		f.Close()
 	}
 
-	fmt.Fprintln(os.Stdout, appRunMsg)
 	a.requester = requester
 	a.prompt(line)
 
@@ -189,7 +186,6 @@ func (a *App) Run(requester *client.Requester) {
 }
 
 const (
-	appRunMsg          = "SensorBee shell tool is started!"
 	promptLineStart    = ">>> "
 	promptLineContinue = "... "
 )
