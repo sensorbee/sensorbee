@@ -25,6 +25,9 @@ func SetUpCommands(commands []Command) App {
 	histDir := os.Getenv("HOME")
 	if runtime.GOOS == "windows" {
 		histDir = path.Join(os.Getenv("APPDATA"), "PFN", "SensorBee")
+		if err := os.MkdirAll(histDir, os.ModeDir); err != nil {
+			fmt.Printf("failed to create application directory '%s': %s\n", histDir, err)
+		}
 	}
 
 	app := App{
