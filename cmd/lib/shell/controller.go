@@ -8,6 +8,7 @@ import (
 	"os"
 	"path"
 	"pfi/sensorbee/sensorbee/client"
+	"runtime"
 	"strings"
 )
 
@@ -18,12 +19,19 @@ type App struct {
 	commandMap map[string]Command
 }
 
-var tempDir = os.TempDir()
-
 // SetUpCommands set up application. Commands are initialized with it.
 func SetUpCommands(commands []Command) App {
+	// get home directory for the history file
+	histDir := os.Getenv("HOME")
+	if runtime.GOOS == "windows" {
+		histDir = path.Join(os.Getenv("APPDATA"), "PFN", "SensorBee")
+		if err := os.MkdirAll(histDir, os.ModeDir); err != nil {
+			fmt.Printf("failed to create application directory '%s': %s\n", histDir, err)
+		}
+	}
+
 	app := App{
-		historyFn:  path.Join(tempDir, ".sensorbee_liner_history"),
+		historyFn:  path.Join(histDir, ".sensorbee_liner_history"),
 		commandMap: map[string]Command{},
 	}
 	if len(commands) == 0 {
