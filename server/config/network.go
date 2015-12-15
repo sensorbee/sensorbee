@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	DefaultPort = 8090
+	DefaultPort = 15601
 )
 
 // Network has configuration parameters related to the network.
