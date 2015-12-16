@@ -192,17 +192,8 @@ func setUpTopology(logger *logrus.Logger, conf *config.Config, bqlFile string) (
 			return nil, err // FIXME: logger output "err" two twice
 		} else if n != nil && n.Type() == core.NTSource {
 			sn, _ := n.(core.SourceNode)
-			if rs, ok := sn.Source().(core.RewindableSource); ok {
-				status := rs.(core.Statuser) // rewindable source implements statuser
-				if rable, err := status.Status().Get(
-					data.MustCompilePath("rewindable")); err == nil {
-					if rewind, err := data.AsBool(rable); err == nil {
-						if rewind {
-							return nil, fmt.Errorf(
-								`rewindable source "%v" isn't supported`, n.Name())
-						}
-					}
-				}
+			if _, ok := sn.Source().(core.RewindableSource); ok {
+				return nil, fmt.Errorf(`rewindable source "%v" isn't supported`, n.Name())
 			}
 		}
 	}
