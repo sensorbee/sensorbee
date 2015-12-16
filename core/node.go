@@ -151,7 +151,7 @@ type Node interface {
 	// has following fields:
 	//
 	//	* num_sent_total: the total number of tuples sent from this node including
-	//	                  the numbre of dropped tuples
+	//	                  the number of dropped tuples
 	//	* num_dropped: the number of tuples which have been dropped because no
 	//	               data destination is connected to the node
 	//	* outputs: the information of data destinations connected to the node
