@@ -4,12 +4,16 @@ import (
 	"fmt"
 	"github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
+	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"os"
 	"pfi/sensorbee/sensorbee/bql"
 	"pfi/sensorbee/sensorbee/bql/parser"
+	"pfi/sensorbee/sensorbee/bql/udf"
 	"pfi/sensorbee/sensorbee/core"
+	"pfi/sensorbee/sensorbee/data"
 	"pfi/sensorbee/sensorbee/server/config"
+	"pfi/sensorbee/sensorbee/server/udsstorage"
 )
 
 // SetUp sets up a command for running single BQL file.
@@ -78,36 +82,39 @@ func Run(c *cli.Context) {
 	logger := logrus.New()
 	logger.Out = w
 
-	udsStorage, err := setUpUDSStorage(conf.Storage.UDS)
+	udsStorage, err := setUpUDSStorage(&conf.Storage.UDS)
 	if err != nil {
 		logger.WithField("err", err).Error("Cannot set up a storage for UDSs")
 		os.Exit(1)
 	}
 
-	logrus.Info("Setting up a topology")
+	logger.Info("Setting up a topology")
 	bqlFile := c.Args()[0]
-	tb, err := setUpTopology(bqlFile)
+	tb, err := setUpTopology(logger, conf, bqlFile)
 	if err != nil {
 		logger.WithFields(logrus.Fields{
 			"err":      err,
 			"bql_file": bqlFile,
 		}).Error("Cannot set up the topology")
+		os.Exit(1)
 	}
 	defer func() {
-		logrus.Info("Stopping the topology")
+		logger.Info("Stopping the topology")
 		if err := tb.Topology().Stop(); err != nil {
-			logrus.WithField("err", err).Error("Cannot stop the topology")
+			logger.WithField("err", err).Error("Cannot stop the topology")
+			os.Exit(1)
 		}
 	}()
+	tb.UDSStorage = udsStorage
 
-	logrus.Info("Starting the topology")
+	logger.Info("Starting the topology")
 	for name, s := range tb.Topology().Sources() {
 		if err := s.Resume(); err != nil {
-			logrus.WithFields(logrus.Fields{
-				"err", err,
+			logger.WithFields(logrus.Fields{
+				"err":    err,
 				"source": name,
 			}).Error("Cannot resume the source")
-			return
+			os.Exit(1)
 		}
 	}
 
@@ -115,7 +122,7 @@ func Run(c *cli.Context) {
 		// TODO: error check if necessary
 		s.State().Wait(core.TSStopped)
 	}
-	logrus.Info("All sources has been stopped.")
+	logger.Info("All sources has been stopped.")
 
 }
 
@@ -141,7 +148,7 @@ func setUpTopology(logger *logrus.Logger, conf *config.Config, bqlFile string) (
 	queries, err := func() (string, error) {
 		f, err := os.Open(bqlFile)
 		if err != nil {
-			return err
+			return "", err
 		}
 		defer f.Close()
 		b, err := ioutil.ReadAll(f)
@@ -151,7 +158,7 @@ func setUpTopology(logger *logrus.Logger, conf *config.Config, bqlFile string) (
 		return string(b), nil
 	}()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	bp := parser.New()
@@ -161,20 +168,43 @@ func setUpTopology(logger *logrus.Logger, conf *config.Config, bqlFile string) (
 		return nil, err
 	}
 
-	// TODO: create context using conf and setting the logger
-	// TODO: create core.Topology
-	// TODO: create bql.TopologyBuilder
+	cc := &core.ContextConfig{
+		Logger: logger,
+	}
+	cc.Flags.DroppedTupleLog.Set(conf.Logging.LogDroppedTuples)
+	cc.Flags.DroppedTupleSummarization.Set(conf.Logging.SummarizeDroppedTuples)
+
+	name := "runfile" // FIXME: bql file name is better?
+	tp := core.NewDefaultTopology(core.NewContext(cc), name)
+	tb, err := bql.NewTopologyBuilder(tp)
+	if err != nil {
+		return nil, fmt.Errorf("cannot create a new topology builder: %v", err)
+	}
 
 	for _, stmt := range stmts {
 		// TODO: if stmt is CREATE SOURCE, create it with PAUSED
-		if _, err := tb.AddStmt(stmt); err != nil {
+		if n, err := tb.AddStmt(stmt); err != nil {
 			logger.WithFields(logrus.Fields{
 				"err":      err,
 				"topology": name,
 				"stmt":     stmt,
 			}).Error("Cannot add a statement to the topology")
-			return nil, err
+			return nil, err // FIXME: logger output "err" two twice
+		} else if n != nil && n.Type() == core.NTSource {
+			sn, _ := n.(core.SourceNode)
+			if rs, ok := sn.Source().(core.RewindableSource); ok {
+				status := rs.(core.Statuser) // rewindable source implements statuser
+				if rable, err := status.Status().Get(
+					data.MustCompilePath("rewindable")); err == nil {
+					if rewind, err := data.AsBool(rable); err == nil {
+						if rewind {
+							return nil, fmt.Errorf(
+								`rewindable source "%v" isn't supported`, n.Name())
+						}
+					}
+				}
+			}
 		}
 	}
-	// TODO: return bql.TopologyBuilder, nil
+	return tb, nil
 }
