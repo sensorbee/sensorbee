@@ -172,6 +172,14 @@ func TestImplementSourceStop(t *testing.T) {
 				So(err, ShouldBeNil)
 			})
 		})
+
+		Convey("When converting it to RewindableSource", func() {
+			_, ok := s.(RewindableSource)
+
+			Convey("Then it should fail", func() {
+				So(ok, ShouldBeFalse)
+			})
+		})
 	})
 
 	Convey("Given a non stoppable source via ImplementSourceStop", t, func() {
@@ -201,12 +209,11 @@ func TestImplementSourceStop(t *testing.T) {
 			})
 		})
 
-		Convey("When rewinding the source", func() {
-			rs := s.(RewindableSource)
-			err := rs.Rewind(ctx)
+		Convey("When converting it to RewindableSource", func() {
+			_, ok := s.(RewindableSource)
 
-			Convey("Then it shoudl fail", func() {
-				So(err, ShouldNotBeNil)
+			Convey("Then it should fail", func() {
+				So(ok, ShouldBeFalse)
 			})
 		})
 	})

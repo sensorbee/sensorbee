@@ -112,7 +112,7 @@ func NewRewindableSource(s Source) RewindableSource {
 	return newRewindableSource(s, true)
 }
 
-func newRewindableSource(s Source, rewindEnabled bool) RewindableSource {
+func newRewindableSource(s Source, rewindEnabled bool) *rewindableSource {
 	r := &rewindableSource{
 		rewindEnabled: rewindEnabled,
 		forceStop:     make(chan struct{}, 1),
@@ -286,8 +286,24 @@ func (r *rewindableSource) Status() data.Map {
 // ImplementSourceStop implements Stop method of a Source in a thread-safe
 // manner on behalf of the given Source. Source passed to this function must
 // follow the rule described in NewRewindableSource with one exception that
-// the Writer doesn't return ErrSourceRewound.
+// the Writer doesn't return ErrSourceRewound. The source returned from this
+// function isn't rewindable even if the original Source is compatible with
+// RewindableSource interface.
 func ImplementSourceStop(s Source) Source {
 	// This is implemented as a rewindableSource with rewind disabled.
-	return newRewindableSource(s, false)
+	return &nonRewindableSourceAdapter{
+		rewindableSource: newRewindableSource(s, false),
+	}
+}
+
+// nonRewindableSourceAdapter wraps rewindableSource but doesn't provide
+// Rewind method so that it doesn't satisfy RewindableSource interface.
+type nonRewindableSourceAdapter struct {
+	*rewindableSource
+}
+
+func (n *nonRewindableSourceAdapter) Rewind() {
+	// This method is used to hide Rewind(ctx *core.Context) error method
+	// defined in rewindableSource so that the source returned from
+	// ImplementSourceStop becomes incompatible with RewindableSource interface.
 }
