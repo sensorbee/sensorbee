@@ -196,6 +196,10 @@ func execute(cache *Cache, stmts *Statements, ith int) error {
 	if n, err := tb.AddStmt(curStmt.Stmt); err != nil {
 		return fmt.Errorf(`cannot add the statement "%v": %v`, curStmt, err)
 	} else if n != nil && n.Type() == core.NTSource {
+		sn, _ := n.(core.SourceNode)
+		if _, ok := sn.Source().(core.RewindableSource); ok {
+			return fmt.Errorf(`rewindable source "%v" isn't supported`, n.Name())
+		}
 		pausedSrcs = append(pausedSrcs, n.Name())
 	}
 
