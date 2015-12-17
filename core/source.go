@@ -139,6 +139,11 @@ func (r *rewindableSource) GenerateStream(ctx *Context, w Writer) error {
 				case TSPaused:
 					r.rwm.RUnlock()
 					r.rwm.Lock()
+					if r.rewind || r.state.getWithoutLock() != TSPaused {
+						r.rwm.Unlock()
+						r.rwm.RLock()
+						continue resumeLoop
+					}
 					// Don't use state.waitWithoutLock. Wait manually because
 					// this loop has to check r.rewind, too.
 					r.state.cond.Wait()
