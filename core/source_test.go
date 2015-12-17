@@ -20,10 +20,12 @@ func TestRewindableSource(t *testing.T) {
 			PausedOnStartup: true,
 		})
 		So(err, ShouldBeNil)
+		son.State().Wait(TSPaused)
 
 		b := &BlockingForwardBox{cnt: 1000}
 		bn, err := t.AddBox("box", b, nil)
 		So(err, ShouldBeNil)
+		bn.State().Wait(TSRunning)
 		So(bn.Input("source", &BoxInputConfig{
 			Capacity: 1, // (almost) blocking channel
 		}), ShouldBeNil)
@@ -31,6 +33,7 @@ func TestRewindableSource(t *testing.T) {
 		si := NewTupleCollectorSink()
 		sin, err := t.AddSink("sink", si, nil)
 		So(sin.Input("box", nil), ShouldBeNil)
+		sin.State().Wait(TSRunning)
 
 		Convey("When emitting all tuples", func() {
 			So(son.Resume(), ShouldBeNil)
@@ -41,6 +44,7 @@ func TestRewindableSource(t *testing.T) {
 			})
 
 			Convey("Then status should show that it's waiting for rewind", func() {
+				waitForWaitingForRewind(son)
 				st := son.Status()
 				v, _ := st.Get(data.MustCompilePath("source.waiting_for_rewind"))
 				So(v, ShouldEqual, data.True)
@@ -63,7 +67,7 @@ func TestRewindableSource(t *testing.T) {
 			// channel between the source and box because its capacity is 1
 			// (1 tuple is in the queue and the other one is blocked at sending
 			// operation). So, 5 tuples in total were emitted from the source.
-			b.cnt = 2
+			b.setCnt(2)
 			So(son.Resume(), ShouldBeNil)
 			si.Wait(2)
 			So(son.Pause(), ShouldBeNil)
@@ -267,4 +271,17 @@ func TestRewindableSourceForceStop(t *testing.T) {
 			})
 		})
 	})
+}
+
+func waitForWaitingForRewind(son SourceNode) {
+	so := son.Source()
+	rso := so.(*rewindableSource)
+	for {
+		rso.rwm.RLock()
+		if rso.waitingForRewind {
+			rso.rwm.RUnlock()
+			return
+		}
+		rso.rwm.RUnlock()
+	}
 }

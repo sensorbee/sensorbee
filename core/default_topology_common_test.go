@@ -313,6 +313,13 @@ func (b *BlockingForwardBox) EmitTuples(n int) {
 	b.c.Broadcast()
 }
 
+func (b *BlockingForwardBox) setCnt(n int) {
+	b.m.Lock()
+	defer b.m.Unlock()
+	b.cnt = n
+	b.c.Broadcast()
+}
+
 func (b *BlockingForwardBox) Terminate(ctx *Context) error {
 	return nil
 }
