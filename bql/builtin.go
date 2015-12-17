@@ -207,14 +207,20 @@ func (s *edgeStatusSource) GenerateStream(ctx *core.Context, w core.Writer) erro
 			// get the input status
 			inputs, err := nodeStatus.Get(inputPath)
 			if err != nil {
-				// TODO proper log
-				fmt.Printf("node status %v didn't have input stats\n", nodeStatus)
+				if ctx != nil {
+					ctx.ErrLog(err).WithField("node_status", nodeStatus).
+						WithField("node_name", name).
+						Error("No input_stats present in node status")
+				}
 				continue
 			}
 			inputMap, err := data.AsMap(inputs)
 			if err != nil {
-				// TODO proper log
-				fmt.Printf("node's input status %v wasn't a map\n", inputs)
+				if ctx != nil {
+					ctx.ErrLog(err).WithField("inputs", inputs).
+						WithField("node_name", name).
+						Error("input_stats.inputs is not a Map")
+				}
 				continue
 			}
 
@@ -222,8 +228,11 @@ func (s *edgeStatusSource) GenerateStream(ctx *core.Context, w core.Writer) erro
 			for inputName, inputStats := range inputMap {
 				inputNode, err := s.topology.Node(inputName)
 				if err != nil {
-					// TODO proper error log
-					fmt.Printf("node %s listens to non-existing node %s\n", name, inputName)
+					if ctx != nil {
+						ctx.ErrLog(err).WithField("sender", inputName).
+							WithField("receiver", name).
+							Error("Node listens to non-existing node")
+					}
 					continue
 				}
 				edgeData := data.Map{
