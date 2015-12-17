@@ -54,6 +54,9 @@ func NewTopologyBuilder(t core.Topology) (*TopologyBuilder, error) {
 	if err := srcs.Register("node_statuses", createNodeStatusSourceCreator(t)); err != nil {
 		return nil, err
 	}
+	if err := srcs.Register("edge_statuses", createEdgeStatusSourceCreator(t)); err != nil {
+		return nil, err
+	}
 
 	sinks, err := CopyGlobalSinkCreatorRegistry()
 	if err != nil {
