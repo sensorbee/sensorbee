@@ -1,3 +1,10 @@
+/*
+Package runfile implements sensorbee runfile command. This command is provided
+separately from run command to reduce the footprint of runfile command itself.
+For example, if sensorbee doesn't need to provide sensorbee run command and only
+offers sensorbee runfile, the footprint of sensorbee command might be reduced a
+lot due to low functionality of this command.
+*/
 package runfile
 
 import (
@@ -99,7 +106,7 @@ func Run(c *cli.Context) {
 		os.Exit(1)
 	}
 	defer func() {
-		logger.Info("Stopping the topology")
+		logger.Info("Waiting for all nodes to finish processing tuples")
 		if err := tb.Topology().Stop(); err != nil {
 			logger.WithField("err", err).Error("Cannot stop the topology")
 			os.Exit(1)
