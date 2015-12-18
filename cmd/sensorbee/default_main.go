@@ -6,6 +6,7 @@ import (
 	_ "pfi/sensorbee/sensorbee/bql/udf/builtin"
 	"pfi/sensorbee/sensorbee/cmd/lib/exp"
 	"pfi/sensorbee/sensorbee/cmd/lib/run"
+	"pfi/sensorbee/sensorbee/cmd/lib/runfile"
 	"pfi/sensorbee/sensorbee/cmd/lib/shell"
 	"pfi/sensorbee/sensorbee/cmd/lib/topology"
 	"time"
@@ -26,6 +27,7 @@ func main() {
 		shell.SetUp(),
 		topology.SetUp(),
 		exp.SetUp(),
+		runfile.SetUp(),
 	}
 	if err := app.Run(os.Args); err != nil {
 		os.Exit(1)
