@@ -207,20 +207,16 @@ func (s *edgeStatusSource) GenerateStream(ctx *core.Context, w core.Writer) erro
 			// get the input status
 			inputs, err := nodeStatus.Get(inputPath)
 			if err != nil {
-				if ctx != nil {
-					ctx.ErrLog(err).WithField("node_status", nodeStatus).
-						WithField("node_name", name).
-						Error("No input_stats present in node status")
-				}
+				ctx.ErrLog(err).WithField("node_status", nodeStatus).
+					WithField("node_name", name).
+					Error("No input_stats present in node status")
 				continue
 			}
 			inputMap, err := data.AsMap(inputs)
 			if err != nil {
-				if ctx != nil {
-					ctx.ErrLog(err).WithField("inputs", inputs).
-						WithField("node_name", name).
-						Error("input_stats.inputs is not a Map")
-				}
+				ctx.ErrLog(err).WithField("inputs", inputs).
+					WithField("node_name", name).
+					Error("input_stats.inputs is not a Map")
 				continue
 			}
 
@@ -228,11 +224,9 @@ func (s *edgeStatusSource) GenerateStream(ctx *core.Context, w core.Writer) erro
 			for inputName, inputStats := range inputMap {
 				inputNode, err := s.topology.Node(inputName)
 				if err != nil {
-					if ctx != nil {
-						ctx.ErrLog(err).WithField("sender", inputName).
-							WithField("receiver", name).
-							Error("Node listens to non-existing node")
-					}
+					ctx.ErrLog(err).WithField("sender", inputName).
+						WithField("receiver", name).
+						Error("Node listens to non-existing node")
 					continue
 				}
 				edgeData := data.Map{
@@ -244,7 +238,10 @@ func (s *edgeStatusSource) GenerateStream(ctx *core.Context, w core.Writer) erro
 						"node_name": data.String(name),
 						"node_type": data.String(n.Type().String()),
 					},
-					//
+					// use the input statistics for that edge from the
+					// receiver as edge statistics. the data is correct,
+					// but the wording may be a bit weird, e.g. "num_received"
+					// should maybe rather be "num_transferred"
 					"stats": inputStats,
 				}
 				// write tuple
