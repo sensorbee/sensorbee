@@ -39,10 +39,16 @@ func SetUp() cli.Command {
 			Usage:  "file path of a config file in YAML format (only logging and storage sections are used)",
 			EnvVar: "SENSORBEE_CONFIG",
 		},
+		cli.StringSliceFlag{
+			Name:  "save-uds, s",
+			Value: &cli.StringSlice{},
+			Usage: "save UDSs after all tuples are processed",
+		},
 	}
 	return cmd
 }
 
+// Run runs "runfile" command.
 func Run(c *cli.Context) {
 	// TODO: Merge this implementation with cmd/run
 
@@ -97,22 +103,76 @@ func Run(c *cli.Context) {
 
 	logger.Info("Setting up a topology")
 	bqlFile := c.Args()[0]
-	tb, err := setUpTopology(logger, conf, bqlFile)
+	tb, err := setUpTopology(logger, conf, udsStorage)
 	if err != nil {
+		logger.WithField("err", err).Error("Cannot set up the topology")
+		os.Exit(1)
+	}
+
+	if err := setUpBQLStmt(tb, bqlFile); err != nil {
 		logger.WithFields(logrus.Fields{
 			"err":      err,
 			"bql_file": bqlFile,
-		}).Error("Cannot set up the topology")
+		}).Error("Cannot set up BQL statement")
 		os.Exit(1)
 	}
+
+	saveUDSs := c.StringSlice("save-uds")
+
 	defer func() {
 		logger.Info("Waiting for all nodes to finish processing tuples")
 		if err := tb.Topology().Stop(); err != nil {
 			logger.WithField("err", err).Error("Cannot stop the topology")
 			os.Exit(1)
 		}
+
+		states, err := tb.Topology().Context().SharedStates.List()
+		if err != nil {
+			logger.WithFields(logrus.Fields{
+				"err":      err,
+				"topology": tb.Topology().Name(),
+			}).Error("Cannot get UDSs from the topology")
+			os.Exit(1)
+		}
+		for _, name := range saveUDSs {
+			state, ok := states[name]
+			if !ok {
+				logger.WithFields(logrus.Fields{
+					"topology": tb.Topology().Name(),
+					"uds":      name,
+				}).Error("Cannot find the UDS in the topology")
+				continue
+			}
+			target, ok := state.(core.SavableSharedState)
+			if !ok {
+				logger.WithFields(logrus.Fields{
+					"topology": tb.Topology().Name(),
+					"uds":      name,
+				}).Error("Cannot save the UDS which does not support save")
+				continue
+			}
+			// TODO get tag
+			w, err := tb.UDSStorage.Save(tb.Topology().Name(), name, "default")
+			if err != nil {
+				logger.WithFields(logrus.Fields{
+					"err":      err,
+					"topology": tb.Topology().Name(),
+					"uds":      name,
+				}).Error("Cannot save the UDS on the storage")
+				continue
+			}
+			// TODO get parameters
+			err = target.Save(tb.Topology().Context(), w, data.Map{})
+			if err != nil {
+				logger.WithFields(logrus.Fields{
+					"err":      err,
+					"topology": tb.Topology().Name(),
+					"uds":      name,
+				}).Error("Cannot save the UDS")
+			}
+		}
+		// TODO: Terminate all shared states
 	}()
-	tb.UDSStorage = udsStorage
 
 	logger.Info("Starting the topology")
 	for name, s := range tb.Topology().Sources() {
@@ -151,7 +211,26 @@ func setUpUDSStorage(conf *config.UDSStorage) (udf.UDSStorage, error) {
 	}
 }
 
-func setUpTopology(logger *logrus.Logger, conf *config.Config, bqlFile string) (*bql.TopologyBuilder, error) {
+func setUpTopology(logger *logrus.Logger, conf *config.Config, us udf.UDSStorage) (
+	*bql.TopologyBuilder, error) {
+	cc := &core.ContextConfig{
+		Logger: logger,
+	}
+	cc.Flags.DroppedTupleLog.Set(conf.Logging.LogDroppedTuples)
+	cc.Flags.DroppedTupleSummarization.Set(conf.Logging.SummarizeDroppedTuples)
+
+	name := "runfile" // FIXME: bql file name is better?
+	tp := core.NewDefaultTopology(core.NewContext(cc), name)
+	tb, err := bql.NewTopologyBuilder(tp)
+	if err != nil {
+		return nil, fmt.Errorf("cannot create a new topology builder: %v", err)
+	}
+	tb.UDSStorage = us
+
+	return tb, nil
+}
+
+func setUpBQLStmt(tb *bql.TopologyBuilder, bqlFile string) error {
 	queries, err := func() (string, error) {
 		f, err := os.Open(bqlFile)
 		if err != nil {
@@ -165,44 +244,30 @@ func setUpTopology(logger *logrus.Logger, conf *config.Config, bqlFile string) (
 		return string(b), nil
 	}()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	bp := parser.New()
 	// TODO: provide better parse error reporting using ParseStmt instead of ParseStmts
 	stmts, err := bp.ParseStmts(string(queries))
 	if err != nil {
-		return nil, err
-	}
-
-	cc := &core.ContextConfig{
-		Logger: logger,
-	}
-	cc.Flags.DroppedTupleLog.Set(conf.Logging.LogDroppedTuples)
-	cc.Flags.DroppedTupleSummarization.Set(conf.Logging.SummarizeDroppedTuples)
-
-	name := "runfile" // FIXME: bql file name is better?
-	tp := core.NewDefaultTopology(core.NewContext(cc), name)
-	tb, err := bql.NewTopologyBuilder(tp)
-	if err != nil {
-		return nil, fmt.Errorf("cannot create a new topology builder: %v", err)
+		return err
 	}
 
 	for _, stmt := range stmts {
 		// TODO: if stmt is CREATE SOURCE, create it with PAUSED
 		if n, err := tb.AddStmt(stmt); err != nil {
-			logger.WithFields(logrus.Fields{
-				"err":      err,
-				"topology": name,
+			tb.Topology().Context().ErrLog(err).WithFields(logrus.Fields{
+				"topology": tb.Topology().Name(),
 				"stmt":     stmt,
 			}).Error("Cannot add a statement to the topology")
-			return nil, err // FIXME: logger output "err" two twice
+			return err // FIXME: logger output "err" two twice
 		} else if n != nil && n.Type() == core.NTSource {
 			sn, _ := n.(core.SourceNode)
 			if _, ok := sn.Source().(core.RewindableSource); ok {
-				return nil, fmt.Errorf(`rewindable source "%v" isn't supported`, n.Name())
+				return fmt.Errorf(`rewindable source "%v" isn't supported`, n.Name())
 			}
 		}
 	}
-	return tb, nil
+	return nil
 }
