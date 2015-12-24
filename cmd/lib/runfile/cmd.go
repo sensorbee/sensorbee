@@ -117,8 +117,6 @@ func Run(c *cli.Context) {
 		os.Exit(1)
 	}
 
-	saveUDSs := c.StringSlice("save-uds")
-
 	defer func() {
 		logger.Info("Waiting for all nodes to finish processing tuples")
 		if err := tb.Topology().Stop(); err != nil {
@@ -126,50 +124,13 @@ func Run(c *cli.Context) {
 			os.Exit(1)
 		}
 
-		states, err := tb.Topology().Context().SharedStates.List()
-		if err != nil {
+		saveUDSs := c.StringSlice("save-uds")
+		if err := saveStates(tb, saveUDSs); err != nil {
 			logger.WithFields(logrus.Fields{
 				"err":      err,
 				"topology": tb.Topology().Name(),
-			}).Error("Cannot get UDSs from the topology")
+			}).Error("Cannot save a UDS")
 			os.Exit(1)
-		}
-		for _, name := range saveUDSs {
-			state, ok := states[name]
-			if !ok {
-				logger.WithFields(logrus.Fields{
-					"topology": tb.Topology().Name(),
-					"uds":      name,
-				}).Error("Cannot find the UDS in the topology")
-				continue
-			}
-			target, ok := state.(core.SavableSharedState)
-			if !ok {
-				logger.WithFields(logrus.Fields{
-					"topology": tb.Topology().Name(),
-					"uds":      name,
-				}).Error("Cannot save the UDS which does not support save")
-				continue
-			}
-			// TODO get tag
-			w, err := tb.UDSStorage.Save(tb.Topology().Name(), name, "default")
-			if err != nil {
-				logger.WithFields(logrus.Fields{
-					"err":      err,
-					"topology": tb.Topology().Name(),
-					"uds":      name,
-				}).Error("Cannot save the UDS on the storage")
-				continue
-			}
-			// TODO get parameters
-			err = target.Save(tb.Topology().Context(), w, data.Map{})
-			if err != nil {
-				logger.WithFields(logrus.Fields{
-					"err":      err,
-					"topology": tb.Topology().Name(),
-					"uds":      name,
-				}).Error("Cannot save the UDS")
-			}
 		}
 		// TODO: Terminate all shared states
 	}()
@@ -257,16 +218,53 @@ func setUpBQLStmt(tb *bql.TopologyBuilder, bqlFile string) error {
 	for _, stmt := range stmts {
 		// TODO: if stmt is CREATE SOURCE, create it with PAUSED
 		if n, err := tb.AddStmt(stmt); err != nil {
-			tb.Topology().Context().ErrLog(err).WithFields(logrus.Fields{
-				"topology": tb.Topology().Name(),
-				"stmt":     stmt,
-			}).Error("Cannot add a statement to the topology")
+			tb.Topology().Context().ErrLog(err).WithField("stmt", stmt).Error(
+				"Cannot add a statement to the topology")
 			return err // FIXME: logger output "err" two twice
 		} else if n != nil && n.Type() == core.NTSource {
 			sn, _ := n.(core.SourceNode)
 			if _, ok := sn.Source().(core.RewindableSource); ok {
 				return fmt.Errorf(`rewindable source "%v" isn't supported`, n.Name())
 			}
+		}
+	}
+	return nil
+}
+
+func saveStates(tb *bql.TopologyBuilder, saveUDSs []string) error {
+	states, err := tb.Topology().Context().SharedStates.List()
+	if err != nil {
+		return err
+	}
+	for _, name := range saveUDSs {
+		state, ok := states[name]
+		if !ok {
+			err := fmt.Errorf("UDS '%v' is not found", name)
+			tb.Topology().Context().ErrLog(err).WithField("uds", name).Error(
+				"Cannot save the UDS")
+			continue
+		}
+		target, ok := state.(core.SavableSharedState)
+		if !ok {
+			err := fmt.Errorf("UDS '%v' does not support save", name)
+			tb.Topology().Context().ErrLog(err).WithField("uds", name).Error(
+				"Cannot save the UDS")
+			continue
+		}
+		// TODO get tag
+		w, err := tb.UDSStorage.Save(tb.Topology().Name(), name, "default")
+		if err != nil {
+			tb.Topology().Context().ErrLog(err).WithField("uds", name).Error(
+				"Cannot save the UDS")
+			continue
+		}
+		defer w.Commit() // should be catch error
+		// TODO get parameters
+		err = target.Save(tb.Topology().Context(), w, data.Map{})
+		if err != nil {
+			tb.Topology().Context().ErrLog(err).WithField("uds", name).Error(
+				"Cannot save the UDS")
+			continue
 		}
 	}
 	return nil
