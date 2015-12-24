@@ -269,13 +269,19 @@ func saveStates(tb *bql.TopologyBuilder, saveUDSList string) error {
 				"Cannot save the UDS")
 			continue
 		}
-		defer w.Commit() // should be catch error
-		// TODO get parameters
-		err = target.Save(tb.Topology().Context(), w, data.Map{})
+		err = func() error {
+			defer func() {
+				if err := w.Commit(); err != nil {
+					tb.Topology().Context().ErrLog(err).WithField("uds", name).Error(
+						"Cannot save the UDS")
+				}
+			}()
+			// TODO get parameters
+			return target.Save(tb.Topology().Context(), w, data.Map{})
+		}()
 		if err != nil {
 			tb.Topology().Context().ErrLog(err).WithField("uds", name).Error(
 				"Cannot save the UDS")
-			continue
 		}
 	}
 	return nil
