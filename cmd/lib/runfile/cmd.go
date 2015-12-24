@@ -21,6 +21,7 @@ import (
 	"pfi/sensorbee/sensorbee/data"
 	"pfi/sensorbee/sensorbee/server/config"
 	"pfi/sensorbee/sensorbee/server/udsstorage"
+	"strings"
 )
 
 // SetUp sets up a command for running single BQL file.
@@ -39,9 +40,9 @@ func SetUp() cli.Command {
 			Usage:  "file path of a config file in YAML format (only logging and storage sections are used)",
 			EnvVar: "SENSORBEE_CONFIG",
 		},
-		cli.StringSliceFlag{
+		cli.StringFlag{
 			Name:  "save-uds, s",
-			Value: &cli.StringSlice{},
+			Value: "",
 			Usage: "save UDSs after all tuples are processed",
 		},
 	}
@@ -51,7 +52,6 @@ func SetUp() cli.Command {
 // Run runs "runfile" command.
 func Run(c *cli.Context) {
 	// TODO: Merge this implementation with cmd/run
-
 	if len(c.Args()) != 1 {
 		cli.ShowSubcommandHelp(c)
 		os.Exit(1)
@@ -124,13 +124,15 @@ func Run(c *cli.Context) {
 			os.Exit(1)
 		}
 
-		saveUDSs := c.StringSlice("save-uds")
-		if err := saveStates(tb, saveUDSs); err != nil {
-			logger.WithFields(logrus.Fields{
-				"err":      err,
-				"topology": tb.Topology().Name(),
-			}).Error("Cannot save a UDS")
-			os.Exit(1)
+		if c.IsSet("save-uds") {
+			saveUDSList := c.String("save-uds")
+			if err := saveStates(tb, saveUDSList); err != nil {
+				logger.WithFields(logrus.Fields{
+					"err":      err,
+					"topology": tb.Topology().Name(),
+				}).Error("Cannot save a UDS")
+				os.Exit(1)
+			}
 		}
 		// TODO: Terminate all shared states
 	}()
@@ -231,10 +233,19 @@ func setUpBQLStmt(tb *bql.TopologyBuilder, bqlFile string) error {
 	return nil
 }
 
-func saveStates(tb *bql.TopologyBuilder, saveUDSs []string) error {
+func saveStates(tb *bql.TopologyBuilder, saveUDSList string) error {
 	states, err := tb.Topology().Context().SharedStates.List()
 	if err != nil {
 		return err
+	}
+	// if save UDS list is empty then all UDS will be saved.
+	saveUDSs := []string{}
+	if saveUDSList == "" {
+		for k := range states {
+			saveUDSs = append(saveUDSs, k)
+		}
+	} else {
+		saveUDSs = strings.Split(saveUDSList, ",")
 	}
 	for _, name := range saveUDSs {
 		state, ok := states[name]
