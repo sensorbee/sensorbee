@@ -130,7 +130,7 @@ func Run(c *cli.Context) {
 				logger.WithFields(logrus.Fields{
 					"err":      err,
 					"topology": tb.Topology().Name(),
-				}).Error("Cannot save a UDS")
+				}).Error("Cannot save UDSs")
 				os.Exit(1)
 			}
 		}
@@ -247,19 +247,20 @@ func saveStates(tb *bql.TopologyBuilder, saveUDSList string) error {
 	} else {
 		saveUDSs = strings.Split(saveUDSList, ",")
 	}
+
+	saveErrorFlag := false
 	for _, name := range saveUDSs {
 		state, ok := states[name]
 		if !ok {
-			err := fmt.Errorf("UDS '%v' is not found", name)
+			err := fmt.Errorf("the UDS is not found")
 			tb.Topology().Context().ErrLog(err).WithField("uds", name).Error(
 				"Cannot save the UDS")
 			continue
 		}
 		target, ok := state.(core.SavableSharedState)
 		if !ok {
-			err := fmt.Errorf("UDS '%v' does not support save", name)
-			tb.Topology().Context().ErrLog(err).WithField("uds", name).Error(
-				"Cannot save the UDS")
+			tb.Topology().Context().Log().WithField("uds", name).Info(
+				"The UDS doesn't support Save")
 			continue
 		}
 		// TODO get tag
@@ -267,6 +268,7 @@ func saveStates(tb *bql.TopologyBuilder, saveUDSList string) error {
 		if err != nil {
 			tb.Topology().Context().ErrLog(err).WithField("uds", name).Error(
 				"Cannot save the UDS")
+			saveErrorFlag = true
 			continue
 		}
 		err = func() error {
@@ -274,6 +276,7 @@ func saveStates(tb *bql.TopologyBuilder, saveUDSList string) error {
 				if err := w.Commit(); err != nil {
 					tb.Topology().Context().ErrLog(err).WithField("uds", name).Error(
 						"Cannot save the UDS")
+					saveErrorFlag = true
 				}
 			}()
 			// TODO get parameters
@@ -282,7 +285,11 @@ func saveStates(tb *bql.TopologyBuilder, saveUDSList string) error {
 		if err != nil {
 			tb.Topology().Context().ErrLog(err).WithField("uds", name).Error(
 				"Cannot save the UDS")
+			saveErrorFlag = true
 		}
+	}
+	if saveErrorFlag {
+		return fmt.Errorf("fail to save or commit some UDSs")
 	}
 	return nil
 }
