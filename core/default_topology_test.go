@@ -605,6 +605,9 @@ func TestLinearDefaultTopology(t *testing.T) {
 		 */
 		dt := NewDefaultTopology(NewContext(nil), "dt1")
 		t := dt.(*defaultTopology)
+		Reset(func() {
+			t.Stop()
+		})
 
 		so := NewTupleIncrementalEmitterSource(freshTuples())
 		son, err := t.AddSource("source", so, nil)
@@ -996,6 +999,9 @@ func TestForkDefaultTopology(t *testing.T) {
 		 */
 		dt := NewDefaultTopology(NewContext(nil), "dt1")
 		t := dt.(*defaultTopology)
+		Reset(func() {
+			t.Stop()
+		})
 
 		so := NewTupleIncrementalEmitterSource(freshTuples())
 		_, err := t.AddSource("source", so, nil)
@@ -1203,6 +1209,9 @@ func TestJoinDefaultTopology(t *testing.T) {
 		 */
 		tb := NewDefaultTopology(NewContext(nil), "dt1")
 		t := tb.(*defaultTopology)
+		Reset(func() {
+			t.Stop()
+		})
 
 		so1 := NewTupleIncrementalEmitterSource(freshTuples()[0:4])
 		_, err := t.AddSource("source1", so1, nil)
@@ -1389,6 +1398,9 @@ func TestDefaultTopologyQueueDropMode(t *testing.T) {
 	Convey("Given a simple linear topology", t, func() {
 		dt := NewDefaultTopology(NewContext(nil), "dt1")
 		t := dt.(*defaultTopology)
+		Reset(func() {
+			t.Stop()
+		})
 
 		ts := freshTuples()
 		so := NewTupleIncrementalEmitterSource(ts)
