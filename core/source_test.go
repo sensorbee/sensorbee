@@ -264,12 +264,7 @@ func TestRewindableSourceForceStop(t *testing.T) {
 			})
 
 			Convey("Then GenerateStream should stop", func() {
-				var err error
-				select {
-				case err = <-ch:
-				default:
-				}
-
+				err := <-ch
 				So(err, ShouldNotBeNil)
 			})
 		})
