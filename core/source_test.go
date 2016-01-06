@@ -15,15 +15,18 @@ func TestRewindableSource(t *testing.T) {
 			t.Stop()
 		})
 
-		so := NewTupleEmitterSource(freshTuples())
+		fts := freshTuples()
+		so := NewTupleEmitterSource(fts)
 		son, err := t.AddSource("source", NewRewindableSource(so), &SourceConfig{
 			PausedOnStartup: true,
 		})
 		So(err, ShouldBeNil)
+		son.State().Wait(TSPaused)
 
 		b := &BlockingForwardBox{cnt: 1000}
 		bn, err := t.AddBox("box", b, nil)
 		So(err, ShouldBeNil)
+		bn.State().Wait(TSRunning)
 		So(bn.Input("source", &BoxInputConfig{
 			Capacity: 1, // (almost) blocking channel
 		}), ShouldBeNil)
@@ -31,6 +34,7 @@ func TestRewindableSource(t *testing.T) {
 		si := NewTupleCollectorSink()
 		sin, err := t.AddSink("sink", si, nil)
 		So(sin.Input("box", nil), ShouldBeNil)
+		sin.State().Wait(TSRunning)
 
 		Convey("When emitting all tuples", func() {
 			So(son.Resume(), ShouldBeNil)
@@ -41,6 +45,7 @@ func TestRewindableSource(t *testing.T) {
 			})
 
 			Convey("Then status should show that it's waiting for rewind", func() {
+				waitForWaitingForRewind(son)
 				st := son.Status()
 				v, _ := st.Get(data.MustCompilePath("source.waiting_for_rewind"))
 				So(v, ShouldEqual, data.True)
@@ -62,8 +67,8 @@ func TestRewindableSource(t *testing.T) {
 			// 1 tuple is blocked in the box, and 2 tuples is blocked in the
 			// channel between the source and box because its capacity is 1
 			// (1 tuple is in the queue and the other one is blocked at sending
-			// operation). So, 5 tuples in total were emitted from the source.
-			b.cnt = 2
+			// operation). So, 5 tuples in total could be emitted from the source.
+			b.setCnt(2)
 			So(son.Resume(), ShouldBeNil)
 			si.Wait(2)
 			So(son.Pause(), ShouldBeNil)
@@ -72,12 +77,14 @@ func TestRewindableSource(t *testing.T) {
 			So(son.Resume(), ShouldBeNil)
 
 			Convey("Then all tuple should be able to be sent again", func() {
-				si.Wait(12)
+				waitForLastTuple(si, fts[len(fts)-1])
 
-				// Due to concurrency, the number of tuples arriving to the sink
-				// can be either 12 or 13. It could be 11 but very rare.
-				So(si.len(), ShouldBeGreaterThanOrEqualTo, 12)
-				So(si.len(), ShouldBeLessThanOrEqualTo, 13)
+				// Due to cuncurrency, the number of tuples arriving to the sink
+				// is not constant.
+				offset := si.len() - len(fts)
+				for i := range fts {
+					So(si.get(offset+i), ShouldResemble, fts[i])
+				}
 			})
 		})
 
@@ -267,4 +274,23 @@ func TestRewindableSourceForceStop(t *testing.T) {
 			})
 		})
 	})
+}
+
+func waitForWaitingForRewind(son SourceNode) {
+	so := son.Source()
+	rso := so.(*rewindableSource)
+	for {
+		rso.rwm.RLock()
+		if rso.waitingForRewind {
+			rso.rwm.RUnlock()
+			return
+		}
+		rso.rwm.RUnlock()
+	}
+}
+
+func waitForLastTuple(si *TupleCollectorSink, t *Tuple) {
+	for si.get(si.len()-1) != t {
+		time.Sleep(time.Nanosecond)
+	}
 }
