@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestparseStack(t *testing.T) {
+func TestParseStack(t *testing.T) {
 	Convey("Given a parseStack", t, func() {
 		ps := parseStack{}
 		Convey("When the stack is empty", func() {
