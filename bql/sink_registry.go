@@ -108,7 +108,7 @@ var (
 )
 
 // RegisterGlobalSinkCreator adds a SinkCreator which can be referred from
-// alltopologies. SinkCreators registered after running topologies might not
+// all topologies. SinkCreators registered after running topologies might not
 // be seen by those topologies. Call it from init functions to avoid such
 // conditions.
 func RegisterGlobalSinkCreator(typeName string, c SinkCreator) error {
