@@ -433,8 +433,6 @@ func (ep *streamRelationStreamExecutionPlan) process(input *core.Tuple, performQ
 	// relation-to-stream:
 	// compute new/old/all result data and return it
 	return ep.computeResultTuples()
-
-	return nil, nil
 }
 
 func (ep *streamRelationStreamExecutionPlan) filterInputTuples() error {
