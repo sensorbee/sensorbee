@@ -6,6 +6,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 )
 
 func freshTuples() []*Tuple {
@@ -1423,13 +1424,14 @@ func TestDefaultTopologyQueueDropMode(t *testing.T) {
 			So(err, ShouldBeNil)
 			So(sin.Input("BOX1", nil), ShouldBeNil)
 
-			Convey("Then it only receives the oldest tuple", func() {
-				// so.EmitTuples blocks until all tuples are written. So, only
-				// the oldest one should remain.
+			Convey("Then it receives the oldest tuple", func() {
+				// so.EmitTuples blocks until all tuples are written, so
+				// the sink receives one or two tuples. Note that the box
+				// blocks *after* receiving a tuple.
 				so.EmitTuples(8)
 				b1.EmitTuples(8)
 				si.Wait(1)
-				So(si.len(), ShouldEqual, 1)
+				So(si.len(), ShouldBeBetweenOrEqual, 1, 2)
 				so.m.Lock() // lock for ts[0].InputName
 				Reset(so.m.Unlock)
 				So(si.get(0), ShouldResemble, ts[0])
@@ -1453,14 +1455,14 @@ func TestDefaultTopologyQueueDropMode(t *testing.T) {
 			sin.State().Wait(TSRunning)
 			So(sin.Input("BOX1", nil), ShouldBeNil)
 
-			Convey("Then it only receives the latest tuple", func() {
+			Convey("Then it receives the latest tuple", func() {
 				so.EmitTuples(8)
 				b1.EmitTuples(8)
-				si.Wait(1)
-				So(si.len(), ShouldEqual, 1)
+				waitForInputTuplesExhausted(si, ts[len(ts)-1])
+				So(si.len(), ShouldBeBetweenOrEqual, 1, 2)
 				so.m.Lock() // lock for ts[len(ts)-1].InputName
 				Reset(so.m.Unlock)
-				So(si.get(0), ShouldResemble, ts[len(ts)-1])
+				So(si.getLast(), ShouldResemble, ts[len(ts)-1])
 			})
 		})
 
@@ -1474,10 +1476,11 @@ func TestDefaultTopologyQueueDropMode(t *testing.T) {
 				DropMode: DropLatest,
 			}), ShouldBeNil)
 
-			Convey("Then it only receives the oldest tuple", func() {
+			Convey("Then it receives the oldest tuple", func() {
 				so.EmitTuples(8)
 				si.Wait(1)
-				So(si.len(), ShouldEqual, 1)
+
+				So(si.len(), ShouldBeGreaterThanOrEqualTo, 1)
 				so.m.Lock() // lock for ts[0].InputName
 				Reset(so.m.Unlock)
 				So(si.get(0), ShouldResemble, ts[0])
@@ -1494,14 +1497,21 @@ func TestDefaultTopologyQueueDropMode(t *testing.T) {
 				DropMode: DropOldest,
 			}), ShouldBeNil)
 
-			Convey("Then it only receives the latest tuple", func() {
+			Convey("Then it only the latest tuple", func() {
 				so.EmitTuples(8)
-				si.Wait(1)
-				So(si.len(), ShouldEqual, 1)
+				waitForInputTuplesExhausted(si, ts[len(ts)-1])
+				So(si.len(), ShouldBeGreaterThanOrEqualTo, 1)
 				so.m.Lock() // lock for ts[len(ts)-1].InputName
 				Reset(so.m.Unlock)
-				So(si.get(0), ShouldResemble, ts[len(ts)-1])
+				So(si.getLast(), ShouldResemble, ts[len(ts)-1])
 			})
 		})
 	})
+}
+
+func waitForInputTuplesExhausted(si *TupleCollectorSink, lastTuple *Tuple) {
+	si.Wait(1)
+	for si.getLast() != lastTuple {
+		time.Sleep(time.Nanosecond)
+	}
 }

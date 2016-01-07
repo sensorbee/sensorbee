@@ -366,6 +366,12 @@ func (s *TupleCollectorSink) get(n int) *Tuple {
 	return s.Tuples[n]
 }
 
+func (s *TupleCollectorSink) getLast() *Tuple {
+	s.m.Lock()
+	defer s.m.Unlock()
+	return s.Tuples[len(s.Tuples)-1]
+}
+
 func (s *TupleCollectorSink) len() int {
 	s.m.Lock()
 	defer s.m.Unlock()
