@@ -68,7 +68,7 @@ func (s *writerSink) Close(ctx *core.Context) error {
 	return nil
 }
 
-func createStdouSink(ctx *core.Context, ioParams *IOParams, params data.Map) (core.Sink, error) {
+func createStdoutSink(ctx *core.Context, ioParams *IOParams, params data.Map) (core.Sink, error) {
 	return &writerSink{
 		w: os.Stdout,
 	}, nil
@@ -99,7 +99,7 @@ func createFileSink(ctx *core.Context, ioParams *IOParams, params data.Map) (cor
 }
 
 func init() {
-	MustRegisterGlobalSinkCreator("stdout", SinkCreatorFunc(createStdouSink))
+	MustRegisterGlobalSinkCreator("stdout", SinkCreatorFunc(createStdoutSink))
 	MustRegisterGlobalSinkCreator("file", SinkCreatorFunc(createFileSink))
 }
 
