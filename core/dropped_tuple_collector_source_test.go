@@ -141,36 +141,5 @@ func TestDroppedTupleCollectorSource(t *testing.T) {
 				})
 			})
 		})
-
-		Convey("When a Box connected to both regular source and the collector drops all tuples", func() {
-			bn, err := t.AddBox("box", BoxFunc(func(ctx *Context, t *Tuple, w Writer) error {
-				return errors.New("box write error")
-			}), nil)
-			So(err, ShouldBeNil)
-			So(bn.Input("source", nil), ShouldBeNil)
-			So(bn.Input("dropped_tuples", nil), ShouldBeNil)
-			So(son.Resume(), ShouldBeNil)
-
-			Convey("Then no tuple should be reported", func() {
-				si.Wait(0)
-				So(si.len(), ShouldEqual, 0)
-			})
-		})
-
-		Convey("When a Sink indirectly connected to both regular source and the collector drops all tuples", func() {
-			bn, err := t.AddBox("box", BoxFunc(forwardBox), nil)
-			So(err, ShouldBeNil)
-			So(bn.Input("source", nil), ShouldBeNil)
-			So(bn.Input("dropped_tuples", nil), ShouldBeNil)
-			sin2, err := t.AddSink("fail_sink", &writeFailSink{}, nil)
-			So(err, ShouldBeNil)
-			So(sin2.Input("box", nil), ShouldBeNil)
-			So(son.Resume(), ShouldBeNil)
-
-			Convey("Then no tuple should be reported", func() {
-				si.Wait(0)
-				So(si.len(), ShouldEqual, 0)
-			})
-		})
 	})
 }
