@@ -176,7 +176,7 @@ func (tb *TopologyBuilder) AddStmt(stmt interface{}) (core.Node, error) {
 		// load params into map for faster access
 		paramsMap := tb.mkParamsMap(stmt.Params)
 
-		// check if we know whis type of sink
+		// check if we know this type of sink
 		creator, err := tb.SinkCreators.Lookup(string(stmt.Type))
 		if err != nil {
 			return nil, err
