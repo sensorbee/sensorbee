@@ -253,7 +253,7 @@ func TestTopologiesQueriesSelectStmt(t *testing.T) {
 }
 
 func TestTopologiesQueriesSelectUnionStmt(t *testing.T) {
-	// TODO: Becaues results from a SELECT stmt needs to be returned through
+	// TODO: Because results from a SELECT stmt needs to be returned through
 	// hijacking, a real HTTP server is required. Support Hijack method in test
 	// ResponseWriter not to use a real HTTP server.
 	testutil.TestAPIWithRealHTTPServer = true
@@ -378,7 +378,7 @@ func TestTopologiesQueriesEvalStmt(t *testing.T) {
 }
 
 func TestTopologiesQueriesSelectStmtWebSocket(t *testing.T) {
-	// TODO: Becaues results from a SELECT stmt needs to be returned through
+	// TODO: Because results from a SELECT stmt needs to be returned through
 	// hijacking, a real HTTP server is required. Support Hijack method in test
 	// ResponseWriter not to use a real HTTP server.
 	testutil.TestAPIWithRealHTTPServer = true
@@ -452,7 +452,7 @@ func TestTopologiesQueriesSelectStmtWebSocket(t *testing.T) {
 }
 
 func TestTopologiesQueriesSelectUnionStmtWebSocket(t *testing.T) {
-	// TODO: Becaues results from a SELECT stmt needs to be returned through
+	// TODO: Because results from a SELECT stmt needs to be returned through
 	// hijacking, a real HTTP server is required. Support Hijack method in test
 	// ResponseWriter not to use a real HTTP server.
 	testutil.TestAPIWithRealHTTPServer = true
@@ -531,7 +531,7 @@ func TestTopologiesQueriesSelectUnionStmtWebSocket(t *testing.T) {
 }
 
 func TestTopologiesQueriesEvalStmtWebSocket(t *testing.T) {
-	// TODO: Becaues results from a SELECT stmt needs to be returned through
+	// TODO: Because results from a SELECT stmt needs to be returned through
 	// hijacking, a real HTTP server is required. Support Hijack method in test
 	// ResponseWriter not to use a real HTTP server.
 	testutil.TestAPIWithRealHTTPServer = true
