@@ -484,7 +484,7 @@ func (tc *topologies) handleSelectUnionStmt(rw web.ResponseWriter, stmt parser.S
 					Timeout() bool
 				}
 				if e, ok := err.(timeout); !ok || !e.Timeout() {
-					// Something happend on this connection.
+					// Something happened on this connection.
 					readErr = err
 					tc.ErrLog(err).Error("The connection may be closed from the client side")
 					return
