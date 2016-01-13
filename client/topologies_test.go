@@ -187,7 +187,7 @@ func TestTopologiesQueries(t *testing.T) {
 }
 
 func TestTopologiesQueriesSelectStmt(t *testing.T) {
-	// TODO: Becaues results from a SELECT stmt needs to be returned through
+	// TODO: Because results from a SELECT stmt needs to be returned through
 	// hijacking, a real HTTP server is required. Support Hijack method in test
 	// ResponseWriter not to use a real HTTP server.
 	testutil.TestAPIWithRealHTTPServer = true
