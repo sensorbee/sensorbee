@@ -18,11 +18,11 @@ func TestStreams(t *testing.T) {
 		res, _, err := do(r, Post, "/topologies", map[string]interface{}{
 			"name": "test_topology",
 		})
+		So(err, ShouldBeNil)
+		So(res.Raw.StatusCode, ShouldEqual, http.StatusOK)
 		Reset(func() {
 			do(r, Delete, "/topologies/test_topology", nil)
 		})
-		So(err, ShouldBeNil)
-		So(res.Raw.StatusCode, ShouldEqual, http.StatusOK)
 
 		type indexRes struct {
 			Topology string             `json:"topology"`

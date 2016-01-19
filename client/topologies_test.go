@@ -164,11 +164,11 @@ func TestTopologiesQueries(t *testing.T) {
 		res, _, err := do(r, Post, "/topologies", map[string]interface{}{
 			"name": "test_topology",
 		})
+		So(err, ShouldBeNil)
+		So(res.Raw.StatusCode, ShouldEqual, http.StatusOK)
 		Reset(func() {
 			do(r, Delete, "/topologies/test_topology", nil)
 		})
-		So(err, ShouldBeNil)
-		So(res.Raw.StatusCode, ShouldEqual, http.StatusOK)
 
 		// TODO: add more tests
 		Convey("When creating a sink", func() {
@@ -203,11 +203,11 @@ func TestTopologiesQueriesSelectStmt(t *testing.T) {
 		res, _, err := do(r, Post, "/topologies", map[string]interface{}{
 			"name": "test_topology",
 		})
+		So(err, ShouldBeNil)
+		So(res.Raw.StatusCode, ShouldEqual, http.StatusOK)
 		Reset(func() {
 			do(r, Delete, "/topologies/test_topology", nil)
 		})
-		So(err, ShouldBeNil)
-		So(res.Raw.StatusCode, ShouldEqual, http.StatusOK)
 
 		res, _, err = do(r, Post, "/topologies/test_topology/queries", map[string]interface{}{
 			"queries": `CREATE PAUSED SOURCE source TYPE dummy;`,
@@ -269,11 +269,11 @@ func TestTopologiesQueriesSelectUnionStmt(t *testing.T) {
 		res, _, err := do(r, Post, "/topologies", map[string]interface{}{
 			"name": "test_topology",
 		})
+		So(err, ShouldBeNil)
+		So(res.Raw.StatusCode, ShouldEqual, http.StatusOK)
 		Reset(func() {
 			do(r, Delete, "/topologies/test_topology", nil)
 		})
-		So(err, ShouldBeNil)
-		So(res.Raw.StatusCode, ShouldEqual, http.StatusOK)
 
 		res, _, err = do(r, Post, "/topologies/test_topology/queries", map[string]interface{}{
 			"queries": `CREATE PAUSED SOURCE source TYPE dummy;`,
@@ -334,11 +334,11 @@ func TestTopologiesQueriesEvalStmt(t *testing.T) {
 		res, _, err := do(r, Post, "/topologies", map[string]interface{}{
 			"name": "test_topology",
 		})
+		So(err, ShouldBeNil)
+		So(res.Raw.StatusCode, ShouldEqual, http.StatusOK)
 		Reset(func() {
 			do(r, Delete, "/topologies/test_topology", nil)
 		})
-		So(err, ShouldBeNil)
-		So(res.Raw.StatusCode, ShouldEqual, http.StatusOK)
 
 		Convey("When issueing a foldable EVAL statement without input", func() {
 			res, js, err := do(r, Post, "/topologies/test_topology/queries", map[string]interface{}{
@@ -396,11 +396,11 @@ func TestTopologiesQueriesSelectStmtWebSocket(t *testing.T) {
 		res, _, err := do(r, Post, "/topologies", map[string]interface{}{
 			"name": "test_topology",
 		})
+		So(err, ShouldBeNil)
+		So(res.Raw.StatusCode, ShouldEqual, http.StatusOK)
 		Reset(func() {
 			do(r, Delete, "/topologies/test_topology", nil)
 		})
-		So(err, ShouldBeNil)
-		So(res.Raw.StatusCode, ShouldEqual, http.StatusOK)
 
 		res, _, err = do(r, Post, "/topologies/test_topology/queries", map[string]interface{}{
 			"queries": `CREATE PAUSED SOURCE source TYPE dummy;`,
@@ -468,11 +468,11 @@ func TestTopologiesQueriesSelectUnionStmtWebSocket(t *testing.T) {
 		res, _, err := do(r, Post, "/topologies", map[string]interface{}{
 			"name": "test_topology",
 		})
+		So(err, ShouldBeNil)
+		So(res.Raw.StatusCode, ShouldEqual, http.StatusOK)
 		Reset(func() {
 			do(r, Delete, "/topologies/test_topology", nil)
 		})
-		So(err, ShouldBeNil)
-		So(res.Raw.StatusCode, ShouldEqual, http.StatusOK)
 
 		res, _, err = do(r, Post, "/topologies/test_topology/queries", map[string]interface{}{
 			"queries": `CREATE PAUSED SOURCE source TYPE dummy;`,
@@ -547,11 +547,11 @@ func TestTopologiesQueriesEvalStmtWebSocket(t *testing.T) {
 		res, _, err := do(r, Post, "/topologies", map[string]interface{}{
 			"name": "test_topology",
 		})
+		So(err, ShouldBeNil)
+		So(res.Raw.StatusCode, ShouldEqual, http.StatusOK)
 		Reset(func() {
 			do(r, Delete, "/topologies/test_topology", nil)
 		})
-		So(err, ShouldBeNil)
-		So(res.Raw.StatusCode, ShouldEqual, http.StatusOK)
 
 		conn, err := websocket.Dial("ws"+s.URL()[len("http"):]+"/api/v1/topologies/test_topology/wsqueries",
 			"", s.URL())
