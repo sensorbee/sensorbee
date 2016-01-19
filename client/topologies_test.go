@@ -225,7 +225,7 @@ func TestTopologiesQueriesSelectStmt(t *testing.T) {
 			})
 			So(res.Raw.StatusCode, ShouldEqual, http.StatusOK)
 
-			res, err := r.Do(Post, "/topologies/test_topology/queries", map[string]interface{}{
+			res, _, err := do(r, Post, "/topologies/test_topology/queries", map[string]interface{}{
 				"queries": `RESUME SOURCE source;`,
 			})
 			So(err, ShouldBeNil)
@@ -292,7 +292,7 @@ func TestTopologiesQueriesSelectUnionStmt(t *testing.T) {
 			})
 			So(res.Raw.StatusCode, ShouldEqual, http.StatusOK)
 
-			res, err := r.Do(Post, "/topologies/test_topology/queries", map[string]interface{}{
+			res, _, err := do(r, Post, "/topologies/test_topology/queries", map[string]interface{}{
 				"queries": `RESUME SOURCE source;`,
 			})
 			So(err, ShouldBeNil)
@@ -427,7 +427,7 @@ func TestTopologiesQueriesSelectStmtWebSocket(t *testing.T) {
 			So(jscan(js, "/rid"), ShouldEqual, 123)
 			So(jscan(js, "/type"), ShouldEqual, "sos")
 
-			res, err := r.Do(Post, "/topologies/test_topology/queries", map[string]interface{}{
+			res, _, err := do(r, Post, "/topologies/test_topology/queries", map[string]interface{}{
 				"queries": `RESUME SOURCE source;`,
 			})
 			So(err, ShouldBeNil)
@@ -500,7 +500,7 @@ func TestTopologiesQueriesSelectUnionStmtWebSocket(t *testing.T) {
 			So(jscan(js, "/rid"), ShouldEqual, 123)
 			So(jscan(js, "/type"), ShouldEqual, "sos")
 
-			res, err := r.Do(Post, "/topologies/test_topology/queries", map[string]interface{}{
+			res, _, err := do(r, Post, "/topologies/test_topology/queries", map[string]interface{}{
 				"queries": `RESUME SOURCE source;`,
 			})
 			So(err, ShouldBeNil)
