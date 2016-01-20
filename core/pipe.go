@@ -608,7 +608,7 @@ receiveLoop:
 			}
 		}
 	}
-	return // return values will be set by the defered function.
+	return // return values will be set by the deferred function.
 }
 
 // enableGracefulStop enables graceful stop mode. If the mode is enabled, the
