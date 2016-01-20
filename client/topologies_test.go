@@ -223,7 +223,7 @@ func TestTopologiesQueriesSelectStmt(t *testing.T) {
 			Reset(func() {
 				streamRes.Close()
 			})
-			So(res.Raw.StatusCode, ShouldEqual, http.StatusOK)
+			So(streamRes.Raw.StatusCode, ShouldEqual, http.StatusOK)
 
 			res, _, err := do(r, Post, "/topologies/test_topology/queries", map[string]interface{}{
 				"queries": `RESUME SOURCE source;`,
@@ -290,7 +290,7 @@ func TestTopologiesQueriesSelectUnionStmt(t *testing.T) {
 			Reset(func() {
 				streamRes.Close()
 			})
-			So(res.Raw.StatusCode, ShouldEqual, http.StatusOK)
+			So(streamRes.Raw.StatusCode, ShouldEqual, http.StatusOK)
 
 			res, _, err := do(r, Post, "/topologies/test_topology/queries", map[string]interface{}{
 				"queries": `RESUME SOURCE source;`,
