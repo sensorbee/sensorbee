@@ -230,7 +230,7 @@ type BoxNode interface {
 	// calling this method, the Box can automatically stop even if Stop method
 	// isn't explicitly called.
 	//
-	// connDir can be InboundConnection, OutboundConnnection, or bitwise-or of
+	// connDir can be InboundConnection, OutboundConnection, or bitwise-or of
 	// them. When both InboundConnection and OutboundConnection is specified,
 	// the Box stops if all inbound connections are closed OR all outbound
 	// connections are closed. For example, when a Box has two inbound
