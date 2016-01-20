@@ -19,7 +19,8 @@ func (f *writeFailSink) Close(ctx *Context) error {
 
 func TestDroppedTupleCollectorSource(t *testing.T) {
 	Convey("Given a topology and a dropped tuple collector source", t, func() {
-		t := NewDefaultTopology(NewContext(nil), "dt1")
+		ctx := NewContext(nil)
+		t := NewDefaultTopology(ctx, "dt1")
 		Reset(func() {
 			t.Stop()
 		})
@@ -28,10 +29,14 @@ func TestDroppedTupleCollectorSource(t *testing.T) {
 			PausedOnStartup: true,
 		})
 		So(err, ShouldBeNil)
-		_, err = t.AddSource("dropped_tuples", NewDroppedTupleCollectorSource(), nil)
+		dtso := NewDroppedTupleCollectorSource().(*droppedTupleCollectorSource)
+		_, err = t.AddSource("dropped_tuples", dtso, nil)
 		So(err, ShouldBeNil)
-		_, err = t.AddSource("dropped_tuples2", NewDroppedTupleCollectorSource(), nil)
+		dtso.state.Wait(TSRunning)
+		dtso2 := NewDroppedTupleCollectorSource().(*droppedTupleCollectorSource)
+		_, err = t.AddSource("dropped_tuples2", dtso2, nil)
 		So(err, ShouldBeNil)
+		dtso2.state.Wait(TSRunning)
 		si := NewTupleCollectorSink()
 		sin, err := t.AddSink("sink", si, nil)
 		So(err, ShouldBeNil)
