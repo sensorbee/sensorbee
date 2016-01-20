@@ -168,50 +168,55 @@ func (b *bqlBox) timeEmitter(ctx *core.Context) {
 
 	// generate a ticker that will tick every time we need to emit a tuple
 	ticker := time.NewTicker(time.Duration(b.emitterSampling * float64(time.Second)))
+	defer ticker.Stop()
 	for _ = range ticker.C {
-		// we need to lock here because we access the `stopped` flag, the
-		// `lastTuple` and `lastWriter` pointer, as well as`emitCount`
-		b.timeEmitterMutex.Lock()
-		// b.stopped is set to true by either
-		// - the Terminate function (in that case we may in no case
-		//   write any further tuples to any writer)
-		// - this function itself (if there is a LIMIT present that we hit)
-		if b.stopped {
-			b.timeEmitterMutex.Unlock()
-			ticker.Stop()
-			// eat the rest of the ticks
-			continue
-		}
+		shouldContinue := func() bool {
+			// we need to lock here because we access the `stopped` flag, the
+			// `lastTuple` and `lastWriter` pointer, as well as`emitCount`
+			b.timeEmitterMutex.Lock()
+			defer b.timeEmitterMutex.Unlock()
+			// b.stopped is set to true by either
+			// - the Terminate function (in that case we may in no case
+			//   write any further tuples to any writer)
+			// - this function itself (if there is a LIMIT present that we hit)
+			if b.stopped {
+				return false
+			}
 
-		if b.lastTuple != nil && b.lastWriter != nil {
-			if err := b.lastWriter.Write(ctx, b.lastTuple); err != nil {
-				if ctx != nil {
-					ctx.ErrLog(err).WithFields(logrus.Fields{
-						"node_type": "box",
-						"node_sink": b.lastWriter,
-					}).Error("Cannot write tuple")
+			if b.lastTuple != nil && b.lastWriter != nil {
+				if err := b.lastWriter.Write(ctx, b.lastTuple); err != nil {
+					if ctx != nil {
+						ctx.ErrLog(err).WithFields(logrus.Fields{
+							"node_type": "box",
+							"node_sink": b.lastWriter,
+						}).Error("Cannot write tuple")
+					}
+				}
+				// we do not want to emit the same tuple twice, so
+				// we set it to null
+				b.lastTuple = nil
+				// increase the counter and check if we have reached the limit
+				b.emitCount += 1
+				if b.emitterLimit >= 0 && b.emitCount >= b.emitterLimit {
+					b.stopped = true
+					// if this function sets the b.stopped flag itself, it must
+					// also remove the box from the topology. (if the b.stopped
+					// flag is set by Terminate, we must not call removeMe,
+					// therefore we cannot move this behind the loop.)
+					if b.removeMe != nil {
+						b.callRemoveMeIgnoringPanic()
+						// don't call twice
+						b.removeMe = nil
+					}
+					return false
 				}
 			}
-			// we do not want to emit the same tuple twice, so
-			// we set it to null
-			b.lastTuple = nil
-			// increase the counter and check if we have reached the limit
-			b.emitCount += 1
-			if b.emitterLimit >= 0 && b.emitCount >= b.emitterLimit {
-				b.stopped = true
-				// if this function sets the b.stopped flag itself, it must
-				// also remove the box from the topology. (if the b.stopped
-				// flag is set by Terminate, we must not call removeMe,
-				// therefore we cannot move this behind the loop.)
-				if b.removeMe != nil {
-					b.callRemoveMeIgnoringPanic()
-					// don't call twice
-					b.removeMe = nil
-				}
-			}
+			return true
+		}()
+
+		if !shouldContinue {
+			break
 		}
-		// unlock the mutex while waiting
-		b.timeEmitterMutex.Unlock()
 	}
 }
 
