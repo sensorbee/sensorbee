@@ -200,6 +200,7 @@ func (t *defaultTopology) AddBox(name string, b Box, config *BoxConfig) (BoxNode
 		}
 	}()
 	db.state.Wait(TSRunning)
+	db.srcs.state.Wait(TSRunning)
 	return db, nil
 }
 
@@ -268,6 +269,7 @@ func (t *defaultTopology) AddSink(name string, s Sink, config *SinkConfig) (Sink
 		}
 	}()
 	ds.state.Wait(TSRunning)
+	ds.srcs.state.Wait(TSRunning)
 	return ds, nil
 }
 
