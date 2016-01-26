@@ -736,9 +736,7 @@ func (tb *TopologyBuilder) AddSelectStmt(stmt *parser.SelectStmt) (core.SinkNode
 func (tb *TopologyBuilder) AddSelectUnionStmt(stmts *parser.SelectUnionStmt) (core.SinkNode, <-chan *core.Tuple, error) {
 	sink, ch := newChanSink()
 	temporaryName := fmt.Sprintf("sensorbee_tmp_select_sink_%v", topologyBuilderNextTemporaryID())
-	sn, err := tb.topology.AddSink(temporaryName, sink, &core.SinkConfig{
-		RemoveOnStop: true,
-	})
+	sn, err := tb.topology.AddSink(temporaryName, sink, nil)
 	if err != nil {
 		sink.Close(tb.topology.Context())
 		return nil, nil, err
@@ -759,10 +757,12 @@ func (tb *TopologyBuilder) AddSelectUnionStmt(stmts *parser.SelectUnionStmt) (co
 				tb.topology.Context().ErrLog(err).WithField("node_type", core.NTSink).
 					WithField("node_name", temporaryName).Error("Cannot stop the temporary sink")
 			}
+			tb.topology.Remove(temporaryName)
 			return nil, nil, err
 		}
 		names = append(names, node.Name())
 	}
+	sn.RemoveOnStop()
 	sn.StopOnDisconnect()
 	return sn, ch, nil
 }
