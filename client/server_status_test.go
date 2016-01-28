@@ -1,6 +1,7 @@
 package client
 
 import (
+	"encoding/json"
 	. "github.com/smartystreets/goconvey/convey"
 	"net/http"
 	"os"
@@ -22,13 +23,13 @@ func TestServerStatus(t *testing.T) {
 			So(res.Raw.StatusCode, ShouldEqual, http.StatusOK)
 
 			Convey("Then the response should have the status", func() {
-				So(js["num_goroutine"], ShouldBeGreaterThanOrEqualTo, 0)
-				So(js["num_cgo_call"], ShouldBeGreaterThanOrEqualTo, 0)
-				So(js["gomaxprocs"], ShouldEqual, runtime.GOMAXPROCS(0))
+				So(jsonNumberToInt64(js["num_goroutine"]), ShouldBeGreaterThanOrEqualTo, 0)
+				So(jsonNumberToInt64(js["num_cgo_call"]), ShouldBeGreaterThanOrEqualTo, 0)
+				So(jsonNumberToInt64(js["gomaxprocs"]), ShouldEqual, runtime.GOMAXPROCS(0))
 				So(js["goroot"], ShouldEqual, runtime.GOROOT())
-				So(js["num_cpu"], ShouldEqual, runtime.NumCPU())
+				So(jsonNumberToInt64(js["num_cpu"]), ShouldEqual, runtime.NumCPU())
 				So(js["goversion"], ShouldEqual, runtime.Version())
-				So(js["pid"], ShouldEqual, os.Getpid())
+				So(jsonNumberToInt64(js["pid"]), ShouldEqual, os.Getpid())
 
 				dir, err := os.Getwd()
 				So(err, ShouldBeNil)
@@ -44,4 +45,12 @@ func TestServerStatus(t *testing.T) {
 			})
 		})
 	})
+}
+
+func jsonNumberToInt64(n interface{}) int64 {
+	ret, err := n.(json.Number).Int64()
+	if err != nil {
+		panic(err)
+	}
+	return ret
 }
