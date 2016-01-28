@@ -136,7 +136,9 @@ func (r *Response) ReadJSON(js interface{}) error {
 	if err != nil {
 		return err
 	}
-	if err := json.Unmarshal(body, js); err != nil {
+	dec := json.NewDecoder(bytes.NewReader(body))
+	dec.UseNumber()
+	if err := dec.Decode(js); err != nil {
 		r.readErr = err
 		return err
 	}
