@@ -105,8 +105,10 @@ func (t *defaultTopology) AddSource(name string, s Source, config *SourceConfig)
 		ds.stateMutex.Unlock()
 		if removeOnStop {
 			if err := t.Remove(name); err != nil {
-				t.ctx.ErrLog(err).WithFields(nodeLogFields(NTSource, name)).
-					Error("Cannot remove the source from topology")
+				if !IsNotExist(err) {
+					t.ctx.ErrLog(err).WithFields(nodeLogFields(NTSource, name)).
+						Error("Cannot remove the source from topology")
+				}
 			}
 		}
 	}()
@@ -194,8 +196,10 @@ func (t *defaultTopology) AddBox(name string, b Box, config *BoxConfig) (BoxNode
 		db.stateMutex.Unlock()
 		if removeOnStop {
 			if err := t.Remove(name); err != nil {
-				t.ctx.ErrLog(err).WithFields(nodeLogFields(NTBox, db.name)).
-					Error("Cannot remove the box from topology")
+				if !IsNotExist(err) {
+					t.ctx.ErrLog(err).WithFields(nodeLogFields(NTBox, db.name)).
+						Error("Cannot remove the box from topology")
+				}
 			}
 		}
 	}()
@@ -263,8 +267,10 @@ func (t *defaultTopology) AddSink(name string, s Sink, config *SinkConfig) (Sink
 		ds.stateMutex.Unlock()
 		if removeOnStop {
 			if err := t.Remove(name); err != nil {
-				t.ctx.ErrLog(err).WithFields(nodeLogFields(NTSink, ds.name)).
-					Error("Cannot remove the sink from topology")
+				if !IsNotExist(err) {
+					t.ctx.ErrLog(err).WithFields(nodeLogFields(NTSink, ds.name)).
+						Error("Cannot remove the sink from topology")
+				}
 			}
 		}
 	}()
