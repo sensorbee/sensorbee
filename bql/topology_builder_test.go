@@ -917,7 +917,11 @@ func TestSelectStmt(t *testing.T) {
 					So(sn.State().Wait(core.TSStopped), ShouldEqual, core.TSStopped)
 				})
 
-				Convey("And the Sink should be removed from the topology", func() {
+				Convey("And the Sink should eventually be removed from the topology", func() {
+					waitForExpectedCondition(func() bool {
+						_, err := dt.Sink(sn.Name())
+						return err != nil
+					})
 					_, err := dt.Sink(sn.Name())
 					So(err, ShouldNotBeNil)
 				})
@@ -972,6 +976,10 @@ func TestSelectUnionStmt(t *testing.T) {
 				})
 
 				Convey("And the Sink should be removed from the topology", func() {
+					waitForExpectedCondition(func() bool {
+						_, err := dt.Sink(sn.Name())
+						return err != nil
+					})
 					_, err := dt.Sink(sn.Name())
 					So(err, ShouldNotBeNil)
 				})
