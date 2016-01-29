@@ -412,7 +412,7 @@ func TestBasicBQLBoxUnionCapability(t *testing.T) {
 			si.Wait(4)
 			So(addBQLToTopology(tb, `REWIND SOURCE source;`), ShouldBeNil)
 
-			Convey("Then the sinkreceives tuples again", func() {
+			Convey("Then the sink receives tuples again", func() {
 				si.Wait(8)
 				So(si.len(), ShouldEqual, 8)
 			})
@@ -553,7 +553,7 @@ func TestBasicBQLBoxUnionCapability(t *testing.T) {
 			si.Wait(2)
 			So(addBQLToTopology(tb, `REWIND SOURCE source;`), ShouldBeNil)
 
-			Convey("Then the sinkreceives tuples again", func() {
+			Convey("Then the sink receives tuples again", func() {
 				si.Wait(8)
 				So(si.len(), ShouldEqual, 8)
 			})
