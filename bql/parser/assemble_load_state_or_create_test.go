@@ -121,7 +121,7 @@ func TestAssembleLoadStateOrCreate(t *testing.T) {
 		p := &bqlPeg{}
 
 		Convey("When doing a LOAD STATE OR CREATE without LoadSpecs/CreateSpecs option", func() {
-			p.Buffer = "LOAD STATE a_1 TYPE b TAG t OR CREATE IF NOT EXISTS"
+			p.Buffer = "LOAD STATE a_1 TYPE b TAG t OR CREATE IF NOT SAVED"
 			p.Init()
 
 			Convey("Then the statement should be parsed correctly", func() {
@@ -148,7 +148,7 @@ func TestAssembleLoadStateOrCreate(t *testing.T) {
 		})
 
 		Convey("When doing a LOAD STATE OR CREATE without LoadSpecs option", func() {
-			p.Buffer = "LOAD STATE a_1 TYPE b OR CREATE IF NOT EXISTS WITH c=1"
+			p.Buffer = "LOAD STATE a_1 TYPE b OR CREATE IF NOT SAVED WITH c=1"
 			p.Init()
 
 			Convey("Then the statement should be parsed correctly", func() {
@@ -177,7 +177,7 @@ func TestAssembleLoadStateOrCreate(t *testing.T) {
 		})
 
 		Convey("When doing a LOAD STATE OR CREATE without CreateSpecs option", func() {
-			p.Buffer = "LOAD STATE a_1 TYPE b SET c=2 OR CREATE IF NOT EXISTS"
+			p.Buffer = "LOAD STATE a_1 TYPE b SET c=2 OR CREATE IF NOT SAVED"
 			p.Init()
 
 			Convey("Then the statement should be parsed correctly", func() {
@@ -205,7 +205,7 @@ func TestAssembleLoadStateOrCreate(t *testing.T) {
 		})
 
 		Convey("When doing a full LOAD STATE OR CREATE", func() {
-			p.Buffer = "LOAD STATE a_1 TYPE b SET c=27, e_='f_1', f=[7,'g'] OR CREATE IF NOT EXISTS WITH g=2"
+			p.Buffer = "LOAD STATE a_1 TYPE b SET c=27, e_='f_1', f=[7,'g'] OR CREATE IF NOT SAVED WITH g=2"
 			p.Init()
 
 			Convey("Then the statement should be parsed correctly", func() {

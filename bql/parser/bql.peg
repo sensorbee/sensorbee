@@ -167,7 +167,7 @@ LoadStateStmt <- "LOAD" sp "STATE" sp StreamIdentifier sp
     }
 
 LoadStateOrCreateStmt <- LoadStateStmt sp
-                    "OR" sp "CREATE" sp "IF" sp "NOT" sp "EXISTS" SourceSinkSpecs {
+                    "OR" sp "CREATE" sp "IF" sp "NOT" sp ("SAVED" / "EXISTS") SourceSinkSpecs {
         p.AssembleLoadStateOrCreate()
     }
 
