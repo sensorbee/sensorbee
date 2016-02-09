@@ -94,7 +94,6 @@ func (b *bqlCmd) Eval(requester *client.Requester) {
 	queries := b.buffer
 	b.buffer = ""
 
-	fmt.Printf("BQL: %s\n", queries) // for debug, delete later
 	sendBQLQueries(requester, queries)
 }
 
