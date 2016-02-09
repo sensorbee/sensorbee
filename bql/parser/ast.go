@@ -291,7 +291,7 @@ func (s LoadStateOrCreateStmt) String() string {
 		str = append(str, specs)
 	}
 
-	str = append(str, "OR CREATE IF NOT EXISTS")
+	str = append(str, "OR CREATE IF NOT SAVED")
 
 	createSpecs := s.CreateSpecs.string("WITH")
 	if createSpecs != "" {

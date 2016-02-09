@@ -696,7 +696,7 @@ func TestSaveLoadStateStmt(t *testing.T) {
 				})
 
 				Convey("Then it should be able to be created", func() {
-					So(addBQLToTopology(tb, `LOAD STATE s2 TYPE dummy_updatable_uds OR CREATE IF NOT EXISTS;`), ShouldBeNil)
+					So(addBQLToTopology(tb, `LOAD STATE s2 TYPE dummy_updatable_uds OR CREATE IF NOT SAVED;`), ShouldBeNil)
 					s, err := dt.Context().SharedStates.Get("s2")
 					So(err, ShouldBeNil)
 					So(s.(*dummyUpdatableUDS).num, ShouldEqual, 2)
@@ -746,7 +746,7 @@ func TestSaveLoadStateStmt(t *testing.T) {
 				})
 
 				Convey("Then it should be able to be created", func() {
-					So(addBQLToTopology(tb, `LOAD STATE s2 TYPE dummy_updatable_uds TAG mytag OR CREATE IF NOT EXISTS;`), ShouldBeNil)
+					So(addBQLToTopology(tb, `LOAD STATE s2 TYPE dummy_updatable_uds TAG mytag OR CREATE IF NOT SAVED;`), ShouldBeNil)
 					s, err := dt.Context().SharedStates.Get("s2")
 					So(err, ShouldBeNil)
 					So(s.(*dummyUpdatableUDS).num, ShouldEqual, 2)
@@ -792,8 +792,8 @@ func TestSaveLoadStateStmt(t *testing.T) {
 			})
 		})
 
-		Convey("When loading a state which has not been created nor saved with LOAD OR CREATE IF NOT EXISTS", func() {
-			err := addBQLToTopology(tb, `LOAD STATE s4 TYPE dummy_updatable_uds OR CREATE IF NOT EXISTS WITH num=4;`)
+		Convey("When loading a state which has not been created nor saved with LOAD OR CREATE IF NOT SAVED", func() {
+			err := addBQLToTopology(tb, `LOAD STATE s4 TYPE dummy_updatable_uds OR CREATE IF NOT SAVED WITH num=4;`)
 
 			Convey("Then it should succeed", func() {
 				So(err, ShouldBeNil)

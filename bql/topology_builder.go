@@ -826,7 +826,7 @@ func (tb *TopologyBuilder) saveState(name, tag string) error {
 }
 
 // loadState loads a state from the storage. It returns true when the state was
-// not saved and LOAD STATE OR CREATE IF NOT EXISTS should fall back to CREATE STATE.
+// not saved and LOAD STATE OR CREATE IF NOT SAVED should fall back to CREATE STATE.
 func (tb *TopologyBuilder) loadState(typeName, name, tag string, params data.Map) (bool, error) {
 	r, err := tb.UDSStorage.Load(tb.topology.Name(), name, tag)
 	if err != nil {
