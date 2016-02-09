@@ -60,7 +60,7 @@ func (a *App) prompt(line *liner.State) {
 				promptLineStart)
 		}
 		if continued {
-			promptStart = promptLineContinue
+			promptStart = ""
 		}
 
 		// get line from terminal
@@ -186,6 +186,5 @@ func (a *App) Run(requester *client.Requester) {
 }
 
 const (
-	promptLineStart    = ">>> "
-	promptLineContinue = "... "
+	promptLineStart = "> "
 )
