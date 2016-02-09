@@ -14,6 +14,7 @@ import (
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"pfi/sensorbee/sensorbee/bql"
 	"pfi/sensorbee/sensorbee/bql/parser"
 	"pfi/sensorbee/sensorbee/bql/udf"
@@ -44,6 +45,11 @@ func SetUp() cli.Command {
 			Name:  "save-uds, s",
 			Value: "",
 			Usage: "save UDSs after all tuples are processed",
+		},
+		cli.StringFlag{
+			Name:  "topology, t",
+			Value: "",
+			Usage: "name of the topology",
 		},
 	}
 	return cmd
@@ -103,7 +109,13 @@ func Run(c *cli.Context) {
 
 	logger.Info("Setting up a topology")
 	bqlFile := c.Args()[0]
-	tb, err := setUpTopology(logger, conf, udsStorage)
+	topologyName := filepath.Base(bqlFile)
+	topologyName = topologyName[:len(topologyName)-len(filepath.Ext(topologyName))]
+	if n := c.String("topology"); n != "" {
+		topologyName = n
+	}
+
+	tb, err := setUpTopology(topologyName, logger, conf, udsStorage)
 	if err != nil {
 		logger.WithField("err", err).Error("Cannot set up the topology")
 		os.Exit(1)
@@ -174,7 +186,7 @@ func setUpUDSStorage(conf *config.UDSStorage) (udf.UDSStorage, error) {
 	}
 }
 
-func setUpTopology(logger *logrus.Logger, conf *config.Config, us udf.UDSStorage) (
+func setUpTopology(name string, logger *logrus.Logger, conf *config.Config, us udf.UDSStorage) (
 	*bql.TopologyBuilder, error) {
 	cc := &core.ContextConfig{
 		Logger: logger,
@@ -182,7 +194,6 @@ func setUpTopology(logger *logrus.Logger, conf *config.Config, us udf.UDSStorage
 	cc.Flags.DroppedTupleLog.Set(conf.Logging.LogDroppedTuples)
 	cc.Flags.DroppedTupleSummarization.Set(conf.Logging.SummarizeDroppedTuples)
 
-	name := "runfile" // FIXME: bql file name is better?
 	tp := core.NewDefaultTopology(core.NewContext(cc), name)
 	tb, err := bql.NewTopologyBuilder(tp)
 	if err != nil {
