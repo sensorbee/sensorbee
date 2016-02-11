@@ -76,7 +76,6 @@ func createStdoutSink(ctx *core.Context, ioParams *IOParams, params data.Map) (c
 
 func createFileSink(ctx *core.Context, ioParams *IOParams, params data.Map) (core.Sink, error) {
 	// TODO: currently this sink isn't secure because it accepts any path.
-	// TODO: support truncation
 	// TODO: support buffering
 
 	var fpath string
@@ -88,7 +87,18 @@ func createFileSink(ctx *core.Context, ioParams *IOParams, params data.Map) (cor
 		fpath = f
 	}
 
-	file, err := os.OpenFile(fpath, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0644)
+	flags := os.O_WRONLY | os.O_APPEND | os.O_CREATE
+	if v, ok := params["truncate"]; ok {
+		t, err := data.AsBool(v)
+		if err != nil {
+			return nil, fmt.Errorf("'truncate' parameter must be bool: %v", err)
+		}
+		if t {
+			flags |= os.O_TRUNC
+		}
+	}
+
+	file, err := os.OpenFile(fpath, flags, 0644)
 	if err != nil {
 		return nil, err
 	}
