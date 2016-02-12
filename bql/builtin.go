@@ -1,6 +1,9 @@
 package bql
 
 import (
+	"bufio"
+	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -35,6 +38,130 @@ func init() {
 	MustRegisterGlobalSinkCreator("uds", SinkCreatorFunc(createSharedStateSink))
 }
 
+type readerSource struct {
+	filename string
+	tsField  data.Path
+	ioParams *IOParams
+}
+
+func (s *readerSource) GenerateStream(ctx *core.Context, w core.Writer) error {
+	f, err := os.Open(s.filename)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err := f.Close(); err != nil {
+			ctx.ErrLog(err).WithField("node_name", s.ioParams.Name).
+				Warning("Cannot close the file")
+		}
+	}()
+
+	r := bufio.NewReader(f)
+	for lineNumber := 0; ; lineNumber++ {
+		line, err := r.ReadBytes('\n')
+		if err != nil && err != io.EOF {
+			return err
+		}
+
+		line = bytes.TrimSpace(line)
+		if len(line) == 0 {
+			if err == io.EOF {
+				break
+			}
+			continue
+		}
+
+		m := data.Map{}
+		if err := json.Unmarshal(line, &m); err != nil {
+			ctx.ErrLog(err).WithField("node_name", s.ioParams.Name).
+				WithField("jsonl_line_number", lineNumber).
+				WithField("body", string(line)).Warning("Ignoring the line due to a json parse error")
+			continue
+		}
+
+		t := core.NewTuple(m)
+		if s.tsField != nil {
+			if v, err := t.Data.Get(s.tsField); err == nil {
+				if ts, err := data.ToTimestamp(v); err != nil {
+					ctx.ErrLog(err).WithField("node_name", s.ioParams.Name).
+						WithField("jsonl_line_number", lineNumber).
+						WithField("timestamp_field", s.tsField).
+						WithField("timestamp_field_value", v).
+						Warning("Cannot convert a value in timestamp_field to a timestamp")
+				} else {
+					t.Timestamp = ts
+				}
+			}
+		}
+
+		if err := w.Write(ctx, t); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *readerSource) Stop(ctx *core.Context) error {
+	return nil
+}
+
+func createFileSource(ctx *core.Context, ioParams *IOParams, params data.Map) (core.Source, error) {
+	// TODO: add format parameter
+
+	fpath, err := extractPathParameter(params)
+	if err != nil {
+		return nil, err
+	}
+
+	rewindable := false
+	if v, ok := params["rewindable"]; ok {
+		r, err := data.AsBool(v)
+		if err != nil {
+			return nil, fmt.Errorf("'rewindable' parameter must be bool: %v", err)
+		}
+		rewindable = r
+	}
+
+	var tsField data.Path
+	if v, ok := params["timestamp_field"]; ok {
+		f, err := data.AsString(v)
+		if err != nil {
+			return nil, fmt.Errorf("'timestamp_field' parameter must be string: %v", err)
+		}
+		if tsField, err = data.CompilePath(f); err != nil {
+			return nil, fmt.Errorf("'timestamp_field' parameter doesn't have a valid path: %v", err)
+		}
+	}
+
+	s := &readerSource{
+		filename: fpath,
+		tsField:  tsField,
+		ioParams: ioParams,
+	}
+	if rewindable {
+		return core.NewRewindableSource(s), nil
+	}
+	return core.ImplementSourceStop(s), nil
+}
+
+// extractPathParameter retrieve 'path' parameter in the WITH clause of
+// CREATE SOURCE or CREATE SINK statement.
+func extractPathParameter(params data.Map) (string, error) {
+	v, ok := params["path"]
+	if !ok {
+		return "", errors.New("'path' parameter is missing")
+	}
+	f, err := data.AsString(v)
+	if err != nil {
+		return "", fmt.Errorf("'path' parameter must be a string: %v", err)
+	}
+	return f, nil
+}
+
+func init() {
+	MustRegisterGlobalSourceCreator("file", SourceCreatorFunc(createFileSource))
+}
+
 type writerSink struct {
 	m           sync.Mutex
 	w           io.Writer
@@ -42,6 +169,11 @@ type writerSink struct {
 }
 
 func (s *writerSink) Write(ctx *core.Context, t *core.Tuple) error {
+	// TODO: support custom formatting. There're several things that need to
+	// be considered such as concurrent formatting, zero-copy write, and so on.
+	// While encoding tuples outside the lock supports concurrent formatting,
+	// it makes it difficult to support zero-copy write.
+
 	js := t.Data.String() // Format this outside the lock
 
 	// This lock is required to avoid interleaving JSONs.
@@ -76,19 +208,28 @@ func createStdoutSink(ctx *core.Context, ioParams *IOParams, params data.Map) (c
 
 func createFileSink(ctx *core.Context, ioParams *IOParams, params data.Map) (core.Sink, error) {
 	// TODO: currently this sink isn't secure because it accepts any path.
-	// TODO: support truncation
 	// TODO: support buffering
+	// TODO: provide "format" parameter to support output formats other than "jsonl".
+	//       "jsonl" should be the default value.
+	// TODO: support "compression" parameter with values like "gz".
 
-	var fpath string
-	if v, ok := params["path"]; !ok {
-		return nil, errors.New("path parameter is missing")
-	} else if f, err := data.AsString(v); err != nil {
-		return nil, errors.New("path parameter must be a string")
-	} else {
-		fpath = f
+	fpath, err := extractPathParameter(params)
+	if err != nil {
+		return nil, err
 	}
 
-	file, err := os.OpenFile(fpath, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0644)
+	flags := os.O_WRONLY | os.O_APPEND | os.O_CREATE
+	if v, ok := params["truncate"]; ok {
+		t, err := data.AsBool(v)
+		if err != nil {
+			return nil, fmt.Errorf("'truncate' parameter must be bool: %v", err)
+		}
+		if t {
+			flags |= os.O_TRUNC
+		}
+	}
+
+	file, err := os.OpenFile(fpath, flags, 0644)
 	if err != nil {
 		return nil, err
 	}
