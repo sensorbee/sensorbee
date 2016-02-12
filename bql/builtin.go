@@ -42,6 +42,11 @@ type writerSink struct {
 }
 
 func (s *writerSink) Write(ctx *core.Context, t *core.Tuple) error {
+	// TODO: support custom formatting. There're several things that need to
+	// be considered such as concurrent formatting, zero-copy write, and so on.
+	// While encoding tuples outside the lock supports concurrent formatting,
+	// it makes it difficult to support zero-copy write.
+
 	js := t.Data.String() // Format this outside the lock
 
 	// This lock is required to avoid interleaving JSONs.
@@ -77,6 +82,9 @@ func createStdoutSink(ctx *core.Context, ioParams *IOParams, params data.Map) (c
 func createFileSink(ctx *core.Context, ioParams *IOParams, params data.Map) (core.Sink, error) {
 	// TODO: currently this sink isn't secure because it accepts any path.
 	// TODO: support buffering
+	// TODO: provide "format" parameter to support output formats other than "jsonl".
+	//       "jsonl" should be the default value.
+	// TODO: support "compression" parameter with values like "gz".
 
 	var fpath string
 	if v, ok := params["path"]; !ok {
