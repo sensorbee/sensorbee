@@ -2,10 +2,10 @@ package execution
 
 import (
 	"fmt"
-	"pfi/sensorbee/sensorbee/bql/parser"
-	"pfi/sensorbee/sensorbee/bql/udf"
-	"pfi/sensorbee/sensorbee/core"
-	"pfi/sensorbee/sensorbee/data"
+	"gopkg.in/sensorbee/sensorbee.v0/bql/parser"
+	"gopkg.in/sensorbee/sensorbee.v0/bql/udf"
+	"gopkg.in/sensorbee/sensorbee.v0/core"
+	"gopkg.in/sensorbee/sensorbee.v0/data"
 )
 
 type aliasedEvaluator struct {

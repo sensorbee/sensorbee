@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/xeipuuv/gojsonschema"
-	"pfi/sensorbee/sensorbee/data"
+	"gopkg.in/sensorbee/sensorbee.v0/data"
 	"strings"
 )
 

@@ -2,8 +2,8 @@ package core
 
 import (
 	"fmt"
+	"gopkg.in/sensorbee/sensorbee.v0/data"
 	"io"
-	"pfi/sensorbee/sensorbee/data"
 	"sync"
 )
 

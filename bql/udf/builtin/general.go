@@ -1,8 +1,8 @@
 package builtin
 
 import (
-	"pfi/sensorbee/sensorbee/bql/udf"
-	"pfi/sensorbee/sensorbee/data"
+	"gopkg.in/sensorbee/sensorbee.v0/bql/udf"
+	"gopkg.in/sensorbee/sensorbee.v0/data"
 )
 
 // coalesceFunc returns the first non-null argument.

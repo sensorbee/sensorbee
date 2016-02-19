@@ -1,4 +1,3 @@
 --- # SensorBee plug-in list
 plugins:
-#- pfi/sensorbee/snowflake/plugin
-#- pfi/sensorbee/scouter/plugin
+#- github.com/sensorbee/snowflake/plugin

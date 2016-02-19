@@ -2,13 +2,13 @@ package main
 
 import (
 	"github.com/codegangsta/cli"
+	_ "gopkg.in/sensorbee/sensorbee.v0/bql/udf/builtin"
+	"gopkg.in/sensorbee/sensorbee.v0/cmd/lib/exp"
+	"gopkg.in/sensorbee/sensorbee.v0/cmd/lib/run"
+	"gopkg.in/sensorbee/sensorbee.v0/cmd/lib/runfile"
+	"gopkg.in/sensorbee/sensorbee.v0/cmd/lib/shell"
+	"gopkg.in/sensorbee/sensorbee.v0/cmd/lib/topology"
 	"os"
-	_ "pfi/sensorbee/sensorbee/bql/udf/builtin"
-	"pfi/sensorbee/sensorbee/cmd/lib/exp"
-	"pfi/sensorbee/sensorbee/cmd/lib/run"
-	"pfi/sensorbee/sensorbee/cmd/lib/runfile"
-	"pfi/sensorbee/sensorbee/cmd/lib/shell"
-	"pfi/sensorbee/sensorbee/cmd/lib/topology"
 	"time"
 )
 

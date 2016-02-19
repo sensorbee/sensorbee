@@ -3,10 +3,10 @@ package client
 import (
 	"encoding/json"
 	. "github.com/smartystreets/goconvey/convey"
+	"gopkg.in/sensorbee/sensorbee.v0/server/testutil"
 	"net/http"
 	"os"
 	"os/user"
-	"pfi/sensorbee/sensorbee/server/testutil"
 	"runtime"
 	"testing"
 )

@@ -2,9 +2,9 @@ package server
 
 import (
 	"fmt"
+	"gopkg.in/sensorbee/sensorbee.v0/bql"
+	"gopkg.in/sensorbee/sensorbee.v0/core"
 	"os"
-	"pfi/sensorbee/sensorbee/bql"
-	"pfi/sensorbee/sensorbee/core"
 	"strings"
 	"sync"
 )

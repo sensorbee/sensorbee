@@ -2,7 +2,7 @@ package core
 
 import (
 	. "github.com/smartystreets/goconvey/convey"
-	"pfi/sensorbee/sensorbee/data"
+	"gopkg.in/sensorbee/sensorbee.v0/data"
 	"testing"
 	"time"
 )

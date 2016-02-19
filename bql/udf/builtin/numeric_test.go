@@ -3,9 +3,9 @@ package builtin
 import (
 	"fmt"
 	. "github.com/smartystreets/goconvey/convey"
+	"gopkg.in/sensorbee/sensorbee.v0/bql/udf"
+	"gopkg.in/sensorbee/sensorbee.v0/data"
 	"math"
-	"pfi/sensorbee/sensorbee/bql/udf"
-	"pfi/sensorbee/sensorbee/data"
 	"testing"
 	"time"
 )

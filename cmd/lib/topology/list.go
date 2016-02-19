@@ -3,9 +3,9 @@ package topology
 import (
 	"fmt"
 	"github.com/codegangsta/cli"
+	"gopkg.in/sensorbee/sensorbee.v0/client"
+	"gopkg.in/sensorbee/sensorbee.v0/server/response"
 	"os"
-	"pfi/sensorbee/sensorbee/client"
-	"pfi/sensorbee/sensorbee/server/response"
 )
 
 func setUpList() cli.Command {

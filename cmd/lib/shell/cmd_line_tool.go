@@ -3,8 +3,8 @@ package shell
 import (
 	"fmt"
 	"github.com/codegangsta/cli"
+	"gopkg.in/sensorbee/sensorbee.v0/client"
 	"os"
-	"pfi/sensorbee/sensorbee/client"
 )
 
 // SetUp SensorBee shell tool. The tool sets up HTTP client and access to

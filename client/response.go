@@ -6,11 +6,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"gopkg.in/sensorbee/sensorbee.v0/server/response"
 	"io"
 	"io/ioutil"
 	"mime"
 	"net/http"
-	"pfi/sensorbee/sensorbee/server/response"
 	"strconv"
 	"strings"
 )

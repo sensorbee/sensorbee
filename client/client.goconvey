@@ -1,2 +1,2 @@
--coverpkg=pfi/sensorbee/sensorbee/client,pfi/sensorbee/sensorbee/server,pfi/sensorbee/sensorbee/server/response,pfi/sensorbee/sensorbee/server/testutil
+-coverpkg=gopkg.in/sensorbee/sensorbee.v0/client,gopkg.in/sensorbee/sensorbee.v0/server,gopkg.in/sensorbee/sensorbee.v0/server/response,gopkg.in/sensorbee/sensorbee.v0/server/testutil
 -timeout=10s

@@ -2,7 +2,7 @@ package config
 
 import (
 	"github.com/xeipuuv/gojsonschema"
-	"pfi/sensorbee/sensorbee/data"
+	"gopkg.in/sensorbee/sensorbee.v0/data"
 )
 
 // Network has configuration parameters related to the network.

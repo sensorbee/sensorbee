@@ -2,8 +2,8 @@ package shell
 
 import (
 	"fmt"
+	"gopkg.in/sensorbee/sensorbee.v0/client"
 	"io/ioutil"
-	"pfi/sensorbee/sensorbee/client"
 	"strings"
 )
 

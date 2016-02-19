@@ -3,9 +3,9 @@ package shell
 import (
 	"encoding/json"
 	"fmt"
+	"gopkg.in/sensorbee/sensorbee.v0/client"
 	"os"
 	"os/signal"
-	"pfi/sensorbee/sensorbee/client"
 	"strings"
 )
 

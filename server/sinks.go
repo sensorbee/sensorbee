@@ -3,9 +3,9 @@ package server
 import (
 	"github.com/Sirupsen/logrus"
 	"github.com/gocraft/web"
+	"gopkg.in/sensorbee/sensorbee.v0/core"
+	"gopkg.in/sensorbee/sensorbee.v0/server/response"
 	"net/http"
-	"pfi/sensorbee/sensorbee/core"
-	"pfi/sensorbee/sensorbee/server/response"
 )
 
 type sinks struct {

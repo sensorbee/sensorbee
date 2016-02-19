@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"github.com/xeipuuv/gojsonschema"
 	"gopkg.in/natefinch/lumberjack.v2"
+	"gopkg.in/sensorbee/sensorbee.v0/data"
 	"io"
 	"os"
-	"pfi/sensorbee/sensorbee/data"
 )
 
 // Logging has configuration parameters for logging.

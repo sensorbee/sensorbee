@@ -2,7 +2,7 @@ package bql
 
 import (
 	. "github.com/smartystreets/goconvey/convey"
-	"pfi/sensorbee/sensorbee/core"
+	"gopkg.in/sensorbee/sensorbee.v0/core"
 	"testing"
 )
 

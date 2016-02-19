@@ -3,7 +3,7 @@ package core
 import (
 	"errors"
 	"fmt"
-	"pfi/sensorbee/sensorbee/data"
+	"gopkg.in/sensorbee/sensorbee.v0/data"
 	"reflect"
 	"sync"
 	"sync/atomic"

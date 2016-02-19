@@ -3,9 +3,9 @@ package udf
 import (
 	"errors"
 	"fmt"
+	"gopkg.in/sensorbee/sensorbee.v0/core"
+	"gopkg.in/sensorbee/sensorbee.v0/data"
 	"math"
-	"pfi/sensorbee/sensorbee/core"
-	"pfi/sensorbee/sensorbee/data"
 	"reflect"
 	"time"
 )

@@ -2,7 +2,7 @@ package shell
 
 import (
 	. "github.com/smartystreets/goconvey/convey"
-	_ "pfi/sensorbee/sensorbee/client"
+	_ "gopkg.in/sensorbee/sensorbee.v0/client"
 	"testing"
 )
 

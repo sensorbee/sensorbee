@@ -2,10 +2,10 @@ package client
 
 import (
 	. "github.com/smartystreets/goconvey/convey"
+	"gopkg.in/sensorbee/sensorbee.v0/data"
+	"gopkg.in/sensorbee/sensorbee.v0/server/response"
+	"gopkg.in/sensorbee/sensorbee.v0/server/testutil"
 	"net/http"
-	"pfi/sensorbee/sensorbee/data"
-	"pfi/sensorbee/sensorbee/server/response"
-	"pfi/sensorbee/sensorbee/server/testutil"
 	"testing"
 )
 

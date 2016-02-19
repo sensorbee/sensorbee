@@ -2,9 +2,9 @@ package udf
 
 import (
 	"fmt"
+	"gopkg.in/sensorbee/sensorbee.v0/core"
+	"gopkg.in/sensorbee/sensorbee.v0/data"
 	"io"
-	"pfi/sensorbee/sensorbee/core"
-	"pfi/sensorbee/sensorbee/data"
 	"strings"
 	"sync"
 )

@@ -3,7 +3,7 @@ package core
 import (
 	"fmt"
 	"github.com/Sirupsen/logrus"
-	"pfi/sensorbee/sensorbee/data"
+	"gopkg.in/sensorbee/sensorbee.v0/data"
 	"regexp"
 )
 

@@ -1,7 +1,7 @@
 package execution
 
 import (
-	"pfi/sensorbee/sensorbee/data"
+	"gopkg.in/sensorbee/sensorbee.v0/data"
 )
 
 // sortArray holds an array of values of which we want to find the order,

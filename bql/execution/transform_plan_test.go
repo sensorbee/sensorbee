@@ -3,11 +3,11 @@ package execution
 import (
 	"fmt"
 	. "github.com/smartystreets/goconvey/convey"
-	"pfi/sensorbee/sensorbee/bql/parser"
-	"pfi/sensorbee/sensorbee/bql/udf"
-	_ "pfi/sensorbee/sensorbee/bql/udf/builtin"
-	"pfi/sensorbee/sensorbee/core"
-	"pfi/sensorbee/sensorbee/data"
+	"gopkg.in/sensorbee/sensorbee.v0/bql/parser"
+	"gopkg.in/sensorbee/sensorbee.v0/bql/udf"
+	_ "gopkg.in/sensorbee/sensorbee.v0/bql/udf/builtin"
+	"gopkg.in/sensorbee/sensorbee.v0/core"
+	"gopkg.in/sensorbee/sensorbee.v0/data"
 	"reflect"
 	"testing"
 )

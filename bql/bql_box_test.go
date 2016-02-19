@@ -3,9 +3,9 @@ package bql
 import (
 	"fmt"
 	. "github.com/smartystreets/goconvey/convey"
-	_ "pfi/sensorbee/sensorbee/bql/udf/builtin"
-	"pfi/sensorbee/sensorbee/core"
-	"pfi/sensorbee/sensorbee/data"
+	_ "gopkg.in/sensorbee/sensorbee.v0/bql/udf/builtin"
+	"gopkg.in/sensorbee/sensorbee.v0/core"
+	"gopkg.in/sensorbee/sensorbee.v0/data"
 	"testing"
 	"time"
 )

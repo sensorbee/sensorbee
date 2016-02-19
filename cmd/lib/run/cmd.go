@@ -5,14 +5,14 @@ package run
 import (
 	"fmt"
 	"github.com/codegangsta/cli"
+	"gopkg.in/sensorbee/sensorbee.v0/data"
+	"gopkg.in/sensorbee/sensorbee.v0/server"
+	"gopkg.in/sensorbee/sensorbee.v0/server/config"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"net"
 	"net/http"
 	"os"
-	"pfi/sensorbee/sensorbee/data"
-	"pfi/sensorbee/sensorbee/server"
-	"pfi/sensorbee/sensorbee/server/config"
 )
 
 // SetUp sets up SensorBee's HTTP server. The URL or port ID is set with server

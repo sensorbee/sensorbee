@@ -3,8 +3,8 @@ package topology
 import (
 	"fmt"
 	"github.com/codegangsta/cli"
+	"gopkg.in/sensorbee/sensorbee.v0/client"
 	"os"
-	"pfi/sensorbee/sensorbee/client"
 )
 
 func setUpCreate() cli.Command {

@@ -3,12 +3,12 @@ package testutil
 import (
 	"bytes"
 	"github.com/mattn/go-scan"
+	"gopkg.in/sensorbee/sensorbee.v0/data"
+	"gopkg.in/sensorbee/sensorbee.v0/server"
+	"gopkg.in/sensorbee/sensorbee.v0/server/config"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
-	"pfi/sensorbee/sensorbee/data"
-	"pfi/sensorbee/sensorbee/server"
-	"pfi/sensorbee/sensorbee/server/config"
 )
 
 var (

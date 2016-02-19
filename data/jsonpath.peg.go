@@ -1,11 +1,11 @@
 package data
 
 import (
-	"strings"
 	"fmt"
 	"math"
 	"sort"
 	"strconv"
+	"strings"
 )
 
 const end_symbol rune = 1114112

@@ -3,10 +3,10 @@ package exp
 import (
 	"encoding/json"
 	"fmt"
+	"gopkg.in/sensorbee/sensorbee.v0/data"
 	"io"
 	"io/ioutil"
 	"os"
-	"pfi/sensorbee/sensorbee/data"
 	"time"
 )
 

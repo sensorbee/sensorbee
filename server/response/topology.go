@@ -1,7 +1,7 @@
 package response
 
 import (
-	"pfi/sensorbee/sensorbee/core"
+	"gopkg.in/sensorbee/sensorbee.v0/core"
 )
 
 // Topology is a part of the response which topologies.show action returns.

@@ -1,8 +1,8 @@
 package response
 
 import (
-	"pfi/sensorbee/sensorbee/core"
-	"pfi/sensorbee/sensorbee/data"
+	"gopkg.in/sensorbee/sensorbee.v0/core"
+	"gopkg.in/sensorbee/sensorbee.v0/data"
 )
 
 // Sink is a part of the response which is returned by sinks' action.

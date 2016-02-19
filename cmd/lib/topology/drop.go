@@ -3,10 +3,10 @@ package topology
 import (
 	"fmt"
 	"github.com/codegangsta/cli"
+	"gopkg.in/sensorbee/sensorbee.v0/client"
+	"gopkg.in/sensorbee/sensorbee.v0/core"
 	"os"
 	"path"
-	"pfi/sensorbee/sensorbee/client"
-	"pfi/sensorbee/sensorbee/core"
 )
 
 func setUpDrop() cli.Command {

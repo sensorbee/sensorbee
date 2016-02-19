@@ -2,9 +2,9 @@ package udf
 
 import (
 	. "github.com/smartystreets/goconvey/convey"
+	"gopkg.in/sensorbee/sensorbee.v0/core"
 	"io"
 	"io/ioutil"
-	"pfi/sensorbee/sensorbee/core"
 	"testing"
 )
 

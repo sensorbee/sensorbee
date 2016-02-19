@@ -3,7 +3,7 @@ package execution
 import (
 	"fmt"
 	. "github.com/smartystreets/goconvey/convey"
-	"pfi/sensorbee/sensorbee/data"
+	"gopkg.in/sensorbee/sensorbee.v0/data"
 	"sort"
 	"testing"
 )

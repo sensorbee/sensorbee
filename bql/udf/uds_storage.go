@@ -4,9 +4,9 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"gopkg.in/sensorbee/sensorbee.v0/core"
 	"io"
 	"io/ioutil"
-	"pfi/sensorbee/sensorbee/core"
 	"sync"
 )
 

@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"github.com/codegangsta/cli"
 	. "github.com/smartystreets/goconvey/convey"
+	"gopkg.in/sensorbee/sensorbee.v0/server/testutil"
 	"io/ioutil"
-	"pfi/sensorbee/sensorbee/server/testutil"
 	"testing"
 )
 

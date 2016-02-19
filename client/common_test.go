@@ -1,10 +1,10 @@
 package client
 
 import (
-	"pfi/sensorbee/sensorbee/bql"
-	"pfi/sensorbee/sensorbee/core"
-	"pfi/sensorbee/sensorbee/data"
-	"pfi/sensorbee/sensorbee/server/testutil"
+	"gopkg.in/sensorbee/sensorbee.v0/bql"
+	"gopkg.in/sensorbee/sensorbee.v0/core"
+	"gopkg.in/sensorbee/sensorbee.v0/data"
+	"gopkg.in/sensorbee/sensorbee.v0/server/testutil"
 	"time"
 )
 

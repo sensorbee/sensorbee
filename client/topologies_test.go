@@ -6,9 +6,9 @@ import (
 	"encoding/json"
 	. "github.com/smartystreets/goconvey/convey"
 	"golang.org/x/net/websocket"
+	"gopkg.in/sensorbee/sensorbee.v0/data"
+	"gopkg.in/sensorbee/sensorbee.v0/server/testutil"
 	"net/http"
-	"pfi/sensorbee/sensorbee/data"
-	"pfi/sensorbee/sensorbee/server/testutil"
 	"testing"
 )
 

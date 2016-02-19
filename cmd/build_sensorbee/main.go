@@ -148,8 +148,8 @@ const (
 import (
 	"github.com/codegangsta/cli"
 	"os"
-	_ "pfi/sensorbee/sensorbee/bql/udf/builtin"{{range $_, $sub := .SubCommands}}
-	"pfi/sensorbee/sensorbee/cmd/lib/{{$sub}}"{{end}}
+	_ "gopkg.in/sensorbee/sensorbee.v0/bql/udf/builtin"{{range $_, $sub := .SubCommands}}
+	"gopkg.in/sensorbee/sensorbee.v0/cmd/lib/{{$sub}}"{{end}}
 	"time"
 {{range $_, $path := .PluginPaths}}	_ "{{$path}}"
 {{end}})

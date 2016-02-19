@@ -4,8 +4,8 @@ import (
 	"crypto/sha1"
 	"encoding/hex"
 	"fmt"
-	"pfi/sensorbee/sensorbee/bql/parser"
-	"pfi/sensorbee/sensorbee/bql/udf"
+	"gopkg.in/sensorbee/sensorbee.v0/bql/parser"
+	"gopkg.in/sensorbee/sensorbee.v0/bql/udf"
 	"strings"
 )
 

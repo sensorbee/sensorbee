@@ -2,10 +2,10 @@ package udsstorage
 
 import (
 	. "github.com/smartystreets/goconvey/convey"
+	"gopkg.in/sensorbee/sensorbee.v0/core"
 	"io"
 	"io/ioutil"
 	"os"
-	"pfi/sensorbee/sensorbee/core"
 	"testing"
 )
 

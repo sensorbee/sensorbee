@@ -1,7 +1,7 @@
 package shell
 
 import (
-	"pfi/sensorbee/sensorbee/client"
+	"gopkg.in/sensorbee/sensorbee.v0/client"
 )
 
 type cmdInputStatusType int

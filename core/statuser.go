@@ -1,7 +1,7 @@
 package core
 
 import (
-	"pfi/sensorbee/sensorbee/data"
+	"gopkg.in/sensorbee/sensorbee.v0/data"
 )
 
 // Statuser is an interface which provides Status method to retrieve its status.

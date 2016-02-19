@@ -3,8 +3,8 @@ package core
 import (
 	"errors"
 	"github.com/Sirupsen/logrus"
+	"gopkg.in/sensorbee/sensorbee.v0/data"
 	"path/filepath"
-	"pfi/sensorbee/sensorbee/data"
 	"runtime"
 	"sync"
 	"sync/atomic"

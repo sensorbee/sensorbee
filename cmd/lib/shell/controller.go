@@ -4,10 +4,10 @@ import (
 	"bufio"
 	"fmt"
 	"github.com/peterh/liner"
+	"gopkg.in/sensorbee/sensorbee.v0/client"
 	"io"
 	"os"
 	"path"
-	"pfi/sensorbee/sensorbee/client"
 	"runtime"
 	"strings"
 )

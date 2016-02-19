@@ -2,7 +2,7 @@ package config
 
 import (
 	"encoding/json"
-	"pfi/sensorbee/sensorbee/data"
+	"gopkg.in/sensorbee/sensorbee.v0/data"
 )
 
 func toMap(js string) data.Map {
