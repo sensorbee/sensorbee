@@ -46,6 +46,7 @@ func init() {
 	rootSchema = s
 }
 
+// New creates a new config struct from JSON-style parameters.
 func New(m data.Map) (*Config, error) {
 	if err := validate(rootSchema, m); err != nil {
 		return nil, err

@@ -7,6 +7,7 @@ import (
 )
 
 const (
+	// DefaultPort is the default port number used by the SensorBee server.
 	DefaultPort = 15601
 )
 

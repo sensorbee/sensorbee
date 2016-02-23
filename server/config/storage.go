@@ -93,6 +93,7 @@ func init() {
 	storageSchema = s
 }
 
+// NewStorage creates a Storage config parameters from a given map.
 func NewStorage(m data.Map) (*Storage, error) {
 	if err := validate(storageSchema, m); err != nil {
 		return nil, err
