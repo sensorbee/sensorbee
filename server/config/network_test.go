@@ -23,7 +23,7 @@ func TestNetwork(t *testing.T) {
 
 			Convey("Then it should have given parameters and default values", func() {
 				So(err, ShouldBeNil)
-				So(n.ListenOn, ShouldEqual, ":8090")
+				So(n.ListenOn, ShouldEqual, fmt.Sprintf(":%d", DefaultPort))
 			})
 		})
 
@@ -36,7 +36,7 @@ func TestNetwork(t *testing.T) {
 		})
 
 		Convey("When validating listen_on", func() {
-			for _, addr := range []string{"127.0.0.1:8090", "localhost:8090", ":8090"} {
+			for _, addr := range []string{fmt.Sprintf("127.0.0.1:%d", DefaultPort), fmt.Sprintf("localhost:%d", DefaultPort), fmt.Sprintf(":%d", DefaultPort)} {
 				Convey(fmt.Sprint("Then it should accept ", addr), func() {
 					n, err := NewNetwork(toMap(fmt.Sprintf(`{"listen_on":"%v"}`, addr)))
 					So(err, ShouldBeNil)
@@ -46,7 +46,7 @@ func TestNetwork(t *testing.T) {
 
 			for _, lv := range [][]interface{}{{"empty addr", `""`},
 				{"no port", `":"`},
-				{"no :", `"localhost8090"`},
+				{"no :", fmt.Sprintf(`"localhost%d"`, DefaultPort)},
 				{"invalid type", 1}} {
 				Convey(fmt.Sprintf("Then it should reject %v", lv[0]), func() {
 					_, err := NewNetwork(toMap(fmt.Sprintf(`{"listen_on":%v}`, lv[1])))

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/codegangsta/cli"
 	"gopkg.in/sensorbee/sensorbee.v0/client"
+	"gopkg.in/sensorbee/sensorbee.v0/server/config"
 	"os"
 )
 
@@ -54,7 +55,7 @@ var (
 	commonFlags = []cli.Flag{
 		cli.StringFlag{ // TODO: share this flag with others
 			Name:   "uri",
-			Value:  "http://localhost:8090/",
+			Value:  fmt.Sprintf("http://localhost:%d/", config.DefaultPort),
 			Usage:  "the address of the target SensorBee server",
 			EnvVar: "SENSORBEE_URI",
 		},
