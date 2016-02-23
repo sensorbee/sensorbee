@@ -54,9 +54,9 @@ func (a *App) prompt(line *liner.State) {
 	// for a continued statement will be shown)
 	getNextLine := func(continued bool) (string, error) {
 		// create prompt
-		promptStart := "(no topology)" + promptLineStart
+		promptStart := promptLineStart
 		if currentTopology.name != "" {
-			promptStart = fmt.Sprintf("(%s)%s", currentTopology.name,
+			promptStart = fmt.Sprintf("%s%s", currentTopology.name,
 				promptLineStart)
 		}
 		if continued {
