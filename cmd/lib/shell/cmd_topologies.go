@@ -140,10 +140,21 @@ func sendBQLQueries(requester *client.Requester, queries string) {
 	if err == nil {
 		result, ok := data["result"]
 		if ok {
-			fmt.Println(result)
+			printJSONResult(result)
 		}
 	}
 
+}
+
+// printJSONResult prints a result in JSON format. This function directly print
+// an error message on failure and doesn't return an error.
+func printJSONResult(v interface{}) {
+	data, err := json.Marshal(v)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "cannot marshal the result into a JSON: %v\n", err)
+		return
+	}
+	fmt.Printf("%s\n", data)
 }
 
 func showStreamResponses(res *client.Response) {
@@ -163,12 +174,7 @@ func showStreamResponses(res *client.Response) {
 			if !ok {
 				return
 			}
-			data, err := json.Marshal(js)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "cannot marshal a JSON: %v\n", err)
-				return
-			}
-			fmt.Printf("%s\n", data)
+			printJSONResult(js)
 
 		case <-sig:
 			return // The response is closed by the caller
