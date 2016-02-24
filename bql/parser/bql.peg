@@ -556,7 +556,7 @@ Wildcard <- < (ident ':' !':')? '*' > {
         p.PushComponent(begin, end, NewWildcard(substr))
     }
 
-StringLiteral <- < ['] ("''" / !"'" .)* ['] > {
+StringLiteral <- < ["] ('""' / !'"' .)* ["] > {
         substr := string([]rune(buffer)[begin:end])
         p.PushComponent(begin, end, NewStringLiteral(substr))
     }
@@ -766,9 +766,9 @@ jsonMapMultipleLevel <- '..' (jsonMapAccessString / jsonMapAccessBracket)
 
 jsonMapAccessString <- < [[a-z]] ([[a-z]] / [0-9] / '_')* >
 
-jsonMapAccessBracket <- '[' (singleQuotedString) ']'
+jsonMapAccessBracket <- '[' (doubleQuotedString) ']'
 
-singleQuotedString <- ['] < ("''" / !"'" .)* > [']
+doubleQuotedString <- ["] < ('""' / !'"' .)* > ["]
 
 jsonArrayAccess <- '[' < '-'? [0-9]+ > ']'
 

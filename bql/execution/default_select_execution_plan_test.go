@@ -377,7 +377,7 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 
 	Convey("Given a SELECT clause with a nested column alias", t, func() {
 		tuples := getTuples(4)
-		s := `CREATE STREAM box AS SELECT ISTREAM int-1 AS a.c, int+1 AS a['d'], int AS b[1] FROM src [RANGE 2 SECONDS]`
+		s := `CREATE STREAM box AS SELECT ISTREAM int-1 AS a.c, int+1 AS a["d"], int AS b[1] FROM src [RANGE 2 SECONDS]`
 		plan, err := createDefaultSelectPlan(s, t)
 		So(err, ShouldBeNil)
 
@@ -399,7 +399,7 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 
 	Convey("Given a SELECT clause with various expressions", t, func() {
 		tuples := getTuples(4)
-		s := `CREATE STREAM box AS SELECT ISTREAM CASE int WHEN 1 THEN int+1 WHEN 3 THEN 'b' ELSE 'c' END AS x FROM src [RANGE 2 SECONDS]`
+		s := `CREATE STREAM box AS SELECT ISTREAM CASE int WHEN 1 THEN int+1 WHEN 3 THEN "b" ELSE "c" END AS x FROM src [RANGE 2 SECONDS]`
 		plan, err := createDefaultSelectPlan(s, t)
 		So(err, ShouldBeNil)
 
@@ -580,7 +580,7 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 
 	Convey("Given a SELECT clause with a wildcard in a map", t, func() {
 		tuples := getTuples(4)
-		s := `CREATE STREAM box AS SELECT ISTREAM {'a': src:*} AS x FROM src [RANGE 2 SECONDS]`
+		s := `CREATE STREAM box AS SELECT ISTREAM {"a": src:*} AS x FROM src [RANGE 2 SECONDS]`
 		plan, err := createDefaultSelectPlan(s, t)
 		So(err, ShouldBeNil)
 

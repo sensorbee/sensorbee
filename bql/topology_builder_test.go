@@ -52,7 +52,7 @@ func TestCreateSourceStmt(t *testing.T) {
 		})
 
 		Convey("When running CREATE SOURCE with invalid parameters", func() {
-			err := addBQLToTopology(tb, `CREATE SOURCE hoge TYPE dummy WITH num='bar'`)
+			err := addBQLToTopology(tb, `CREATE SOURCE hoge TYPE dummy WITH num="bar"`)
 
 			Convey("Then an error should be returned", func() {
 				So(err, ShouldNotBeNil)
@@ -61,7 +61,7 @@ func TestCreateSourceStmt(t *testing.T) {
 		})
 
 		Convey("When running CREATE SOURCE with unknown parameters", func() {
-			err := addBQLToTopology(tb, `CREATE SOURCE hoge TYPE dummy WITH foo='bar'`)
+			err := addBQLToTopology(tb, `CREATE SOURCE hoge TYPE dummy WITH foo="bar"`)
 
 			Convey("Then an error should be returned", func() {
 				So(err, ShouldNotBeNil)
@@ -140,7 +140,7 @@ func TestCreateStreamAsSelectStmt(t *testing.T) {
 		Convey("When running CREATE STREAM AS SELECT with a UDSF", func() {
 			Convey("If all parameters are foldable", func() {
 				err := addBQLToTopology(tb, `CREATE STREAM t AS SELECT ISTREAM int FROM
-                duplicate('s', 2) [RANGE 2 SECONDS] WHERE int=2`)
+                duplicate("s", 2) [RANGE 2 SECONDS] WHERE int=2`)
 
 				Convey("Then there should be no error", func() {
 					So(err, ShouldBeNil)
@@ -148,7 +148,7 @@ func TestCreateStreamAsSelectStmt(t *testing.T) {
 
 				Convey("And when joining source and UDSF", func() {
 					err := addBQLToTopology(tb, `CREATE STREAM x AS SELECT ISTREAM s:int FROM
-                s [RANGE 2 SECONDS], duplicate('s', 2) [RANGE 3 TUPLES]`)
+                s [RANGE 2 SECONDS], duplicate("s", 2) [RANGE 3 TUPLES]`)
 
 					Convey("Then there should be no error", func() {
 						So(err, ShouldBeNil)
@@ -157,7 +157,7 @@ func TestCreateStreamAsSelectStmt(t *testing.T) {
 
 				Convey("And when self-joining the UDSF", func() {
 					err := addBQLToTopology(tb, `CREATE STREAM x AS SELECT ISTREAM s:int FROM
-                    duplicate('s', 2) [RANGE 2 SECONDS] AS s, duplicate('s', 4) [RANGE 3 TUPLES] AS t`)
+                    duplicate("s", 2) [RANGE 2 SECONDS] AS s, duplicate("s", 4) [RANGE 3 TUPLES] AS t`)
 
 					Convey("Then there should be no error", func() {
 						So(err, ShouldBeNil)
@@ -185,7 +185,7 @@ func TestCreateStreamAsSelectStmt(t *testing.T) {
 
 			Convey("If not all parameters are foldable", func() {
 				err := addBQLToTopology(tb, `CREATE STREAM t AS SELECT ISTREAM int FROM
-                duplicate('s', int) [RANGE 2 SECONDS] WHERE int=2`)
+                duplicate("s", int) [RANGE 2 SECONDS] WHERE int=2`)
 
 				Convey("Then there should be an error", func() {
 					So(err, ShouldNotBeNil)
@@ -195,7 +195,7 @@ func TestCreateStreamAsSelectStmt(t *testing.T) {
 
 			Convey("If the UDSF is called with the wrong number of arguments", func() {
 				err := addBQLToTopology(tb, `CREATE STREAM t AS SELECT ISTREAM int FROM
-                duplicate('s', 1, 2) [RANGE 2 SECONDS] WHERE int=2`)
+                duplicate("s", 1, 2) [RANGE 2 SECONDS] WHERE int=2`)
 
 				Convey("Then there should be an error", func() {
 					So(err, ShouldNotBeNil)
@@ -205,7 +205,7 @@ func TestCreateStreamAsSelectStmt(t *testing.T) {
 
 			Convey("If creating the UDSF fails", func() {
 				err := addBQLToTopology(tb, `CREATE STREAM t AS SELECT ISTREAM int FROM
-                failing_duplicate('s', 2) [RANGE 2 SECONDS] WHERE int=2`)
+                failing_duplicate("s", 2) [RANGE 2 SECONDS] WHERE int=2`)
 
 				Convey("Then there should be an error", func() {
 					So(err, ShouldNotBeNil)
@@ -349,7 +349,7 @@ func TestCreateSinkStmt(t *testing.T) {
 			})
 		})
 		Convey("When running CREATE SINK with invalid parameters", func() {
-			err := addBQLToTopology(tb, `CREATE SINK hoge TYPE collector WITH foo='bar'`)
+			err := addBQLToTopology(tb, `CREATE SINK hoge TYPE collector WITH foo="bar"`)
 
 			Convey("Then an error should be returned", func() {
 				So(err, ShouldNotBeNil)
@@ -1025,7 +1025,7 @@ func TestEvalStmt(t *testing.T) {
 
 		Convey("When issuing an EVAL stmt with a foldable expression without ON", func() {
 			bp := parser.New()
-			istmt, _, err := bp.ParseStmt(`EVAL '日本' || (2+3)`)
+			istmt, _, err := bp.ParseStmt(`EVAL "日本" || (2+3)`)
 			So(err, ShouldBeNil)
 			stmt := istmt.(parser.EvalStmt)
 			val, err := tb.RunEvalStmt(&stmt)
@@ -1038,7 +1038,7 @@ func TestEvalStmt(t *testing.T) {
 
 		Convey("When issuing an EVAL stmt with a foldable expression and a foldable ON expression", func() {
 			bp := parser.New()
-			istmt, _, err := bp.ParseStmt(`EVAL '日本' || (2+3) ON {'key': 5}`)
+			istmt, _, err := bp.ParseStmt(`EVAL "日本" || (2+3) ON {"key": 5}`)
 			So(err, ShouldBeNil)
 			stmt := istmt.(parser.EvalStmt)
 			val, err := tb.RunEvalStmt(&stmt)
@@ -1051,14 +1051,14 @@ func TestEvalStmt(t *testing.T) {
 
 		Convey("When issuing an EVAL stmt with a foldable expression and a non-foldable ON expression", func() {
 			bp := parser.New()
-			istmt, _, err := bp.ParseStmt(`EVAL '日本' || (2+3) ON {'key': a}`)
+			istmt, _, err := bp.ParseStmt(`EVAL "日本" || (2+3) ON {"key": a}`)
 			So(err, ShouldBeNil)
 			stmt := istmt.(parser.EvalStmt)
 			_, err = tb.RunEvalStmt(&stmt)
 
 			Convey("Then an error is returned", func() {
 				So(err, ShouldNotBeNil)
-				So(err.Error(), ShouldEqual, "expression is not foldable: {'key':a}")
+				So(err.Error(), ShouldEqual, `expression is not foldable: {"key":a}`)
 			})
 		})
 
@@ -1066,20 +1066,20 @@ func TestEvalStmt(t *testing.T) {
 
 		Convey("When issuing an EVAL stmt with a non-foldable expression without ON", func() {
 			bp := parser.New()
-			istmt, _, err := bp.ParseStmt(`EVAL '日本' || key`)
+			istmt, _, err := bp.ParseStmt(`EVAL "日本" || key`)
 			So(err, ShouldBeNil)
 			stmt := istmt.(parser.EvalStmt)
 			_, err = tb.RunEvalStmt(&stmt)
 
 			Convey("Then an error is returned", func() {
 				So(err, ShouldNotBeNil)
-				So(err.Error(), ShouldEqual, "expression is not foldable: '日本' || key")
+				So(err.Error(), ShouldEqual, `expression is not foldable: "日本" || key`)
 			})
 		})
 
 		Convey("When issuing an EVAL stmt with a non-foldable expression and a foldable ON expression", func() {
 			bp := parser.New()
-			istmt, _, err := bp.ParseStmt(`EVAL '日本' || key ON {'key': 5}`)
+			istmt, _, err := bp.ParseStmt(`EVAL "日本" || key ON {"key": 5}`)
 			So(err, ShouldBeNil)
 			stmt := istmt.(parser.EvalStmt)
 			val, err := tb.RunEvalStmt(&stmt)
@@ -1092,14 +1092,14 @@ func TestEvalStmt(t *testing.T) {
 
 		Convey("When issuing an EVAL stmt with a non-foldable expression and a non-foldable ON expression", func() {
 			bp := parser.New()
-			istmt, _, err := bp.ParseStmt(`EVAL '日本' || key ON {'key': a}`)
+			istmt, _, err := bp.ParseStmt(`EVAL "日本" || key ON {"key": a}`)
 			So(err, ShouldBeNil)
 			stmt := istmt.(parser.EvalStmt)
 			_, err = tb.RunEvalStmt(&stmt)
 
 			Convey("Then an error is returned", func() {
 				So(err, ShouldNotBeNil)
-				So(err.Error(), ShouldEqual, "expression is not foldable: {'key':a}")
+				So(err.Error(), ShouldEqual, `expression is not foldable: {"key":a}`)
 			})
 		})
 
@@ -1107,7 +1107,7 @@ func TestEvalStmt(t *testing.T) {
 
 		Convey("When issuing an EVAL stmt with an expression using a stream prefix", func() {
 			bp := parser.New()
-			istmt, _, err := bp.ParseStmt(`EVAL '日本' || s:key ON {'key': 5}`)
+			istmt, _, err := bp.ParseStmt(`EVAL "日本" || s:key ON {"key": 5}`)
 			So(err, ShouldBeNil)
 			stmt := istmt.(parser.EvalStmt)
 			_, err = tb.RunEvalStmt(&stmt)

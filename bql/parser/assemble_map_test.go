@@ -88,7 +88,7 @@ func TestAssembleMap(t *testing.T) {
 		p := &bqlPeg{}
 
 		Convey("When selecting a function of multiple columns", func() {
-			p.Buffer = "SELECT ISTREAM {'foo': a,'bar':b}"
+			p.Buffer = `SELECT ISTREAM {"foo": a,"bar":b}`
 			p.Init()
 
 			Convey("Then the statement should be parsed correctly", func() {

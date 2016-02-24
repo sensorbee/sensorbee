@@ -24,7 +24,7 @@ func TestFlatExpressionConverter(t *testing.T) {
 		"now()": {stmtMeta{parser.NowMeta}, Stable, nil},
 		"2":     {numericLiteral{2}, Immutable, nil},
 		"1.2":   {floatLiteral{1.2}, Immutable, nil},
-		`'bql'`: {stringLiteral{"bql"}, Immutable, nil},
+		`"bql"`: {stringLiteral{"bql"}, Immutable, nil},
 		"*":     {wildcardAST{}, Stable, nil},
 		"x:*":   {wildcardAST{"x"}, Stable, nil},
 		// Type Cast
@@ -46,11 +46,11 @@ func TestFlatExpressionConverter(t *testing.T) {
 			[]FlatExpression{rowValue{"", "a"}}}, boolLiteral{true}}}, Volatile, []rowValue{{"", "a"}}},
 		// Maps
 		"{}":          {mapAST{[]keyValuePair{}}, Immutable, nil},
-		"{'hoge': 2}": {mapAST{[]keyValuePair{{"hoge", numericLiteral{2}}}}, Immutable, nil},
-		"{'a': *}":    {mapAST{[]keyValuePair{{"a", wildcardAST{}}}}, Stable, nil},
-		"{'a':a, 'now':now()}": {mapAST{[]keyValuePair{{"a", rowValue{"", "a"}},
+		`{"hoge": 2}`: {mapAST{[]keyValuePair{{"hoge", numericLiteral{2}}}}, Immutable, nil},
+		`{"a": *}`:    {mapAST{[]keyValuePair{{"a", wildcardAST{}}}}, Stable, nil},
+		`{"a":a, "now":now()}`: {mapAST{[]keyValuePair{{"a", rowValue{"", "a"}},
 			{"now", stmtMeta{parser.NowMeta}}}}, Stable, []rowValue{{"", "a"}}},
-		"{'f':f(a),'b':true}": {mapAST{[]keyValuePair{{"f", funcAppAST{parser.FuncName("f"),
+		`{"f":f(a),"b":true}`: {mapAST{[]keyValuePair{{"f", funcAppAST{parser.FuncName("f"),
 			[]FlatExpression{rowValue{"", "a"}}}}, {"b", boolLiteral{true}}}}, Volatile, []rowValue{{"", "a"}}},
 		// CASE expressions
 		"CASE a WHEN 2 THEN 3 END":            {caseAST{rowValue{"", "a"}, []whenThenPair{{numericLiteral{2}, numericLiteral{3}}}, nullLiteral{}}, Immutable, nil},

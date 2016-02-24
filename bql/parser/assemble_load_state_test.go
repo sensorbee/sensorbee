@@ -129,7 +129,7 @@ func TestAssembleLoadState(t *testing.T) {
 		})
 
 		Convey("When doing a full LOAD STATE", func() {
-			p.Buffer = "LOAD STATE a_1 TYPE b TAG t SET c=27, e_='f_1', f=[7,'g']"
+			p.Buffer = `LOAD STATE a_1 TYPE b TAG t SET c=27, e_="f_1", f=[7,"g"]`
 			p.Init()
 
 			Convey("Then the statement should be parsed correctly", func() {

@@ -124,7 +124,7 @@ contents. Other statements return `application/json` content as described below.
 
 + Request (application/json)
     + Attributes (object)
-        + queries: `CREATE SOURCE s TYPE my_source WITH param='value';` (string) - Multiple BQL statements to be executed
+        + queries: `CREATE SOURCE s TYPE my_source WITH param="value";` (string) - Multiple BQL statements to be executed
 
 + Response 200 (application/json)
 
@@ -181,7 +181,7 @@ contents. Other statements return `application/json` content as described below.
 
 ## Topology Query Response (object)
 
-+ statement: `CREATE SOURCE s TYPE my_source WITH param='value';` (string) - A BQL statement which has been executed
++ statement: `CREATE SOURCE s TYPE my_source WITH param="value";` (string) - A BQL statement which has been executed
 + nodes (object) - Nodes in the topology which the statement affected
     + created (array[Node]) - Nodes created by the statement
     + dropped (array[Node]) - Nodes dropped by the statement

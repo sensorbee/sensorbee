@@ -165,7 +165,7 @@ type extractor interface {
 	resultMultiplicity() multiplicity
 }
 
-// addMapAccess is called when we discover `foo` or `['bar']`
+// addMapAccess is called when we discover `foo` or `["bar"]`
 // in a JSON Path string.
 func (j *jsonPeg) addMapAccess(s string) {
 	j.components = append(j.components, &mapValueExtractor{s})
@@ -218,7 +218,7 @@ func (a *mapValueExtractor) resultMultiplicity() multiplicity {
 	return one
 }
 
-// addRecursiveAccess is called when we discover `..foo` or `..['bar']`
+// addRecursiveAccess is called when we discover `..foo` or `..["bar"]`
 // in a JSON Path string.
 func (j *jsonPeg) addRecursiveAccess(s string) {
 	j.components = append(j.components, &recursiveExtractor{s})

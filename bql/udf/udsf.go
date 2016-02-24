@@ -39,7 +39,7 @@ type UDSFCreator interface {
 	//	CREATE STREAM stream1 AS SELECT ...;
 	//	CREATE STREAM stream2 AS SELECT ...;
 	//	CREATE STREAM join_by_udsf
-	//	  SELECT RSTREAM * FROM my_udsf('stream1', 'stream2') [RANGE 1 TUPLES];
+	//	  SELECT RSTREAM * FROM my_udsf("stream1", "stream2") [RANGE 1 TUPLES];
 	//
 	// In this example, my_udsf receives two streams: stream1 and stream2
 	// created in advance.

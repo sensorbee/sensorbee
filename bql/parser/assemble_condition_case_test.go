@@ -94,8 +94,8 @@ func TestAssembleConditionCase(t *testing.T) {
 
 		Convey("When selecting a function of multiple columns", func() {
 			p.Buffer = "SELECT ISTREAM " +
-				"CASE WHEN 'foo' THEN a WHEN 'bar' THEN b ELSE y END, " +
-				"CASE WHEN 'hoge' THEN x END"
+				`CASE WHEN "foo" THEN a WHEN "bar" THEN b ELSE y END, ` +
+				`CASE WHEN "hoge" THEN x END`
 			p.Init()
 
 			Convey("Then the statement should be parsed correctly", func() {

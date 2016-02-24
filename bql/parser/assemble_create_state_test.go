@@ -67,7 +67,7 @@ func TestAssembleCreateState(t *testing.T) {
 		p := &bqlPeg{}
 
 		Convey("When doing a full CREATE STATE", func() {
-			p.Buffer = "CREATE STATE a_1 TYPE b WITH c=27, e_='f_1', f=[7,'g']"
+			p.Buffer = `CREATE STATE a_1 TYPE b WITH c=27, e_="f_1", f=[7,"g"]`
 			p.Init()
 
 			Convey("Then the statement should be parsed correctly", func() {
@@ -100,9 +100,9 @@ func TestAssembleCreateState(t *testing.T) {
 		// ordering of map's keys are not fixed, and cannot check equality of
 		// reversed query with input query, so separate map parameter test.
 		Convey("When doing CREATE STATE with map parameter", func() {
-			mp1 := "'i':'I_1'"
-			mp2 := "'j\"j':false"
-			mp3 := "'k''k':8"
+			mp1 := `"i":"I_1"`
+			mp2 := `"j""j":false`
+			mp3 := `"k'k":8`
 			mapParams := "h={" + strings.Join([]string{mp1, mp2, mp3}, ",") + "}"
 			createQuery := "CREATE STATE a_1 TYPE b WITH "
 			boolParam := "l=true"
