@@ -323,7 +323,7 @@ func TestGroupbyExecutionPlan(t *testing.T) {
 		tuples := getOtherTuples()
 		tuples[3].Data["int"] = data.Null{} // NULL should not be counted
 		s := `CREATE STREAM box AS SELECT RSTREAM foo, [count(int), max(int)] AS a,
-			{'c': count(int), 'm': min(int)} AS b FROM src [RANGE 3 TUPLES] GROUP BY foo`
+			{"c": count(int), "m": min(int)} AS b FROM src [RANGE 3 TUPLES] GROUP BY foo`
 		plan, err := createGroupbyPlan(s, t)
 		So(err, ShouldBeNil)
 
@@ -441,7 +441,7 @@ func TestGroupbyExecutionPlan(t *testing.T) {
 
 	Convey("Given a SELECT clause with a multiple-parameters aggregation (agg+const) and GROUP BY", t, func() {
 		tuples := getOtherTuples()
-		s := `CREATE STREAM box AS SELECT RSTREAM foo, udaf(int, 'hoge') FROM src [RANGE 3 TUPLES] GROUP BY foo`
+		s := `CREATE STREAM box AS SELECT RSTREAM foo, udaf(int, "hoge") FROM src [RANGE 3 TUPLES] GROUP BY foo`
 		plan, err := createGroupbyPlan(s, t)
 		So(err, ShouldBeNil)
 
@@ -1076,7 +1076,7 @@ func TestAggregateFunctions(t *testing.T) {
 	Convey("Given a SELECT clause with string_agg", t, func() {
 		tuples := getExtTuples()
 
-		s := `CREATE STREAM box AS SELECT RSTREAM string_agg(bar, ', ') AS result
+		s := `CREATE STREAM box AS SELECT RSTREAM string_agg(bar, ", ") AS result
 			FROM src [RANGE 3 TUPLES] WHERE int > 1`
 		plan, err := createGroupbyPlan(s, t)
 		So(err, ShouldBeNil)
@@ -1102,7 +1102,7 @@ func TestAggregateFunctions(t *testing.T) {
 	Convey("Given a SELECT clause with string_agg and ORDER BY", t, func() {
 		tuples := getExtTuples()
 
-		s := `CREATE STREAM box AS SELECT RSTREAM string_agg(bar, ', ' ORDER BY int % 2, bar DESC) AS result
+		s := `CREATE STREAM box AS SELECT RSTREAM string_agg(bar, ", " ORDER BY int % 2, bar DESC) AS result
 			FROM src [RANGE 3 TUPLES] WHERE int > 1`
 		plan, err := createGroupbyPlan(s, t)
 		So(err, ShouldBeNil)

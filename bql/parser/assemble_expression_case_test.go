@@ -98,8 +98,8 @@ func TestAssembleExpressionCase(t *testing.T) {
 
 		Convey("When selecting a function of multiple columns", func() {
 			p.Buffer = "SELECT ISTREAM " +
-				"CASE x WHEN 'foo' THEN a WHEN 'bar' THEN b ELSE y END, " +
-				"CASE z WHEN 'hoge' THEN x END"
+				`CASE x WHEN "foo" THEN a WHEN "bar" THEN b ELSE y END, ` +
+				`CASE z WHEN "hoge" THEN x END`
 			p.Init()
 
 			Convey("Then the statement should be parsed correctly", func() {

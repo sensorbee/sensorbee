@@ -167,7 +167,7 @@ func TestBQLBoxEmitterParams(t *testing.T) {
 
 	Convey("Given a BQL statement with an EVERY k-TH TUPLE clause", t, func() {
 		s := "CREATE STREAM box AS SELECT " +
-			"RSTREAM [EVERY 3RD TUPLE] int, str((int+1) % 3) AS x FROM duplicate('source', 2) [RANGE 1 TUPLES] " +
+			`RSTREAM [EVERY 3RD TUPLE] int, str((int+1) % 3) AS x FROM duplicate("source", 2) [RANGE 1 TUPLES] ` +
 			"WHERE int % 2 = 0"
 		tb, err := setupTopology(s, true)
 		So(err, ShouldBeNil)
@@ -206,7 +206,7 @@ func TestBQLBoxEmitterParams(t *testing.T) {
 
 	Convey("Given a BQL statement with EVERY k-TH TUPLE and LIMIT clause", t, func() {
 		s := "CREATE STREAM box AS SELECT " +
-			"RSTREAM [EVERY 3RD TUPLE LIMIT 2] int, str((int+1) % 3) AS x FROM duplicate('source', 2) [RANGE 1 TUPLES] " +
+			`RSTREAM [EVERY 3RD TUPLE LIMIT 2] int, str((int+1) % 3) AS x FROM duplicate("source", 2) [RANGE 1 TUPLES] ` +
 			"WHERE int % 2 = 0"
 		tb, err := setupTopology(s, true)
 		So(err, ShouldBeNil)
@@ -327,7 +327,7 @@ func TestBQLBoxEmitterParams(t *testing.T) {
 
 	Convey("Given a BQL statement with a SAMPLE clause", t, func() {
 		s := "CREATE STREAM box AS SELECT " +
-			"RSTREAM [SAMPLE 50.3%] int, str((int+1) % 3) AS x FROM duplicate('source', 10) [RANGE 1 TUPLES]"
+			`RSTREAM [SAMPLE 50.3%] int, str((int+1) % 3) AS x FROM duplicate("source", 10) [RANGE 1 TUPLES]`
 		tb, err := setupTopology(s, true)
 		So(err, ShouldBeNil)
 		dt := tb.Topology()
@@ -351,7 +351,7 @@ func TestBQLBoxEmitterParams(t *testing.T) {
 
 	Convey("Given a BQL statement with SAMPLE and LIMIT clause", t, func() {
 		s := "CREATE STREAM box AS SELECT " +
-			"RSTREAM [SAMPLE 50% LIMIT 10] int, str((int+1) % 3) AS x FROM duplicate('source', 10) [RANGE 1 TUPLES]"
+			`RSTREAM [SAMPLE 50% LIMIT 10] int, str((int+1) % 3) AS x FROM duplicate("source", 10) [RANGE 1 TUPLES]`
 		tb, err := setupTopology(s, true)
 		So(err, ShouldBeNil)
 		dt := tb.Topology()
@@ -511,9 +511,9 @@ func TestBasicBQLBoxUnionCapability(t *testing.T) {
 
 	Convey("Given a UNION over three disjoint streams in BQL", t, func() {
 		s := "CREATE STREAM box AS " +
-			"SELECT ISTREAM int, 'a' AS x FROM source [RANGE 1 TUPLES] WHERE int = 0 " +
-			"UNION ALL SELECT ISTREAM int, 'b' AS y FROM source [RANGE 1 TUPLES] WHERE int = 1 " +
-			"UNION ALL SELECT ISTREAM int, 'c' AS z FROM source [RANGE 1 TUPLES] WHERE int >= 2"
+			`SELECT ISTREAM int, "a" AS x FROM source [RANGE 1 TUPLES] WHERE int = 0 ` +
+			`UNION ALL SELECT ISTREAM int, "b" AS y FROM source [RANGE 1 TUPLES] WHERE int = 1 ` +
+			`UNION ALL SELECT ISTREAM int, "c" AS z FROM source [RANGE 1 TUPLES] WHERE int >= 2`
 		tb, err := setupTopology(s, false)
 		So(err, ShouldBeNil)
 		dt := tb.Topology()
@@ -569,8 +569,8 @@ func TestBQLBoxJoinCapability(t *testing.T) {
 		source:int AS a, s2:int AS b, duplicate:int AS c, d2:int AS d
 		FROM source [RANGE 1 TUPLES],
 		     source [RANGE 1 TUPLES] AS s2,
-		     duplicate('source', 3) [RANGE 1 TUPLES],
-		     duplicate('source', 2) [RANGE 1 TUPLES] AS d2
+		     duplicate("source", 3) [RANGE 1 TUPLES],
+		     duplicate("source", 2) [RANGE 1 TUPLES] AS d2
 		`
 		tb, err := setupTopology(s, false)
 		So(err, ShouldBeNil)
@@ -647,7 +647,7 @@ func TestBQLBoxGroupByCapability(t *testing.T) {
 
 func TestBQLBoxUDSF(t *testing.T) {
 	Convey("Given a topology using UDSF", t, func() {
-		tb, err := setupTopology(`CREATE STREAM box AS SELECT RSTREAM duplicate:int FROM duplicate('source', 3) [RANGE 1 TUPLES]`, false)
+		tb, err := setupTopology(`CREATE STREAM box AS SELECT RSTREAM duplicate:int FROM duplicate("source", 3) [RANGE 1 TUPLES]`, false)
 		So(err, ShouldBeNil)
 		dt := tb.Topology()
 		Reset(func() {

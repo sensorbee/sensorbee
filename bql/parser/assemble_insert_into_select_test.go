@@ -115,7 +115,7 @@ func TestAssembleInsertIntoSelect(t *testing.T) {
 		Convey("When doing a full INSERT INTO SELECT", func() {
 			// the statement below does not make sense, it is just used to test
 			// whether we accept optional RANGE clauses correctly
-			p.Buffer = "INSERT INTO x SELECT ISTREAM '日本語', b FROM c [RANGE 3 TUPLES, BUFFER SIZE 2], d [RANGE 1 SECONDS, WAIT IF FULL] WHERE e GROUP BY f, g HAVING h"
+			p.Buffer = `INSERT INTO x SELECT ISTREAM "日本語", b FROM c [RANGE 3 TUPLES, BUFFER SIZE 2], d [RANGE 1 SECONDS, WAIT IF FULL] WHERE e GROUP BY f, g HAVING h`
 			p.Init()
 
 			Convey("Then the statement should be parsed correctly", func() {

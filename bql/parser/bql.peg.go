@@ -189,7 +189,7 @@ const (
 	rulejsonMapMultipleLevel
 	rulejsonMapAccessString
 	rulejsonMapAccessBracket
-	rulesingleQuotedString
+	ruledoubleQuotedString
 	rulejsonArrayAccess
 	rulejsonNonNegativeArrayAccess
 	rulejsonArraySlice
@@ -518,7 +518,7 @@ var rul3s = [...]string{
 	"jsonMapMultipleLevel",
 	"jsonMapAccessString",
 	"jsonMapAccessBracket",
-	"singleQuotedString",
+	"doubleQuotedString",
 	"jsonArrayAccess",
 	"jsonNonNegativeArrayAccess",
 	"jsonArraySlice",
@@ -13171,7 +13171,7 @@ func (p *bqlPegBackend) Init() {
 			position, tokenIndex, depth = position1414, tokenIndex1414, depth1414
 			return false
 		},
-		/* 119 StringLiteral <- <(<('\'' (('\'' '\'') / (!'\'' .))* '\'')> Action89)> */
+		/* 119 StringLiteral <- <(<('"' (('"' '"') / (!'"' .))* '"')> Action89)> */
 		func() bool {
 			position1420, tokenIndex1420, depth1420 := position, tokenIndex, depth
 			{
@@ -13180,7 +13180,7 @@ func (p *bqlPegBackend) Init() {
 				{
 					position1422 := position
 					depth++
-					if buffer[position] != rune('\'') {
+					if buffer[position] != rune('"') {
 						goto l1420
 					}
 					position++
@@ -13189,11 +13189,11 @@ func (p *bqlPegBackend) Init() {
 						position1424, tokenIndex1424, depth1424 := position, tokenIndex, depth
 						{
 							position1425, tokenIndex1425, depth1425 := position, tokenIndex, depth
-							if buffer[position] != rune('\'') {
+							if buffer[position] != rune('"') {
 								goto l1426
 							}
 							position++
-							if buffer[position] != rune('\'') {
+							if buffer[position] != rune('"') {
 								goto l1426
 							}
 							position++
@@ -13202,7 +13202,7 @@ func (p *bqlPegBackend) Init() {
 							position, tokenIndex, depth = position1425, tokenIndex1425, depth1425
 							{
 								position1427, tokenIndex1427, depth1427 := position, tokenIndex, depth
-								if buffer[position] != rune('\'') {
+								if buffer[position] != rune('"') {
 									goto l1427
 								}
 								position++
@@ -13219,7 +13219,7 @@ func (p *bqlPegBackend) Init() {
 					l1424:
 						position, tokenIndex, depth = position1424, tokenIndex1424, depth1424
 					}
-					if buffer[position] != rune('\'') {
+					if buffer[position] != rune('"') {
 						goto l1420
 					}
 					position++
@@ -16966,7 +16966,7 @@ func (p *bqlPegBackend) Init() {
 			position, tokenIndex, depth = position1906, tokenIndex1906, depth1906
 			return false
 		},
-		/* 174 jsonMapAccessBracket <- <('[' singleQuotedString ']')> */
+		/* 174 jsonMapAccessBracket <- <('[' doubleQuotedString ']')> */
 		func() bool {
 			position1917, tokenIndex1917, depth1917 := position, tokenIndex, depth
 			{
@@ -16976,7 +16976,7 @@ func (p *bqlPegBackend) Init() {
 					goto l1917
 				}
 				position++
-				if !_rules[rulesingleQuotedString]() {
+				if !_rules[ruledoubleQuotedString]() {
 					goto l1917
 				}
 				if buffer[position] != rune(']') {
@@ -16991,13 +16991,13 @@ func (p *bqlPegBackend) Init() {
 			position, tokenIndex, depth = position1917, tokenIndex1917, depth1917
 			return false
 		},
-		/* 175 singleQuotedString <- <('\'' <(('\'' '\'') / (!'\'' .))*> '\'')> */
+		/* 175 doubleQuotedString <- <('"' <(('"' '"') / (!'"' .))*> '"')> */
 		func() bool {
 			position1919, tokenIndex1919, depth1919 := position, tokenIndex, depth
 			{
 				position1920 := position
 				depth++
-				if buffer[position] != rune('\'') {
+				if buffer[position] != rune('"') {
 					goto l1919
 				}
 				position++
@@ -17009,11 +17009,11 @@ func (p *bqlPegBackend) Init() {
 						position1923, tokenIndex1923, depth1923 := position, tokenIndex, depth
 						{
 							position1924, tokenIndex1924, depth1924 := position, tokenIndex, depth
-							if buffer[position] != rune('\'') {
+							if buffer[position] != rune('"') {
 								goto l1925
 							}
 							position++
-							if buffer[position] != rune('\'') {
+							if buffer[position] != rune('"') {
 								goto l1925
 							}
 							position++
@@ -17022,7 +17022,7 @@ func (p *bqlPegBackend) Init() {
 							position, tokenIndex, depth = position1924, tokenIndex1924, depth1924
 							{
 								position1926, tokenIndex1926, depth1926 := position, tokenIndex, depth
-								if buffer[position] != rune('\'') {
+								if buffer[position] != rune('"') {
 									goto l1926
 								}
 								position++
@@ -17042,12 +17042,12 @@ func (p *bqlPegBackend) Init() {
 					depth--
 					add(rulePegText, position1921)
 				}
-				if buffer[position] != rune('\'') {
+				if buffer[position] != rune('"') {
 					goto l1919
 				}
 				position++
 				depth--
-				add(rulesingleQuotedString, position1920)
+				add(ruledoubleQuotedString, position1920)
 			}
 			return true
 		l1919:

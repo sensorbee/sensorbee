@@ -39,17 +39,17 @@ func TestExpressionParser(t *testing.T) {
 			ExpressionsAST{[]Expression{RowValue{"", "a"}}},
 			[]SortedExpressionAST{{FuncAppAST{FuncName("count"),
 				ExpressionsAST{[]Expression{RowValue{"", "b"}}}, nil}, UnspecifiedKeyword}}}}, "count(a ORDER BY count(b))"},
-		"f(2.1, 'a')": {[]Expression{FuncAppAST{FuncName("f"),
-			ExpressionsAST{[]Expression{FloatLiteral{2.1}, StringLiteral{"a"}}}, nil}}, "f(2.1, 'a')"},
+		`f(2.1, "a")`: {[]Expression{FuncAppAST{FuncName("f"),
+			ExpressionsAST{[]Expression{FloatLiteral{2.1}, StringLiteral{"a"}}}, nil}}, `f(2.1, "a")`},
 		// Type Cast
 		"CAST(2.1 AS BOOL)":    {[]Expression{TypeCastAST{FloatLiteral{2.1}, Bool}}, "CAST(2.1 AS BOOL)"},
 		"CAST(2.1 AS INT)":     {[]Expression{TypeCastAST{FloatLiteral{2.1}, Int}}, "CAST(2.1 AS INT)"},
 		"CAST(a*2 AS FLOAT)":   {[]Expression{TypeCastAST{BinaryOpAST{Multiply, RowValue{"", "a"}, NumericLiteral{2}}, Float}}, "CAST(a * 2 AS FLOAT)"},
 		"CAST(2.1 AS STRING)":  {[]Expression{TypeCastAST{FloatLiteral{2.1}, String}}, "CAST(2.1 AS STRING)"},
-		"CAST('hoge' AS BLOB)": {[]Expression{TypeCastAST{StringLiteral{"hoge"}, Blob}}, "CAST('hoge' AS BLOB)"},
+		`CAST("hoge" AS BLOB)`: {[]Expression{TypeCastAST{StringLiteral{"hoge"}, Blob}}, `CAST("hoge" AS BLOB)`},
 		"CAST(0 AS TIMESTAMP)": {[]Expression{TypeCastAST{NumericLiteral{0}, Timestamp}}, "CAST(0 AS TIMESTAMP)"},
 		"CAST(2.1 AS ARRAY)":   {[]Expression{TypeCastAST{FloatLiteral{2.1}, Array}}, "CAST(2.1 AS ARRAY)"},
-		"CAST('a' AS MAP)":     {[]Expression{TypeCastAST{StringLiteral{"a"}, Map}}, "CAST('a' AS MAP)"},
+		`CAST("a" AS MAP)`:     {[]Expression{TypeCastAST{StringLiteral{"a"}, Map}}, `CAST("a" AS MAP)`},
 		"2.1::INT":             {[]Expression{TypeCastAST{FloatLiteral{2.1}, Int}}, "CAST(2.1 AS INT)"},
 		"int::STRING":          {[]Expression{TypeCastAST{RowValue{"", "int"}, String}}, "int::STRING"},
 		"x:int::STRING":        {[]Expression{TypeCastAST{RowValue{"x", "int"}, String}}, "x:int::STRING"},
@@ -65,19 +65,19 @@ func TestExpressionParser(t *testing.T) {
 		"A":         {[]Expression{RowValue{"", "A"}}, "A"},
 		"my_mem_27": {[]Expression{RowValue{"", "my_mem_27"}}, "my_mem_27"},
 		/// JSON Path
-		"['hoge']":       {[]Expression{RowValue{"", "['hoge']"}}, "['hoge']"},
-		"['hoge'][0]..y": {[]Expression{RowValue{"", "['hoge'][0]..y"}}, "['hoge'][0]..y"},
-		"['array'][0]":   {[]Expression{RowValue{"", "['array'][0]"}}, "['array'][0]"},
-		"['array'][0].x": {[]Expression{RowValue{"", "['array'][0].x"}}, "['array'][0].x"},
-		"['array']['x']": {[]Expression{RowValue{"", "['array']['x']"}}, "['array']['x']"},
+		`["hoge"]`:       {[]Expression{RowValue{"", `["hoge"]`}}, `["hoge"]`},
+		`["hoge"][0]..y`: {[]Expression{RowValue{"", `["hoge"][0]..y`}}, `["hoge"][0]..y`},
+		`["array"][0]`:   {[]Expression{RowValue{"", `["array"][0]`}}, `["array"][0]`},
+		`["array"][0].x`: {[]Expression{RowValue{"", `["array"][0].x`}}, `["array"][0].x`},
+		`["array"]["x"]`: {[]Expression{RowValue{"", `["array"]["x"]`}}, `["array"]["x"]`},
 		"array.x":        {[]Expression{RowValue{"", "array.x"}}, "array.x"},
 		// Colon checks
-		"array['x::int']": {[]Expression{RowValue{"", "array['x::int']"}}, "array['x::int']"},
-		"[':hoge']":       {[]Expression{RowValue{"", "[':hoge']"}}, "[':hoge']"},
-		"x:[':hoge']":     {[]Expression{RowValue{"x", "[':hoge']"}}, "x:[':hoge']"},
-		"x:['hoge']":      {[]Expression{RowValue{"x", "['hoge']"}}, "x:['hoge']"},
+		`array["x::int"]`: {[]Expression{RowValue{"", `array["x::int"]`}}, `array["x::int"]`},
+		`[":hoge"]`:       {[]Expression{RowValue{"", `[":hoge"]`}}, `[":hoge"]`},
+		`x:[":hoge"]`:     {[]Expression{RowValue{"x", `[":hoge"]`}}, `x:[":hoge"]`},
+		`x:["hoge"]`:      {[]Expression{RowValue{"x", `["hoge"]`}}, `x:["hoge"]`},
 		// Quote checks
-		"['ar''ray']['x::int']": {[]Expression{RowValue{"", "['ar''ray']['x::int']"}}, "['ar''ray']['x::int']"},
+		`["ar""ray"]["x::int"]`: {[]Expression{RowValue{"", `["ar""ray"]["x::int"]`}}, `["ar""ray"]["x::int"]`},
 		// Wildcard
 		"*":         {[]Expression{Wildcard{}}, "*"},
 		"x:*":       {[]Expression{Wildcard{"x"}}, "x:*"},
@@ -89,26 +89,26 @@ func TestExpressionParser(t *testing.T) {
 		"[a]":         {[]Expression{ArrayAST{ExpressionsAST{[]Expression{RowValue{"", "a"}}}}}, "[a]"},
 		"[a,]":        {[]Expression{ArrayAST{ExpressionsAST{[]Expression{RowValue{"", "a"}}}}}, "[a]"},
 		"[a,b:*]":     {[]Expression{ArrayAST{ExpressionsAST{[]Expression{RowValue{"", "a"}, Wildcard{"b"}}}}}, "[a, b:*]"},
-		"['hoge',]":   {[]Expression{ArrayAST{ExpressionsAST{[]Expression{StringLiteral{"hoge"}}}}}, "['hoge']"},
-		"x:['hoge',]": {nil, ""}, // an array takes no stream prefix
+		`["hoge",]`:   {[]Expression{ArrayAST{ExpressionsAST{[]Expression{StringLiteral{"hoge"}}}}}, `["hoge"]`},
+		`x:["hoge",]`: {nil, ""}, // an array takes no stream prefix
 		"[a, 2.3]":    {[]Expression{ArrayAST{ExpressionsAST{[]Expression{RowValue{"", "a"}, FloatLiteral{2.3}}}}}, "[a, 2.3]"},
 		"[a, 2.3,]":   {[]Expression{ArrayAST{ExpressionsAST{[]Expression{RowValue{"", "a"}, FloatLiteral{2.3}}}}}, "[a, 2.3]"},
-		"[['hoge'], hoge.x[0], a]": {[]Expression{ArrayAST{ExpressionsAST{[]Expression{RowValue{"", "['hoge']"},
-			RowValue{"", "hoge.x[0]"}, RowValue{"", "a"}}}}}, "[['hoge'], hoge.x[0], a]"},
-		"[{'key':hoge:image}]": {[]Expression{ArrayAST{ExpressionsAST{[]Expression{
-			MapAST{[]KeyValuePairAST{{"key", RowValue{"hoge", "image"}}}}}}}}, "[{'key':hoge:image}]"},
+		`[["hoge"], hoge.x[0], a]`: {[]Expression{ArrayAST{ExpressionsAST{[]Expression{RowValue{"", `["hoge"]`},
+			RowValue{"", "hoge.x[0]"}, RowValue{"", "a"}}}}}, `[["hoge"], hoge.x[0], a]`},
+		`[{"key":hoge:image}]`: {[]Expression{ArrayAST{ExpressionsAST{[]Expression{
+			MapAST{[]KeyValuePairAST{{"key", RowValue{"hoge", "image"}}}}}}}}, `[{"key":hoge:image}]`},
 		// Map
 		"{}":                 {[]Expression{MapAST{[]KeyValuePairAST{}}}, "{}"},
-		"{'hoge':2}":         {[]Expression{MapAST{[]KeyValuePairAST{{"hoge", NumericLiteral{2}}}}}, "{'hoge':2}"},
-		"{'key':hoge:image}": {[]Expression{MapAST{[]KeyValuePairAST{{"key", RowValue{"hoge", "image"}}}}}, "{'key':hoge:image}"},
-		"{'foo':x:a, 'bar':{'a':[2]}}": {[]Expression{MapAST{[]KeyValuePairAST{
+		`{"hoge":2}`:         {[]Expression{MapAST{[]KeyValuePairAST{{"hoge", NumericLiteral{2}}}}}, `{"hoge":2}`},
+		`{"key":hoge:image}`: {[]Expression{MapAST{[]KeyValuePairAST{{"key", RowValue{"hoge", "image"}}}}}, `{"key":hoge:image}`},
+		`{"foo":x:a, "bar":{"a":[2]}}`: {[]Expression{MapAST{[]KeyValuePairAST{
 			{"foo", RowValue{"x", "a"}},
 			{"bar", MapAST{[]KeyValuePairAST{
 				{"a", ArrayAST{ExpressionsAST{[]Expression{NumericLiteral{2}}}}},
 			}}},
-		}}}, "{'foo':x:a, 'bar':{'a':[2]}}"},
-		"{'a': a:*, 'b': b:*}": {[]Expression{MapAST{[]KeyValuePairAST{
-			{"a", Wildcard{"a"}}, {"b", Wildcard{"b"}}}}}, "{'a':a:*, 'b':b:*}"},
+		}}}, `{"foo":x:a, "bar":{"a":[2]}}`},
+		`{"a": a:*, "b": b:*}`: {[]Expression{MapAST{[]KeyValuePairAST{
+			{"a", Wildcard{"a"}}, {"b", Wildcard{"b"}}}}}, `{"a":a:*, "b":b:*}`},
 		// CASE
 		"CASE a END":                         {nil, ""}, // WHEN-THEN is mandatory
 		"CASE a WHEN 2 THEN 3 END":           {[]Expression{ExpressionCaseAST{RowValue{"", "a"}, ConditionCaseAST{[]WhenThenPairAST{{NumericLiteral{2}, NumericLiteral{3}}}, nil}}}, "CASE a WHEN 2 THEN 3 END"},
@@ -124,11 +124,12 @@ func TestExpressionParser(t *testing.T) {
 		"1.2":   {[]Expression{FloatLiteral{1.2}}, "1.2"},
 		"-3.14": {[]Expression{UnaryOpAST{UnaryMinus, FloatLiteral{3.14}}}, "-3.14"},
 		// StringLiteral
-		`'bql'`:      {[]Expression{StringLiteral{"bql"}}, "'bql'"},
-		`''`:         {[]Expression{StringLiteral{""}}, `''`},
-		`'Peter's'`:  {nil, ""},
-		`'Peter''s'`: {[]Expression{StringLiteral{"Peter's"}}, `'Peter''s'`},
-		`'日本語'`:      {[]Expression{StringLiteral{"日本語"}}, `'日本語'`},
+		`"bql"`:      {[]Expression{StringLiteral{"bql"}}, `"bql"`},
+		`""`:         {[]Expression{StringLiteral{""}}, `""`},
+		`"Peter"s"`:  {nil, ""},
+		`"Peter""s"`: {[]Expression{StringLiteral{`Peter"s`}}, `"Peter""s"`},
+		`"Peter's"`:  {[]Expression{StringLiteral{`Peter's`}}, `"Peter's"`},
+		`"日本語"`:      {[]Expression{StringLiteral{"日本語"}}, `"日本語"`},
 		// Alias
 		"1.2 AS x": {[]Expression{AliasAST{FloatLiteral{1.2}, "x"}}, "1.2 AS x"},
 		"b AS *":   {[]Expression{AliasAST{RowValue{"", "b"}, "*"}}, "b AS *"},
@@ -197,8 +198,8 @@ func TestExpressionParser(t *testing.T) {
 		"-2.1::INT": {[]Expression{UnaryOpAST{UnaryMinus,
 			TypeCastAST{FloatLiteral{2.1}, Int}}}, "-CAST(2.1 AS INT)"},
 		/// Left-Associativity
-		"a || '2' || b": {[]Expression{BinaryOpAST{Concat,
-			BinaryOpAST{Concat, RowValue{"", "a"}, StringLiteral{"2"}}, RowValue{"", "b"}}}, "(a || '2') || b"},
+		`a || "2" || b`: {[]Expression{BinaryOpAST{Concat,
+			BinaryOpAST{Concat, RowValue{"", "a"}, StringLiteral{"2"}}, RowValue{"", "b"}}}, `(a || "2") || b`},
 		"a - 2 - b": {[]Expression{BinaryOpAST{Minus,
 			BinaryOpAST{Minus, RowValue{"", "a"}, NumericLiteral{2}}, RowValue{"", "b"}}}, "(a - 2) - b"},
 		"a - 2 - b + 4": {[]Expression{BinaryOpAST{Plus,
@@ -270,10 +271,10 @@ func TestExpressionParser(t *testing.T) {
 				RowValue{"", "c"}}, "(a + 1) % 2 = 0 OR b < 7.1, c"},
 		/// Multiple Columns
 		"a, 3.1, false,-2": {[]Expression{RowValue{"", "a"}, FloatLiteral{3.1}, BoolLiteral{false}, UnaryOpAST{UnaryMinus, NumericLiteral{2}}}, "a, 3.1, FALSE, -2"},
-		`'日本語', 13`:        {[]Expression{StringLiteral{"日本語"}, NumericLiteral{13}}, `'日本語', 13`},
-		"concat(a, 'Pi', 3.1), b": {[]Expression{FuncAppAST{FuncName("concat"), ExpressionsAST{
+		`"日本語", 13`:        {[]Expression{StringLiteral{"日本語"}, NumericLiteral{13}}, `"日本語", 13`},
+		`concat(a, "Pi", 3.1), b`: {[]Expression{FuncAppAST{FuncName("concat"), ExpressionsAST{
 			[]Expression{RowValue{"", "a"}, StringLiteral{"Pi"}, FloatLiteral{3.1}}}, nil},
-			RowValue{"", "b"}}, "concat(a, 'Pi', 3.1), b"},
+			RowValue{"", "b"}}, `concat(a, "Pi", 3.1), b`},
 	}
 
 	Convey("Given a BQL parser", t, func() {

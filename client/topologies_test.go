@@ -342,7 +342,7 @@ func TestTopologiesQueriesEvalStmt(t *testing.T) {
 
 		Convey("When issueing a foldable EVAL statement without input", func() {
 			res, js, err := do(r, Post, "/topologies/test_topology/queries", map[string]interface{}{
-				"queries": `EVAL '日本' || '語'`,
+				"queries": `EVAL "日本" || "語"`,
 			})
 
 			Convey("Then the result should be correct", func() {
@@ -354,7 +354,7 @@ func TestTopologiesQueriesEvalStmt(t *testing.T) {
 
 		Convey("When issueing a non-foldable EVAL statement with input", func() {
 			res, js, err := do(r, Post, "/topologies/test_topology/queries", map[string]interface{}{
-				"queries": `EVAL '日本' || a ON {'a': '語'}`,
+				"queries": `EVAL "日本" || a ON {"a": "語"}`,
 			})
 
 			Convey("Then the result should be correct", func() {
@@ -366,7 +366,7 @@ func TestTopologiesQueriesEvalStmt(t *testing.T) {
 
 		Convey("When issueing a non-foldable EVAL statement without input", func() {
 			res, _, err := do(r, Post, "/topologies/test_topology/queries", map[string]interface{}{
-				"queries": `EVAL '日本' || go`,
+				"queries": `EVAL "日本" || go`,
 			})
 
 			Convey("Then the statement should not execute", func() {
@@ -564,7 +564,7 @@ func TestTopologiesQueriesEvalStmtWebSocket(t *testing.T) {
 			So(websocket.JSON.Send(conn, map[string]interface{}{
 				"rid": 2,
 				"payload": map[string]interface{}{
-					"queries": `EVAL '日本' || '語'`,
+					"queries": `EVAL "日本" || "語"`,
 				},
 			}), ShouldBeNil)
 			var js map[string]interface{}
@@ -581,7 +581,7 @@ func TestTopologiesQueriesEvalStmtWebSocket(t *testing.T) {
 			So(websocket.JSON.Send(conn, map[string]interface{}{
 				"rid": 3,
 				"payload": map[string]interface{}{
-					"queries": `EVAL '日本' || a ON {'a': '語'}`,
+					"queries": `EVAL "日本" || a ON {"a": "語"}`,
 				},
 			}), ShouldBeNil)
 			var js map[string]interface{}
@@ -598,7 +598,7 @@ func TestTopologiesQueriesEvalStmtWebSocket(t *testing.T) {
 			So(websocket.JSON.Send(conn, map[string]interface{}{
 				"rid": 4,
 				"payload": map[string]interface{}{
-					"queries": `EVAL '日本' || go`,
+					"queries": `EVAL "日本" || go`,
 				},
 			}), ShouldBeNil)
 			var js map[string]interface{}

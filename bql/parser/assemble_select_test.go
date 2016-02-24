@@ -134,7 +134,7 @@ func TestAssembleSelect(t *testing.T) {
 		p := &bqlPeg{}
 
 		Convey("When doing a full SELECT", func() {
-			p.Buffer = "SELECT ISTREAM '日本語', b FROM c [RANGE 3 TUPLES, BUFFER SIZE 2, DROP OLDEST IF FULL], d('state', 7) [RANGE 2 SECONDS] AS x WHERE e GROUP BY f, g HAVING h"
+			p.Buffer = `SELECT ISTREAM "日本語", b FROM c [RANGE 3 TUPLES, BUFFER SIZE 2, DROP OLDEST IF FULL], d("state", 7) [RANGE 2 SECONDS] AS x WHERE e GROUP BY f, g HAVING h`
 			p.Init()
 
 			Convey("Then the statement should be parsed correctly", func() {

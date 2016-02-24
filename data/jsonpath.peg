@@ -24,8 +24,8 @@ jsonMapSingleLevel <- (('.' jsonMapAccessString) / jsonMapAccessBracket) {
         p.addMapAccess(p.lastKey)
     }
 
-# for single level it is `foo.bar` or `foo['bar']`, but
-# for recursion it is `foo..bar` or `foo..['bar']`, that is
+# for single level it is `foo.bar` or `foo["bar"]`, but
+# for recursion it is `foo..bar` or `foo..["bar"]`, that is
 # a bit inconsistent
 jsonMapMultipleLevel <- '..' (jsonMapAccessString / jsonMapAccessBracket) {
         p.addRecursiveAccess(p.lastKey)

@@ -104,7 +104,7 @@ func TestAssembleEval(t *testing.T) {
 		})
 
 		Convey("When doing an EVAL with ON", func() {
-			p.Buffer = "EVAL a ON {'a':2}"
+			p.Buffer = `EVAL a ON {"a":2}`
 			p.Init()
 
 			Convey("Then the statement should be parsed correctly", func() {

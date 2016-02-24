@@ -112,7 +112,7 @@ func TestAssembleCreateStreamAsSelectUnion(t *testing.T) {
 		p := &bqlPeg{}
 
 		Convey("When doing a full SELECT", func() {
-			p.Buffer = "CREATE STREAM x_2 AS SELECT ISTREAM '日本語' FROM c [RANGE 3 TUPLES, BUFFER SIZE 2, DROP OLDEST IF FULL] UNION ALL SELECT RSTREAM b AS y FROM d [RANGE 2 SECONDS] AS x WHERE e GROUP BY f, g HAVING h"
+			p.Buffer = `CREATE STREAM x_2 AS SELECT ISTREAM "日本語" FROM c [RANGE 3 TUPLES, BUFFER SIZE 2, DROP OLDEST IF FULL] UNION ALL SELECT RSTREAM b AS y FROM d [RANGE 2 SECONDS] AS x WHERE e GROUP BY f, g HAVING h`
 			p.Init()
 
 			Convey("Then the statement should be parsed correctly", func() {

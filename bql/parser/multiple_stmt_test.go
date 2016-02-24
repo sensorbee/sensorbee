@@ -66,7 +66,7 @@ func TestMultipleStmtParser(t *testing.T) {
 				ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "c"}}}},
 		},
 		// using semi-colons within the statements
-		"SELECT ISTREAM a ; SELECT ISTREAM b; SELECT ISTREAM c, ';'": []interface{}{
+		`SELECT ISTREAM a ; SELECT ISTREAM b; SELECT ISTREAM c, ";"`: []interface{}{
 			SelectStmt{EmitterAST: EmitterAST{Istream, nil},
 				ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "a"}}}},
 			SelectStmt{EmitterAST: EmitterAST{Istream, nil},
@@ -75,7 +75,7 @@ func TestMultipleStmtParser(t *testing.T) {
 				ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "c"},
 					StringLiteral{";"}}}},
 		},
-		"SELECT ISTREAM a;SELECT ISTREAM c, ';';SELECT ISTREAM b;": []interface{}{
+		`SELECT ISTREAM a;SELECT ISTREAM c, ";";SELECT ISTREAM b;`: []interface{}{
 			SelectStmt{EmitterAST: EmitterAST{Istream, nil},
 				ProjectionsAST: ProjectionsAST{[]Expression{RowValue{"", "a"}}}},
 			SelectStmt{EmitterAST: EmitterAST{Istream, nil},
@@ -232,8 +232,8 @@ func TestSingleStmtParser(t *testing.T) {
 		// three statements
 		"SELECT ISTREAM a ; SELECT ISTREAM b; SELECT ISTREAM c": "SELECT ISTREAM b; SELECT ISTREAM c",
 		// using semi-colons within the statements
-		"SELECT ISTREAM a ; SELECT ISTREAM b; SELECT ISTREAM c, ';'": "SELECT ISTREAM b; SELECT ISTREAM c, ';'",
-		"SELECT ISTREAM a;SELECT ISTREAM c, ';';SELECT ISTREAM b;":   "SELECT ISTREAM c, ';';SELECT ISTREAM b;",
+		`SELECT ISTREAM a ; SELECT ISTREAM b; SELECT ISTREAM c, ";"`: `SELECT ISTREAM b; SELECT ISTREAM c, ";"`,
+		`SELECT ISTREAM a;SELECT ISTREAM c, ";";SELECT ISTREAM b;`:   `SELECT ISTREAM c, ";";SELECT ISTREAM b;`,
 	}
 
 	Convey("Given a BQL parser", t, func() {

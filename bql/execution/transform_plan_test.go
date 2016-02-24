@@ -636,7 +636,7 @@ func TestAggregateChecker(t *testing.T) {
 			rowValue{"x", "a"},
 			nil},
 
-		{"CASE a WHEN 3 THEN 'ok' END FROM x [RANGE 1 TUPLES]", "",
+		{`CASE a WHEN 3 THEN "ok" END FROM x [RANGE 1 TUPLES]`, "",
 			caseAST{rowValue{"x", "a"}, []whenThenPair{{numericLiteral{3}, stringLiteral{"ok"}}}, nullLiteral{}},
 			nil},
 
@@ -740,7 +740,7 @@ func TestAggregateChecker(t *testing.T) {
 				"g_f12cd6bc": rowValue{"x", "a"},
 			}},
 
-		{"{'udaf': udaf(a + 1), '3': 3, 'g': g(count(a))} FROM x [RANGE 1 TUPLES]", "",
+		{`{"udaf": udaf(a + 1), "3": 3, "g": g(count(a))} FROM x [RANGE 1 TUPLES]`, "",
 			mapAST{[]keyValuePair{
 				{"udaf", funcAppAST{"udaf", []FlatExpression{aggInputRef{"g_2d5e5764"}}}},
 				{"3", numericLiteral{3}},
@@ -1043,7 +1043,7 @@ func TestVolatileAggregateChecker(t *testing.T) {
 					"g_2523c3a2_3": funcAppAST{"f", []FlatExpression{rowValue{"x", "a"}}},
 				}}},
 
-		{"udaf(f(a), a, f(a)), {'c': count(f(a)), 'u': udaf(f(a))} FROM x [RANGE 1 TUPLES] GROUP BY a", "",
+		{`udaf(f(a), a, f(a)), {"c": count(f(a)), "u": udaf(f(a))} FROM x [RANGE 1 TUPLES] GROUP BY a`, "",
 			[]FlatExpression{
 				funcAppAST{"udaf", []FlatExpression{aggInputRef{"g_2523c3a2_0"},
 					rowValue{"x", "a"}, aggInputRef{"g_2523c3a2_1"}}},

@@ -194,7 +194,7 @@ func TestFilterPlan(t *testing.T) {
 
 	Convey("Given a SELECT clause with a nested column alias", t, func() {
 		tuples := getTuples(4)
-		s := `CREATE STREAM box AS SELECT RSTREAM int-1 AS a.c, int+1 AS a['d'], int AS b[1] FROM src [RANGE 1 TUPLES]`
+		s := `CREATE STREAM box AS SELECT RSTREAM int-1 AS a.c, int+1 AS a["d"], int AS b[1] FROM src [RANGE 1 TUPLES]`
 		plan, refPlan, err := createFilterPlan(s, t)
 		So(err, ShouldBeNil)
 
@@ -203,7 +203,7 @@ func TestFilterPlan(t *testing.T) {
 
 	Convey("Given a SELECT clause with various expressions", t, func() {
 		tuples := getTuples(4)
-		s := `CREATE STREAM box AS SELECT RSTREAM CASE int WHEN 1 THEN int+1 WHEN 3 THEN 'b' ELSE 'c' END AS x FROM src [RANGE 1 TUPLES]`
+		s := `CREATE STREAM box AS SELECT RSTREAM CASE int WHEN 1 THEN int+1 WHEN 3 THEN "b" ELSE "c" END AS x FROM src [RANGE 1 TUPLES]`
 		plan, refPlan, err := createFilterPlan(s, t)
 		So(err, ShouldBeNil)
 

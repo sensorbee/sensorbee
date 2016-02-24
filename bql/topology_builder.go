@@ -599,13 +599,13 @@ func (tb *TopologyBuilder) setUpUDSFStream(subsequentBox core.BoxNode, rel *pars
 			alias = rel.Name
 		}
 		conf := &core.BoxInputConfig{
-			// As opposed to actual streams, for `udsf('s') AS a, udsf('s') AS b`,
+			// As opposed to actual streams, for `udsf("s") AS a, udsf("s") AS b`,
 			// there will be *multiple* boxes and we will have one connection to
 			// udsf 1 (the one aliased to `a`) and udsf 2 (the one aliased to `b`).
 			// Therefore we need to have different InputNames for them. Note that
 			// we cannot just take the alias, as there would be the danger of
 			// overriding an input stream with that same name, as in
-			// `FROM x AS b, udsf('s') AS x`, and we should also use a string
+			// `FROM x AS b, udsf("s") AS x`, and we should also use a string
 			// that does not possibly conflict with any input name.
 			// Note that `addTupleToBuffer` in defaultSelectExecutionPlan needs
 			// to use that same method.

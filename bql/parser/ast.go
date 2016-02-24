@@ -904,7 +904,7 @@ type KeyValuePairAST struct {
 }
 
 func (k KeyValuePairAST) string() string {
-	return `'` + k.Key + `':` + k.Value.String()
+	return `"` + k.Key + `":` + k.Value.String()
 }
 
 // Elementary Structures (all without *AST for now)
@@ -1289,13 +1289,13 @@ func (l StringLiteral) Foldable() bool {
 }
 
 func (l StringLiteral) String() string {
-	return "'" + strings.Replace(l.Value, "'", "''", -1) + "'"
+	return `"` + strings.Replace(l.Value, `"`, `""`, -1) + `"`
 }
 
 func NewStringLiteral(s string) StringLiteral {
 	runes := []rune(s)
 	stripped := string(runes[1 : len(runes)-1])
-	unescaped := strings.Replace(stripped, "''", "'", -1)
+	unescaped := strings.Replace(stripped, `""`, `"`, -1)
 	return StringLiteral{unescaped}
 }
 

@@ -72,7 +72,7 @@ func ExpressionToEvaluator(ast FlatExpression, reg udf.FunctionRegistry) (Evalua
 	switch obj := ast.(type) {
 	case rowMeta:
 		// construct a key for reading as used in setMetadata() for writing
-		metaKey := fmt.Sprintf("['%s:meta:%s']", obj.Relation, obj.MetaType)
+		metaKey := fmt.Sprintf(`["%s:meta:%s"]`, obj.Relation, obj.MetaType)
 		if obj.MetaType == parser.TimestampMeta {
 			pa, err := newPathAccess(metaKey)
 			if err != nil {
@@ -82,7 +82,7 @@ func ExpressionToEvaluator(ast FlatExpression, reg udf.FunctionRegistry) (Evalua
 		}
 	case stmtMeta:
 		// construct a key for reading as used in setMetadata() for writing
-		metaKey := fmt.Sprintf("[':meta:%s']", obj.MetaType)
+		metaKey := fmt.Sprintf(`[":meta:%s"]`, obj.MetaType)
 		if obj.MetaType == parser.NowMeta {
 			pa, err := newPathAccess(metaKey)
 			if err != nil {

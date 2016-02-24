@@ -290,7 +290,7 @@ func ParserExprToMaybeAggregate(e parser.Expression, aggIdx int, reg udf.Functio
 		returnAgg := map[string]FlatExpression{}
 		if isAggregateFunc(function, len(obj.Expressions)) {
 			// we have a setting like
-			//  SELECT udaf(x+1, 'state', c ORDER BY d + e, f DESC) ... GROUP BY c
+			//  SELECT udaf(x+1, "state", c ORDER BY d + e, f DESC) ... GROUP BY c
 			// where some parameters are aggregates, others aren't.
 			for i, ast := range obj.Expressions {
 				// this expression must be flat, there must not be other aggregates

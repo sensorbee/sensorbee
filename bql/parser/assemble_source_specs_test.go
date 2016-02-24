@@ -120,7 +120,7 @@ func TestAssembleSourceSinkSpecs(t *testing.T) {
 		})
 
 		Convey("When creating a source with a WITH", func() {
-			p.Buffer = `CREATE SOURCE a TYPE b WITH port=8080, proto='http'`
+			p.Buffer = `CREATE SOURCE a TYPE b WITH port=8080, proto="http"`
 			p.Init()
 
 			Convey("Then the statement should be parsed correctly", func() {

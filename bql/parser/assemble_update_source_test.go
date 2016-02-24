@@ -63,7 +63,7 @@ func TestAssembleUpdateSource(t *testing.T) {
 		p := &bqlPeg{}
 
 		Convey("When doing a full UPDATE SOURCE", func() {
-			p.Buffer = "UPDATE SOURCE a_1 SET c=27, e_='f_1'"
+			p.Buffer = `UPDATE SOURCE a_1 SET c=27, e_="f_1"`
 			p.Init()
 
 			Convey("Then the statement should be parsed correctly", func() {

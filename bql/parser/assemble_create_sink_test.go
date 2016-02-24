@@ -66,7 +66,7 @@ func TestAssembleCreateSink(t *testing.T) {
 		p := &bqlPeg{}
 
 		Convey("When doing a full CREATE SINK", func() {
-			p.Buffer = "CREATE SINK a_1 TYPE b WITH c=27, e_='f_1'"
+			p.Buffer = `CREATE SINK a_1 TYPE b WITH c=27, e_="f_1"`
 			p.Init()
 
 			Convey("Then the statement should be parsed correctly", func() {
