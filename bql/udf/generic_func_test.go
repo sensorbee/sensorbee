@@ -607,7 +607,8 @@ func TestGenericFuncInconvertibleType(t *testing.T) {
 			{"negative int", data.Int(int64(math.MinInt32) - 1)},
 			{"float", data.Float(float64(math.MaxInt32) + 1.0)},
 			{"negative float", data.Float(float64(math.MinInt32) - 1.0)},
-			{"time", data.Timestamp(time.Date(2015, time.May, 1, 14, 27, 0, 0, time.UTC))},
+			// unix time of MaxInt32 = 2038-01-19 3:14:07
+			{"time", data.Timestamp(time.Date(2038, time.January, 19, 3, 14, 8, 0, time.UTC))},
 		},
 		{ // int64
 			{"float", data.Float(float64(math.MaxUint64))},
@@ -632,7 +633,8 @@ func TestGenericFuncInconvertibleType(t *testing.T) {
 			{"negative int", data.Int(-1)},
 			{"float", data.Float(float64(math.MaxUint32) + 1.0)},
 			{"negative float", data.Float(-1.0)},
-			{"time", data.Timestamp(time.Date(2015, time.May, 1, 14, 27, 0, 0, time.UTC))},
+			// unix time of MaxUint32 = 2106-02-07 06:28:15
+			{"time", data.Timestamp(time.Date(2106, time.February, 7, 6, 28, 16, 0, time.UTC))},
 		},
 		{ // uint64
 			{"negative int", data.Int(-1)},

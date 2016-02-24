@@ -15,7 +15,7 @@ import (
 func TestUnmarshalMsgpack(t *testing.T) {
 	Convey("Given a msgpack byte data", t, func() {
 		now := time.Now()
-		microTime := now.UnixNano() / 1000
+		unixTime := now.Unix()
 		var testMap = map[string]interface{}{
 			"bool":    true,
 			"int32":   int32(1),
@@ -23,7 +23,7 @@ func TestUnmarshalMsgpack(t *testing.T) {
 			"float32": float32(0.1),
 			"float64": float64(0.2),
 			"string":  "homhom",
-			"time":    int64(microTime),
+			"time":    int64(unixTime),
 			"array": []interface{}{true, 10, "inarray",
 				map[string]interface{}{
 					"mapinarray": "arraymap",
@@ -48,7 +48,7 @@ func TestUnmarshalMsgpack(t *testing.T) {
 					"float32": Float(float32(0.1)),
 					"float64": Float(0.2),
 					"string":  String("homhom"),
-					"time":    Int(microTime),
+					"time":    Int(unixTime),
 					"array": Array([]Value{Bool(true), Int(10), String("inarray"),
 						Map{
 							"mapinarray": String("arraymap"),
@@ -158,7 +158,7 @@ func TestNewMapIncludeUnsupportedValue(t *testing.T) {
 func TestMarshalMsgpack(t *testing.T) {
 	Convey("Given a Map object data", t, func() {
 		now := time.Now()
-		milliSecond := now.UnixNano() / 1000
+		unitTime := now.Unix()
 		var testMap = Map{
 			"bool":   Bool(true),
 			"int":    Int(1),
@@ -185,7 +185,7 @@ func TestMarshalMsgpack(t *testing.T) {
 					"int":    int64(1),
 					"float":  float64(0.1),
 					"string": "homhom",
-					"time":   milliSecond,
+					"time":   unitTime,
 					"array": []interface{}{true, 10, "inarray",
 						map[string]interface{}{
 							"mapinarray": "arraymap",

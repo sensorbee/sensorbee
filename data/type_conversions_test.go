@@ -105,9 +105,9 @@ func TestToInt(t *testing.T) {
 		"Timestamp": {
 			// The zero value for a time.Time is *not* the timestamp
 			// that has unix time zero!
-			{"zero", Timestamp(time.Time{}), int64(-62135596800000000)},
-			{"now", Timestamp(now), now.UnixNano() / 1000},
-			{"negative", Timestamp(negTime), negTime.UnixNano() / 1000},
+			{"zero", Timestamp(time.Time{}), int64(-62135596800)},
+			{"now", Timestamp(now), now.Unix()},
+			{"negative", Timestamp(negTime), negTime.Unix()},
 		},
 		"Array": {
 			{"empty", Array{}, nil},
@@ -307,10 +307,8 @@ func TestToTimestamp(t *testing.T) {
 			{"false", Bool(false), nil},
 		},
 		"Int": {
-			{"positive", Int(2), time.Unix(0, 2000)},
-			{"negative", Int(-2), time.Unix(0, -2000)},
-			{"large and positive", Int(2e6), time.Unix(2, 0)},
-			{"large and negative", Int(-2e6), time.Unix(-2, 0)},
+			{"positive", Int(2), time.Unix(2, 0)},
+			{"negative", Int(-2), time.Unix(-2, 0)},
 			{"zero", Int(0), time.Unix(0, 0)},
 		},
 		"Float": {
