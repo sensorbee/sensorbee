@@ -226,11 +226,12 @@ func TestToString(t *testing.T) {
 			{"now", Timestamp(now), now.Format(time.RFC3339Nano)},
 		},
 		"Array": {
-			{"empty", Array{}, "data.Array{}"},
-			{"non-empty", Array{Int(2), String("foo")}, `data.Array{2, "foo"}`},
+			{"empty", Array{}, "[]"},
+			{"non-empty", Array{Int(2), String("foo")}, `[2,"foo"]`},
 		},
 		"Map": {
-			{"empty", Map{}, `data.Map{}`},
+			{"empty", Map{}, `{}`},
+			{"one-key", Map{"a": Int(1)}, `{"a":1}`},
 			// the following test would fail once in a while because
 			// golang randomizes the keys for Maps, i.e., we cannot be sure
 			// that we will always get the same string
