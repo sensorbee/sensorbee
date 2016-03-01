@@ -209,7 +209,7 @@ func ToFloat(v Value) (float64, error) {
 //
 //  * Null: ""
 //  * String: the actual string
-//  * Blob: string just copied from []byte
+//  * Blob: base64-encoded string
 //  * Timestamp: ISO 8601 representation, see time.RFC3339
 //  * other: Go's "%#v" representation
 func ToString(v Value) (string, error) {
@@ -223,7 +223,7 @@ func ToString(v Value) (string, error) {
 		return v.asString()
 	case TypeBlob:
 		val, _ := v.asBlob()
-		return string(val), nil
+		return base64.StdEncoding.EncodeToString(val), nil
 	case TypeTimestamp:
 		val, _ := v.asTimestamp()
 		return val.Format(time.RFC3339Nano), nil
