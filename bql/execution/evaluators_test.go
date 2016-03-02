@@ -439,7 +439,7 @@ func TestAggFuncAppConversion(t *testing.T) {
 				// correct input
 				{data.Map{"g_f12cd6bc": data.Array{data.Int(1), data.Int(2)},
 					"g_77d2dd39": data.Array{data.Int(3), data.Int(4)}},
-					data.String("data.Array{2, 1}data.Array{1, 2}")},
+					data.String("[2,1][1,2]")},
 			},
 		},
 
@@ -1423,9 +1423,9 @@ func getTestCases() []struct {
 					"b": data.Timestamp{}}, data.String("10001-01-01T00:00:00Z")},
 				// TODO this is not the best possible form...
 				{data.Map{"a": data.Int(1),
-					"b": data.Array{}}, data.String("1data.Array{}")},
+					"b": data.Array{}}, data.String("1[]")},
 				{data.Map{"a": data.Int(1),
-					"b": data.Map{}}, data.String("1data.Map{}")},
+					"b": data.Map{}}, data.String("1{}")},
 			}, nullOps...),
 		},
 		// IsNull
@@ -1665,8 +1665,8 @@ func getTestCases() []struct {
 				{data.Map{"a": data.Bool(false)}, data.String("false")},
 				{data.Map{"a": data.String("日本語")}, data.String("日本語")},
 				{data.Map{"a": data.Blob("hoge")}, data.String("hoge")},
-				{data.Map{"a": data.Array{data.Int(2)}}, data.String("data.Array{2}")},
-				{data.Map{"a": data.Map{"b": data.Int(3)}}, data.String("data.Map{\"b\":3}")},
+				{data.Map{"a": data.Array{data.Int(2)}}, data.String("[2]")},
+				{data.Map{"a": data.Map{"b": data.Int(3)}}, data.String("{\"b\":3}")},
 				// null propagation
 				{data.Map{"a": data.Null{}}, data.Null{}},
 			},
