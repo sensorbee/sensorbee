@@ -102,7 +102,7 @@ func (s *pipeSender) Write(ctx *Context, t *Tuple) error {
 	return s.write(ctx, t, func(*Tuple) {})
 }
 
-func (s *pipeSender) write(ctx *Context, t *Tuple, droppedTuple func(*Tuple)) error {
+func (s *pipeSender) write(ctx *Context, in *Tuple, droppedTuple func(*Tuple)) error {
 	s.rwm.RLock()
 	defer s.rwm.RUnlock()
 
@@ -110,7 +110,12 @@ func (s *pipeSender) write(ctx *Context, t *Tuple, droppedTuple func(*Tuple)) er
 		return errPipeClosed
 	}
 
+	t := in
+	if t.Flags.IsSet(TFShared) {
+		t = in.ShallowCopy()
+	}
 	t.InputName = s.inputName
+
 	if s.dropMode == DropNone {
 		s.out <- t
 	} else {
@@ -818,18 +823,20 @@ func (d *dataDestinations) Write(ctx *Context, t *Tuple) error {
 		ctx.droppedTuple(t, d.nodeType, d.nodeName, ETOutput, errors.New("the output queue is full"))
 	}
 
-	needsCopy := len(d.dsts) > 1
+	if len(d.dsts) > 1 {
+		// If TFShared is already set, it doesn't have to be set again and
+		// setting the flag again is also safe (as long as any Box doesn't
+		// clear the flag). If the flag isn't set, it means that this Write
+		// method can safely modify the tuple, so the flag can be set here.
+		// Therefore, just setting TFShared here works fine with any condition.
+		t.Flags.Set(TFShared)
+	}
 	var closed []string
 	for name, dst := range d.dsts {
 		// TODO: recovering from panic here instead of using RWLock in
 		// pipeSender might be faster.
 
-		s := t
-		if needsCopy {
-			s = t.Copy()
-		}
-
-		if err := dst.write(ctx, s, reportFunc); err != nil { // never panics
+		if err := dst.write(ctx, t, reportFunc); err != nil { // never panics
 			// err is always errPipeClosed when it isn't nil.
 			// Because the closed destination doesn't do anything harmful,
 			// it'll be removed later for performance reason.
