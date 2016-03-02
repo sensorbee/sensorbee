@@ -861,13 +861,13 @@ func (nbo *concat) Eval(input data.Value) (v data.Value, err error) {
 	if leftVal.Type() == data.TypeNull || rightVal.Type() == data.TypeNull {
 		return data.Null{}, nil
 	}
-	leftString, err := data.ToString(leftVal)
+	leftString, err := data.AsString(leftVal)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("left operand of || must be string: %v", leftVal)
 	}
-	rightString, err := data.ToString(rightVal)
+	rightString, err := data.AsString(rightVal)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("right operand of || must be string: %v", rightVal)
 	}
 	return data.String(leftString + rightString), nil
 }
