@@ -67,6 +67,13 @@ func (t *Tuple) Copy() *Tuple {
 // ShallowCopy creates a new copy of a tuple. It only deep copies trace
 // information. Because Data is shared between the old tuple and the new tuple,
 // TFShared is set by this method.
+//
+// It's safe to clear TFShared flag after assigning a new data.Map to Data
+// field:
+//
+//	newT := oldT.ShallowCopy()
+//	newT.Data = data.Map{} // no field other than Data is shared with oldT.
+//	newT.Flags.Clear(TFShared) // therefore, it's safe to clear the flag here.
 func (t *Tuple) ShallowCopy() *Tuple {
 	out := t.shallowCopy()
 	out.Flags.Set(TFShared)
@@ -80,9 +87,11 @@ func (t *Tuple) shallowCopy() *Tuple {
 	// the copied tuple should have new event history,
 	// which is isolated from the original tuple,
 	// past events are copied from the original tuple
-	tr := make([]TraceEvent, len(t.Trace))
-	copy(tr, t.Trace)
-	out.Trace = tr
+	if t.Trace != nil {
+		tr := make([]TraceEvent, len(t.Trace))
+		copy(tr, t.Trace)
+		out.Trace = tr
+	}
 	return &out
 }
 

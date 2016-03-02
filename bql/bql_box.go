@@ -6,6 +6,7 @@ import (
 	"gopkg.in/sensorbee/sensorbee.v0/bql/parser"
 	"gopkg.in/sensorbee/sensorbee.v0/bql/udf"
 	"gopkg.in/sensorbee/sensorbee.v0/core"
+	"gopkg.in/sensorbee/sensorbee.v0/data"
 	"math/rand"
 	"sync"
 	"time"
@@ -94,6 +95,17 @@ func (b *bqlBox) Process(ctx *core.Context, t *core.Tuple, s core.Writer) error 
 	}
 
 	// feed tuple into plan
+	if t.Flags.IsSet(core.TFShared) {
+		// Because some execPlans modifiy t.Data, its top level Map needs to be
+		// cloned. After refactoring the implementation, this redundant copy
+		// can be avoided.
+		t = t.ShallowCopy()
+		original := t.Data
+		t.Data = make(data.Map, len(original))
+		for k, v := range original {
+			t.Data[k] = v
+		}
+	}
 	resultData, err := b.execPlan.Process(t)
 	if err != nil {
 		return err
@@ -101,12 +113,12 @@ func (b *bqlBox) Process(ctx *core.Context, t *core.Tuple, s core.Writer) error 
 
 	// emit result data as tuples
 	for _, data := range resultData {
-		tup := *t
+		tup := t.ShallowCopy()
 		tup.Data = data
-		if len(t.Trace) != 0 {
-			tup.Trace = make([]core.TraceEvent, len(t.Trace))
-			copy(tup.Trace, t.Trace)
-		}
+		// This method can't tell if data was originally shared by some tuples.
+		// Therefore, TFShared flag cannot be cleared here. Data of some Tuples
+		// can be shared when they have reference types such as Blob, Array, or
+		// Map.
 
 		// decide if we should emit a tuple for this item
 		shouldWriteTuple := true
@@ -122,7 +134,7 @@ func (b *bqlBox) Process(ctx *core.Context, t *core.Tuple, s core.Writer) error 
 			// we will never emit something from this function
 			// when the time-based emitter is used
 			b.timeEmitterMutex.Lock()
-			b.lastTuple = &tup
+			b.lastTuple = tup
 			b.lastWriter = s
 			b.timeEmitterMutex.Unlock()
 			continue
@@ -130,7 +142,7 @@ func (b *bqlBox) Process(ctx *core.Context, t *core.Tuple, s core.Writer) error 
 
 		// write the tuple to the connected box
 		if shouldWriteTuple {
-			if err := s.Write(ctx, &tup); err != nil {
+			if err := s.Write(ctx, tup); err != nil {
 				return err
 			}
 			b.timeEmitterMutex.Lock()
