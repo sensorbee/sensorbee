@@ -2,6 +2,7 @@ package core
 
 import (
 	"gopkg.in/sensorbee/sensorbee.v0/data"
+	"sync/atomic"
 	"time"
 )
 
@@ -52,13 +53,29 @@ func (t *Tuple) AddEvent(ev TraceEvent) {
 
 // Copy creates a deep copy of a Tuple, including the contained
 // data. This can be used, e.g., by fan-out pipes. When Tuple.Data doesn't
-// need to be cloned, just use newTuple := *oldTuple instead of this method.
+// need to be cloned, call ShallowCopy. NEVER do newTuple := *oldTuple.
 func (t *Tuple) Copy() *Tuple {
 	// except for Data, there are only value types in
 	// Tuple, so we can use normal copy for everything
 	// except Data
-	out := *t
+	out := t.shallowCopy()
 	out.Data = out.Data.Copy()
+	out.Flags.Clear(TFShared) // not shared
+	return out
+}
+
+// ShallowCopy creates a new copy of a tuple. It only deep copies trace
+// information. Because Data is shared between the old tuple and the new tuple,
+// TFShared is set by this method.
+func (t *Tuple) ShallowCopy() *Tuple {
+	out := t.shallowCopy()
+	out.Flags.Set(TFShared)
+	t.Flags.Set(TFShared)
+	return out
+}
+
+func (t *Tuple) shallowCopy() *Tuple {
+	out := *t
 
 	// the copied tuple should have new event history,
 	// which is isolated from the original tuple,
@@ -66,7 +83,6 @@ func (t *Tuple) Copy() *Tuple {
 	tr := make([]TraceEvent, len(t.Trace))
 	copy(tr, t.Trace)
 	out.Trace = tr
-
 	return &out
 }
 
@@ -89,19 +105,34 @@ const (
 	// TFDropped is a flag which is set when a tuple is dropped. Once this flag
 	// is set to a tuple, the tuple will not be reported when it is dropped.
 	TFDropped TupleFlags = 1 << iota
+
+	// TFShared is a flag which is set when a tuple is shared by multiple node
+	// so that a node changing the tuple must make a copy of it rather than
+	// modifying it directly.
+	TFShared
 )
 
 // Set sets a set of flags at once.
 func (f *TupleFlags) Set(v TupleFlags) {
-	*f |= v
+	for {
+		old := atomic.LoadUint32((*uint32)(f))
+		if atomic.CompareAndSwapUint32((*uint32)(f), old, old|uint32(v)) {
+			break
+		}
+	}
 }
 
 // IsSet returns true if the all given flags are set.
 func (f *TupleFlags) IsSet(v TupleFlags) bool {
-	return *f&v == v
+	return TupleFlags(atomic.LoadUint32((*uint32)(f)))&v == v
 }
 
 // Clear clears a set of flags at once.
 func (f *TupleFlags) Clear(v TupleFlags) {
-	*f &= ^v
+	for {
+		old := atomic.LoadUint32((*uint32)(f))
+		if atomic.CompareAndSwapUint32((*uint32)(f), old, old & ^uint32(v)) {
+			break
+		}
+	}
 }
