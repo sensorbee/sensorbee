@@ -227,6 +227,8 @@ func ToString(v Value) (string, error) {
 	case TypeTimestamp:
 		val, _ := v.asTimestamp()
 		return val.Format(time.RFC3339Nano), nil
+	case TypeArray, TypeMap:
+		return v.String(), nil
 	default:
 		return fmt.Sprintf("%#v", v), nil
 	}
