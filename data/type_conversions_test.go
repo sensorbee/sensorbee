@@ -219,7 +219,7 @@ func TestToString(t *testing.T) {
 		},
 		"Blob": {
 			{"empty", Blob(""), ""},
-			{"non-empty", Blob("hoge"), "hoge"},
+			{"non-empty", Blob("hoge"), "aG9nZQ=="},
 		},
 		"Timestamp": {
 			{"zero", Timestamp(time.Time{}), "0001-01-01T00:00:00Z"},
