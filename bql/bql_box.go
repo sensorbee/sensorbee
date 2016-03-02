@@ -6,7 +6,6 @@ import (
 	"gopkg.in/sensorbee/sensorbee.v0/bql/parser"
 	"gopkg.in/sensorbee/sensorbee.v0/bql/udf"
 	"gopkg.in/sensorbee/sensorbee.v0/core"
-	"gopkg.in/sensorbee/sensorbee.v0/data"
 	"math/rand"
 	"sync"
 	"time"
@@ -95,17 +94,6 @@ func (b *bqlBox) Process(ctx *core.Context, t *core.Tuple, s core.Writer) error 
 	}
 
 	// feed tuple into plan
-	if t.Flags.IsSet(core.TFShared) {
-		// Because some execPlans modifiy t.Data, its top level Map needs to be
-		// cloned. After refactoring the implementation, this redundant copy
-		// can be avoided.
-		t = t.ShallowCopy()
-		original := t.Data
-		t.Data = make(data.Map, len(original))
-		for k, v := range original {
-			t.Data[k] = v
-		}
-	}
 	resultData, err := b.execPlan.Process(t)
 	if err != nil {
 		return err

@@ -48,16 +48,18 @@ func NewFilterPlan(lp *LogicalPlan, reg udf.FunctionRegistry) (PhysicalPlan, err
 
 func (ep *filterPlan) Process(input *core.Tuple) ([]data.Map, error) {
 	// nest the data in a one-element map using the alias as the key
-	input.Data = data.Map{ep.relAlias: input.Data}
-	setMetadata(input.Data, ep.relAlias, input)
+	d := data.Map{ep.relAlias: input.Data}
+	setMetadata(d, ep.relAlias, input)
+
+	// because this plan doesn't cache data, TFShared flag doesn't have to be set.
 
 	// add the information accessed by the now() function
 	// to each item
-	input.Data[":meta:NOW"] = data.Timestamp(time.Now().In(time.UTC))
+	d[":meta:NOW"] = data.Timestamp(time.Now().In(time.UTC))
 
 	// evaluate filter condition and convert to bool
 	if ep.filter != nil {
-		filterResult, err := ep.filter.Eval(input.Data)
+		filterResult, err := ep.filter.Eval(d)
 		if err != nil {
 			return nil, err
 		}
@@ -73,7 +75,7 @@ func (ep *filterPlan) Process(input *core.Tuple) ([]data.Map, error) {
 	// otherwise, compute all the expressions
 	result := data.Map(make(map[string]data.Value, len(ep.projections)))
 	for _, proj := range ep.projections {
-		value, err := proj.evaluator.Eval(input.Data)
+		value, err := proj.evaluator.Eval(d)
 		if err != nil {
 			return nil, err
 		}

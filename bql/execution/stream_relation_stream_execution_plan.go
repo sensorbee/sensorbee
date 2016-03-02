@@ -77,7 +77,8 @@ type streamRelationStreamExecutionPlan struct {
 	// buffers holds data of a single stream window, keyed by the
 	// alias (!) of the respective input stream. It will be
 	// updated (appended and possibly truncated) whenever
-	// Process() is called with a new tuple.
+	// Process() is called with a new tuple. inputBuffer.tuples has tuples
+	// as tupleWithDerivedInputRows type.
 	buffers map[string]*inputBuffer
 	// emitter configuration
 	emitterType parser.Emitter
@@ -189,16 +190,14 @@ func (ep *streamRelationStreamExecutionPlan) addTupleToBuffer(t *core.Tuple) err
 		return fmt.Errorf("tuple has input name '%s' set, but we "+
 			"can only deal with %v", t.InputName, knownRelNames)
 	}
+
+	// core.TFShared is set by t.ShallowCopy() below.
+
 	ep.lastTupleBuffers = make(map[string]bool, numAppends)
 	for _, rel := range ep.relations {
 		if t.InputName == ep.relationKey(&rel) {
-			// if we have numAppends > 1 (meaning: this tuple is used in a
-			// self-join) we should work with a copy, otherwise we can use
-			// the original item
-			editTuple := t
-			if numAppends > 1 {
-				editTuple = t.Copy()
-			}
+			// because the tuple is always cached, ShallowCopy is required here.
+			editTuple := t.ShallowCopy()
 			// nest the data in a one-element map using the alias as the key
 			editTuple.Data = data.Map{rel.Alias: editTuple.Data}
 			// wrap this in a container struct

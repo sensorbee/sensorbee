@@ -17,15 +17,19 @@ import (
 // contained in one row.
 type Evaluator interface {
 	// Eval evaluates the expression that this Evaluator represents
-	// on the given input data. Note that in order to deal with
-	// joins and timestamps properly, the input data must have the shape
+	// on the given input data. Note that in order to deal with joins and
+	// meta information such as timestamps properly, the input data must have
+	// the shape:
 	//   {"alias_1": {"col_1": ..., "col_2": ...},
 	//    "alias_1:meta:x": (meta datum "x" for alias_1's row),
 	//    "alias_2": {"col_1": ..., "col_2": ...},
 	//    "alias_2:meta:x": (meta datum "x" for alias_2's row),
 	//    ...}
 	// and every caller (in particular all execution plans)
-	// must ensure that the data has this shape.
+	// must ensure that the data has this shape even if there's only one input
+	// stream.
+	//
+	// Eval must NOT modify the input.
 	Eval(input data.Value) (data.Value, error)
 }
 
