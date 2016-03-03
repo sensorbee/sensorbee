@@ -1025,7 +1025,7 @@ func TestEvalStmt(t *testing.T) {
 
 		Convey("When issuing an EVAL stmt with a foldable expression without ON", func() {
 			bp := parser.New()
-			istmt, _, err := bp.ParseStmt(`EVAL "日本" || (2+3)`)
+			istmt, _, err := bp.ParseStmt(`EVAL "日本" || (2+3)::string`)
 			So(err, ShouldBeNil)
 			stmt := istmt.(parser.EvalStmt)
 			val, err := tb.RunEvalStmt(&stmt)
@@ -1038,7 +1038,7 @@ func TestEvalStmt(t *testing.T) {
 
 		Convey("When issuing an EVAL stmt with a foldable expression and a foldable ON expression", func() {
 			bp := parser.New()
-			istmt, _, err := bp.ParseStmt(`EVAL "日本" || (2+3) ON {"key": 5}`)
+			istmt, _, err := bp.ParseStmt(`EVAL "日本" || (2+3)::string ON {"key": 5}`)
 			So(err, ShouldBeNil)
 			stmt := istmt.(parser.EvalStmt)
 			val, err := tb.RunEvalStmt(&stmt)
@@ -1051,7 +1051,7 @@ func TestEvalStmt(t *testing.T) {
 
 		Convey("When issuing an EVAL stmt with a foldable expression and a non-foldable ON expression", func() {
 			bp := parser.New()
-			istmt, _, err := bp.ParseStmt(`EVAL "日本" || (2+3) ON {"key": a}`)
+			istmt, _, err := bp.ParseStmt(`EVAL "日本" || (2+3)::string ON {"key": a}`)
 			So(err, ShouldBeNil)
 			stmt := istmt.(parser.EvalStmt)
 			_, err = tb.RunEvalStmt(&stmt)
@@ -1079,7 +1079,7 @@ func TestEvalStmt(t *testing.T) {
 
 		Convey("When issuing an EVAL stmt with a non-foldable expression and a foldable ON expression", func() {
 			bp := parser.New()
-			istmt, _, err := bp.ParseStmt(`EVAL "日本" || key ON {"key": 5}`)
+			istmt, _, err := bp.ParseStmt(`EVAL "日本" || key ON {"key": "5"}`)
 			So(err, ShouldBeNil)
 			stmt := istmt.(parser.EvalStmt)
 			val, err := tb.RunEvalStmt(&stmt)
@@ -1107,7 +1107,7 @@ func TestEvalStmt(t *testing.T) {
 
 		Convey("When issuing an EVAL stmt with an expression using a stream prefix", func() {
 			bp := parser.New()
-			istmt, _, err := bp.ParseStmt(`EVAL "日本" || s:key ON {"key": 5}`)
+			istmt, _, err := bp.ParseStmt(`EVAL "日本" || s:key ON {"key": "5"}`)
 			So(err, ShouldBeNil)
 			stmt := istmt.(parser.EvalStmt)
 			_, err = tb.RunEvalStmt(&stmt)
