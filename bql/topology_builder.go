@@ -300,44 +300,6 @@ func (tb *TopologyBuilder) AddStmt(stmt interface{}) (core.Node, error) {
 		_, err = ctx.SharedStates.Remove(string(stmt.State))
 		return nil, err
 
-	case parser.InsertIntoSelectStmt:
-		// get the sink to add an input to
-		sink, err := tb.topology.Sink(string(stmt.Sink))
-		if err != nil {
-			return nil, err
-		}
-		// construct an intermediate box doing the SELECT computation.
-		//   INSERT INTO sink SELECT ISTREAM a, b FROM c [RANGE ...] WHERE d
-		// becomes
-		//   CREATE STREAM (random_string) AS SELECT ISTREAM a, b
-		//   FROM c [RANGE ...] WHERE d
-		//  + a connection (random_string -> sink)
-		tmpName := fmt.Sprintf("sensorbee_tmp_%v", topologyBuilderNextTemporaryID())
-		tmpStmt := parser.CreateStreamAsSelectStmt{
-			parser.StreamIdentifier(tmpName),
-			parser.SelectStmt{
-				stmt.EmitterAST,
-				stmt.ProjectionsAST,
-				stmt.WindowedFromAST,
-				stmt.FilterAST,
-				stmt.GroupingAST,
-				stmt.HavingAST,
-			},
-		}
-		box, err := tb.AddStmt(tmpStmt)
-		if err != nil {
-			return nil, err
-		}
-		box.(core.BoxNode).StopOnDisconnect(core.Inbound | core.Outbound)
-		box.(core.BoxNode).RemoveOnStop()
-
-		// now connect the sink to that box
-		if err := sink.Input(tmpName, nil); err != nil {
-			tb.topology.Remove(tmpName)
-			return nil, err
-		}
-		return box, nil
-
 	case parser.InsertIntoFromStmt:
 		// get the sink to add an input to
 		sink, err := tb.topology.Sink(string(stmt.Sink))

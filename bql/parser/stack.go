@@ -286,25 +286,6 @@ func (ps *parseStack) AssembleUpdateSink() {
 	ps.Push(&se)
 }
 
-// AssembleInsertIntoSelect takes the topmost elements from the stack,
-// assuming they are components of a INSERT ... SELECT statement, and
-// replaces them by a single InsertIntoSelectStmt element.
-//
-//  SelectStmt
-//  StreamIdentifier
-//   =>
-//  InsertIntoSelectStmt{StreamIdentifier, SelectStmt}
-func (ps *parseStack) AssembleInsertIntoSelect() {
-	_selectStmt, _sink := ps.pop2()
-
-	selectStmt := _selectStmt.comp.(SelectStmt)
-	sink := _sink.comp.(StreamIdentifier)
-
-	s := InsertIntoSelectStmt{sink, selectStmt}
-	se := ParsedComponent{_sink.begin, _selectStmt.end, s}
-	ps.Push(&se)
-}
-
 // AssembleInsertIntoFrom takes the topmost elements from the stack,
 // assuming they are components of a INSERT ... FROM ... statement, and
 // replaces them by a single InsertIntoFromStmt element.

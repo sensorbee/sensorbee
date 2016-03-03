@@ -55,8 +55,6 @@ func (s *Statement) Input() ([]string, error) {
 		}
 	case parser.InsertIntoFromStmt:
 		return []string{string(stmt.Input)}, nil
-	case parser.InsertIntoSelectStmt:
-		names, err = inputFromSelect(&stmt.SelectStmt)
 	}
 	if err != nil {
 		return nil, err
@@ -142,8 +140,6 @@ func (s *Statement) NodeName() string {
 		return string(stmt.Name)
 	case parser.InsertIntoFromStmt:
 		return string(stmt.Sink)
-	case parser.InsertIntoSelectStmt:
-		return string(stmt.Sink)
 	}
 	// There's no need to cache the result of sinks.
 	// CREATE STATE returns "" because it doesn't create a node.
@@ -178,7 +174,7 @@ func (s *Statement) IsDataSourceNodeQuery() bool {
 // IsInsertStatement returns true when the statement is INSERT INTO.
 func (s *Statement) IsInsertStatement() bool {
 	switch s.Stmt.(type) {
-	case parser.InsertIntoFromStmt, parser.InsertIntoSelectStmt:
+	case parser.InsertIntoFromStmt:
 		return true
 	}
 	return false

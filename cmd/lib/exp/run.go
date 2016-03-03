@@ -376,7 +376,7 @@ func executeTarget(t core.Topology, ent *CacheEntry, stmt *Statement, resumeAll 
 		}
 		sn.State().Wait(core.TSStopped)
 
-	case parser.InsertIntoFromStmt, parser.InsertIntoSelectStmt:
+	case parser.InsertIntoFromStmt:
 		if err := resumeAll(); err != nil {
 			return err
 		}
