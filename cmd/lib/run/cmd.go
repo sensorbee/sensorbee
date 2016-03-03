@@ -5,6 +5,7 @@ package run
 import (
 	"fmt"
 	"github.com/codegangsta/cli"
+	"gopkg.in/pfnet/jasco.v1"
 	"gopkg.in/sensorbee/sensorbee.v0/data"
 	"gopkg.in/sensorbee/sensorbee.v0/server"
 	"gopkg.in/sensorbee/sensorbee.v0/server/config"
@@ -97,7 +98,8 @@ func Run(c *cli.Context) {
 
 	cgvars.Logger.Info("Setting up the server context")
 
-	router, err := server.SetUpContextAndRouter("/", cgvars)
+	jascoRoot := jasco.New("/", cgvars.Logger)
+	router, err := server.SetUpContextAndRouter("/", jascoRoot, cgvars)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Cannot set up the server context: %v\n", err)
 		panic(1)
@@ -115,7 +117,7 @@ func Run(c *cli.Context) {
 	// TODO: support graceful shutdown
 	s := &http.Server{
 		Addr:    conf.Network.ListenOn,
-		Handler: router,
+		Handler: jascoRoot,
 	}
 	cgvars.Logger.Infof("Starting the server on %v", conf.Network.ListenOn)
 	if err := s.ListenAndServe(); err != nil {

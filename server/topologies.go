@@ -5,6 +5,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/gocraft/web"
 	"golang.org/x/net/websocket"
+	"gopkg.in/pfnet/jasco.v1"
 	"gopkg.in/sensorbee/sensorbee.v0/bql"
 	"gopkg.in/sensorbee/sensorbee.v0/bql/parser"
 	"gopkg.in/sensorbee/sensorbee.v0/core"
@@ -41,25 +42,10 @@ func setUpTopologiesRouter(prefix string, router *web.Router) {
 	setUpSinksRouter(prefix, root)
 }
 
-func (tc *topologies) Log() *logrus.Entry {
-	e := tc.APIContext.Log()
-	if tc.topologyName == "" {
-		return e
-	}
-	return e.WithField("topology", tc.topologyName)
-}
-
-func (tc *topologies) ErrLog(err error) *logrus.Entry {
-	e := tc.APIContext.ErrLog(err)
-	if tc.topologyName == "" {
-		return e
-	}
-	return e.WithField("topology", tc.topologyName)
-}
-
 func (tc *topologies) extractName(rw web.ResponseWriter, req *web.Request, next web.NextMiddlewareFunc) {
-	if err := tc.extractOptionStringFromPath("topologyName", &tc.topologyName); err != nil {
-		return
+	tc.topologyName = tc.PathParams().String("topologyName", "")
+	if tc.topologyName != "" {
+		tc.AddLogField("topology", tc.topologyName)
 	}
 	next(rw, req)
 }
@@ -71,12 +57,12 @@ func (tc *topologies) fetchTopology() *bql.TopologyBuilder {
 	if err != nil {
 		if core.IsNotExist(err) {
 			tc.Log().Error("The topology is not registered")
-			tc.RenderErrorJSON(NewError(requestURLNotFoundErrorCode, "The topology doesn't exist",
+			tc.RenderError(jasco.NewError(requestResourceNotFoundErrorCode, "The topology doesn't exist",
 				http.StatusNotFound, err))
 			return nil
 		}
-		tc.ErrLog(err).WithField("err", err).Error("Cannot lookup the topology")
-		tc.RenderErrorJSON(NewInternalServerError(err))
+		tc.ErrLog(err).Error("Cannot lookup the topology")
+		tc.RenderError(jasco.NewInternalServerError(err))
 		return nil
 	}
 	tc.topology = tb
@@ -85,10 +71,10 @@ func (tc *topologies) fetchTopology() *bql.TopologyBuilder {
 
 // Create creates a new topology.
 func (tc *topologies) Create(rw web.ResponseWriter, req *web.Request) {
-	js, apiErr := parseJSONFromRequestBody(tc.Context)
-	if apiErr != nil {
+	var js map[string]interface{}
+	if apiErr := tc.ParseBody(&js); apiErr != nil {
 		tc.ErrLog(apiErr.Err).Error("Cannot parse the request json")
-		tc.RenderErrorJSON(apiErr)
+		tc.RenderError(apiErr)
 		return
 	}
 
@@ -96,7 +82,7 @@ func (tc *topologies) Create(rw web.ResponseWriter, req *web.Request) {
 	form, err := data.NewMap(js)
 	if err != nil {
 		tc.ErrLog(err).WithField("body", js).Error("The request json may contain invalid value")
-		tc.RenderErrorJSON(NewError(formValidationErrorCode, "The request json may contain invalid values.",
+		tc.RenderError(jasco.NewError(formValidationErrorCode, "The request json may contain invalid values.",
 			http.StatusBadRequest, err))
 		return
 	}
@@ -106,27 +92,27 @@ func (tc *topologies) Create(rw web.ResponseWriter, req *web.Request) {
 	n, ok := form["name"]
 	if !ok {
 		tc.Log().Error("The required 'name' field is missing")
-		e := NewError(formValidationErrorCode, "The request body is invalid.",
+		e := jasco.NewError(formValidationErrorCode, "The request body is invalid.",
 			http.StatusBadRequest, nil)
 		e.Meta["name"] = []string{"field is missing"}
-		tc.RenderErrorJSON(e)
+		tc.RenderError(e)
 		return
 	}
 	name, err := data.AsString(n)
 	if err != nil {
 		tc.ErrLog(err).Error("'name' field isn't a string")
-		e := NewError(formValidationErrorCode, "The request body is invalid.",
+		e := jasco.NewError(formValidationErrorCode, "The request body is invalid.",
 			http.StatusBadRequest, nil)
 		e.Meta["name"] = []string{"value must be a string"}
-		tc.RenderErrorJSON(e)
+		tc.RenderError(e)
 		return
 	}
 	if err := core.ValidateNodeName(name); err != nil {
 		tc.ErrLog(err).Error("'name' field has invalid format")
-		e := NewError(formValidationErrorCode, "The request body is invalid.",
+		e := jasco.NewError(formValidationErrorCode, "The request body is invalid.",
 			http.StatusBadRequest, nil)
 		e.Meta["name"] = []string{"inavlid format"}
-		tc.RenderErrorJSON(e)
+		tc.RenderError(e)
 		return
 	}
 
@@ -143,7 +129,7 @@ func (tc *topologies) Create(rw web.ResponseWriter, req *web.Request) {
 	tb, err := bql.NewTopologyBuilder(tp)
 	if err != nil {
 		tc.ErrLog(err).Error("Cannot create a new topology builder")
-		tc.RenderErrorJSON(NewInternalServerError(err))
+		tc.RenderError(jasco.NewInternalServerError(err))
 		return
 	}
 	tb.UDSStorage = tc.udsStorage
@@ -155,19 +141,19 @@ func (tc *topologies) Create(rw web.ResponseWriter, req *web.Request) {
 
 		if os.IsExist(err) {
 			tc.Log().Error("the name is already registered")
-			e := NewError(formValidationErrorCode, "The request body is invalid.",
+			e := jasco.NewError(formValidationErrorCode, "The request body is invalid.",
 				http.StatusBadRequest, nil)
 			e.Meta["name"] = []string{"already taken"}
-			tc.RenderErrorJSON(e)
+			tc.RenderError(e)
 			return
 		}
 		tc.ErrLog(err).WithField("err", err).Error("Cannot register the topology")
-		tc.RenderJSON(NewInternalServerError(err))
+		tc.Render(jasco.NewInternalServerError(err))
 		return
 	}
 
 	// TODO: return 201
-	tc.RenderJSON(map[string]interface{}{
+	tc.Render(map[string]interface{}{
 		"topology": response.NewTopology(tb.Topology()),
 	})
 }
@@ -177,7 +163,7 @@ func (tc *topologies) Index(rw web.ResponseWriter, req *web.Request) {
 	ts, err := tc.topologies.List()
 	if err != nil {
 		tc.ErrLog(err).Error("Cannot list registered topologies")
-		tc.RenderErrorJSON(NewInternalServerError(err))
+		tc.RenderError(jasco.NewInternalServerError(err))
 		return
 	}
 
@@ -185,7 +171,7 @@ func (tc *topologies) Index(rw web.ResponseWriter, req *web.Request) {
 	for _, tb := range ts {
 		res = append(res, response.NewTopology(tb.Topology()))
 	}
-	tc.RenderJSON(map[string]interface{}{
+	tc.Render(map[string]interface{}{
 		"topologies": res,
 	})
 }
@@ -196,7 +182,7 @@ func (tc *topologies) Show(rw web.ResponseWriter, req *web.Request) {
 	if tb == nil {
 		return
 	}
-	tc.RenderJSON(map[string]interface{}{
+	tc.Render(map[string]interface{}{
 		"topology": response.NewTopology(tb.Topology()),
 	})
 }
@@ -208,7 +194,7 @@ func (tc *topologies) Destroy(rw web.ResponseWriter, req *web.Request) {
 	isNotExist := core.IsNotExist(err)
 	if err != nil && !isNotExist {
 		tc.ErrLog(err).Error("Cannot unregister the topology")
-		tc.RenderErrorJSON(NewInternalServerError(err))
+		tc.RenderError(jasco.NewInternalServerError(err))
 		return
 	}
 	stopped := true
@@ -221,9 +207,9 @@ func (tc *topologies) Destroy(rw web.ResponseWriter, req *web.Request) {
 
 	if stopped {
 		// TODO: return 204 when the topology didn't exist.
-		tc.RenderJSON(map[string]interface{}{})
+		tc.Render(map[string]interface{}{})
 	} else {
-		tc.RenderJSON(map[string]interface{}{
+		tc.Render(map[string]interface{}{
 			"warning": map[string]interface{}{
 				"message": "the topology wasn't stopped correctly",
 			},
@@ -237,10 +223,10 @@ func (tc *topologies) Queries(rw web.ResponseWriter, req *web.Request) {
 		return
 	}
 
-	js, apiErr := parseJSONFromRequestBody(tc.Context)
-	if apiErr != nil {
+	var js map[string]interface{}
+	if apiErr := tc.ParseBody(&js); apiErr != nil {
 		tc.ErrLog(apiErr.Err).Error("Cannot parse the request json")
-		tc.RenderErrorJSON(apiErr)
+		tc.RenderError(apiErr)
 		return
 	}
 
@@ -248,18 +234,18 @@ func (tc *topologies) Queries(rw web.ResponseWriter, req *web.Request) {
 	if err != nil {
 		tc.ErrLog(err).WithField("body", js).
 			Error("The request json may contain invalid value")
-		tc.RenderErrorJSON(NewError(formValidationErrorCode, "The request json may contain invalid values.",
+		tc.RenderError(jasco.NewError(formValidationErrorCode, "The request json may contain invalid values.",
 			http.StatusBadRequest, err))
 		return
 	}
 
 	var stmts []interface{}
 	if ss, err := tc.parseQueries(form); err != nil {
-		tc.RenderErrorJSON(err)
+		tc.RenderError(err)
 		return
 	} else if len(ss) == 0 {
 		// TODO: support the new format
-		tc.RenderJSON(map[string]interface{}{
+		tc.Render(map[string]interface{}{
 			"topology_name": tc.topologyName,
 			"status":        "running",
 			"queries":       []interface{}{},
@@ -289,35 +275,35 @@ func (tc *topologies) Queries(rw web.ResponseWriter, req *web.Request) {
 		_, err := tb.AddStmt(stmt)
 		if err != nil {
 			tc.ErrLog(err).Error("Cannot process a statement")
-			e := NewError(bqlStmtProcessingErrorCode, "Cannot process a statement", http.StatusBadRequest, err)
+			e := jasco.NewError(bqlStmtProcessingErrorCode, "Cannot process a statement", http.StatusBadRequest, err)
 			e.Meta["error"] = err.Error()
 			e.Meta["statement"] = fmt.Sprint(stmt)
-			tc.RenderErrorJSON(e)
+			tc.RenderError(e)
 			return
 		}
 	}
 
 	// TODO: support the new format
-	tc.RenderJSON(map[string]interface{}{
+	tc.Render(map[string]interface{}{
 		"topology_name": tc.topologyName,
 		"status":        "running",
 		"queries":       stmts,
 	})
 }
 
-func (tc *topologies) parseQueries(form data.Map) ([]interface{}, *Error) {
+func (tc *topologies) parseQueries(form data.Map) ([]interface{}, *jasco.Error) {
 	// TODO: use mapstructure when parameters get too many
 	var queries string
 	if v, ok := form["queries"]; !ok {
 		errMsg := "The request json doesn't have 'queries' field"
 		tc.Log().Error(errMsg)
-		e := NewError(formValidationErrorCode, "'queries' field is missing",
+		e := jasco.NewError(formValidationErrorCode, "'queries' field is missing",
 			http.StatusBadRequest, nil)
 		return nil, e
 	} else if f, err := data.AsString(v); err != nil {
 		errMsg := "'queries' must be a string"
 		tc.ErrLog(err).Error(errMsg)
-		e := NewError(formValidationErrorCode, "'queries' field must be a string",
+		e := jasco.NewError(formValidationErrorCode, "'queries' field must be a string",
 			http.StatusBadRequest, err)
 		return nil, e
 	} else {
@@ -332,7 +318,7 @@ func (tc *topologies) parseQueries(form data.Map) ([]interface{}, *Error) {
 		if err != nil {
 			tc.Log().WithField("parse_errors", err.Error()).
 				WithField("statement", queries).Error("Cannot parse a statement")
-			e := NewError(bqlStmtParseErrorCode, "Cannot parse a BQL statement", http.StatusBadRequest, err)
+			e := jasco.NewError(bqlStmtParseErrorCode, "Cannot parse a BQL statement", http.StatusBadRequest, err)
 			e.Meta["parse_errors"] = strings.Split(err.Error(), "\n") // FIXME: too ad hoc
 			e.Meta["statement"] = queries
 			return nil, e
@@ -353,7 +339,7 @@ func (tc *topologies) parseQueries(form data.Map) ([]interface{}, *Error) {
 		if len(stmts) != 1 {
 			errMsg := "A SELECT or EVAL statement cannot be issued with other statements"
 			tc.Log().Error(errMsg)
-			e := NewError(bqlStmtProcessingErrorCode, "Cannot process a statement", http.StatusBadRequest, nil)
+			e := jasco.NewError(bqlStmtProcessingErrorCode, "Cannot process a statement", http.StatusBadRequest, nil)
 			e.Meta["error"] = "a SELECT or EVAL statement cannot be issued with other statements"
 			e.Meta["statement"] = fmt.Sprint(stmts[dataReturningStmtIndex])
 			return nil, e
@@ -376,10 +362,10 @@ func (tc *topologies) handleSelectUnionStmt(rw web.ResponseWriter, stmt parser.S
 	sn, ch, err := tb.AddSelectUnionStmt(&stmt)
 	if err != nil {
 		tc.ErrLog(err).Error("Cannot process a statement")
-		e := NewError(bqlStmtProcessingErrorCode, "Cannot process a statement", http.StatusBadRequest, err)
+		e := jasco.NewError(bqlStmtProcessingErrorCode, "Cannot process a statement", http.StatusBadRequest, err)
 		e.Meta["error"] = err.Error()
 		e.Meta["statement"] = stmtStr
-		tc.RenderErrorJSON(e)
+		tc.RenderError(e)
 		return
 	}
 	defer func() {
@@ -399,7 +385,7 @@ func (tc *topologies) handleSelectUnionStmt(rw web.ResponseWriter, stmt parser.S
 	conn, bufrw, err := rw.Hijack()
 	if err != nil {
 		tc.ErrLog(err).Error("Cannot hijack a connection")
-		tc.RenderErrorJSON(NewInternalServerError(err))
+		tc.RenderError(jasco.NewInternalServerError(err))
 		return
 	}
 
@@ -421,10 +407,7 @@ func (tc *topologies) handleSelectUnionStmt(rw web.ResponseWriter, stmt parser.S
 		bufrw.Flush()
 		conn.Close()
 
-		tc.Log().WithFields(logrus.Fields{
-			"topology":  tc.topologyName,
-			"statement": stmtStr,
-		}).Info("Finish streaming SELECT responses")
+		tc.Log().WithField("statement", stmtStr).Info("Finish streaming SELECT responses")
 	}()
 
 	res := []string{
@@ -438,10 +421,7 @@ func (tc *topologies) handleSelectUnionStmt(rw web.ResponseWriter, stmt parser.S
 	}
 	bufrw.Flush()
 
-	tc.Log().WithFields(logrus.Fields{
-		"topology":  tc.topologyName,
-		"statement": stmtStr,
-	}).Info("Start streaming SELECT responses")
+	tc.Log().WithField("statement", stmtStr).Info("Start streaming SELECT responses")
 
 	// All error reporting logs after this is info level because they might be
 	// caused by the client closing the connection.
@@ -524,15 +504,15 @@ func (tc *topologies) handleEvalStmt(rw web.ResponseWriter, stmt parser.EvalStmt
 	result, err := tb.RunEvalStmt(&stmt)
 	if err != nil {
 		tc.ErrLog(err).Error("Cannot process a statement")
-		e := NewError(bqlStmtProcessingErrorCode, "Cannot process a statement", http.StatusBadRequest, err)
+		e := jasco.NewError(bqlStmtProcessingErrorCode, "Cannot process a statement", http.StatusBadRequest, err)
 		e.Meta["error"] = err.Error()
 		e.Meta["statement"] = stmtStr
-		tc.RenderErrorJSON(e)
+		tc.RenderError(e)
 		return
 	}
 
 	// return value with JSON wrapper so it can be parsed on the client side
-	tc.RenderJSON(map[string]interface{}{
+	tc.Render(map[string]interface{}{
 		"result": result,
 	})
 }
@@ -602,7 +582,7 @@ func (tc *topologies) WebSocketQueries(rw web.ResponseWriter, req *web.Request) 
 	if !strings.EqualFold(req.Header.Get("Upgrade"), "WebSocket") {
 		err := fmt.Errorf("the request isn't a WebSocket request")
 		tc.Log().Error(err)
-		tc.RenderErrorJSON(NewError(nonWebSocketRequestErrorCode, "This action only accepts WebSocket connections",
+		tc.RenderError(jasco.NewError(nonWebSocketRequestErrorCode, "This action only accepts WebSocket connections",
 			http.StatusBadRequest, err))
 		return
 	}
@@ -632,7 +612,7 @@ func (tc *topologies) processWebSocketMessage(conn *websocket.Conn, tb *bql.Topo
 
 	var js map[string]interface{}
 	if err := w.receive(&js); err != nil {
-		e := NewError(bqlStmtParseErrorCode,
+		e := jasco.NewError(bqlStmtParseErrorCode,
 			"Cannot read or parse a JSON body received from the WebSocket connection",
 			http.StatusBadRequest, err)
 		tc.ErrLog(err).Error(e.Message)
@@ -644,7 +624,7 @@ func (tc *topologies) processWebSocketMessage(conn *websocket.Conn, tb *bql.Topo
 	form, err := data.NewMap(js)
 	if err != nil {
 		tc.ErrLog(err).WithField("body", js).Error("The request json may contain invalid value")
-		return w.sendErr(NewError(formValidationErrorCode, "The request json may contain invalid values.",
+		return w.sendErr(jasco.NewError(formValidationErrorCode, "The request json may contain invalid values.",
 			http.StatusBadRequest, err))
 	}
 
@@ -653,14 +633,14 @@ func (tc *topologies) processWebSocketMessage(conn *websocket.Conn, tb *bql.Topo
 	var payload data.Map
 	if v, ok := form["rid"]; !ok {
 		tc.Log().Error("The required 'rid' field is missing")
-		e := NewError(formValidationErrorCode, "The request body is invalid.",
+		e := jasco.NewError(formValidationErrorCode, "The request body is invalid.",
 			http.StatusBadRequest, err)
 		e.Meta["rid"] = []string{"field is missing"}
 		return w.sendErr(e)
 
 	} else if r, err := data.ToInt(v); err != nil {
 		tc.ErrLog(err).Error("Cannot convert 'rid' to an integer")
-		e := NewError(formValidationErrorCode, "The request body is invalid.",
+		e := jasco.NewError(formValidationErrorCode, "The request body is invalid.",
 			http.StatusBadRequest, err)
 		e.Meta["rid"] = []string{"value must be an integer"}
 		return w.sendErr(e)
@@ -676,14 +656,14 @@ func (tc *topologies) processWebSocketMessage(conn *websocket.Conn, tb *bql.Topo
 
 	if v, ok := form["payload"]; !ok {
 		w.Log().Error("The required 'payload' field is missing")
-		e := NewError(formValidationErrorCode, "The request body is invalid.",
+		e := jasco.NewError(formValidationErrorCode, "The request body is invalid.",
 			http.StatusBadRequest, err)
 		e.Meta["payload"] = []string{"field is missing"}
 		return w.sendErr(e)
 
 	} else if p, err := data.AsMap(v); err != nil {
 		w.ErrLog(err).Error("Cannot convert 'payload' to an integer")
-		e := NewError(formValidationErrorCode, "The request body is invalid.",
+		e := jasco.NewError(formValidationErrorCode, "The request body is invalid.",
 			http.StatusBadRequest, err)
 		e.Meta["payload"] = []string{"value must be an object"}
 		return w.sendErr(e)
@@ -730,7 +710,7 @@ func (tc *topologies) processWebSocketMessage(conn *websocket.Conn, tb *bql.Topo
 			_, err = tb.AddStmt(stmt)
 			if err != nil {
 				w.ErrLog(err).Error("Cannot process a statement")
-				e := NewError(bqlStmtProcessingErrorCode, "Cannot process a statement", http.StatusBadRequest, err)
+				e := jasco.NewError(bqlStmtProcessingErrorCode, "Cannot process a statement", http.StatusBadRequest, err)
 				e.Meta["error"] = err.Error()
 				e.Meta["statement"] = fmt.Sprint(stmt)
 				w.sendErr(e)
@@ -774,7 +754,7 @@ func (w *webSocketTopologyQueryHandler) send(msgType string, v interface{}) erro
 
 // sendErr sends an error message to the client. It returns true when the
 // response could be sent.
-func (w *webSocketTopologyQueryHandler) sendErr(e *Error) bool {
+func (w *webSocketTopologyQueryHandler) sendErr(e *jasco.Error) bool {
 	if err := w.send("error", e); err != nil {
 		// TODO: this error message should have the caller's line number.
 		w.ErrLog(err).Error("Cannot send an error response to the WebSocket connection")
@@ -798,17 +778,14 @@ func (w *webSocketTopologyQueryHandler) handleSelectUnionStmtWebSocket(conn *web
 	sn, ch, err := tb.AddSelectUnionStmt(&stmt)
 	if err != nil {
 		w.ErrLog(err).Error("Cannot process a statement")
-		e := NewError(bqlStmtProcessingErrorCode, "Cannot process a statement", http.StatusBadRequest, err)
+		e := jasco.NewError(bqlStmtProcessingErrorCode, "Cannot process a statement", http.StatusBadRequest, err)
 		e.Meta["error"] = err.Error()
 		e.Meta["statement"] = stmtStr
 		w.sendErr(e)
 		return
 	}
 	defer func() {
-		w.Log().WithFields(logrus.Fields{
-			"topology":  w.tc.topologyName,
-			"statement": stmtStr,
-		}).Info("Finish streaming SELECT responses")
+		w.Log().WithField("statement", stmtStr).Info("Finish streaming SELECT responses")
 
 		go func() {
 			// vacuum all tuples to avoid blocking the sink.
@@ -823,10 +800,7 @@ func (w *webSocketTopologyQueryHandler) handleSelectUnionStmtWebSocket(conn *web
 		}
 	}()
 
-	w.Log().WithFields(logrus.Fields{
-		"topology":  w.tc.topologyName,
-		"statement": stmtStr,
-	}).Info("Start streaming SELECT responses")
+	w.Log().WithField("statement", stmtStr).Info("Start streaming SELECT responses")
 
 	if err := w.send("sos", nil); err != nil {
 		w.ErrLog(err).Error("Cannot send an sos to the WebSocket client")
@@ -878,7 +852,7 @@ func (w *webSocketTopologyQueryHandler) handleEvalStmtWebSocket(conn *websocket.
 	result, err := tb.RunEvalStmt(&stmt)
 	if err != nil {
 		w.ErrLog(err).Error("Cannot process a statement")
-		e := NewError(bqlStmtProcessingErrorCode, "Cannot process a statement", http.StatusBadRequest, err)
+		e := jasco.NewError(bqlStmtProcessingErrorCode, "Cannot process a statement", http.StatusBadRequest, err)
 		e.Meta["error"] = err.Error()
 		e.Meta["statement"] = stmtStr
 		w.sendErr(e)
