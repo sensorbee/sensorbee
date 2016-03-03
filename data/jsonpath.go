@@ -435,6 +435,10 @@ func (j *jsonPeg) addArraySlice(s string) {
 		startSet, endSet, stepSet})
 }
 
+func (j *jsonPeg) String() string {
+	return j.Buffer
+}
+
 // arraySliceExtractor can extract a slice from an Array using the
 // given start/end indexes.
 type arraySliceExtractor struct {
