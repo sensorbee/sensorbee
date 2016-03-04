@@ -137,6 +137,17 @@ func TestCreateStreamAsSelectStmt(t *testing.T) {
 			})
 		})
 
+		Convey("When running CREATE STREAM AS SELECT with a tool arge buffer size", func() {
+			err := addBQLToTopology(tb, `CREATE STREAM t AS SELECT ISTREAM int FROM
+                s [RANGE 2 SECONDS, BUFFER SIZE 131072] WHERE int=2`)
+
+			Convey("Then there should be no error", func() {
+				So(err, ShouldNotBeNil)
+				So(err.Error(), ShouldEqual, "specified buffer capacity 131072 is too large "+
+					"(must be <= 131071)")
+			})
+		})
+
 		Convey("When running CREATE STREAM AS SELECT with a UDSF", func() {
 			Convey("If all parameters are foldable", func() {
 				err := addBQLToTopology(tb, `CREATE STREAM t AS SELECT ISTREAM int FROM

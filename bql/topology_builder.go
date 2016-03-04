@@ -23,6 +23,10 @@ type TopologyBuilder struct {
 	UDSStorage     udf.UDSStorage
 }
 
+const (
+	MAX_BUFFER_SIZE int64 = 1<<17 - 1
+)
+
 // TODO: Provide AtomicTopologyBuilder which support building multiple nodes
 // in an atomic manner (kind of transactionally)
 
@@ -499,9 +503,10 @@ func (tb *TopologyBuilder) createStreamAsSelectStmt(stmt *parser.CreateStreamAsS
 			}
 			// set capacity of input pipe
 			if rel.Capacity != parser.UnspecifiedCapacity {
-				if rel.Capacity > math.MaxInt32 {
-					return nil, fmt.Errorf("specified buffer capacity %d is too large",
-						rel.Capacity)
+				if rel.Capacity > MAX_BUFFER_SIZE {
+					return nil, fmt.Errorf("specified buffer capacity %d is too large "+
+						"(must be <= %d)",
+						rel.Capacity, MAX_BUFFER_SIZE)
 				} else if rel.Capacity < 0 {
 					// the parser should not allow this to happen, actually
 					return nil, fmt.Errorf("specified buffer capacity %d must not be negative",
