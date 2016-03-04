@@ -215,6 +215,11 @@ func flattenExpressions(s *parser.SelectStmt, reg udf.FunctionRegistry) (*Logica
 	// check if grouping is done correctly
 	if groupingMode {
 		for _, expr := range flatProjExprs {
+			// the wildcard operator cannot be used with GROUP BY
+			if expr.expr.ContainsWildcard() {
+				err := fmt.Errorf("* cannot be used in GROUP BY statements")
+				return nil, err
+			}
 			// all columns mentioned outside of an aggregate
 			// function must be in the GROUP BY clause
 			if rm, ok := expr.expr.(rowMeta); ok {
