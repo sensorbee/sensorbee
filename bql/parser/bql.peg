@@ -49,7 +49,7 @@ StateStmt <-  CreateStateStmt / UpdateStateStmt / DropStateStmt / LoadStateOrCre
               LoadStateStmt / SaveStateStmt
 
 StreamStmt <- CreateStreamAsSelectUnionStmt / CreateStreamAsSelectStmt / DropStreamStmt /
-              InsertIntoSelectStmt / InsertIntoFromStmt
+              InsertIntoFromStmt
 
 SelectStmt <- "SELECT"
               Emitter
@@ -119,12 +119,6 @@ UpdateSinkStmt <- "UPDATE" sp "SINK" sp
                     StreamIdentifier
                     UpdateSourceSinkSpecs {
         p.AssembleUpdateSink()
-    }
-
-InsertIntoSelectStmt <- "INSERT" sp "INTO" sp
-                    StreamIdentifier sp
-                    SelectStmt {
-        p.AssembleInsertIntoSelect()
     }
 
 InsertIntoFromStmt <- "INSERT" sp "INTO" sp

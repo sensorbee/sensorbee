@@ -37,11 +37,6 @@ statement has a syntax error near line 1, symbol 36:
   ... AS SELECT ISTREAM 2 + x:*
                          ^
 consider to look up the documentation for CreateStreamAsSelectStmt`,
-		`INSERT INTO x SELECT ISTREAM "Peter"s"`: `failed to parse string as BQL statement
-statement has a syntax error near line 1, symbol 37:
-  ...LECT ISTREAM "Peter"s"
-                         ^
-consider to look up the documentation for InsertIntoSelectStmt`,
 	}
 
 	Convey("Given a BQL parser", t, func() {

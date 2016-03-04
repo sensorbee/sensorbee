@@ -171,16 +171,6 @@ func (s UpdateSinkStmt) String() string {
 	return strings.Join(str, " ")
 }
 
-type InsertIntoSelectStmt struct {
-	Sink StreamIdentifier
-	SelectStmt
-}
-
-func (s InsertIntoSelectStmt) String() string {
-	str := []string{"INSERT", "INTO", string(s.Sink), s.SelectStmt.String()}
-	return strings.Join(str, " ")
-}
-
 type InsertIntoFromStmt struct {
 	Sink  StreamIdentifier
 	Input StreamIdentifier
