@@ -901,6 +901,59 @@ func TestAggregateChecker(t *testing.T) {
 	}
 }
 
+func TestRangeChecker(t *testing.T) {
+	reg := udf.CopyGlobalUDFRegistry(core.NewContext(nil))
+
+	testCases := []struct {
+		bql           string
+		expectedError string
+	}{
+		// TUPLES
+		{"a FROM x [RANGE 1 TUPLES]", ""},
+		{"a FROM x [RANGE 1048575 TUPLES]", ""},
+		{"a FROM x [RANGE 1048576 TUPLES]",
+			"RANGE value 1048576 is too large for TUPLES (must be at most 1048575)"},
+		// SECONDS
+		{"a FROM x [RANGE 1 SECONDS]", ""},
+		{"a FROM x [RANGE 86398.99 SECONDS]", ""},
+		{"a FROM x [RANGE 86399.01 SECONDS]",
+			"RANGE value 86399.01 is too large for SECONDS (must be at most 86399)"},
+		// MILLISECONDS
+		{"a FROM x [RANGE 1 MILLISECONDS]", ""},
+		{"a FROM x [RANGE 86399998.99 MILLISECONDS]", ""},
+		{"a FROM x [RANGE 86399999.01 MILLISECONDS]",
+			"RANGE value 8.639999901e+07 is too large for MILLISECONDS (must be at most 86399999)"},
+	}
+
+	for _, testCase := range testCases {
+		testCase := testCase
+
+		Convey(fmt.Sprintf("Given the statement", testCase.bql), t, func() {
+			p := parser.New()
+			stmt := "CREATE STREAM x AS SELECT ISTREAM " + testCase.bql
+			astUnchecked, _, err := p.ParseStmt(stmt)
+			So(err, ShouldBeNil)
+			So(astUnchecked, ShouldHaveSameTypeAs, parser.CreateStreamAsSelectStmt{})
+			ast := astUnchecked.(parser.CreateStreamAsSelectStmt).Select
+
+			Convey("When we analyze it", func() {
+				_, err := Analyze(ast, reg)
+				expectedError := testCase.expectedError
+				if expectedError == "" {
+					Convey("There is no error", func() {
+						So(err, ShouldBeNil)
+					})
+				} else {
+					Convey("There is an error", func() {
+						So(err, ShouldNotBeNil)
+						So(err.Error(), ShouldStartWith, expectedError)
+					})
+				}
+			})
+		})
+	}
+}
+
 func TestVolatileAggregateChecker(t *testing.T) {
 	reg := udf.CopyGlobalUDFRegistry(core.NewContext(nil))
 
