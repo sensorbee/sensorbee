@@ -820,6 +820,9 @@ func TestAggregateChecker(t *testing.T) {
 		{"a FROM x [RANGE 1 TUPLES] GROUP BY count(a)",
 			"aggregates not allowed in GROUP BY clause", nil, nil},
 
+		{"f(*) FROM x [RANGE 1 TUPLES] GROUP BY a",
+			"* cannot be used in GROUP BY statements", nil, nil},
+
 		{"a FROM x [RANGE 1 TUPLES] GROUP BY a + 2",
 			"grouping by expressions is not supported yet", nil, nil},
 

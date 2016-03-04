@@ -527,6 +527,10 @@ type FlatExpression interface {
 
 	// Volatility returns the volatility of an expression.
 	Volatility() VolatilityType
+
+	// ContainsWildcard returns whether this expression contains
+	// a wildcard symbol.
+	ContainsWildcard() bool
 }
 
 // VolatilityType describes the volatility of an expression as per
@@ -588,6 +592,10 @@ func (b binaryOpAST) Volatility() VolatilityType {
 	return r
 }
 
+func (b binaryOpAST) ContainsWildcard() bool {
+	return b.Left.ContainsWildcard() || b.Right.ContainsWildcard()
+}
+
 type unaryOpAST struct {
 	Op   parser.Operator
 	Expr FlatExpression
@@ -605,6 +613,10 @@ func (u unaryOpAST) Volatility() VolatilityType {
 	return u.Expr.Volatility()
 }
 
+func (u unaryOpAST) ContainsWildcard() bool {
+	return u.Expr.ContainsWildcard()
+}
+
 type typeCastAST struct {
 	Expr   FlatExpression
 	Target parser.Type
@@ -620,6 +632,10 @@ func (t typeCastAST) Columns() []rowValue {
 
 func (t typeCastAST) Volatility() VolatilityType {
 	return t.Expr.Volatility()
+}
+
+func (t typeCastAST) ContainsWildcard() bool {
+	return t.Expr.ContainsWildcard()
 }
 
 type funcAppAST struct {
@@ -648,6 +664,15 @@ func (f funcAppAST) Volatility() VolatilityType {
 	// cannot assume that UDFs are stable or immutable
 	// in general
 	return Volatile
+}
+
+func (f funcAppAST) ContainsWildcard() bool {
+	for _, e := range f.Expressions {
+		if e.ContainsWildcard() {
+			return true
+		}
+	}
+	return false
 }
 
 type sortExpression struct {
@@ -710,6 +735,15 @@ func (a arrayAST) Volatility() VolatilityType {
 	return lv
 }
 
+func (a arrayAST) ContainsWildcard() bool {
+	for _, e := range a.Expressions {
+		if e.ContainsWildcard() {
+			return true
+		}
+	}
+	return false
+}
+
 type mapAST struct {
 	Entries []keyValuePair
 }
@@ -739,6 +773,15 @@ func (m mapAST) Volatility() VolatilityType {
 		}
 	}
 	return lv
+}
+
+func (m mapAST) ContainsWildcard() bool {
+	for _, p := range m.Entries {
+		if p.Value.ContainsWildcard() {
+			return true
+		}
+	}
+	return false
 }
 
 type keyValuePair struct {
@@ -790,6 +833,24 @@ func (c caseAST) Volatility() VolatilityType {
 	return lv
 }
 
+func (c caseAST) ContainsWildcard() bool {
+	if c.Reference.ContainsWildcard() {
+		return true
+	}
+	for _, p := range c.Checks {
+		if p.When.ContainsWildcard() {
+			return true
+		}
+		if p.Then.ContainsWildcard() {
+			return true
+		}
+	}
+	if c.Default.ContainsWildcard() {
+		return true
+	}
+	return false
+}
+
 type whenThenPair struct {
 	When FlatExpression
 	Then FlatExpression
@@ -817,6 +878,10 @@ func (w wildcardAST) Volatility() VolatilityType {
 	return Stable
 }
 
+func (w wildcardAST) ContainsWildcard() bool {
+	return true
+}
+
 type aggInputRef struct {
 	Ref string
 }
@@ -833,6 +898,13 @@ func (a aggInputRef) Volatility() VolatilityType {
 	// TODO make this the same volatility level as the
 	//      aggregate function used
 	return Volatile
+}
+
+func (a aggInputRef) ContainsWildcard() bool {
+	// this references the result of an aggregate function,
+	// and whether there is a wildcard used in that aggregate
+	// function is irrelevant for the reference
+	return false
 }
 
 type rowValue struct {
@@ -852,6 +924,10 @@ func (rv rowValue) Volatility() VolatilityType {
 	return Immutable
 }
 
+func (rv rowValue) ContainsWildcard() bool {
+	return false
+}
+
 type stmtMeta struct {
 	MetaType parser.MetaInformation
 }
@@ -866,6 +942,10 @@ func (sm stmtMeta) Columns() []rowValue {
 
 func (sm stmtMeta) Volatility() VolatilityType {
 	return Stable
+}
+
+func (sm stmtMeta) ContainsWildcard() bool {
+	return false
 }
 
 type rowMeta struct {
@@ -885,6 +965,10 @@ func (rm rowMeta) Volatility() VolatilityType {
 	return Immutable
 }
 
+func (rm rowMeta) ContainsWildcard() bool {
+	return false
+}
+
 type numericLiteral struct {
 	Value int64
 }
@@ -899,6 +983,10 @@ func (l numericLiteral) Columns() []rowValue {
 
 func (l numericLiteral) Volatility() VolatilityType {
 	return Immutable
+}
+
+func (l numericLiteral) ContainsWildcard() bool {
+	return false
 }
 
 type floatLiteral struct {
@@ -917,6 +1005,10 @@ func (l floatLiteral) Volatility() VolatilityType {
 	return Immutable
 }
 
+func (l floatLiteral) ContainsWildcard() bool {
+	return false
+}
+
 type nullLiteral struct {
 }
 
@@ -930,6 +1022,10 @@ func (l nullLiteral) Columns() []rowValue {
 
 func (l nullLiteral) Volatility() VolatilityType {
 	return Immutable
+}
+
+func (l nullLiteral) ContainsWildcard() bool {
+	return false
 }
 
 type boolLiteral struct {
@@ -948,6 +1044,10 @@ func (l boolLiteral) Volatility() VolatilityType {
 	return Immutable
 }
 
+func (l boolLiteral) ContainsWildcard() bool {
+	return false
+}
+
 type stringLiteral struct {
 	Value string
 }
@@ -962,4 +1062,8 @@ func (l stringLiteral) Columns() []rowValue {
 
 func (l stringLiteral) Volatility() VolatilityType {
 	return Immutable
+}
+
+func (l stringLiteral) ContainsWildcard() bool {
+	return false
 }
