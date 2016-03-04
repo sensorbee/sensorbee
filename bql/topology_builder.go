@@ -740,7 +740,6 @@ func (tb *TopologyBuilder) AddSelectUnionStmt(stmts *parser.SelectUnionStmt) (co
 			if err != nil {
 				return nil, err
 			}
-			box.(core.BoxNode).StopOnDisconnect(core.Inbound | core.Outbound)
 			box.(core.BoxNode).RemoveOnStop()
 
 			// now connect the sink to that box
@@ -748,6 +747,9 @@ func (tb *TopologyBuilder) AddSelectUnionStmt(stmts *parser.SelectUnionStmt) (co
 				tb.topology.Remove(tmpName)
 				return nil, err
 			}
+			// call StopOnDisconnect only after the
+			// Outbound connection has been made
+			box.(core.BoxNode).StopOnDisconnect(core.Inbound | core.Outbound)
 			return box, nil
 		}
 
