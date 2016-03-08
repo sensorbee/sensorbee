@@ -1,8 +1,8 @@
 package server
 
 import (
-	"github.com/Sirupsen/logrus"
 	"github.com/gocraft/web"
+	"gopkg.in/pfnet/jasco.v1"
 	"gopkg.in/sensorbee/sensorbee.v0/core"
 	"gopkg.in/sensorbee/sensorbee.v0/server/response"
 	"net/http"
@@ -20,36 +20,23 @@ func setUpStreamsRouter(prefix string, router *web.Router) {
 	root.Get("/:streamName", (*streams).Show)
 }
 
-func (sc *streams) ErrLog(err error) *logrus.Entry {
-	e := sc.topologies.ErrLog(err).WithField("topology", sc.topologyName)
-	if sc.stream == nil {
-		return e
-	}
-	return e.WithFields(logrus.Fields{
-		"node_type": core.NTBox.String(),
-		"node_name": sc.stream.Name(),
-	})
-}
-
 func (sc *streams) fetchStream(rw web.ResponseWriter, req *web.Request, next web.NextMiddlewareFunc) {
 	tb := sc.fetchTopology()
 	if tb == nil {
 		return
 	}
 
-	var strmName string
-	if err := sc.extractOptionStringFromPath("streamName", &strmName); err != nil {
-		return
-	}
-	if strmName != "" {
+	if strmName := sc.PathParams().String("streamName", ""); strmName != "" {
 		strm, err := tb.Topology().Box(strmName)
 		if err != nil {
 			sc.ErrLog(err).Error("Cannot find the stream")
-			sc.RenderErrorJSON(NewError(requestURLNotFoundErrorCode, "The stream was not found",
-				http.StatusNotFound, err))
+			sc.RenderError(jasco.NewError(requestResourceNotFoundErrorCode,
+				"The stream was not found", http.StatusNotFound, err))
 			return
 		}
 		sc.stream = strm
+		sc.AddLogField("node_type", core.NTBox.String())
+		sc.AddLogField("node_name", strm.Name())
 	}
 	next(rw, req)
 }
@@ -62,7 +49,7 @@ func (sc *streams) Index(rw web.ResponseWriter, req *web.Request) {
 	for _, s := range strms {
 		res = append(res, response.NewStream(s, false))
 	}
-	sc.RenderJSON(map[string]interface{}{
+	sc.Render(map[string]interface{}{
 		"topology": sc.topologyName,
 		"count":    len(res),
 		"streams":  res,
@@ -70,7 +57,7 @@ func (sc *streams) Index(rw web.ResponseWriter, req *web.Request) {
 }
 
 func (sc *streams) Show(rw web.ResponseWriter, req *web.Request) {
-	sc.RenderJSON(map[string]interface{}{
+	sc.Render(map[string]interface{}{
 		"topology": sc.topologyName,
 		"stream":   response.NewStream(sc.stream, true),
 	})

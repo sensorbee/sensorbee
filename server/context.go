@@ -1,11 +1,10 @@
 package server
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
 	"github.com/Sirupsen/logrus"
 	"github.com/gocraft/web"
+	"gopkg.in/pfnet/jasco.v1"
 	"gopkg.in/sensorbee/sensorbee.v0/bql"
 	"gopkg.in/sensorbee/sensorbee.v0/bql/parser"
 	"gopkg.in/sensorbee/sensorbee.v0/bql/udf"
@@ -15,188 +14,24 @@ import (
 	"gopkg.in/sensorbee/sensorbee.v0/server/udsstorage"
 	"io"
 	"io/ioutil"
-	"net/http"
-	"path/filepath"
-	"runtime"
-	"sync/atomic"
-	"time"
 )
 
 // Context is a context object for gocraft/web.
 type Context struct {
-	body      []byte
-	bodyError error
+	*jasco.Context
 
-	requestID uint64
-
-	response   web.ResponseWriter
-	request    *web.Request
-	HTTPStatus int
-
-	logger     *logrus.Logger
 	udsStorage udf.UDSStorage
 	topologies TopologyRegistry
 	config     *config.Config
-}
-
-// SetLogger sets the logger to the context. Must be set before any action
-// is invoked.
-func (c *Context) SetLogger(l *logrus.Logger) {
-	c.logger = l
-}
-
-var requestIDCounter uint64
-
-func (c *Context) setUpContext(rw web.ResponseWriter, req *web.Request, next web.NextMiddlewareFunc) {
-	c.requestID = atomic.AddUint64(&requestIDCounter, 1)
-	c.response = rw
-	c.request = req
-
-	start := time.Now()
-	defer func() {
-		elapsed := time.Now().Sub(start)
-		// Use custom logging because file and line aren't necessary here.
-		c.logger.WithFields(logrus.Fields{
-			"reqid":   c.requestID,
-			"reqtime": fmt.Sprintf("%d.%03d", int(elapsed/time.Second), int(elapsed%time.Second/time.Millisecond)),
-			"method":  req.Method,
-			"uri":     req.URL.RequestURI(),
-			"status":  c.HTTPStatus,
-		}).Info("Access")
-	}()
-	next(rw, req)
+	// logger is used by core.Context, not for the server's Context. This logger
+	// can be shared with jasco.Context.
+	logger *logrus.Logger
 }
 
 // SetTopologyRegistry sets the registry of topologies to this context. This
 // method must be called in the middleware of Context.
 func (c *Context) SetTopologyRegistry(r TopologyRegistry) {
 	c.topologies = r
-}
-
-// NotFoundHandler handles 404.
-func (c *Context) NotFoundHandler(rw web.ResponseWriter, req *web.Request) {
-	c.logger.WithFields(logrus.Fields{
-		"method": req.Method,
-		"uri":    req.URL.RequestURI(),
-		"status": http.StatusNotFound,
-	}).Error("The request URL not found")
-
-	rw.Header().Set("Content-Type", "application/json")
-	rw.WriteHeader(http.StatusNotFound)
-	rw.Write([]byte(`
-{
-  "error": {
-    "code": "E0001",
-    "message": "The request URL was not found."
-  }
-}`))
-}
-
-// Log returns the logger having meta information.
-func (c *Context) Log() *logrus.Entry {
-	return c.log(1)
-}
-
-// ErrLog returns the logger with error information.
-func (c *Context) ErrLog(err error) *logrus.Entry {
-	return c.log(1).WithField("err", err)
-}
-
-func (c *Context) log(depth int) *logrus.Entry {
-	// TODO: This is a temporary solution until logrus support filename and line number
-	_, file, line, ok := runtime.Caller(depth + 1)
-	if !ok {
-		return c.logger.WithField("reqid", c.requestID)
-	}
-	file = filepath.Base(file) // only the filename at the moment
-	return c.logger.WithFields(logrus.Fields{
-		"file":  file,
-		"line":  line,
-		"reqid": c.requestID,
-	})
-}
-
-func (c *Context) extractOptionStringFromPath(key string, target *string) error {
-	s, ok := c.request.PathParams[key]
-	if !ok {
-		return nil
-	}
-
-	*target = s
-	return nil
-}
-
-func (c *Context) renderJSON(status int, v interface{}) {
-	c.HTTPStatus = status
-
-	data, err := json.Marshal(v)
-	if err != nil {
-		// TODO logging
-		c.response.Header().Set("Content-Type", "application/json")
-		c.response.WriteHeader(http.StatusInternalServerError)
-		c.response.Write([]byte(`
-{
-  "errors": [
-    {
-      "code": "E0006",
-      "message": "internal server error"
-    }
-  ]
-}
-`))
-		return
-	}
-
-	c.response.Header().Set("Content-Type", "application/json")
-	c.response.WriteHeader(status)
-	_, err = c.response.Write(data)
-	if err != nil {
-		c.ErrLog(err).Error("Cannot write a response")
-	}
-}
-
-// RenderJSON renders a successful result as a JSON.
-func (c *Context) RenderJSON(v interface{}) {
-	c.renderJSON(http.StatusOK, v)
-}
-
-// RenderErrorJSON renders a failing result as a JSON.
-func (c *Context) RenderErrorJSON(e *Error) {
-	e.SetRequestID(c.requestID)
-	c.renderJSON(e.Status, map[string]interface{}{
-		"error": e,
-	})
-}
-
-// Body returns a slice containing whole request body.
-// It caches the result so controllers can call this
-// method as many time as it wants.
-//
-// When the request body is empty (i.e. Read(req.Body)
-// returns io.EOF), this method returns and caches
-// an empty body slice and a nil error.
-func (c *Context) Body() ([]byte, error) {
-	if c.body != nil || c.bodyError != nil {
-		return c.body, c.bodyError
-	}
-
-	body, err := ioutil.ReadAll(c.request.Body)
-	if err != nil {
-		if err == io.EOF {
-			// when body is empty, this method caches
-			// an empty slice and a nil error.
-			body = []byte{}
-			err = nil
-		}
-	}
-
-	// Close and replace with new ReadCloser for parsing
-	// mime/multipart request body by Request.FormFile method.
-	c.request.Body.Close()
-	c.request.Body = ioutil.NopCloser(bytes.NewReader(body))
-	c.body = body
-	c.bodyError = err
-	return body, err
 }
 
 // ContextGlobalVariables has fields which are shared through all contexts
@@ -244,8 +79,12 @@ func SetUpContextGlobalVariables(conf *config.Config) (*ContextGlobalVariables, 
 	}, nil
 }
 
-// SetUpContextAndRouter creates a root router of the API server and its context.
-func SetUpContextAndRouter(prefix string, gvariables *ContextGlobalVariables) (*web.Router, error) {
+// SetUpContextAndRouter creates a router of the API server and its context.
+// jascoRoot is a root router returned from jasco.New.
+//
+// This function returns a new web.Router. Don't use the router returned from
+// this function as a handler of HTTP server, but use jascoRoot instead.
+func SetUpContextAndRouter(prefix string, jascoRoot *web.Router, gvariables *ContextGlobalVariables) (*web.Router, error) {
 	gvars := *gvariables
 	udsStorage, err := setUpUDSStorage(&gvars.Config.Storage.UDS)
 	if err != nil {
@@ -257,17 +96,15 @@ func SetUpContextAndRouter(prefix string, gvariables *ContextGlobalVariables) (*
 		return nil, err
 	}
 
-	root := web.NewWithPrefix(Context{}, prefix)
-	root.NotFound((*Context).NotFoundHandler)
-	root.Middleware(func(c *Context, rw web.ResponseWriter, req *web.Request, next web.NextMiddlewareFunc) {
-		c.SetLogger(gvars.Logger)
+	router := jascoRoot.Subrouter(Context{}, "/")
+	router.Middleware(func(c *Context, rw web.ResponseWriter, req *web.Request, next web.NextMiddlewareFunc) {
+		c.logger = gvars.Logger
 		c.udsStorage = udsStorage
 		c.topologies = gvars.Topologies
 		c.config = gvars.Config
 		next(rw, req)
 	})
-	root.Middleware((*Context).setUpContext)
-	return root, nil
+	return router, nil
 }
 
 func setUpUDSStorage(conf *config.UDSStorage) (udf.UDSStorage, error) {

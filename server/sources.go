@@ -1,8 +1,8 @@
 package server
 
 import (
-	"github.com/Sirupsen/logrus"
 	"github.com/gocraft/web"
+	"gopkg.in/pfnet/jasco.v1"
 	"gopkg.in/sensorbee/sensorbee.v0/core"
 	"gopkg.in/sensorbee/sensorbee.v0/server/response"
 	"net/http"
@@ -20,36 +20,23 @@ func setUpSourcesRouter(prefix string, router *web.Router) {
 	root.Get("/:sourceName", (*sources).Show)
 }
 
-func (sc *sources) ErrLog(err error) *logrus.Entry {
-	e := sc.topologies.ErrLog(err).WithField("topology", sc.topologyName)
-	if sc.src == nil {
-		return e
-	}
-	return e.WithFields(logrus.Fields{
-		"node_type": core.NTSource.String(),
-		"node_name": sc.src.Name(),
-	})
-}
-
 func (sc *sources) fetchSource(rw web.ResponseWriter, req *web.Request, next web.NextMiddlewareFunc) {
 	tb := sc.fetchTopology()
 	if tb == nil {
 		return
 	}
 
-	var srcName string
-	if err := sc.extractOptionStringFromPath("sourceName", &srcName); err != nil {
-		return
-	}
-	if srcName != "" {
+	if srcName := sc.PathParams().String("sourceName", ""); srcName != "" {
 		src, err := tb.Topology().Source(srcName)
 		if err != nil {
 			sc.ErrLog(err).Error("Cannot find the source")
-			sc.RenderErrorJSON(NewError(requestURLNotFoundErrorCode, "The source was not found",
-				http.StatusNotFound, err))
+			sc.RenderError(jasco.NewError(requestResourceNotFoundErrorCode,
+				"The source was not found", http.StatusNotFound, err))
 			return
 		}
 		sc.src = src
+		sc.AddLogField("node_type", core.NTSource.String())
+		sc.AddLogField("node_name", src.Name())
 	}
 	next(rw, req)
 }
@@ -62,7 +49,7 @@ func (sc *sources) Index(rw web.ResponseWriter, req *web.Request) {
 	for _, s := range srcs {
 		res = append(res, response.NewSource(s, false))
 	}
-	sc.RenderJSON(map[string]interface{}{
+	sc.Render(map[string]interface{}{
 		"topology": sc.topologyName,
 		"count":    len(res),
 		"sources":  res,
@@ -70,7 +57,7 @@ func (sc *sources) Index(rw web.ResponseWriter, req *web.Request) {
 }
 
 func (sc *sources) Show(rw web.ResponseWriter, req *web.Request) {
-	sc.RenderJSON(map[string]interface{}{
+	sc.Render(map[string]interface{}{
 		"topology": sc.topologyName,
 		"source":   response.NewSource(sc.src, true),
 	})

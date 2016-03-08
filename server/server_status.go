@@ -55,5 +55,5 @@ func (ss *serverStatus) RuntimeStatus(rw web.ResponseWriter, req *web.Request) {
 	} else {
 		res["user"] = user.Username
 	}
-	ss.RenderJSON(res)
+	ss.Render(res)
 }

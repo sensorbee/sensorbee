@@ -3,6 +3,7 @@ package testutil
 import (
 	"bytes"
 	"github.com/mattn/go-scan"
+	"gopkg.in/pfnet/jasco.v1"
 	"gopkg.in/sensorbee/sensorbee.v0/data"
 	"gopkg.in/sensorbee/sensorbee.v0/server"
 	"gopkg.in/sensorbee/sensorbee.v0/server/config"
@@ -86,17 +87,18 @@ func NewServer() *Server {
 	if err != nil {
 		panic(err)
 	}
-	root, err := server.SetUpContextAndRouter("/", gvars)
+	jascoRoot := jasco.New("/", nil)
+	root, err := server.SetUpContextAndRouter("/", jascoRoot, gvars)
 	if err != nil {
 		panic(err)
 	}
 	server.SetUpAPIRouter("/", root, nil)
 
 	if TestAPIWithRealHTTPServer {
-		s.server.realServer = httptest.NewServer(root)
+		s.server.realServer = httptest.NewServer(jascoRoot)
 		s.server.url = s.server.realServer.URL
 	} else {
-		s.server.router = root
+		s.server.router = jascoRoot
 		s.server.url = "http://172.0.0.1:0602"
 	}
 	return s
