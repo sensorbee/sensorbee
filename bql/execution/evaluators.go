@@ -475,7 +475,7 @@ func (o *or) Eval(input data.Value) (data.Value, error) {
 			// NULL OR NULL => NULL
 			return data.Null{}, nil
 		}
-		rightBool, err := data.ToBool(rightRes)
+		rightBool, err := data.AsBool(rightRes)
 		if err != nil {
 			return nil, err
 		}
@@ -488,7 +488,7 @@ func (o *or) Eval(input data.Value) (data.Value, error) {
 	}
 	// indent the block below for symmetry reasons
 	{
-		leftBool, err := data.ToBool(leftRes)
+		leftBool, err := data.AsBool(leftRes)
 		if err != nil {
 			return nil, err
 		}
@@ -508,7 +508,7 @@ func (o *or) Eval(input data.Value) (data.Value, error) {
 			// false OR NULL => NULL
 			return data.Null{}, nil
 		}
-		rightBool, err := data.ToBool(rightRes)
+		rightBool, err := data.AsBool(rightRes)
 		if err != nil {
 			return nil, err
 		}
@@ -537,7 +537,7 @@ func (a *and) Eval(input data.Value) (data.Value, error) {
 			// NULL AND NULL => NULL
 			return data.Null{}, nil
 		}
-		rightBool, err := data.ToBool(rightRes)
+		rightBool, err := data.AsBool(rightRes)
 		if err != nil {
 			return nil, err
 		}
@@ -550,7 +550,7 @@ func (a *and) Eval(input data.Value) (data.Value, error) {
 	}
 	// indent the block below for symmetry reasons
 	{
-		leftBool, err := data.ToBool(leftRes)
+		leftBool, err := data.AsBool(leftRes)
 		if err != nil {
 			return nil, err
 		}
@@ -570,7 +570,7 @@ func (a *and) Eval(input data.Value) (data.Value, error) {
 			// true AND NULL => NULL
 			return data.Null{}, nil
 		}
-		rightBool, err := data.ToBool(rightRes)
+		rightBool, err := data.AsBool(rightRes)
 		if err != nil {
 			return nil, err
 		}
