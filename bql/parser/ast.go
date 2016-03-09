@@ -1235,6 +1235,29 @@ func NewNullLiteral() NullLiteral {
 	return NullLiteral{}
 }
 
+type Missing struct {
+}
+
+func (l Missing) ReferencedRelations() map[string]bool {
+	return nil
+}
+
+func (l Missing) RenameReferencedRelation(from, to string) Expression {
+	return l
+}
+
+func (l Missing) Foldable() bool {
+	return true
+}
+
+func (l Missing) String() string {
+	return "MISSING"
+}
+
+func NewMissing() Missing {
+	return Missing{}
+}
+
 type BoolLiteral struct {
 	Value bool
 }
