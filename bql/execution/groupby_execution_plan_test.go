@@ -399,6 +399,25 @@ func TestGroupbyExecutionPlan(t *testing.T) {
 		})
 	})
 
+	Convey("Given a SELECT clause with GROUP BY and non-boolean HAVING condition", t, func() {
+		tuples := getOtherTuples()
+		tuples = tuples[0:1]
+		s := `CREATE STREAM box AS SELECT RSTREAM foo, max(int) FROM src [RANGE 3 TUPLES] GROUP BY foo HAVING 6`
+		plan, err := createGroupbyPlan(s, t)
+		So(err, ShouldBeNil)
+
+		Convey("When feeding it with tuples", func() {
+			for _, inTup := range tuples {
+				_, err := plan.Process(inTup)
+
+				Convey("Then there should be an error", func() {
+					So(err, ShouldNotBeNil)
+					So(err.Error(), ShouldEqual, "unsupported cast bool from int")
+				})
+			}
+		})
+	})
+
 	Convey("Given a SELECT clause with two identical aggregations and GROUP BY", t, func() {
 		tuples := getOtherTuples()
 		tuples[3].Data["int"] = data.Null{} // NULL should not be counted
