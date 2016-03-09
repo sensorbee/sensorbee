@@ -11,6 +11,12 @@ import (
 	"strings"
 )
 
+const (
+	MaxRangeTuples   float64 = 1<<20 - 1
+	MaxRangeSec      float64 = 60*60*24 - 1
+	MaxRangeMillisec float64 = 60*60*24*1000 - 1
+)
+
 /*
 The functions in this file transform an AST as returned by
 `parser.bqlParser.ParseStmt()` into a physical execution plan.
@@ -463,6 +469,26 @@ func validateReferences(s *parser.SelectStmt) error {
 			err := fmt.Errorf("number in RANGE clause must be integral "+
 				"for TUPLES, not %v", rel.Value)
 			return err
+		}
+		switch rel.Unit {
+		case parser.Tuples:
+			if rel.Value > MaxRangeTuples {
+				err := fmt.Errorf("RANGE value %d is too large for TUPLES (must be at most %d)",
+					int64(rel.Value), int64(MaxRangeTuples))
+				return err
+			}
+		case parser.Seconds:
+			if rel.Value > MaxRangeSec {
+				err := fmt.Errorf("RANGE value %v is too large for SECONDS (must be at most %d)",
+					rel.Value, int64(MaxRangeSec))
+				return err
+			}
+		case parser.Milliseconds:
+			if rel.Value > MaxRangeMillisec {
+				err := fmt.Errorf("RANGE value %v is too large for MILLISECONDS (must be at most %d)",
+					rel.Value, int64(MaxRangeMillisec))
+				return err
+			}
 		}
 	}
 
