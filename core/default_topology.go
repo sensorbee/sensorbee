@@ -29,6 +29,9 @@ type defaultTopology struct {
 // NewDefaultTopology creates a topology having a simple graph
 // structure.
 func NewDefaultTopology(ctx *Context, name string) (Topology, error) {
+	if err := ValidateSymbol(name); err != nil {
+		return nil, err
+	}
 	ctx.topologyName = name
 	t := &defaultTopology{
 		ctx:  ctx,

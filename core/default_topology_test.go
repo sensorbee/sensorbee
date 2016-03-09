@@ -81,6 +81,14 @@ func (s *sinkCloseChecker) Close(ctx *Context) error {
 }
 
 func TestDefaultTopologySetup(t *testing.T) {
+	Convey("Creating a default topology with a reserved keyword as name", t, func() {
+		_, err := NewDefaultTopology(NewContext(nil), "select")
+
+		Convey("Should fail", func() {
+			So(err, ShouldNotBeNil)
+		})
+	})
+
 	Convey("Given a default topology", t, func() {
 		dt, err := NewDefaultTopology(NewContext(nil), "dt1")
 		So(err, ShouldBeNil)
