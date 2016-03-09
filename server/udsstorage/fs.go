@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 )
 
 // fsUDSStorage is a UDSStorage which store states as files on a filesystem.
@@ -54,10 +55,9 @@ func validateDir(dir string) error {
 }
 
 func (s *fsUDSStorage) Save(topology, state, tag string) (udf.UDSStorageWriter, error) {
-	if tag == "" {
+	if tag == "" || strings.ToLower(tag) == "default" {
 		tag = "default"
-	}
-	if err := core.ValidateSymbol(tag); err != nil {
+	} else if err := core.ValidateSymbol(tag); err != nil {
 		return nil, err
 	}
 
@@ -78,10 +78,9 @@ func (s *fsUDSStorage) stateTempFile(topology, state, tag string) (*os.File, err
 }
 
 func (s *fsUDSStorage) Load(topology, state, tag string) (io.ReadCloser, error) {
-	if tag == "" {
+	if tag == "" || strings.ToLower(tag) == "default" {
 		tag = "default"
-	}
-	if err := core.ValidateSymbol(tag); err != nil {
+	} else if err := core.ValidateSymbol(tag); err != nil {
 		return nil, err
 	}
 
