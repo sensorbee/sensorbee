@@ -134,6 +134,9 @@ func NewDefaultSharedStateRegistry(ctx *Context) SharedStateRegistry {
 }
 
 func (r *defaultSharedStateRegistry) Add(name, typeName string, s SharedState) error {
+	if err := ValidateSymbol(name); err != nil {
+		return fmt.Errorf("invalid name for state: %s", err.Error())
+	}
 	err := func() error {
 		r.m.Lock()
 		defer r.m.Unlock()

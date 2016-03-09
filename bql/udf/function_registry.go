@@ -172,6 +172,18 @@ func (fr *defaultFunctionRegistry) Register(name string, f UDF) error {
 	defer fr.m.Unlock()
 
 	lowerName := strings.ToLower(name)
+	// some built-in functions have names that are reserved
+	// words, so we need to add exceptions for them
+	switch lowerName {
+	case "count", "avg", "max", "min", "sum",
+		"coalesce", "lower", "upper", "octet_length",
+		"substring":
+		// skip check
+	default:
+		if err := core.ValidateSymbol(name); err != nil {
+			return fmt.Errorf("invalid name for function: %s", err.Error())
+		}
+	}
 	if _, exists := fr.funcs[lowerName]; exists {
 		return fmt.Errorf("there is already a function named '%s'", name)
 	}

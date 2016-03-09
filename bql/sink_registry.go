@@ -64,6 +64,9 @@ func (r *defaultSinkCreatorRegistry) Register(typeName string, c SinkCreator) er
 	r.m.Lock()
 	defer r.m.Unlock()
 
+	if err := core.ValidateSymbol(typeName); err != nil {
+		return fmt.Errorf("invalid name for sink type: %s", err.Error())
+	}
 	lowerName := strings.ToLower(typeName)
 	if _, ok := r.creators[lowerName]; ok {
 		return fmt.Errorf("sink type '%v' is already registered", typeName)

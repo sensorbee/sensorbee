@@ -46,6 +46,9 @@ func (r *defaultUDSFCreatorRegistry) Register(typeName string, c UDSFCreator) er
 	r.m.Lock()
 	defer r.m.Unlock()
 
+	if err := core.ValidateSymbol(typeName); err != nil {
+		return fmt.Errorf("invalid name for function: %s", err.Error())
+	}
 	lowerName := strings.ToLower(typeName)
 	if _, ok := r.creators[lowerName]; ok {
 		return fmt.Errorf("a UDSF type '%v' is already registered", typeName)
