@@ -128,7 +128,7 @@ func (tc *topologies) Create(rw web.ResponseWriter, req *web.Request) {
 	tp, err := core.NewDefaultTopology(core.NewContext(cc), name)
 	if err != nil {
 		tc.ErrLog(err).Error("Cannot create a new topology")
-		tc.RenderErrorJSON(NewInternalServerError(err))
+		tc.RenderError(jasco.NewInternalServerError(err))
 		return
 	}
 	tb, err := bql.NewTopologyBuilder(tp)
