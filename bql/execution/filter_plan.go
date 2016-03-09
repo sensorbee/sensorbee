@@ -51,7 +51,7 @@ func (ep *filterPlan) Process(input *core.Tuple) ([]data.Map, error) {
 	d := data.Map{ep.relAlias: input.Data}
 	setMetadata(d, ep.relAlias, input)
 
-	// because this plan doesn't cache data, TFShared flag doesn't have to be set.
+	// because this plan doesn't cache data, TFSharedData flag doesn't have to be set.
 
 	// add the information accessed by the now() function
 	// to each item

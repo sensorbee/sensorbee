@@ -191,7 +191,7 @@ func (ep *streamRelationStreamExecutionPlan) addTupleToBuffer(t *core.Tuple) err
 			"can only deal with %v", t.InputName, knownRelNames)
 	}
 
-	// core.TFShared is set by t.ShallowCopy() below.
+	// core.TFSharedData is set by t.ShallowCopy() below.
 
 	ep.lastTupleBuffers = make(map[string]bool, numAppends)
 	for _, rel := range ep.relations {
