@@ -11,7 +11,8 @@ import (
 func TestNodeStatus(t *testing.T) {
 	Convey("Given a topology having nodes", t, func() {
 		ctx := NewContext(nil)
-		t := NewDefaultTopology(ctx, "test")
+		t, err := NewDefaultTopology(ctx, "test")
+		So(err, ShouldBeNil)
 		Reset(func() {
 			t.Stop()
 		})

@@ -87,6 +87,10 @@ func NewDefaultUDSCreatorRegistry() UDSCreatorRegistry {
 }
 
 func (r *defaultUDSCreatorRegistry) Register(typeName string, c UDSCreator) error {
+	if err := core.ValidateSymbol(typeName); err != nil {
+		return fmt.Errorf("invalid name for UDS type: %s", err.Error())
+	}
+
 	r.m.Lock()
 	defer r.m.Unlock()
 

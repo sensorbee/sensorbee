@@ -107,7 +107,7 @@ func (tc *topologies) Create(rw web.ResponseWriter, req *web.Request) {
 		tc.RenderError(e)
 		return
 	}
-	if err := core.ValidateNodeName(name); err != nil {
+	if err := core.ValidateSymbol(name); err != nil {
 		tc.ErrLog(err).Error("'name' field has invalid format")
 		e := jasco.NewError(formValidationErrorCode, "The request body is invalid.",
 			http.StatusBadRequest, nil)
@@ -125,7 +125,12 @@ func (tc *topologies) Create(rw web.ResponseWriter, req *web.Request) {
 	cc.Flags.DroppedTupleLog.Set(tc.config.Logging.LogDroppedTuples)
 	cc.Flags.DroppedTupleSummarization.Set(tc.config.Logging.SummarizeDroppedTuples)
 
-	tp := core.NewDefaultTopology(core.NewContext(cc), name)
+	tp, err := core.NewDefaultTopology(core.NewContext(cc), name)
+	if err != nil {
+		tc.ErrLog(err).Error("Cannot create a new topology")
+		tc.RenderError(jasco.NewInternalServerError(err))
+		return
+	}
 	tb, err := bql.NewTopologyBuilder(tp)
 	if err != nil {
 		tc.ErrLog(err).Error("Cannot create a new topology builder")

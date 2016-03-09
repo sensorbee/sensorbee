@@ -28,7 +28,10 @@ type defaultTopology struct {
 
 // NewDefaultTopology creates a topology having a simple graph
 // structure.
-func NewDefaultTopology(ctx *Context, name string) Topology {
+func NewDefaultTopology(ctx *Context, name string) (Topology, error) {
+	if err := ValidateSymbol(name); err != nil {
+		return nil, err
+	}
 	ctx.topologyName = name
 	t := &defaultTopology{
 		ctx:  ctx,
@@ -40,7 +43,7 @@ func NewDefaultTopology(ctx *Context, name string) Topology {
 	}
 	t.state = newTopologyStateHolder(&t.stateMutex)
 	t.state.state = TSRunning // A topology is running by default.
-	return t
+	return t, nil
 }
 
 func (t *defaultTopology) Name() string {
@@ -52,7 +55,7 @@ func (t *defaultTopology) Context() *Context {
 }
 
 func (t *defaultTopology) AddSource(name string, s Source, config *SourceConfig) (SourceNode, error) {
-	if err := ValidateNodeName(name); err != nil {
+	if err := ValidateSymbol(name); err != nil {
 		return nil, err
 	}
 
@@ -139,7 +142,7 @@ func (t *defaultTopology) checkNodeNameDuplication(name string) error {
 }
 
 func (t *defaultTopology) AddBox(name string, b Box, config *BoxConfig) (BoxNode, error) {
-	if err := ValidateNodeName(name); err != nil {
+	if err := ValidateSymbol(name); err != nil {
 		return nil, err
 	}
 
@@ -227,7 +230,7 @@ func (t *defaultTopology) AddSink(name string, s Sink, config *SinkConfig) (Sink
 		}
 	}()
 
-	if err := ValidateNodeName(name); err != nil {
+	if err := ValidateSymbol(name); err != nil {
 		closeSinkFlag = true
 		return nil, err
 	}

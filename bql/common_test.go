@@ -12,7 +12,8 @@ import (
 )
 
 func newTestTopology() core.Topology {
-	return core.NewDefaultTopology(core.NewContext(nil), "testTopology")
+	t, _ := core.NewDefaultTopology(core.NewContext(nil), "testTopology")
+	return t
 }
 
 func addBQLToTopology(tb *TopologyBuilder, bql string) error {

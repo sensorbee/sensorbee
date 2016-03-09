@@ -7,6 +7,7 @@ import (
 	"gopkg.in/sensorbee/sensorbee.v0/core"
 	"io"
 	"io/ioutil"
+	"strings"
 	"sync"
 )
 
@@ -33,7 +34,7 @@ type UDSStorage interface {
 	// A caller can assign a tag to the saved state so that multiple versions of
 	// the UDS can be managed with unique names. When a tag is an empty string,
 	// "default" will be used. The valid format of tags is same as node names,
-	// which is validated by core.ValidateNodeName.
+	// which is validated by core.ValidateSymbol.
 	Save(topology, state, tag string) (UDSStorageWriter, error)
 
 	// Load loads the previously saved data of the state. io.ReadCloser.Close
@@ -88,10 +89,9 @@ func NewInMemoryUDSStorage() UDSStorage {
 }
 
 func (s *inMemoryUDSStorage) Save(topology, state, tag string) (UDSStorageWriter, error) {
-	if tag == "" {
+	if tag == "" || strings.ToLower(tag) == "default" {
 		tag = "default"
-	}
-	if err := core.ValidateNodeName(tag); err != nil {
+	} else if err := core.ValidateSymbol(tag); err != nil {
 		return nil, fmt.Errorf("tag is ill-formatted: %v", err)
 	}
 
@@ -114,10 +114,9 @@ func (s *inMemoryUDSStorage) Save(topology, state, tag string) (UDSStorageWriter
 }
 
 func (s *inMemoryUDSStorage) Load(topology, state, tag string) (io.ReadCloser, error) {
-	if tag == "" {
+	if tag == "" || strings.ToLower(tag) == "default" {
 		tag = "default"
-	}
-	if err := core.ValidateNodeName(tag); err != nil {
+	} else if err := core.ValidateSymbol(tag); err != nil {
 		return nil, fmt.Errorf("tag is ill-formatted: %v", err)
 	}
 

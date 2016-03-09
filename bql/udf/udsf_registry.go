@@ -43,6 +43,10 @@ func NewDefaultUDSFCreatorRegistry() UDSFCreatorRegistry {
 }
 
 func (r *defaultUDSFCreatorRegistry) Register(typeName string, c UDSFCreator) error {
+	if err := core.ValidateSymbol(typeName); err != nil {
+		return fmt.Errorf("invalid name for function: %s", err.Error())
+	}
+
 	r.m.Lock()
 	defer r.m.Unlock()
 

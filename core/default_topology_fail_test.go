@@ -238,7 +238,8 @@ func (s *stubSink) Close(ctx *Context) error {
 
 func TestDefaultTopologySetupFailure(t *testing.T) {
 	Convey("Given a topology", t, func() {
-		t := NewDefaultTopology(NewContext(nil), "dt1")
+		t, err := NewDefaultTopology(NewContext(nil), "dt1")
+		So(err, ShouldBeNil)
 		Reset(func() {
 			t.Stop()
 		})
@@ -402,7 +403,8 @@ func TestDefaultTopologyFailure(t *testing.T) {
 		/*
 		 *   so -*--> b1 -*--> si
 		 */
-		t := NewDefaultTopology(NewContext(nil), "dt1")
+		t, err := NewDefaultTopology(NewContext(nil), "dt1")
+		So(err, ShouldBeNil)
 		Reset(func() {
 			t.Stop()
 		})

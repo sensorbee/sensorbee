@@ -9,7 +9,8 @@ import (
 // named inputs are done correctly when building a topology.
 func TestDefaultTopologyInputNamesChecks(t *testing.T) {
 	Convey("Given a default topology builder", t, func() {
-		t := NewDefaultTopology(NewContext(nil), "dt1")
+		t, err := NewDefaultTopology(NewContext(nil), "dt1")
+		So(err, ShouldBeNil)
 		Reset(func() {
 			t.Stop()
 		})

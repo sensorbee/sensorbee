@@ -70,6 +70,10 @@ func NewDefaultSourceCreatorRegistry() SourceCreatorRegistry {
 }
 
 func (r *defaultSourceCreatorRegistry) Register(typeName string, c SourceCreator) error {
+	if err := core.ValidateSymbol(typeName); err != nil {
+		return fmt.Errorf("invalid name for source type: %s", err.Error())
+	}
+
 	r.m.Lock()
 	defer r.m.Unlock()
 

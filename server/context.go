@@ -171,7 +171,10 @@ func setUpTopology(logger *logrus.Logger, name string, conf *config.Config, us u
 	cc.Flags.DroppedTupleLog.Set(conf.Logging.LogDroppedTuples)
 	cc.Flags.DroppedTupleSummarization.Set(conf.Logging.SummarizeDroppedTuples)
 
-	tp := core.NewDefaultTopology(core.NewContext(cc), name)
+	tp, err := core.NewDefaultTopology(core.NewContext(cc), name)
+	if err != nil {
+		return nil, err
+	}
 	tb, err := bql.NewTopologyBuilder(tp)
 	if err != nil {
 		logger.WithFields(logrus.Fields{

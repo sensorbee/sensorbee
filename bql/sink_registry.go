@@ -61,6 +61,10 @@ func NewDefaultSinkCreatorRegistry() SinkCreatorRegistry {
 }
 
 func (r *defaultSinkCreatorRegistry) Register(typeName string, c SinkCreator) error {
+	if err := core.ValidateSymbol(typeName); err != nil {
+		return fmt.Errorf("invalid name for sink type: %s", err.Error())
+	}
+
 	r.m.Lock()
 	defer r.m.Unlock()
 

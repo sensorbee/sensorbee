@@ -20,7 +20,8 @@ func (f *writeFailSink) Close(ctx *Context) error {
 func TestDroppedTupleCollectorSource(t *testing.T) {
 	Convey("Given a topology and a dropped tuple collector source", t, func() {
 		ctx := NewContext(nil)
-		t := NewDefaultTopology(ctx, "dt1")
+		t, err := NewDefaultTopology(ctx, "dt1")
+		So(err, ShouldBeNil)
 		Reset(func() {
 			t.Stop()
 		})
