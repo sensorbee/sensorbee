@@ -569,19 +569,23 @@ func (ep *streamRelationStreamExecutionPlan) preprocCartProdInt(dataHolder data.
 		// to each item
 		dataHolder[":meta:NOW"] = data.Timestamp(ep.now)
 
-		// evaluate filter condition and convert to bool
+		// evaluate filter condition
 		if ep.filter != nil {
 			filterResult, err := ep.filter.Eval(dataHolder)
 			if err != nil {
 				return err
 			}
-			filterResultBool, err := data.ToBool(filterResult)
-			if err != nil {
-				return err
+			// a NULL value is definitely not "true", so since we
+			// have only a binary decision, we should drop tuples
+			// where the filter condition evaluates to NULL
+			filterResultBool := false
+			if filterResult.Type() != data.TypeNull {
+				filterResultBool, err = data.AsBool(filterResult)
+				if err != nil {
+					return err
+				}
 			}
 			// if it evaluated to false, do not further process this tuple
-			// (ToBool also evalutes the NULL value to false, so we don't
-			// need to treat this specially)
 			if !filterResultBool {
 				return nil
 			}

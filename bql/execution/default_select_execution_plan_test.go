@@ -330,6 +330,25 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 		})
 	})
 
+	Convey("Given a SELECT clause with a non-boolean filter", t, func() {
+		tuples := getTuples(1)
+		s := `CREATE STREAM box AS SELECT ISTREAM int FROM src [RANGE 2 SECONDS] WHERE 6`
+		plan, err := createDefaultSelectPlan(s, t)
+		So(err, ShouldBeNil)
+
+		Convey("When feeding it with tuples", func() {
+			for _, inTup := range tuples {
+				_, err := plan.Process(inTup)
+
+				Convey("Then there should be an error", func() {
+					So(err, ShouldNotBeNil)
+					So(err.Error(), ShouldEqual, "unsupported cast bool from int")
+				})
+			}
+
+		})
+	})
+
 	// Select constant and a column with changing values from aliased relation
 	// using that alias
 	Convey("Given a SELECT clause with a constant, a table alias, and a column using it", t, func() {

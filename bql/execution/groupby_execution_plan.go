@@ -220,13 +220,17 @@ func (ep *groupbyExecutionPlan) performQueryOnBuffer() error {
 				if err != nil {
 					return err
 				}
-				havingResultBool, err := data.ToBool(havingResult)
-				if err != nil {
-					return err
+				// a NULL value is definitely not "true", so since we
+				// have only a binary decision, we should drop tuples
+				// where the condition evaluates to NULL
+				havingResultBool := false
+				if havingResult.Type() != data.TypeNull {
+					havingResultBool, err = data.AsBool(havingResult)
+					if err != nil {
+						return err
+					}
 				}
 				// if it evaluated to false, do not further process this group
-				// (ToBool also evalutes the NULL value to false, so we don't
-				// need to treat this specially)
 				if !havingResultBool {
 					return nil
 				}

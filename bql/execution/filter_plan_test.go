@@ -171,6 +171,15 @@ func TestFilterPlan(t *testing.T) {
 		compareWithRef(t, plan, refPlan, tuples)
 	})
 
+	Convey("Given a SELECT clause with a non-boolean filter", t, func() {
+		tuples := getTuples(4)
+		s := `CREATE STREAM box AS SELECT RSTREAM int FROM src [RANGE 1 TUPLES] WHERE 6`
+		plan, refPlan, err := createFilterPlan(s, t)
+		So(err, ShouldBeNil)
+
+		compareWithRef(t, plan, refPlan, tuples)
+	})
+
 	// Select constant and a column with changing values from aliased relation
 	// using that alias
 	Convey("Given a SELECT clause with a constant, a table alias, and a column using it", t, func() {

@@ -61,9 +61,15 @@ func (ep *filterPlan) Process(input *core.Tuple) ([]data.Map, error) {
 		if err != nil {
 			return nil, err
 		}
-		filterResultBool, err := data.ToBool(filterResult)
-		if err != nil {
-			return nil, err
+		// a NULL value is definitely not "true", so since we
+		// have only a binary decision, we should drop tuples
+		// where the filter condition evaluates to NULL
+		filterResultBool := false
+		if filterResult.Type() != data.TypeNull {
+			filterResultBool, err = data.AsBool(filterResult)
+			if err != nil {
+				return nil, err
+			}
 		}
 		// if it evaluated to false, do not further process this tuple
 		if !filterResultBool {
