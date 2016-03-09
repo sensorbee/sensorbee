@@ -86,7 +86,6 @@ var reservedWords = map[string]bool{
 	"DECIMAL":               true,
 	"DECIMALSEPARATORCOMMA": true,
 	"DECLARE":               true,
-	"DEFAULT":               true,
 	"DEFERRABLE":            true,
 	"DEFERRED":              true,
 	"DELETE":                true,
