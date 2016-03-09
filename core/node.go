@@ -55,7 +55,7 @@ func ValidateSymbol(name string) error {
 		return fmt.Errorf("the name doesn't follow the format [a-zA-Z][a-zA-Z0-9_]*: %v", name)
 	}
 	// check reserved words
-	if reservedWords[strings.ToUpper(name)] {
+	if _, exists := reservedWords[strings.ToLower(name)]; exists {
 		return fmt.Errorf("%s is a reserved word and cannot be used as a name", name)
 	}
 	return nil
