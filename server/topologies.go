@@ -107,7 +107,7 @@ func (tc *topologies) Create(rw web.ResponseWriter, req *web.Request) {
 		tc.RenderError(e)
 		return
 	}
-	if err := core.ValidateNodeName(name); err != nil {
+	if err := core.ValidateSymbol(name); err != nil {
 		tc.ErrLog(err).Error("'name' field has invalid format")
 		e := jasco.NewError(formValidationErrorCode, "The request body is invalid.",
 			http.StatusBadRequest, nil)

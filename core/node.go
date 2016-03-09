@@ -5,6 +5,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"gopkg.in/sensorbee/sensorbee.v0/data"
 	"regexp"
+	"strings"
 )
 
 // NodeType represents the type of a node in a topology.
@@ -38,18 +39,24 @@ var (
 	nodeNameRegexp = regexp.MustCompile("^[a-zA-Z][a-zA-Z0-9_]*$")
 )
 
-// ValidateNodeName validates if the node name has valid format and length. The
-// minimum length of a node name is 1 and the maximum is 127. The format has to
-// be [a-zA-Z][a-zA-Z0-9_]*.
-func ValidateNodeName(name string) error {
+// ValidateSymbol validates if the given string has valid format and
+// length for user-defined entities and is not one of the reserved words.
+// The minimum length of a symbol is 1 and the maximum is 127. The
+// format has to be [a-zA-Z][a-zA-Z0-9_]*.
+func ValidateSymbol(name string) error {
+	// check length
 	if l := len(name); l < 1 {
 		return fmt.Errorf("the name is empty")
 	} else if l > 127 {
 		return fmt.Errorf("the name can be at most 127 letters: %v", len(name))
 	}
-
+	// check format
 	if !nodeNameRegexp.MatchString(name) {
 		return fmt.Errorf("the name doesn't follow the format [a-zA-Z][a-zA-Z0-9_]*: %v", name)
+	}
+	// check reserved words
+	if reservedWords[strings.ToUpper(name)] {
+		return fmt.Errorf("%s is a reserved word and cannot be used as a name", name)
 	}
 	return nil
 }

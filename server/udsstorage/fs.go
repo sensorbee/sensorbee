@@ -57,7 +57,7 @@ func (s *fsUDSStorage) Save(topology, state, tag string) (udf.UDSStorageWriter, 
 	if tag == "" {
 		tag = "default"
 	}
-	if err := core.ValidateNodeName(tag); err != nil {
+	if err := core.ValidateSymbol(tag); err != nil {
 		return nil, err
 	}
 
@@ -81,7 +81,7 @@ func (s *fsUDSStorage) Load(topology, state, tag string) (io.ReadCloser, error) 
 	if tag == "" {
 		tag = "default"
 	}
-	if err := core.ValidateNodeName(tag); err != nil {
+	if err := core.ValidateSymbol(tag); err != nil {
 		return nil, err
 	}
 

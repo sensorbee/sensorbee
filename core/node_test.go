@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestValidateNodeName(t *testing.T) {
+func TestValidateSymbol(t *testing.T) {
 	Convey("Given a node name validation function", t, func() {
 		cases := []struct {
 			title   string
@@ -25,6 +25,8 @@ func TestValidateNodeName(t *testing.T) {
 			{"a name containing an invalid letter", "da-me", false},
 			{"a name has maximum length", strings.Repeat("a", 127), true},
 			{"a name longer than the maximum length", strings.Repeat("a", 128), false},
+			{"a reserved word", "UNTIL", false},
+			{"a reserved word with different capitalization", "vaLIdaTE", false},
 		}
 
 		for _, c := range cases {
@@ -33,11 +35,11 @@ func TestValidateNodeName(t *testing.T) {
 			Convey("When validating "+c.title, func() {
 				if c.success {
 					Convey("Then it should succeed", func() {
-						So(ValidateNodeName(c.name), ShouldBeNil)
+						So(ValidateSymbol(c.name), ShouldBeNil)
 					})
 				} else {
 					Convey("Then it should fail", func() {
-						So(ValidateNodeName(c.name), ShouldNotBeNil)
+						So(ValidateSymbol(c.name), ShouldNotBeNil)
 					})
 				}
 			})

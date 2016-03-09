@@ -37,7 +37,7 @@ func runDrop(c *cli.Context) {
 	}
 
 	name := args[0]
-	if err := core.ValidateNodeName(name); err != nil {
+	if err := core.ValidateSymbol(name); err != nil {
 		// This is checked here to avoid sending wrong DELETE request to different URL.
 		fmt.Fprintf(os.Stderr, "The name of the topology is invalid: %v\n", err)
 		panic(1)
