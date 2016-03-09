@@ -66,15 +66,8 @@ func (t *Tuple) Copy() *Tuple {
 
 // ShallowCopy creates a new copy of a tuple. It only deep copies trace
 // information. Because Data is shared between the old tuple and the new tuple,
-// TFSharedData is set by this method. However, the tuple returned from this
-// method isn't shared and its TFShared flag isn't set.
-//
-// It's safe to clear TFShared flag after assigning a new data.Map to Data
-// field:
-//
-//	newT := oldT.ShallowCopy()
-//	newT.Data = data.Map{} // no field other than Data is shared with oldT.
-//	newT.Flags.Clear(TFShared) // therefore, it's safe to clear the flag here.
+// this method sets TFSharedData flag for both tuples. However, the tuple itself
+// returned from this method isn't shared and its TFShared flag isn't set.
 func (t *Tuple) ShallowCopy() *Tuple {
 	out := t.shallowCopy()
 	out.Flags.Set(TFSharedData)
@@ -117,9 +110,9 @@ const (
 	// is set to a tuple, the tuple will not be reported when it is dropped.
 	TFDropped TupleFlags = 1 << iota
 
-	// TFShared is a flag which is set when a Tuple is shared by multiple node
-	// so that a node changing the tuple must make a copy of it rather than
-	// modifying it directly. This flag only indicates that Tuple struct itself
+	// TFShared is a flag which is set when a Tuple is shared by multiple node.
+	// In other words, this flag is set if a tuple is referenced by multiple
+	// pointers (i.e. *Tuple). This flag only indicates that Tuple struct itself
 	// is shared. Tuple.Data might be shared even if this flag isn't set.
 	//
 	// To update a field of a tuple with TFShared flag, use ShallowCopy() or
