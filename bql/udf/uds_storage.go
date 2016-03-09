@@ -7,6 +7,7 @@ import (
 	"gopkg.in/sensorbee/sensorbee.v0/core"
 	"io"
 	"io/ioutil"
+	"strings"
 	"sync"
 )
 
@@ -88,7 +89,7 @@ func NewInMemoryUDSStorage() UDSStorage {
 }
 
 func (s *inMemoryUDSStorage) Save(topology, state, tag string) (UDSStorageWriter, error) {
-	if tag == "" {
+	if tag == "" || strings.ToLower(tag) == "default" {
 		tag = "default"
 	} else if err := core.ValidateSymbol(tag); err != nil {
 		return nil, fmt.Errorf("tag is ill-formatted: %v", err)
@@ -113,7 +114,7 @@ func (s *inMemoryUDSStorage) Save(topology, state, tag string) (UDSStorageWriter
 }
 
 func (s *inMemoryUDSStorage) Load(topology, state, tag string) (io.ReadCloser, error) {
-	if tag == "" {
+	if tag == "" || strings.ToLower(tag) == "default" {
 		tag = "default"
 	} else if err := core.ValidateSymbol(tag); err != nil {
 		return nil, fmt.Errorf("tag is ill-formatted: %v", err)
