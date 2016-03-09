@@ -24,7 +24,7 @@ type TopologyBuilder struct {
 }
 
 const (
-	MAX_BUFFER_SIZE int64 = 1<<17 - 1
+	MaxBufferSize int64 = 1<<17 - 1
 )
 
 // TODO: Provide AtomicTopologyBuilder which support building multiple nodes
@@ -503,10 +503,10 @@ func (tb *TopologyBuilder) createStreamAsSelectStmt(stmt *parser.CreateStreamAsS
 			}
 			// set capacity of input pipe
 			if rel.Capacity != parser.UnspecifiedCapacity {
-				if rel.Capacity > MAX_BUFFER_SIZE {
+				if rel.Capacity > MaxBufferSize {
 					return nil, fmt.Errorf("specified buffer capacity %d is too large "+
 						"(must be <= %d)",
-						rel.Capacity, MAX_BUFFER_SIZE)
+						rel.Capacity, MaxBufferSize)
 				} else if rel.Capacity < 0 {
 					// the parser should not allow this to happen, actually
 					return nil, fmt.Errorf("specified buffer capacity %d must not be negative",

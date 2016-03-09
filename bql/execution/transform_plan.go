@@ -12,9 +12,9 @@ import (
 )
 
 const (
-	MAX_RANGE_TUPLES float64 = 1<<20 - 1
-	MAX_RANGE_SEC    float64 = 60*60*24 - 1
-	MAX_RANGE_MS     float64 = 60*60*24*1000 - 1
+	MaxRangeTuples   float64 = 1<<20 - 1
+	MaxRangeSec      float64 = 60*60*24 - 1
+	MaxRangeMillisec float64 = 60*60*24*1000 - 1
 )
 
 /*
@@ -467,21 +467,21 @@ func validateReferences(s *parser.SelectStmt) error {
 		}
 		switch rel.Unit {
 		case parser.Tuples:
-			if rel.Value > MAX_RANGE_TUPLES {
+			if rel.Value > MaxRangeTuples {
 				err := fmt.Errorf("RANGE value %d is too large for TUPLES (must be at most %d)",
-					int64(rel.Value), int64(MAX_RANGE_TUPLES))
+					int64(rel.Value), int64(MaxRangeTuples))
 				return err
 			}
 		case parser.Seconds:
-			if rel.Value > MAX_RANGE_SEC {
+			if rel.Value > MaxRangeSec {
 				err := fmt.Errorf("RANGE value %v is too large for SECONDS (must be at most %d)",
-					rel.Value, int64(MAX_RANGE_SEC))
+					rel.Value, int64(MaxRangeSec))
 				return err
 			}
 		case parser.Milliseconds:
-			if rel.Value > MAX_RANGE_MS {
+			if rel.Value > MaxRangeMillisec {
 				err := fmt.Errorf("RANGE value %v is too large for MILLISECONDS (must be at most %d)",
-					rel.Value, int64(MAX_RANGE_MS))
+					rel.Value, int64(MaxRangeMillisec))
 				return err
 			}
 		}
