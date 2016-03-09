@@ -168,7 +168,10 @@ func execute(cache *Cache, stmts *Statements, ith int) error {
 	conf := &core.ContextConfig{}
 	conf.Flags.DroppedTupleLog.Set(true)
 	conf.Flags.DroppedTupleSummarization.Set(true)
-	t := core.NewDefaultTopology(core.NewContext(conf), "sensorbee_exp")
+	t, err := core.NewDefaultTopology(core.NewContext(conf), "sensorbee_exp")
+	if err != nil {
+		return err
+	}
 	defer t.Stop()
 	tb, err := bql.NewTopologyBuilder(t)
 	if err != nil {

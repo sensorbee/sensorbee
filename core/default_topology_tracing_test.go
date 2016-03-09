@@ -23,12 +23,13 @@ func TestDefaultTopologyTupleTracingConfiguration(t *testing.T) {
 			Trace:         []TraceEvent{},
 		}
 
-		t := NewDefaultTopology(ctx, "test")
+		t, err := NewDefaultTopology(ctx, "test")
+		So(err, ShouldBeNil)
 		Reset(func() {
 			t.Stop()
 		})
 		so1 := NewTupleIncrementalEmitterSource([]*Tuple{tup.Copy(), tup.Copy(), tup.Copy()})
-		_, err := t.AddSource("so1", so1, nil)
+		_, err = t.AddSource("so1", so1, nil)
 		So(err, ShouldBeNil)
 
 		b := BoxFunc(forwardBox)
@@ -93,7 +94,8 @@ func TestDefaultTopologyTupleTracing(t *testing.T) {
 		 *        *- b1 -*         *- b4 -*
 		 *   so2 /        \--> b3 /        \-*--> si2
 		 */
-		t := NewDefaultTopology(ctx, "test")
+		t, err := NewDefaultTopology(ctx, "test")
+		So(err, ShouldBeNil)
 		Reset(func() {
 			t.Stop()
 		})

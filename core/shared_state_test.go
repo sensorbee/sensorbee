@@ -251,7 +251,8 @@ func TestSharedStateInTopology(t *testing.T) {
 		counter := &countingSharedState{}
 		So(ctx.SharedStates.Add("test_counter", "test_counter_type", counter), ShouldBeNil)
 
-		t := NewDefaultTopology(ctx, "test")
+		t, err := NewDefaultTopology(ctx, "test")
+		So(err, ShouldBeNil)
 		Reset(func() {
 			t.Stop()
 		})

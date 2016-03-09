@@ -28,7 +28,7 @@ type defaultTopology struct {
 
 // NewDefaultTopology creates a topology having a simple graph
 // structure.
-func NewDefaultTopology(ctx *Context, name string) Topology {
+func NewDefaultTopology(ctx *Context, name string) (Topology, error) {
 	ctx.topologyName = name
 	t := &defaultTopology{
 		ctx:  ctx,
@@ -40,7 +40,7 @@ func NewDefaultTopology(ctx *Context, name string) Topology {
 	}
 	t.state = newTopologyStateHolder(&t.stateMutex)
 	t.state.state = TSRunning // A topology is running by default.
-	return t
+	return t, nil
 }
 
 func (t *defaultTopology) Name() string {

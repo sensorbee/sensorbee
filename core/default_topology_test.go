@@ -82,7 +82,8 @@ func (s *sinkCloseChecker) Close(ctx *Context) error {
 
 func TestDefaultTopologySetup(t *testing.T) {
 	Convey("Given a default topology", t, func() {
-		dt := NewDefaultTopology(NewContext(nil), "dt1")
+		dt, err := NewDefaultTopology(NewContext(nil), "dt1")
+		So(err, ShouldBeNil)
 		t := dt.(*defaultTopology)
 		Reset(func() {
 			t.Stop()
@@ -604,7 +605,8 @@ func TestLinearDefaultTopology(t *testing.T) {
 		/*
 		 *   so -*--> b1 -*--> b2 -*--> si
 		 */
-		dt := NewDefaultTopology(NewContext(nil), "dt1")
+		dt, err := NewDefaultTopology(NewContext(nil), "dt1")
+		So(err, ShouldBeNil)
 		t := dt.(*defaultTopology)
 		Reset(func() {
 			t.Stop()
@@ -998,14 +1000,15 @@ func TestForkDefaultTopology(t *testing.T) {
 		 *   so -*
 		 *        \--> b2 -*--> si2
 		 */
-		dt := NewDefaultTopology(NewContext(nil), "dt1")
+		dt, err := NewDefaultTopology(NewContext(nil), "dt1")
+		So(err, ShouldBeNil)
 		t := dt.(*defaultTopology)
 		Reset(func() {
 			t.Stop()
 		})
 
 		so := NewTupleIncrementalEmitterSource(freshTuples())
-		_, err := t.AddSource("source", so, nil)
+		_, err = t.AddSource("source", so, nil)
 		So(err, ShouldBeNil)
 
 		b1 := &BlockingForwardBox{cnt: 8}
@@ -1208,14 +1211,15 @@ func TestJoinDefaultTopology(t *testing.T) {
 		 *           --> b -*--> si
 		 *   so2 -*-/
 		 */
-		tb := NewDefaultTopology(NewContext(nil), "dt1")
+		tb, err := NewDefaultTopology(NewContext(nil), "dt1")
+		So(err, ShouldBeNil)
 		t := tb.(*defaultTopology)
 		Reset(func() {
 			t.Stop()
 		})
 
 		so1 := NewTupleIncrementalEmitterSource(freshTuples()[0:4])
-		_, err := t.AddSource("source1", so1, nil)
+		_, err = t.AddSource("source1", so1, nil)
 		So(err, ShouldBeNil)
 
 		so2 := NewTupleIncrementalEmitterSource(freshTuples()[4:8])
@@ -1397,7 +1401,8 @@ func TestJoinDefaultTopology(t *testing.T) {
 
 func TestDefaultTopologyQueueDropMode(t *testing.T) {
 	Convey("Given a simple linear topology", t, func() {
-		dt := NewDefaultTopology(NewContext(nil), "dt1")
+		dt, err := NewDefaultTopology(NewContext(nil), "dt1")
+		So(err, ShouldBeNil)
 		t := dt.(*defaultTopology)
 		Reset(func() {
 			t.Stop()
@@ -1405,7 +1410,7 @@ func TestDefaultTopologyQueueDropMode(t *testing.T) {
 
 		ts := freshTuples()
 		so := NewTupleIncrementalEmitterSource(ts)
-		_, err := t.AddSource("source", so, nil)
+		_, err = t.AddSource("source", so, nil)
 		So(err, ShouldBeNil)
 
 		Convey("When adding a box with DropLatest", func() {

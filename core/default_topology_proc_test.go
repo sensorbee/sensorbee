@@ -37,13 +37,14 @@ func TestDefaultTopologyTupleProcessing(t *testing.T) {
 		 *   so -*--> b -*--> si
 		 */
 		ctx := NewContext(nil)
-		t := NewDefaultTopology(ctx, "test")
+		t, err := NewDefaultTopology(ctx, "test")
+		So(err, ShouldBeNil)
 		Reset(func() {
 			t.Stop()
 		})
 
 		s1 := newCustomEmitterSource()
-		_, err := t.AddSource("source1", s1, nil)
+		_, err = t.AddSource("source1", s1, nil)
 		So(err, ShouldBeNil)
 
 		bn, err := t.AddBox("aBox", ToUpperBox, nil)
@@ -97,7 +98,8 @@ func TestDefaultTopologyTupleProcessing(t *testing.T) {
 		 *   so2 -*-/
 		 */
 		ctx := NewContext(nil)
-		t := NewDefaultTopology(ctx, "test")
+		t, err := NewDefaultTopology(ctx, "test")
+		So(err, ShouldBeNil)
 		Reset(func() {
 			t.Stop()
 		})
@@ -149,7 +151,8 @@ func TestDefaultTopologyTupleProcessing(t *testing.T) {
 		 */
 
 		ctx := NewContext(nil)
-		t := NewDefaultTopology(ctx, "test")
+		t, err := NewDefaultTopology(ctx, "test")
+		So(err, ShouldBeNil)
 		Reset(func() {
 			t.Stop()
 		})
@@ -199,7 +202,8 @@ func TestDefaultTopologyTupleProcessing(t *testing.T) {
 				TupleTrace: 1,
 			},
 		})
-		t := NewDefaultTopology(ctx, "test")
+		t, err := NewDefaultTopology(ctx, "test")
+		So(err, ShouldBeNil)
 		Reset(func() {
 			t.Stop()
 		})

@@ -125,7 +125,12 @@ func (tc *topologies) Create(rw web.ResponseWriter, req *web.Request) {
 	cc.Flags.DroppedTupleLog.Set(tc.config.Logging.LogDroppedTuples)
 	cc.Flags.DroppedTupleSummarization.Set(tc.config.Logging.SummarizeDroppedTuples)
 
-	tp := core.NewDefaultTopology(core.NewContext(cc), name)
+	tp, err := core.NewDefaultTopology(core.NewContext(cc), name)
+	if err != nil {
+		tc.ErrLog(err).Error("Cannot create a new topology")
+		tc.RenderErrorJSON(NewInternalServerError(err))
+		return
+	}
 	tb, err := bql.NewTopologyBuilder(tp)
 	if err != nil {
 		tc.ErrLog(err).Error("Cannot create a new topology builder")
