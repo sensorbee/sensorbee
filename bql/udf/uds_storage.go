@@ -90,8 +90,7 @@ func NewInMemoryUDSStorage() UDSStorage {
 func (s *inMemoryUDSStorage) Save(topology, state, tag string) (UDSStorageWriter, error) {
 	if tag == "" {
 		tag = "default"
-	}
-	if err := core.ValidateSymbol(tag); err != nil {
+	} else if err := core.ValidateSymbol(tag); err != nil {
 		return nil, fmt.Errorf("tag is ill-formatted: %v", err)
 	}
 
@@ -116,8 +115,7 @@ func (s *inMemoryUDSStorage) Save(topology, state, tag string) (UDSStorageWriter
 func (s *inMemoryUDSStorage) Load(topology, state, tag string) (io.ReadCloser, error) {
 	if tag == "" {
 		tag = "default"
-	}
-	if err := core.ValidateSymbol(tag); err != nil {
+	} else if err := core.ValidateSymbol(tag); err != nil {
 		return nil, fmt.Errorf("tag is ill-formatted: %v", err)
 	}
 
