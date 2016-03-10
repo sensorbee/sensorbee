@@ -918,14 +918,16 @@ func TestRangeChecker(t *testing.T) {
 			"RANGE value 1048576 is too large for TUPLES (must be at most 1048575)"},
 		// SECONDS
 		{"a FROM x [RANGE 1 SECONDS]", ""},
-		{"a FROM x [RANGE 86398.99 SECONDS]", ""},
-		{"a FROM x [RANGE 86399.01 SECONDS]",
-			"RANGE value 86399.01 is too large for SECONDS (must be at most 86399)"},
+		{"a FROM x [RANGE 86399.99 SECONDS]", ""},
+		{"a FROM x [RANGE 86400 SECONDS]", ""},
+		{"a FROM x [RANGE 86400.01 SECONDS]",
+			"RANGE value 86400.01 is too large for SECONDS (must be at most 86400)"},
 		// MILLISECONDS
 		{"a FROM x [RANGE 1 MILLISECONDS]", ""},
-		{"a FROM x [RANGE 86399998.99 MILLISECONDS]", ""},
-		{"a FROM x [RANGE 86399999.01 MILLISECONDS]",
-			"RANGE value 8.639999901e+07 is too large for MILLISECONDS (must be at most 86399999)"},
+		{"a FROM x [RANGE 86399999.99 MILLISECONDS]", ""},
+		{"a FROM x [RANGE 86400000 MILLISECONDS]", ""},
+		{"a FROM x [RANGE 86400000.01 MILLISECONDS]",
+			"RANGE value 8.640000001e+07 is too large for MILLISECONDS (must be at most 86400000)"},
 	}
 
 	for _, testCase := range testCases {

@@ -13,8 +13,8 @@ import (
 
 const (
 	MaxRangeTuples   float64 = 1<<20 - 1
-	MaxRangeSec      float64 = 60*60*24 - 1
-	MaxRangeMillisec float64 = 60*60*24*1000 - 1
+	MaxRangeSec      float64 = 60 * 60 * 24
+	MaxRangeMillisec float64 = 60 * 60 * 24 * 1000
 )
 
 /*
