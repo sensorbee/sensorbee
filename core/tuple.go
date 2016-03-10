@@ -2,6 +2,7 @@ package core
 
 import (
 	"gopkg.in/sensorbee/sensorbee.v0/data"
+	"sync/atomic"
 	"time"
 )
 
@@ -52,21 +53,40 @@ func (t *Tuple) AddEvent(ev TraceEvent) {
 
 // Copy creates a deep copy of a Tuple, including the contained
 // data. This can be used, e.g., by fan-out pipes. When Tuple.Data doesn't
-// need to be cloned, just use newTuple := *oldTuple instead of this method.
+// need to be cloned, call ShallowCopy. NEVER do newTuple := *oldTuple.
 func (t *Tuple) Copy() *Tuple {
 	// except for Data, there are only value types in
 	// Tuple, so we can use normal copy for everything
 	// except Data
-	out := *t
+	out := t.shallowCopy()
 	out.Data = out.Data.Copy()
+	out.Flags.Clear(TFSharedData) // not shared
+	return out
+}
+
+// ShallowCopy creates a new copy of a tuple. It only deep copies trace
+// information. Because Data is shared between the old tuple and the new tuple,
+// this method sets TFSharedData flag for both tuples. However, the tuple itself
+// returned from this method isn't shared and its TFShared flag isn't set.
+func (t *Tuple) ShallowCopy() *Tuple {
+	out := t.shallowCopy()
+	out.Flags.Set(TFSharedData)
+	t.Flags.Set(TFSharedData)
+	return out
+}
+
+func (t *Tuple) shallowCopy() *Tuple {
+	out := *t
+	out.Flags.Clear(TFShared)
 
 	// the copied tuple should have new event history,
 	// which is isolated from the original tuple,
 	// past events are copied from the original tuple
-	tr := make([]TraceEvent, len(t.Trace))
-	copy(tr, t.Trace)
-	out.Trace = tr
-
+	if t.Trace != nil {
+		tr := make([]TraceEvent, len(t.Trace))
+		copy(tr, t.Trace)
+		out.Trace = tr
+	}
 	return &out
 }
 
@@ -89,19 +109,58 @@ const (
 	// TFDropped is a flag which is set when a tuple is dropped. Once this flag
 	// is set to a tuple, the tuple will not be reported when it is dropped.
 	TFDropped TupleFlags = 1 << iota
+
+	// TFShared is a flag which is set when a Tuple is shared by multiple nodes.
+	// In other words, this flag is set if a tuple is referenced by multiple
+	// pointers (i.e. *Tuple). This flag only indicates that Tuple struct itself
+	// is shared. Tuple.Data might be shared even if this flag isn't set.
+	//
+	// To update a field of a tuple with TFShared flag, use ShallowCopy() or
+	// Copy(). Also, if you keep a reference to a tuple or (parts of) its Data
+	// after processing it, you must set the TFShared flag for that tuple.
+	TFShared
+
+	// TFSharedData is a flag which is set when Tuple.Data is shared by other
+	// tuples. Tuple.Data must not directly modified if the flag is set.
+	// To update Data of a tuple with TFSharedData flag, use Copy().
+	//
+	// Relations of TFShared and TFSharedData are summarized below:
+	//
+	//	(TFShared is set, TFSharedData is set):
+	//	(true, true): *Tuple is copied
+	//	(true, false): never happens
+	//	(false, true): a tuple returned from ShallowCopy
+	//	(false, false): a tuple returned from NewTuple or Copy
+	TFSharedData
 )
 
 // Set sets a set of flags at once.
 func (f *TupleFlags) Set(v TupleFlags) {
-	*f |= v
+	newFlag := uint32(v)
+	if v == TFShared {
+		// TFSharedData needs to be set as well because Tuple.Data is shared, too.
+		newFlag |= uint32(TFSharedData)
+	}
+
+	for {
+		old := atomic.LoadUint32((*uint32)(f))
+		if atomic.CompareAndSwapUint32((*uint32)(f), old, old|uint32(v)) {
+			break
+		}
+	}
 }
 
 // IsSet returns true if the all given flags are set.
 func (f *TupleFlags) IsSet(v TupleFlags) bool {
-	return *f&v == v
+	return TupleFlags(atomic.LoadUint32((*uint32)(f)))&v == v
 }
 
 // Clear clears a set of flags at once.
 func (f *TupleFlags) Clear(v TupleFlags) {
-	*f &= ^v
+	for {
+		old := atomic.LoadUint32((*uint32)(f))
+		if atomic.CompareAndSwapUint32((*uint32)(f), old, old & ^uint32(v)) {
+			break
+		}
+	}
 }

@@ -59,6 +59,12 @@ type PhysicalPlan interface {
 	// a tuple. It is the caller's task to create those tuples
 	// and set appropriate meta information such as timestamps.
 	//
+	// Process must NOT modify any field of the input tuple when its
+	// core.TFShared flag is set. To modify the tuple, create a shallow copy of
+	// it. Moreover, when Tuple.Data field is cached in the plan,
+	// core.TFSharedData flag of the input tuple must be set and the plan must
+	// not modify the Data.
+	//
 	// NB. Process is not thread-safe, i.e., it must be called in
 	// a single-threaded context.
 	Process(input *core.Tuple) ([]data.Map, error)

@@ -41,8 +41,8 @@ func setupTopology(stmt string, trace bool) (*TopologyBuilder, error) {
 
 func TestBasicBQLBoxConnectivity(t *testing.T) {
 	tuples := mkTuples(4)
-	tup2 := *tuples[1]
-	tup4 := *tuples[3]
+	tup2 := tuples[1].ShallowCopy()
+	tup4 := tuples[3].ShallowCopy()
 
 	Convey("Given an ISTREAM/2 SECONDS BQL statement", t, func() {
 		s := "CREATE STREAM box AS SELECT " +
@@ -70,7 +70,7 @@ func TestBasicBQLBoxConnectivity(t *testing.T) {
 					t := si.get(0)
 					t.InputName = "input"
 					t.Trace = nil // don't check trace here
-					So(*t, ShouldResemble, tup2)
+					So(t, ShouldResemble, tup2)
 				})
 
 				Convey("And the first tuple has trace", func() {
@@ -90,7 +90,7 @@ func TestBasicBQLBoxConnectivity(t *testing.T) {
 					t := si.get(1)
 					t.InputName = "input"
 					t.Trace = nil // don't check trace here
-					So(*t, ShouldResemble, tup4)
+					So(t, ShouldResemble, tup4)
 				})
 
 				Convey("And the second tuple has trace", func() {
@@ -122,7 +122,7 @@ func TestBasicBQLBoxConnectivity(t *testing.T) {
 
 func TestBQLBoxEmitterParams(t *testing.T) {
 	tuples := mkTuples(4)
-	tup2 := *tuples[1]
+	tup2 := tuples[1].ShallowCopy()
 
 	Convey("Given a BQL statement with a LIMIT clause", t, func() {
 		s := "CREATE STREAM box AS SELECT " +
@@ -149,7 +149,7 @@ func TestBQLBoxEmitterParams(t *testing.T) {
 					t := si.get(0)
 					t.InputName = "input"
 					t.Trace = nil // don't check trace here
-					So(*t, ShouldResemble, tup2)
+					So(t, ShouldResemble, tup2)
 				})
 			})
 		})

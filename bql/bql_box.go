@@ -101,12 +101,12 @@ func (b *bqlBox) Process(ctx *core.Context, t *core.Tuple, s core.Writer) error 
 
 	// emit result data as tuples
 	for _, data := range resultData {
-		tup := *t
+		tup := t.ShallowCopy()
 		tup.Data = data
-		if len(t.Trace) != 0 {
-			tup.Trace = make([]core.TraceEvent, len(t.Trace))
-			copy(tup.Trace, t.Trace)
-		}
+		// This method can't tell if data was originally shared by some tuples.
+		// Therefore, TFSharedData flag cannot be cleared here. Data of some
+		// Tuples can be shared when they have reference types such as Blob,
+		// Array, or Map.
 
 		// decide if we should emit a tuple for this item
 		shouldWriteTuple := true
@@ -122,7 +122,7 @@ func (b *bqlBox) Process(ctx *core.Context, t *core.Tuple, s core.Writer) error 
 			// we will never emit something from this function
 			// when the time-based emitter is used
 			b.timeEmitterMutex.Lock()
-			b.lastTuple = &tup
+			b.lastTuple = tup
 			b.lastWriter = s
 			b.timeEmitterMutex.Unlock()
 			continue
@@ -130,7 +130,7 @@ func (b *bqlBox) Process(ctx *core.Context, t *core.Tuple, s core.Writer) error 
 
 		// write the tuple to the connected box
 		if shouldWriteTuple {
-			if err := s.Write(ctx, &tup); err != nil {
+			if err := s.Write(ctx, tup); err != nil {
 				return err
 			}
 			b.timeEmitterMutex.Lock()

@@ -117,8 +117,12 @@ func (c *Context) droppedTuple(t *Tuple, nodeType NodeType, nodeName string, et 
 	if len(c.dtSources) == 0 {
 		return
 	}
-	// TODO: reduce copies
-	dt := t.Copy()
+
+	dt := t
+	if t.Flags.IsSet(TFShared) {
+		dt = t.ShallowCopy()
+	}
+
 	dt.Data = data.Map{
 		"node_type":  data.String(nodeType.String()),
 		"node_name":  data.String(nodeName),
@@ -129,14 +133,12 @@ func (c *Context) droppedTuple(t *Tuple, nodeType NodeType, nodeName string, et 
 		dt.Data["error"] = data.String(err.Error())
 	}
 	dt.Flags.Set(TFDropped)
-	shouldCopy := len(c.dtSources) > 1
+	if len(c.dtSources) > 1 {
+		dt.Flags.Set(TFShared)
+	} // Otherwise, the value of TFShared should not be modified.
+
 	for _, s := range c.dtSources {
-		// TODO: reduce copies
-		copied := dt
-		if shouldCopy {
-			copied = dt.Copy()
-		}
-		s.w.Write(c, copied) // There isn't much meaning to report errors here.
+		s.w.Write(c, dt) // There isn't much meaning to report errors here.
 	}
 }
 
