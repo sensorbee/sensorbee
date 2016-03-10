@@ -102,11 +102,28 @@ func ParserExprToFlatExpr(e parser.Expression, reg udf.FunctionRegistry) (FlatEx
 	case parser.StringLiteral:
 		return stringLiteral{obj.Value}, nil
 	case parser.BinaryOpAST:
-		// recurse
+		// recurse left
 		left, err := ParserExprToFlatExpr(obj.Left, reg)
 		if err != nil {
 			return nil, err
 		}
+		// check if we have IS [NOT] MISSING here
+		// because we need to treat it fundamentally
+		// different than other binary operators
+		if _, ok := obj.Right.(parser.Missing); ok {
+			if rv, ok := left.(rowValue); ok {
+				if obj.Op == parser.Is {
+					return missing{rv, false}, nil
+				} else if obj.Op == parser.IsNot {
+					return missing{rv, true}, nil
+				}
+				// actually the parser should not allow
+				// any operators except IS and IS NOT
+				return nil, fmt.Errorf("MISSING requires IS [NOT], not: %s", obj.Op)
+			}
+			return nil, fmt.Errorf("IS [NOT] MISSING does not work with complex expression: %s", obj.Left.String())
+		}
+		// recurse right
 		right, err := ParserExprToFlatExpr(obj.Right, reg)
 		if err != nil {
 			return nil, err
@@ -233,11 +250,28 @@ func ParserExprToMaybeAggregate(e parser.Expression, aggIdx int, reg udf.Functio
 	case parser.AliasAST:
 		return ParserExprToMaybeAggregate(obj.Expr, aggIdx, reg)
 	case parser.BinaryOpAST:
-		// recurse
+		// recurse left
 		left, leftAgg, err := ParserExprToMaybeAggregate(obj.Left, aggIdx, reg)
 		if err != nil {
 			return nil, nil, err
 		}
+		// check if we have IS [NOT] MISSING here
+		// because we need to treat it fundamentally
+		// different than other binary operators
+		if _, ok := obj.Right.(parser.Missing); ok {
+			if rv, ok := left.(rowValue); ok {
+				if obj.Op == parser.Is {
+					return missing{rv, false}, leftAgg, nil
+				} else if obj.Op == parser.IsNot {
+					return missing{rv, true}, leftAgg, nil
+				}
+				// actually the parser should not allow
+				// any operators except IS and IS NOT
+				return nil, nil, fmt.Errorf("MISSING requires IS [NOT], not: %s", obj.Op)
+			}
+			return nil, nil, fmt.Errorf("IS [NOT] MISSING does not work with complex expression: %s", obj.Left.String())
+		}
+		// return right
 		right, rightAgg, err := ParserExprToMaybeAggregate(obj.Right, aggIdx+len(leftAgg), reg)
 		if err != nil {
 			return nil, nil, err
@@ -1026,6 +1060,30 @@ func (l nullLiteral) Volatility() VolatilityType {
 
 func (l nullLiteral) ContainsWildcard() bool {
 	return false
+}
+
+type missing struct {
+	Expr rowValue
+	Not  bool
+}
+
+func (m missing) Repr() string {
+	if m.Not {
+		return fmt.Sprintf("(%s)-NOT-MISSING", m.Expr.Repr())
+	}
+	return fmt.Sprintf("(%s)-MISSING", m.Expr.Repr())
+}
+
+func (m missing) Columns() []rowValue {
+	return m.Expr.Columns()
+}
+
+func (m missing) Volatility() VolatilityType {
+	return m.Expr.Volatility()
+}
+
+func (m missing) ContainsWildcard() bool {
+	return m.Expr.ContainsWildcard()
 }
 
 type boolLiteral struct {

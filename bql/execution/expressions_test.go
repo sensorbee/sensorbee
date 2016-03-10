@@ -62,9 +62,11 @@ func TestFlatExpressionConverter(t *testing.T) {
 		"CASE a WHEN 2 THEN now() END":        {caseAST{rowValue{"", "a"}, []whenThenPair{{numericLiteral{2}, stmtMeta{parser.NowMeta}}}, nullLiteral{}}, Stable, false, nil},
 		"CASE a WHEN 2 THEN 3 ELSE now() END": {caseAST{rowValue{"", "a"}, []whenThenPair{{numericLiteral{2}, numericLiteral{3}}}, stmtMeta{parser.NowMeta}}, Stable, false, nil},
 		// Composed Expressions
-		"a OR 2":    {binaryOpAST{parser.Or, rowValue{"", "a"}, numericLiteral{2}}, Immutable, false, []rowValue{{"", "a"}}},
-		"a IS NULL": {binaryOpAST{parser.Is, rowValue{"", "a"}, nullLiteral{}}, Immutable, false, []rowValue{{"", "a"}}},
-		"NOT a":     {unaryOpAST{parser.Not, rowValue{"", "a"}}, Immutable, false, []rowValue{{"", "a"}}},
+		"a OR 2":           {binaryOpAST{parser.Or, rowValue{"", "a"}, numericLiteral{2}}, Immutable, false, []rowValue{{"", "a"}}},
+		"a IS NULL":        {binaryOpAST{parser.Is, rowValue{"", "a"}, nullLiteral{}}, Immutable, false, []rowValue{{"", "a"}}},
+		"a IS MISSING":     {missing{rowValue{"", "a"}, false}, Immutable, false, []rowValue{{"", "a"}}},
+		"a IS NOT MISSING": {missing{rowValue{"", "a"}, true}, Immutable, false, []rowValue{{"", "a"}}},
+		"NOT a":            {unaryOpAST{parser.Not, rowValue{"", "a"}}, Immutable, false, []rowValue{{"", "a"}}},
 		"NOT f(a)": {unaryOpAST{parser.Not, funcAppAST{parser.FuncName("f"),
 			[]FlatExpression{rowValue{"", "a"}}}}, Volatile, false, []rowValue{{"", "a"}}},
 		// Comparisons
