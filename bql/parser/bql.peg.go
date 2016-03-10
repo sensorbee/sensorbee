@@ -10437,7 +10437,7 @@ func (p *bqlPegBackend) Init() {
 			position, tokenIndex, depth = position1082, tokenIndex1082, depth1082
 			return false
 		},
-		/* 78 isExpr <- <(<(termExpr (sp IsOp sp (NullLiteral / Missing))?)> Action59)> */
+		/* 78 isExpr <- <(<((RowValue sp IsOp sp Missing) / (termExpr (sp IsOp sp NullLiteral)?))> Action59)> */
 		func() bool {
 			position1087, tokenIndex1087, depth1087 := position, tokenIndex, depth
 			{
@@ -10446,38 +10446,50 @@ func (p *bqlPegBackend) Init() {
 				{
 					position1089 := position
 					depth++
-					if !_rules[ruletermExpr]() {
-						goto l1087
-					}
 					{
 						position1090, tokenIndex1090, depth1090 := position, tokenIndex, depth
+						if !_rules[ruleRowValue]() {
+							goto l1091
+						}
 						if !_rules[rulesp]() {
-							goto l1090
+							goto l1091
 						}
 						if !_rules[ruleIsOp]() {
-							goto l1090
+							goto l1091
 						}
 						if !_rules[rulesp]() {
-							goto l1090
+							goto l1091
+						}
+						if !_rules[ruleMissing]() {
+							goto l1091
+						}
+						goto l1090
+					l1091:
+						position, tokenIndex, depth = position1090, tokenIndex1090, depth1090
+						if !_rules[ruletermExpr]() {
+							goto l1087
 						}
 						{
 							position1092, tokenIndex1092, depth1092 := position, tokenIndex, depth
+							if !_rules[rulesp]() {
+								goto l1092
+							}
+							if !_rules[ruleIsOp]() {
+								goto l1092
+							}
+							if !_rules[rulesp]() {
+								goto l1092
+							}
 							if !_rules[ruleNullLiteral]() {
-								goto l1093
+								goto l1092
 							}
-							goto l1092
-						l1093:
+							goto l1093
+						l1092:
 							position, tokenIndex, depth = position1092, tokenIndex1092, depth1092
-							if !_rules[ruleMissing]() {
-								goto l1090
-							}
 						}
-					l1092:
-						goto l1091
-					l1090:
-						position, tokenIndex, depth = position1090, tokenIndex1090, depth1090
+					l1093:
 					}
-				l1091:
+				l1090:
 					depth--
 					add(rulePegText, position1089)
 				}

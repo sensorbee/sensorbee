@@ -153,8 +153,10 @@ func TestExpressionParser(t *testing.T) {
 		// IS Expressions
 		"a IS NULL":        {[]Expression{BinaryOpAST{Is, RowValue{"", "a"}, NullLiteral{}}}, "a IS NULL"},
 		"a IS NOT NULL":    {[]Expression{BinaryOpAST{IsNot, RowValue{"", "a"}, NullLiteral{}}}, "a IS NOT NULL"},
+		"a + 2 IS NULL":    {[]Expression{BinaryOpAST{Is, BinaryOpAST{Plus, RowValue{"", "a"}, NumericLiteral{2}}, NullLiteral{}}}, "a + 2 IS NULL"},
 		"a IS MISSING":     {[]Expression{BinaryOpAST{Is, RowValue{"", "a"}, Missing{}}}, "a IS MISSING"},
 		"a IS NOT MISSING": {[]Expression{BinaryOpAST{IsNot, RowValue{"", "a"}, Missing{}}}, "a IS NOT MISSING"},
+		"a + 2 IS MISSING": {nil, ""}, // this is invalid, as opposed to IS NULL
 		// Plus/Minus Terms
 		"a + 2": {[]Expression{BinaryOpAST{Plus, RowValue{"", "a"}, NumericLiteral{2}}}, "a + 2"},
 		"a - 2": {[]Expression{BinaryOpAST{Minus, RowValue{"", "a"}, NumericLiteral{2}}}, "a - 2"},
