@@ -187,6 +187,13 @@ func ExpressionToEvaluator(ast FlatExpression, reg udf.FunctionRegistry) (Evalua
 			bo := binOp{expr, &intConstant{-1}}
 			return newMultiply(bo), nil
 		}
+	case missing:
+		// recurse
+		expr, err := ExpressionToEvaluator(obj.Expr, reg)
+		if err != nil {
+			return nil, err
+		}
+		return newMissingPathCheck(expr, obj.Not)
 	case typeCastAST:
 		// recurse
 		expr, err := ExpressionToEvaluator(obj.Expr, reg)
@@ -342,6 +349,30 @@ func newPathAccess(s string) (Evaluator, error) {
 		return nil, err
 	}
 	return &pathAccess{path}, nil
+}
+
+type missingPathCheck struct {
+	eval   pathAccess
+	negate bool
+}
+
+func (m *missingPathCheck) Eval(input data.Value) (data.Value, error) {
+	if input.Type() != data.TypeMap {
+		return nil, fmt.Errorf("expected Map for IS MISSING check, not %s", input.Type())
+	}
+	// we assume that if there was any error, the value was missing
+	if _, err := m.eval.Eval(input); err != nil {
+		return data.Bool(true != m.negate), nil
+	}
+	return data.Bool(false != m.negate), nil
+}
+
+func newMissingPathCheck(eval Evaluator, negate bool) (Evaluator, error) {
+	pa, ok := eval.(*pathAccess)
+	if !ok {
+		return nil, fmt.Errorf("expected pathAccess before IS [NOT] MISSING, not %v", eval)
+	}
+	return &missingPathCheck{*pa, negate}, nil
 }
 
 type typeCast struct {

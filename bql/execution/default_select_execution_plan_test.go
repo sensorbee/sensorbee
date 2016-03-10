@@ -216,6 +216,34 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 		})
 	})
 
+	// Check for a non-existing column
+	Convey("Given a SELECT clause with a check for a non-existing column", t, func() {
+		tuples := getTuples(4)
+		tuples[1].Data["hoge"] = data.Int(17)
+		s := `CREATE STREAM box AS SELECT RSTREAM CASE WHEN hoge IS MISSING THEN int ELSE hoge END FROM src [RANGE 1 TUPLES]`
+		plan, err := createDefaultSelectPlan(s, t)
+		So(err, ShouldBeNil)
+
+		Convey("When feeding it with tuples", func() {
+			for idx, inTup := range tuples {
+				out, err := plan.Process(inTup)
+				So(err, ShouldBeNil)
+
+				Convey(fmt.Sprintf("Then those values should appear in %v", idx), func() {
+					So(len(out), ShouldEqual, 1)
+					if idx == 1 {
+						So(out[0], ShouldResemble,
+							data.Map{"col_1": data.Int(17)})
+					} else {
+						So(out[0], ShouldResemble,
+							data.Map{"col_1": data.Int(idx + 1)})
+					}
+				})
+			}
+
+		})
+	})
+
 	// Select constant and a column with changing values
 	Convey("Given a SELECT clause with a constant and a column", t, func() {
 		tuples := getTuples(4)
