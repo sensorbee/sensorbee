@@ -86,12 +86,11 @@ func TestConfigToMap(t *testing.T) {
 					"network": data.Map{
 						"listen_on": data.String("12345"),
 					},
-					"topologies": data.Array{
-						data.Map{
-							"name":     data.String("t1"),
+					"topologies": data.Map{
+						"t1": data.Map{
 							"bql_file": data.String("t1.bql"),
-						}, data.Map{
-							"name":     data.String("t2"),
+						},
+						"t2": data.Map{
 							"bql_file": data.String("t2.bql"),
 						},
 					},

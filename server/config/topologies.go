@@ -82,15 +82,13 @@ func newTopologies(m data.Map) Topologies {
 }
 
 // ToMap returns topologies config information as data.Map.
-func (ts *Topologies) ToMap() data.Array {
-	ta := data.Array{}
+func (ts *Topologies) ToMap() data.Map {
+	m := data.Map{}
 	for k, v := range *ts {
 		v := v
-		tm := data.Map{
-			"name":     data.String(k),
+		m[k] = data.Map{
 			"bql_file": data.String(v.BQLFile),
 		}
-		ta = append(ta, tm)
 	}
-	return ta
+	return m
 }
