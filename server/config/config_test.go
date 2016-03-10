@@ -2,6 +2,7 @@ package config
 
 import (
 	. "github.com/smartystreets/goconvey/convey"
+	"gopkg.in/sensorbee/sensorbee.v0/data"
 	"testing"
 )
 
@@ -44,6 +45,71 @@ func TestConfig(t *testing.T) {
 
 			Convey("Then it should be invalid", func() {
 				So(err, ShouldNotBeNil)
+			})
+		})
+	})
+}
+
+func TestConfigToMap(t *testing.T) {
+	Convey("Given a server config", t, func() {
+		c := Config{
+			Network: &Network{
+				ListenOn: "12345",
+			},
+			Topologies: Topologies{
+				"t1": &Topology{
+					BQLFile: "t1.bql",
+				},
+				"t2": &Topology{
+					BQLFile: "t2.bql",
+				},
+			},
+			Storage: &Storage{
+				UDS: UDSStorage{
+					Type: "fs",
+					Params: data.Map{
+						"dir": data.String("uds"),
+					},
+				},
+			},
+			Logging: &Logging{
+				Target:                 "stderr",
+				MinLogLevel:            "info",
+				LogDroppedTuples:       true,
+				SummarizeDroppedTuples: true,
+			},
+		}
+		Convey("When convert to data.Map", func() {
+			ac := c.ToMap()
+			Convey("Then map should be equal as the config", func() {
+				ex := data.Map{
+					"network": data.Map{
+						"listen_on": data.String("12345"),
+					},
+					"topologies": data.Map{
+						"t1": data.Map{
+							"bql_file": data.String("t1.bql"),
+						},
+						"t2": data.Map{
+							"bql_file": data.String("t2.bql"),
+						},
+					},
+					"storage": data.Map{
+						"uds": data.Map{
+							"type": data.String("fs"),
+							"params": data.Map{
+								"dir": data.String("uds"),
+							},
+						},
+					},
+					"logging": data.Map{
+						"target":                   data.String("stderr"),
+						"min_log_level":            data.String("info"),
+						"log_dropped_tuples":       data.True,
+						"summarize_dropped_tuples": data.True,
+					},
+				}
+				So(ac, ShouldResemble, ex)
 			})
 		})
 	})

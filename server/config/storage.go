@@ -117,3 +117,14 @@ func newStorage(m data.Map) *Storage {
 		},
 	}
 }
+
+// ToMap returns storage config information as data.Map.
+func (s *Storage) ToMap() data.Map {
+	return data.Map{
+		"uds": data.Map{
+			"params": s.UDS.Params,
+			"type":   data.String(s.UDS.Type),
+		},
+	}
+
+}
