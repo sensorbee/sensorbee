@@ -142,10 +142,10 @@ func TestBinaryStringFuncs(t *testing.T) {
 
 	udfBinaryTestCases := []udfBinaryTestCase{
 		{"strpos", strposFunc, []udfBinaryTestCaseInput{
-			{data.String("high"), data.String("ig"), data.Int(2)},
-			{data.String(""), data.String("ig"), data.Int(0)},
-			{data.String("high"), data.String(""), data.Int(1)},
-			{data.String("high"), data.String("x"), data.Int(0)},
+			{data.String("high"), data.String("ig"), data.Int(1)},
+			{data.String(""), data.String("ig"), data.Int(-1)},
+			{data.String("high"), data.String(""), data.Int(0)},
+			{data.String("high"), data.String("x"), data.Int(-1)},
 		}},
 		{"substring", substringFunc, []udfBinaryTestCaseInput{
 			// substring(string, regex)
@@ -155,13 +155,13 @@ func TestBinaryStringFuncs(t *testing.T) {
 			{data.String("Thomas"), data.String(""), data.String("")},
 			{data.String("Thomas"), data.String("?"), nil},
 			// substring(string, fromIdx)
-			{data.String("Thomas"), data.Int(1), data.String("Thomas")},
-			{data.String("Thomas"), data.Int(2), data.String("homas")},
-			{data.String("Thomas"), data.Int(0), nil},
-			{data.String("Thomas"), data.Int(6), data.String("s")},
+			{data.String("Thomas"), data.Int(0), data.String("Thomas")},
+			{data.String("Thomas"), data.Int(1), data.String("homas")},
+			{data.String("Thomas"), data.Int(-1), nil},
+			{data.String("Thomas"), data.Int(5), data.String("s")},
+			{data.String("Thomas"), data.Int(6), data.String("")},
 			{data.String("Thomas"), data.Int(7), data.String("")},
-			{data.String("Thomas"), data.Int(8), data.String("")},
-			{data.String("日本語"), data.Int(3), data.String("語")},
+			{data.String("日本語"), data.Int(2), data.String("語")},
 		}},
 		{"ltrim", ltrimFunc, []udfBinaryTestCaseInput{
 			{data.String("zzzytrim"), data.String("xyz"), data.String("trim")},
@@ -247,32 +247,32 @@ func Test3aryStringFuncs(t *testing.T) {
 
 	udf3aryTestCases := []udf3aryTestCase{
 		{"overlay", overlayFunc, []udf3aryTestCaseInput{
-			{data.String("Txxxxas"), data.String("hom"), data.Int(2), data.String("Thomxas")},
-			{data.String("Txxxxas"), data.String("hom"), data.Int(1), data.String("homxxas")},
-			{data.String("Txxxxas"), data.String("hom"), data.Int(7), data.String("Txxxxahom")},
+			{data.String("Txxxxas"), data.String("hom"), data.Int(1), data.String("Thomxas")},
+			{data.String("Txxxxas"), data.String("hom"), data.Int(0), data.String("homxxas")},
+			{data.String("Txxxxas"), data.String("hom"), data.Int(6), data.String("Txxxxahom")},
+			{data.String("Txxxxas"), data.String("hom"), data.Int(7), data.String("Txxxxashom")},
 			{data.String("Txxxxas"), data.String("hom"), data.Int(8), data.String("Txxxxashom")},
-			{data.String("Txxxxas"), data.String("hom"), data.Int(9), data.String("Txxxxashom")},
 			{data.String("Txxxxas"), data.String("hom"), data.Int(100), data.String("Txxxxashom")},
-			{data.String("日本語"), data.String("中国"), data.Int(1), data.String("中国語")},
-			{data.String("Txxxxas"), data.String(""), data.Int(2), data.String("Txxxxas")},
-			{data.String(""), data.String("hom"), data.Int(2), data.String("hom")},
+			{data.String("日本語"), data.String("中国"), data.Int(0), data.String("中国語")},
+			{data.String("Txxxxas"), data.String(""), data.Int(1), data.String("Txxxxas")},
+			{data.String(""), data.String("hom"), data.Int(1), data.String("hom")},
 			// invalid cases
-			{data.String("Txxxxas"), data.String("hom"), data.Int(0), nil},
+			{data.String("Txxxxas"), data.String("hom"), data.Int(-1), nil},
 			{data.Int(3), data.String("hom"), data.Int(1), nil},
 			{data.String("Txxxxas"), data.Int(4), data.Int(1), nil},
 		}},
 		{"substring", substringFunc, []udf3aryTestCaseInput{
 			// substring(string, fromIdx, length)
-			{data.String("Thomas"), data.Int(1), data.Int(2), data.String("Th")},
-			{data.String("Thomas"), data.Int(2), data.Int(3), data.String("hom")},
-			{data.String("Thomas"), data.Int(0), data.Int(2), nil},
-			{data.String("Thomas"), data.Int(1), data.Int(-1), nil},
-			{data.String("Thomas"), data.Int(6), data.Int(0), data.String("")},
-			{data.String("Thomas"), data.Int(5), data.Int(2), data.String("as")},
-			{data.String("Thomas"), data.Int(6), data.Int(1), data.String("s")},
-			{data.String("Thomas"), data.Int(6), data.Int(2), data.String("s")},
-			{data.String("Thomas"), data.Int(7), data.Int(30), data.String("")},
-			{data.String("日本語"), data.Int(1), data.Int(2), data.String("日本")},
+			{data.String("Thomas"), data.Int(0), data.Int(2), data.String("Th")},
+			{data.String("Thomas"), data.Int(1), data.Int(3), data.String("hom")},
+			{data.String("Thomas"), data.Int(-1), data.Int(2), nil},
+			{data.String("Thomas"), data.Int(0), data.Int(-1), nil},
+			{data.String("Thomas"), data.Int(5), data.Int(0), data.String("")},
+			{data.String("Thomas"), data.Int(4), data.Int(2), data.String("as")},
+			{data.String("Thomas"), data.Int(5), data.Int(1), data.String("s")},
+			{data.String("Thomas"), data.Int(5), data.Int(2), data.String("s")},
+			{data.String("Thomas"), data.Int(6), data.Int(30), data.String("")},
+			{data.String("日本語"), data.Int(0), data.Int(2), data.String("日本")},
 		}},
 	}
 
@@ -335,24 +335,24 @@ func Test4aryStringFuncs(t *testing.T) {
 	udf4aryTestCases := []udf4aryTestCase{
 		{"overlay", overlayFunc, []udf4aryTestCaseInput{
 			// these are the same cases as in the ternary case:
-			{data.String("Txxxxas"), data.String("hom"), data.Int(2), data.Int(3), data.String("Thomxas")},
-			{data.String("Txxxxas"), data.String("hom"), data.Int(1), data.Int(3), data.String("homxxas")},
-			{data.String("Txxxxas"), data.String("hom"), data.Int(7), data.Int(3), data.String("Txxxxahom")},
+			{data.String("Txxxxas"), data.String("hom"), data.Int(1), data.Int(3), data.String("Thomxas")},
+			{data.String("Txxxxas"), data.String("hom"), data.Int(0), data.Int(3), data.String("homxxas")},
+			{data.String("Txxxxas"), data.String("hom"), data.Int(6), data.Int(3), data.String("Txxxxahom")},
+			{data.String("Txxxxas"), data.String("hom"), data.Int(7), data.Int(3), data.String("Txxxxashom")},
 			{data.String("Txxxxas"), data.String("hom"), data.Int(8), data.Int(3), data.String("Txxxxashom")},
-			{data.String("Txxxxas"), data.String("hom"), data.Int(9), data.Int(3), data.String("Txxxxashom")},
 			{data.String("Txxxxas"), data.String("hom"), data.Int(100), data.Int(3), data.String("Txxxxashom")},
-			{data.String("日本語"), data.String("中国"), data.Int(1), data.Int(2), data.String("中国語")},
-			{data.String("Txxxxas"), data.String(""), data.Int(2), data.Int(0), data.String("Txxxxas")},
-			{data.String(""), data.String("hom"), data.Int(2), data.Int(3), data.String("hom")},
+			{data.String("日本語"), data.String("中国"), data.Int(0), data.Int(2), data.String("中国語")},
+			{data.String("Txxxxas"), data.String(""), data.Int(1), data.Int(0), data.String("Txxxxas")},
+			{data.String(""), data.String("hom"), data.Int(1), data.Int(3), data.String("hom")},
 			// these are variations:
-			{data.String("Txxxxas"), data.String("hom"), data.Int(2), data.Int(4), data.String("Thomas")},
-			{data.String("Txxxxas"), data.String("hom"), data.Int(2), data.Int(6), data.String("Thom")},
-			{data.String("Txxxxas"), data.String("hom"), data.Int(1), data.Int(1), data.String("homxxxxas")},
-			{data.String("Txxxxas"), data.String("hom"), data.Int(7), data.Int(0), data.String("Txxxxahoms")},
+			{data.String("Txxxxas"), data.String("hom"), data.Int(1), data.Int(4), data.String("Thomas")},
+			{data.String("Txxxxas"), data.String("hom"), data.Int(1), data.Int(6), data.String("Thom")},
+			{data.String("Txxxxas"), data.String("hom"), data.Int(0), data.Int(1), data.String("homxxxxas")},
+			{data.String("Txxxxas"), data.String("hom"), data.Int(6), data.Int(0), data.String("Txxxxahoms")},
 			{data.String("Txxxxas"), data.String("hom"), data.Int(100), data.Int(1), data.String("Txxxxashom")},
-			{data.String("日本語"), data.String("ドイツ"), data.Int(1), data.Int(2), data.String("ドイツ語")},
-			{data.String("Txxxxas"), data.String(""), data.Int(2), data.Int(4), data.String("Tas")},
-			{data.String(""), data.String("hom"), data.Int(2), data.Int(1), data.String("hom")},
+			{data.String("日本語"), data.String("ドイツ"), data.Int(0), data.Int(2), data.String("ドイツ語")},
+			{data.String("Txxxxas"), data.String(""), data.Int(1), data.Int(4), data.String("Tas")},
+			{data.String(""), data.String("hom"), data.Int(1), data.Int(1), data.String("hom")},
 		}},
 	}
 

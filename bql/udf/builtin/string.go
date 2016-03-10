@@ -178,8 +178,8 @@ func (f *overlayFuncTmpl) Call(ctx *core.Context, args ...data.Value) (val data.
 	case data.TypeInt:
 		from, _ = data.AsInt(args[2])
 	}
-	if from < 1 {
-		return nil, fmt.Errorf("`from` parameter must be at least 1")
+	if from < 0 {
+		return nil, fmt.Errorf("`from` parameter must be at least 0")
 	}
 	length := int64(len([]rune(repl)))
 	if len(args) == 4 {
@@ -196,18 +196,18 @@ func (f *overlayFuncTmpl) Call(ctx *core.Context, args ...data.Value) (val data.
 		}
 	}
 	sRunes := []rune(s)
-	if from > int64(len(sRunes)+1) {
-		from = int64(len(sRunes) + 1)
+	if from > int64(len(sRunes)) {
+		from = int64(len(sRunes))
 	}
-	result := string(sRunes[:from-1]) + repl
-	if from+length <= int64(len(sRunes)+1) {
-		result += string(sRunes[from-1+length:])
+	result := string(sRunes[:from]) + repl
+	if from+length <= int64(len(sRunes)) {
+		result += string(sRunes[from+length:])
 	}
 	return data.String(result), nil
 }
 
 // overlayFunc(s, repl, from, [for]) replaces `for` characters in `s`
-// in `s` with the string `repl`, starting at `from` (1-based counting).
+// in `s` with the string `repl`, starting at `from` (0-based counting).
 // If `for` is not given, the length of `repl` is used.
 // See also: SQL's `overlay(string placing string from int for int)`
 //
@@ -217,8 +217,8 @@ func (f *overlayFuncTmpl) Call(ctx *core.Context, args ...data.Value) (val data.
 //  Return Type: String
 var overlayFunc udf.UDF = &overlayFuncTmpl{}
 
-// strposFunc(str, substr) returns the index of the first occurence
-// of `substr` in `str` (1-based) or 0 if it is not found.
+// strposFunc(str, substr) returns the index of the first occurrence
+// of `substr` in `str` (0-based) or -1 if it is not found.
 // See also: SQL's `position(substring in string)`
 //
 // It can be used in BQL as `strpos`.
@@ -227,7 +227,7 @@ var overlayFunc udf.UDF = &overlayFuncTmpl{}
 //  Return Type: Int
 var strposFunc udf.UDF = &twoParamStringFunc{
 	strFun: func(str, substr string) data.Value {
-		return data.Int(strings.Index(str, substr) + 1)
+		return data.Int(strings.Index(str, substr))
 	},
 }
 
@@ -263,14 +263,14 @@ func (f *substringFuncTmpl) Call(ctx *core.Context, args ...data.Value) (val dat
 			return data.String(re.FindString(str)), nil
 		} else if args[1].Type() == data.TypeInt {
 			from, _ := data.AsInt(args[1])
-			if from < 1 {
-				return nil, fmt.Errorf("`from` parameter must be at least 1")
+			if from < 0 {
+				return nil, fmt.Errorf("`from` parameter must be at least 0")
 			}
 			sRunes := []rune(str)
-			if from > int64(len(sRunes)+1) {
-				from = int64(len(sRunes) + 1)
+			if from > int64(len(sRunes)) {
+				from = int64(len(sRunes))
 			}
-			return data.String(sRunes[from-1:]), nil
+			return data.String(sRunes[from:]), nil
 		}
 		return nil, fmt.Errorf("cannot interpret %s as string or integer", args[1])
 	}
@@ -283,8 +283,8 @@ func (f *substringFuncTmpl) Call(ctx *core.Context, args ...data.Value) (val dat
 	} else {
 		return nil, fmt.Errorf("cannot interpret %s as integer", args[1])
 	}
-	if from < 1 {
-		return nil, fmt.Errorf("`from` parameter must be at least 1")
+	if from < 0 {
+		return nil, fmt.Errorf("`from` parameter must be at least 0")
 	}
 	length := int64(0)
 	if args[2].Type() == data.TypeNull {
@@ -298,14 +298,14 @@ func (f *substringFuncTmpl) Call(ctx *core.Context, args ...data.Value) (val dat
 		return nil, fmt.Errorf("`for` parameter must be at least 0")
 	}
 	sRunes := []rune(str)
-	if from > int64(len(sRunes)+1) {
-		from = int64(len(sRunes) + 1)
+	if from > int64(len(sRunes)) {
+		from = int64(len(sRunes))
 	}
 	maxIdx := length + from
-	if maxIdx > int64(len(sRunes)+1) {
-		maxIdx = int64(len(sRunes) + 1)
+	if maxIdx > int64(len(sRunes)) {
+		maxIdx = int64(len(sRunes))
 	}
-	return data.String(sRunes[from-1 : maxIdx-1]), nil
+	return data.String(sRunes[from:maxIdx]), nil
 }
 
 // substringFunc(str, reg) returns the part of `str` matching
@@ -314,7 +314,7 @@ func (f *substringFuncTmpl) Call(ctx *core.Context, args ...data.Value) (val dat
 // `substring(string from pattern)`
 //
 // substringFunc(str, from, [for]) returns the `for` characters
-// of `str` starting from the `from` index (1-based). If `for` is
+// of `str` starting from the `from` index (0-based). If `for` is
 // not given, everything until the end of `str` is returned.
 // See also: SQL's: `substring(string from int for int)`
 //
