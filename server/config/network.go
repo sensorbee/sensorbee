@@ -52,3 +52,10 @@ func newNetwork(m data.Map) *Network {
 		ListenOn: mustAsString(getWithDefault(m, "listen_on", data.String(fmt.Sprintf(":%d", DefaultPort)))),
 	}
 }
+
+// ToMap returns network config information as data.Map.
+func (n *Network) ToMap() data.Map {
+	return data.Map{
+		"listen_on": data.String(n.ListenOn),
+	}
+}

@@ -96,7 +96,7 @@ func Run(c *cli.Context) {
 		panic(1)
 	}
 
-	cgvars.Logger.Info("Setting up the server context")
+	cgvars.Logger.WithField("config", conf.ToMap()).Info("Setting up the server context")
 
 	jascoRoot := jasco.New("/", cgvars.Logger)
 	router, err := server.SetUpContextAndRouter("/", jascoRoot, cgvars)

@@ -149,7 +149,7 @@ func Run(c *cli.Context) {
 		// TODO: Terminate all shared states
 	}()
 
-	logger.Info("Starting the topology")
+	logger.WithField("config", conf.ToMap()).Info("Starting the topology")
 	for name, s := range tb.Topology().Sources() {
 		if err := s.Resume(); err != nil {
 			logger.WithFields(logrus.Fields{

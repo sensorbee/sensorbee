@@ -122,3 +122,13 @@ func (l *Logging) CreateWriter() (io.WriteCloser, error) {
 		}, nil
 	}
 }
+
+// ToMap returns logging config information as data.Map.
+func (l *Logging) ToMap() data.Map {
+	return data.Map{
+		"target":                   data.String(l.Target),
+		"min_log_level":            data.String(l.MinLogLevel),
+		"log_dropped_tuples":       data.Bool(l.LogDroppedTuples),
+		"summarize_dropped_tuples": data.Bool(l.SummarizeDroppedTuples),
+	}
+}

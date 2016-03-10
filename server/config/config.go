@@ -59,4 +59,14 @@ func New(m data.Map) (*Config, error) {
 	}, nil
 }
 
+// ToMap returns server config information as data.Map.
+func (c *Config) ToMap() data.Map {
+	return data.Map{
+		"network":    c.Network.ToMap(),
+		"topologies": c.Topologies.ToMap(),
+		"storage":    c.Storage.ToMap(),
+		"logging":    c.Logging.ToMap(),
+	}
+}
+
 // TODO: Add FromJSON or FromYAML if necessary
