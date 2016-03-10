@@ -107,9 +107,12 @@ func ParserExprToFlatExpr(e parser.Expression, reg udf.FunctionRegistry) (FlatEx
 		if err != nil {
 			return nil, err
 		}
-		// check if we have IS [NOT] MISSING here
-		// because we need to treat it fundamentally
-		// different than other binary operators
+		// In the case of IS [NOT] MISSING, we cannot use the standard
+		// approach for "evaluate children and do something with the
+		// result" since the evaluation will result in an error if the
+		// specified path is actually missing. There are various methods
+		// to work around this; we have chosen to use a special FlatExpr
+		// for the IS [NOT] MISSING expression:
 		if _, ok := obj.Right.(parser.Missing); ok {
 			if rv, ok := left.(rowValue); ok {
 				if obj.Op == parser.Is {
@@ -255,9 +258,12 @@ func ParserExprToMaybeAggregate(e parser.Expression, aggIdx int, reg udf.Functio
 		if err != nil {
 			return nil, nil, err
 		}
-		// check if we have IS [NOT] MISSING here
-		// because we need to treat it fundamentally
-		// different than other binary operators
+		// In the case of IS [NOT] MISSING, we cannot use the standard
+		// approach for "evaluate children and do something with the
+		// result" since the evaluation will result in an error if the
+		// specified path is actually missing. There are various methods
+		// to work around this; we have chosen to use a special FlatExpr
+		// for the IS [NOT] MISSING expression:
 		if _, ok := obj.Right.(parser.Missing); ok {
 			if rv, ok := left.(rowValue); ok {
 				if obj.Op == parser.Is {
