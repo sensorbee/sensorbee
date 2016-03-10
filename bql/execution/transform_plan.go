@@ -54,10 +54,10 @@ type PhysicalPlan interface {
 	// and set appropriate meta information such as timestamps.
 	//
 	// Process must NOT modify any field of the input tuple when its
-	// core.TFShared flag is set. Moreover, when any part of the tuple including
-	// Data field is cached in the plan, core.TFShared flag of the tuple must be
-	// set. Finally, it is not allowed for the plan to modify any field of the
-	// tuple directly after this method returns even if TFShared isn't set.
+	// core.TFShared flag is set. To modify the tuple, create a shallow copy of
+	// it. Moreover, when Tuple.Data field is cached in the plan,
+	// core.TFSharedData flag of the input tuple must be set and the plan must
+	// not modify the Data.
 	//
 	// NB. Process is not thread-safe, i.e., it must be called in
 	// a single-threaded context.
