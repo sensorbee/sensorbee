@@ -104,9 +104,9 @@ func (b *bqlBox) Process(ctx *core.Context, t *core.Tuple, s core.Writer) error 
 		tup := t.ShallowCopy()
 		tup.Data = data
 		// This method can't tell if data was originally shared by some tuples.
-		// Therefore, TFShared flag cannot be cleared here. Data of some Tuples
-		// can be shared when they have reference types such as Blob, Array, or
-		// Map.
+		// Therefore, TFSharedData flag cannot be cleared here. Data of some
+		// Tuples can be shared when they have reference types such as Blob,
+		// Array, or Map.
 
 		// decide if we should emit a tuple for this item
 		shouldWriteTuple := true

@@ -110,7 +110,7 @@ const (
 	// is set to a tuple, the tuple will not be reported when it is dropped.
 	TFDropped TupleFlags = 1 << iota
 
-	// TFShared is a flag which is set when a Tuple is shared by multiple node.
+	// TFShared is a flag which is set when a Tuple is shared by multiple nodes.
 	// In other words, this flag is set if a tuple is referenced by multiple
 	// pointers (i.e. *Tuple). This flag only indicates that Tuple struct itself
 	// is shared. Tuple.Data might be shared even if this flag isn't set.

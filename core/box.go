@@ -14,11 +14,13 @@ type Box interface {
 	// A Box must not modify the given Tuple object directly if its TFShared
 	// flag is set. A Box can create a copy of the Tuple and modify it instead
 	// of the original. If TFShared flag is not set, a Box can directly modify
-	// the Tuple and does not have to create a copy. A Box must not keep a
-	// reference to the written object and then access or modify it at a later
-	// point in time. Note that this specification is added after v0.4 and some
-	// test codes doesn't follow this rule. Please do not reuse such
-	// inappropriate implementations.
+	// the Tuple and does not have to create a copy. A Box can keep a reference
+	// to the written object and then access it at a later point in time by
+	// setting its TFShared flag. In addition, if the object is copied by Copy
+	// method, a box can keep the copied object and freely modify it later.
+	// Note that this specification is added after v0.4 and some test codes
+	// doesn't follow this rule. Please do not reuse such inappropriate
+	// implementations.
 	//
 	// Note that there may be multiple concurrent calls to Process,
 	// so if internal state is accessed, proper locking mechanisms
