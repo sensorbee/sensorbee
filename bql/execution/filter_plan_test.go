@@ -123,6 +123,17 @@ func TestFilterPlan(t *testing.T) {
 		compareWithRef(t, plan, refPlan, tuples)
 	})
 
+	// Check for a non-existing column
+	Convey("Given a SELECT clause with a check for a non-existing column", t, func() {
+		tuples := getTuples(4)
+		tuples[1].Data["hoge"] = data.Int(17)
+		s := `CREATE STREAM box AS SELECT RSTREAM CASE WHEN hoge IS MISSING THEN int ELSE hoge END FROM src [RANGE 1 TUPLES]`
+		plan, refPlan, err := createFilterPlan(s, t)
+		So(err, ShouldBeNil)
+
+		compareWithRef(t, plan, refPlan, tuples)
+	})
+
 	// Select constant and a column with changing values
 	Convey("Given a SELECT clause with a constant and a column", t, func() {
 		tuples := getTuples(4)

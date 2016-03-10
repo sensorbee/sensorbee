@@ -1462,6 +1462,32 @@ func getTestCases() []struct {
 				{data.Map{"a": data.Null{}}, data.Bool(false)},
 			},
 		},
+		// IsMissing
+		{parser.BinaryOpAST{parser.Is, parser.RowValue{"", "a"}, parser.Missing{}},
+			[]evalTest{
+				// not a map:
+				{data.Int(17), nil},
+				// keys not present => true
+				{data.Map{"x": data.Int(17)}, data.Bool(true)},
+				// left present and not null => false
+				{data.Map{"a": data.Bool(true)}, data.Bool(false)},
+				// left present and null => false
+				{data.Map{"a": data.Null{}}, data.Bool(false)},
+			},
+		},
+		// IsNotMissing
+		{parser.BinaryOpAST{parser.IsNot, parser.RowValue{"", "a"}, parser.Missing{}},
+			[]evalTest{
+				// not a map:
+				{data.Int(17), nil},
+				// keys not present => true
+				{data.Map{"x": data.Int(17)}, data.Bool(false)},
+				// left present and not null => false
+				{data.Map{"a": data.Bool(true)}, data.Bool(true)},
+				// left present and null => false
+				{data.Map{"a": data.Null{}}, data.Bool(true)},
+			},
+		},
 		/// Computational Operations
 		// Plus
 		{parser.BinaryOpAST{parser.Plus, parser.RowValue{"", "a"}, parser.RowValue{"", "b"}},

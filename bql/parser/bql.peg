@@ -373,7 +373,7 @@ otherOpExpr <- < isExpr (spOpt OtherOp spOpt isExpr)* > {
     }
 
 # IS needs a hard space
-isExpr <- < termExpr (sp IsOp sp NullLiteral)? > {
+isExpr <- < (RowValue sp IsOp sp Missing) / (termExpr (sp IsOp sp NullLiteral)?) > {
         p.AssembleBinaryOperation(begin, end)
     }
 
@@ -533,6 +533,10 @@ Function <- < ident > {
 
 NullLiteral <- < "NULL" > {
         p.PushComponent(begin, end, NewNullLiteral())
+    }
+
+Missing <- < "MISSING" > {
+        p.PushComponent(begin, end, NewMissing())
     }
 
 BooleanLiteral <- TRUE / FALSE
