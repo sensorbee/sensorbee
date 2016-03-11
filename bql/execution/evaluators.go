@@ -20,9 +20,9 @@ type Evaluator interface {
 	// on the given input data. Note that in order to deal with joins and
 	// meta information such as timestamps properly, the input data must have
 	// the shape:
-	//   {"alias_1": {"col_1": ..., "col_2": ...},
+	//   {"alias_1": {"col_0": ..., "col_1": ...},
 	//    "alias_1:meta:x": (meta datum "x" for alias_1's row),
-	//    "alias_2": {"col_1": ..., "col_2": ...},
+	//    "alias_2": {"col_0": ..., "col_1": ...},
 	//    "alias_2:meta:x": (meta datum "x" for alias_2's row),
 	//    ...}
 	// and every caller (in particular all execution plans)

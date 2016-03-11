@@ -79,9 +79,9 @@ func prepareGroupList(groupList []FlatExpression, reg udf.FunctionRegistry) ([]E
 
 // setMetadata adds the metadata contained in the given Tuple into the
 // given Map with a key constructed using the given alias string. For example,
-//   {"alias": {"col_1": ..., "col_2": ...}}
+//   {"alias": {"col_0": ..., "col_1": ...}}
 // is transformed into
-//   {"alias": {"col_1": ..., "col_2": ...},
+//   {"alias": {"col_0": ..., "col_1": ...},
 //    "alias:meta:TS": (timestamp of the given tuple)}
 // so that the Evaluator created from a parser.RowMeta AST struct works correctly.
 func setMetadata(where data.Map, alias string, t *core.Tuple) {

@@ -70,8 +70,8 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 						// rows increases
 						So(len(out), ShouldEqual, 1)
 						So(out[0], ShouldResemble,
-							data.Map{"col_1": data.Float(2.0), "col_2": data.Bool(true),
-								"col_3": data.Null{}, "col_4": data.Bool(true)})
+							data.Map{"col_0": data.Float(2.0), "col_1": data.Bool(true),
+								"col_2": data.Null{}, "col_3": data.Bool(true)})
 					} else {
 						// nothing should be emitted because no new
 						// data appears
@@ -233,10 +233,10 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 					So(len(out), ShouldEqual, 1)
 					if idx == 1 {
 						So(out[0], ShouldResemble,
-							data.Map{"col_1": data.Int(17)})
+							data.Map{"col_0": data.Int(17)})
 					} else {
 						So(out[0], ShouldResemble,
-							data.Map{"col_1": data.Int(idx + 1)})
+							data.Map{"col_0": data.Int(idx + 1)})
 					}
 				})
 			}
@@ -259,7 +259,7 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 				Convey(fmt.Sprintf("Then those values should appear in %v", idx), func() {
 					So(len(out), ShouldEqual, 1)
 					So(out[0], ShouldResemble,
-						data.Map{"col_1": data.Int(2), "int": data.Int(idx + 1)})
+						data.Map{"col_0": data.Int(2), "int": data.Int(idx + 1)})
 				})
 			}
 
@@ -280,7 +280,7 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 				Convey(fmt.Sprintf("Then those values should appear in %v", idx), func() {
 					So(len(out), ShouldEqual, 1)
 					So(out[0], ShouldResemble,
-						data.Map{"col_1": data.Int(-(idx + 1))})
+						data.Map{"col_0": data.Int(-(idx + 1))})
 				})
 			}
 
@@ -302,7 +302,7 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 				Convey(fmt.Sprintf("Then those values should appear in %v", idx), func() {
 					So(len(out), ShouldEqual, 1)
 					So(out[0], ShouldResemble,
-						data.Map{"col_1": data.Int(2), "int": data.Int(idx + 1)})
+						data.Map{"col_0": data.Int(2), "int": data.Int(idx + 1)})
 				})
 			}
 
@@ -327,7 +327,7 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 						// rows increases
 						So(len(out), ShouldEqual, 1)
 						So(out[0], ShouldResemble,
-							data.Map{"col_1": data.Bool(true), "col_2": data.Null{}})
+							data.Map{"col_0": data.Bool(true), "col_1": data.Null{}})
 					} else {
 						// nothing should be emitted because no new
 						// data appears
@@ -393,7 +393,7 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 				Convey(fmt.Sprintf("Then those values should appear in %v", idx), func() {
 					So(len(out), ShouldEqual, 1)
 					So(out[0], ShouldResemble,
-						data.Map{"col_1": data.Int(2), "int": data.Int(idx + 1)})
+						data.Map{"col_0": data.Int(2), "int": data.Int(idx + 1)})
 				})
 			}
 
@@ -507,13 +507,13 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 							data.Map{"bs": data.Array{
 								data.Int(2), data.Int(4), data.Int(6), data.Int(8), data.Int(10),
 							},
-								"col_2": data.Array{
+								"col_1": data.Array{
 									data.Int(2), data.Int(4), data.Int(6), data.Int(8), data.Int(10),
 								},
 								"as": data.Array{
 									data.Int(6), data.Int(10),
 								},
-								"col_4": data.Array{
+								"col_3": data.Array{
 									data.Int(6), data.Int(10),
 								},
 							})
@@ -522,13 +522,13 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 							data.Map{"bs": data.Array{
 								data.Int(4), data.Int(8), data.Int(12), data.Int(16), data.Int(20),
 							},
-								"col_2": data.Array{
+								"col_1": data.Array{
 									data.Int(4), data.Int(8), data.Int(12), data.Int(16), data.Int(20),
 								},
 								"as": data.Array{
 									data.Int(7), data.Int(11),
 								},
-								"col_4": data.Array{
+								"col_3": data.Array{
 									data.Int(7), data.Int(11),
 								},
 							})
@@ -723,7 +723,7 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 				Convey(fmt.Sprintf("Then those values should appear in %v", idx), func() {
 					So(len(out), ShouldEqual, 1)
 					So(out[0], ShouldResemble,
-						data.Map{"col_2": data.Int(2 * idx), "x": data.Map{"int": data.Int(idx + 1)}})
+						data.Map{"col_1": data.Int(2 * idx), "x": data.Map{"int": data.Int(idx + 1)}})
 				})
 			}
 
@@ -744,7 +744,7 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 				Convey(fmt.Sprintf("Then those values should appear in %v", idx), func() {
 					So(len(out), ShouldEqual, 1)
 					So(out[0], ShouldResemble,
-						data.Map{"col_2": data.Int(2 * idx), "x": data.Map{"int": data.Int(idx + 1)}})
+						data.Map{"col_1": data.Int(2 * idx), "x": data.Map{"int": data.Int(idx + 1)}})
 				})
 			}
 
@@ -765,7 +765,7 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 				Convey(fmt.Sprintf("Then those values should appear in %v", idx), func() {
 					So(len(out), ShouldEqual, 1)
 					So(out[0], ShouldResemble,
-						data.Map{"col_2": data.Int(2 * idx), "x": data.Map{"int": data.Int(idx + 1)}})
+						data.Map{"col_1": data.Int(2 * idx), "x": data.Map{"int": data.Int(idx + 1)}})
 				})
 			}
 
