@@ -135,7 +135,7 @@ func flattenExpressions(s *parser.SelectStmt, reg udf.FunctionRegistry) (*Logica
 			groupingMode = true
 		}
 		// compute column name
-		colHeader := fmt.Sprintf("col_%v", i+1)
+		colHeader := fmt.Sprintf("col_%v", i)
 		switch projType := expr.(type) {
 		case parser.RowMeta:
 			if projType.MetaType == parser.TimestampMeta {
