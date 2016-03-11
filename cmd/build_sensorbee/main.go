@@ -95,6 +95,16 @@ func downloadPlugins(c *cli.Context, config *Config) {
 		return
 	}
 
+	// update main SensorBee
+	cmd := exec.Command("go", "get", "-u", "gopkg.in/sensorbee/sensorbee.v0/...")
+	buf := bytes.NewBuffer(nil)
+	cmd.Stdout = buf
+	cmd.Stderr = buf
+	if err := cmd.Run(); err != nil {
+		b, _ := ioutil.ReadAll(buf)
+		panic(fmt.Errorf("cannot get SensorBee core files: %v \n\n%v\n", err, string(b)))
+	}
+	// download plugins
 	for _, p := range config.PluginPaths {
 		cmd := exec.Command("go", "get", "-u", p)
 		buf := bytes.NewBuffer(nil)
