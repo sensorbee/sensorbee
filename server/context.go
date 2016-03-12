@@ -207,8 +207,8 @@ func setUpTopology(logger *logrus.Logger, name string, conf *config.Config, us u
 		logger.WithFields(logrus.Fields{
 			"err":      err,
 			"topology": name,
-			// TODO: add stmt.String()
-		}).Error("Cannot add a statement to the topology")
+			"path":     bqlFilePath,
+		}).Error("Cannot read a BQL file")
 		return nil, err
 	}
 
@@ -224,7 +224,7 @@ func setUpTopology(logger *logrus.Logger, name string, conf *config.Config, us u
 			logger.WithFields(logrus.Fields{
 				"err":      err,
 				"topology": name,
-				// TODO: add stmt.String()
+				"stmt":     stmt,
 			}).Error("Cannot add a statement to the topology")
 			return nil, err
 		}
