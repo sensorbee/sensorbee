@@ -1,0 +1,23 @@
+language: go
+go: 1.5
+
+sudo: false
+
+notifications:
+  email: false
+
+before_install:
+  - go version
+  - go get github.com/mattn/goveralls
+  - go get golang.org/x/tools/cmd/cover
+  - go get github.com/pierrre/gotestcover
+
+install:
+  - go get -t -d -v ./...
+  - go build -v ./...
+
+script:
+  - gotestcover -v -covermode=count -coverprofile=.profile.cov ./...
+
+after_success:
+  - goveralls -coverprofile=.profile.cov -repotoken $COVERALLS_TOKEN
