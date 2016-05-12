@@ -23,7 +23,7 @@ func setUpFile() cli.Command {
 	return cmd
 }
 
-func runFile(c *cli.Context) {
+func runFile(c *cli.Context) error {
 	err := func() error {
 		if len(c.Args()) != 1 {
 			cli.ShowSubcommandHelp(c)
@@ -61,7 +61,7 @@ func runFile(c *cli.Context) {
 		return nil
 	}()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		os.Exit(1)
+		return cli.NewExitError(err.Error(), 1)
 	}
+	return nil
 }

@@ -5,7 +5,6 @@ import (
 	"github.com/codegangsta/cli"
 	"gopkg.in/sensorbee/sensorbee.v0/client"
 	"gopkg.in/sensorbee/sensorbee.v0/server/config"
-	"os"
 )
 
 // SetUp SensorBee shell tool. The tool sets up HTTP client and access to
@@ -38,67 +37,50 @@ func SetUp() cli.Command {
 }
 
 // Launch SensorBee's command line client tool.
-func Launch(c *cli.Context) {
-	defer panicHandler()
-	validateFlags(c)
-	if c.IsSet("topology") {
-		currentTopology.name = c.String("topology")
+func Launch(c *cli.Context) error {
+	err := func() error {
+		if err := validateFlags(c); err != nil {
+			return err
+		}
+		if c.IsSet("topology") {
+			currentTopology.name = c.String("topology")
+		}
+		cmds := []Command{}
+		for _, c := range NewTopologiesCommands() {
+			cmds = append(cmds, c)
+		}
+		for _, c := range NewFileLoadCommands() {
+			cmds = append(cmds, c)
+		}
+		app := SetUpCommands(cmds)
+		req, err := newRequester(c)
+		if err != nil {
+			return err
+		}
+		app.Run(req)
+		return nil
+	}()
+	if err != nil {
+		return cli.NewExitError(err.Error(), 1)
 	}
-	cmds := []Command{}
-	for _, c := range NewTopologiesCommands() {
-		cmds = append(cmds, c)
-	}
-	for _, c := range NewFileLoadCommands() {
-		cmds = append(cmds, c)
-	}
-	app := SetUpCommands(cmds)
-	app.Run(newRequester(c))
+	return nil
 }
 
-// TODO: merge following function implementations with lib/topology's
-var (
-	testMode     bool
-	testExitCode int
-)
-
-func panicHandler() {
-	// Because all tests uses this feature, they cannot be run in parallel.
-	// Commands use this dirty logic because there's no other ways to report
-	// errors due to cli library's limitation.
-	if e := recover(); e != nil {
-		ec, ok := e.(int)
-		if !ok {
-			panic(e)
-		}
-
-		if testMode {
-			testExitCode = ec
-		} else {
-			os.Exit(e.(int))
-		}
-
-	} else if testMode {
-		testExitCode = 0
-	}
-}
-
-func validateFlags(c *cli.Context) {
+func validateFlags(c *cli.Context) error {
 	if err := client.ValidateURL(c.String("uri")); err != nil {
-		fmt.Fprintf(os.Stderr, "--uri flag has an invalid value: %v\n", err)
-		panic(1)
+		return fmt.Errorf("--uri flag has an invalid value: %v", err)
 	}
 	if err := client.ValidateAPIVersion(c.String("api-version")); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		panic(1)
+		return err
 	}
 	// TODO: check other flags
+	return nil
 }
 
-func newRequester(c *cli.Context) *client.Requester {
+func newRequester(c *cli.Context) (*client.Requester, error) {
 	r, err := client.NewRequester(c.String("uri"), c.String("api-version"))
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Cannot create a API requester: %v\n", err)
-		panic(1)
+		return nil, fmt.Errorf("Cannot create a API requester: %v", err)
 	}
-	return r
+	return r, nil
 }

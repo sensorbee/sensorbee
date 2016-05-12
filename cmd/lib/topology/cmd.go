@@ -5,34 +5,12 @@ import (
 	"github.com/codegangsta/cli"
 	"gopkg.in/sensorbee/sensorbee.v0/client"
 	"gopkg.in/sensorbee/sensorbee.v0/server/config"
-	"os"
 )
 
 var (
 	testMode     bool
 	testExitCode int
 )
-
-func panicHandler() {
-	// Because all tests uses this feature, they cannot be run in parallel.
-	// Commands use this dirty logic because there's no other ways to report
-	// errors due to cli library's limitation.
-	if e := recover(); e != nil {
-		ec, ok := e.(int)
-		if !ok {
-			panic(e)
-		}
-
-		if testMode {
-			testExitCode = ec
-		} else {
-			os.Exit(e.(int))
-		}
-
-	} else if testMode {
-		testExitCode = 0
-	}
-}
 
 // SetUp sets up a subcommand for topology manipulation.
 func SetUp() cli.Command {
@@ -51,6 +29,21 @@ func SetUp() cli.Command {
 	return cmd
 }
 
+func actionWrapper(f cli.ActionFunc) cli.ActionFunc {
+	return func(c *cli.Context) error {
+		testExitCode = 0
+		if err := f(c); err != nil {
+			// TODO: define exit code properly
+			if testMode {
+				testExitCode = 1
+				return err
+			}
+			return cli.NewExitError(err.Error(), 1)
+		}
+		return nil
+	}
+}
+
 var (
 	commonFlags = []cli.Flag{
 		cli.StringFlag{ // TODO: share this flag with others
@@ -67,42 +60,40 @@ var (
 	}
 )
 
-func validateFlags(c *cli.Context) {
+func validateFlags(c *cli.Context) error {
 	if err := client.ValidateURL(c.String("uri")); err != nil {
-		fmt.Fprintf(os.Stderr, "--uri flag has an invalid value: %v\n", err)
-		panic(1)
+		return fmt.Errorf("--uri flag has an invalid value: %v", err)
 	}
 	if err := client.ValidateAPIVersion(c.String("api-version")); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		panic(1)
+		return err
 	}
 	// TODO: check other flags
+	return nil
 }
 
-func newRequester(c *cli.Context) *client.Requester {
+func newRequester(c *cli.Context) (*client.Requester, error) {
 	r, err := client.NewRequester(c.String("uri"), c.String("api-version"))
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Cannot create a API requester: %v\n", err)
-		panic(1)
+		return nil, fmt.Errorf("Cannot create a API requester: %v", err)
 	}
-	return r
+	return r, nil
 }
 
-func do(c *cli.Context, method client.Method, path string, body interface{}, baseErrMsg string) *client.Response {
-	req := newRequester(c)
+func do(c *cli.Context, method client.Method, path string, body interface{}, baseErrMsg string) (*client.Response, error) {
+	req, err := newRequester(c)
+	if err != nil {
+		return nil, err
+	}
 	res, err := req.Do(method, path, body)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%v: %v\n", baseErrMsg, err)
-		panic(1)
+		return nil, fmt.Errorf("%v: %v", baseErrMsg, err)
 	}
 	if res.IsError() {
 		errRes, err := res.Error()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "%v and failed to parse error information: %v\n", baseErrMsg, err)
-			panic(1)
+			return nil, fmt.Errorf("%v and failed to parse error information: %v", baseErrMsg, err)
 		}
-		fmt.Fprintf(os.Stderr, "%v: %v, %v: %v\n", baseErrMsg, errRes.Code, errRes.RequestID, errRes.Message)
-		panic(1)
+		return nil, fmt.Errorf("%v: %v, %v: %v", baseErrMsg, errRes.Code, errRes.RequestID, errRes.Message)
 	}
-	return res
+	return res, nil
 }

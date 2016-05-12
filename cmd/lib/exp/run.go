@@ -57,7 +57,7 @@ const (
 	cacheInfoFilename = ".sensorbee-exp-cache" // TODO: this should be an option
 )
 
-func runRun(c *cli.Context) {
+func runRun(c *cli.Context) error {
 	err := func() error {
 		if a := c.Args(); len(a) != 1 {
 			cli.ShowSubcommandHelp(c)
@@ -108,9 +108,9 @@ func runRun(c *cli.Context) {
 		return nil
 	}()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		os.Exit(1)
+		return cli.NewExitError(err.Error(), 1)
 	}
+	return nil
 }
 
 func findCache(cache *Cache, stmts *Statements) int {

@@ -50,21 +50,27 @@ func main() {
 	app.Run(os.Args)
 }
 
-func action(c *cli.Context) {
-	defer func() {
-		if e := recover(); e != nil {
-			fmt.Fprintln(os.Stderr, e)
-			os.Exit(1)
+func action(c *cli.Context) error {
+	err := func() error {
+		if fn := c.String("source-filename"); fn != filepath.Base(fn) {
+			return fmt.Errorf("the output file name must only contain a filename: %v", fn)
 		}
+		config, err := loadConfig(c.String("config"))
+		if err != nil {
+			return err
+		}
+		if err := downloadPlugins(c, config); err != nil {
+			return err
+		}
+		if err := create(c, config); err != nil {
+			return err
+		}
+		return build(c, config)
 	}()
-	if fn := c.String("source-filename"); fn != filepath.Base(fn) {
-		panic(fmt.Errorf("the output file name must only contain a filename: %v", fn))
+	if err != nil {
+		return cli.NewExitError(err.Error(), 1)
 	}
-
-	config := loadConfig(c.String("config"))
-	downloadPlugins(c, config)
-	create(c, config)
-	build(c, config)
+	return nil
 }
 
 type Config struct {
@@ -72,27 +78,27 @@ type Config struct {
 	SubCommands []string `yaml:"-"`
 }
 
-func loadConfig(path string) *Config {
+func loadConfig(path string) (*Config, error) {
 	b, err := ioutil.ReadFile(path)
 	if err != nil {
-		panic(fmt.Errorf("cannot load the config file '%v': %v\n", path, err))
+		return nil, fmt.Errorf("cannot load the config file '%v': %v", path, err)
 	}
 
 	config := &Config{}
 	if err := yaml.Unmarshal(b, config); err != nil {
-		panic(fmt.Errorf("cannot parse the config file '%v': %v\n", path, err))
+		return nil, fmt.Errorf("cannot parse the config file '%v': %v", path, err)
 	}
 	// TODO: validation
 
 	config.SubCommands = []string{"run", "shell", "topology", "exp", "runfile"}
 	// TODO: sub commands should be configurable
 
-	return config
+	return config, nil
 }
 
-func downloadPlugins(c *cli.Context, config *Config) {
+func downloadPlugins(c *cli.Context, config *Config) error {
 	if !c.BoolT("download-plugins") {
-		return
+		return nil
 	}
 
 	// update main SensorBee
@@ -102,7 +108,7 @@ func downloadPlugins(c *cli.Context, config *Config) {
 	cmd.Stderr = buf
 	if err := cmd.Run(); err != nil {
 		b, _ := ioutil.ReadAll(buf)
-		panic(fmt.Errorf("cannot get SensorBee core files: %v \n\n%v\n", err, string(b)))
+		return fmt.Errorf("cannot get SensorBee core files: %v \n\n%v", err, string(b))
 	}
 	// download plugins
 	for _, p := range config.PluginPaths {
@@ -112,21 +118,22 @@ func downloadPlugins(c *cli.Context, config *Config) {
 		cmd.Stderr = buf
 		if err := cmd.Run(); err != nil {
 			b, _ := ioutil.ReadAll(buf)
-			panic(fmt.Errorf("cannot get a plugin '%v': %v \n\n%v\n", p, err, string(b)))
+			return fmt.Errorf("cannot get a plugin '%v': %v \n\n%v", p, err, string(b))
 		}
 	}
+	return nil
 }
 
-func create(c *cli.Context, config *Config) {
+func create(c *cli.Context, config *Config) error {
 	tpl := template.Must(template.New("tpl").Parse(mainGoTemplate))
 	var b bytes.Buffer
 	if err := tpl.Execute(&b, config); err != nil {
-		panic(fmt.Errorf("cannot generate a template source code: %v\n", err))
+		return fmt.Errorf("cannot generate a template source code: %v", err)
 	}
 
 	srcFile := c.String("source-filename")
 	if err := ioutil.WriteFile(srcFile, b.Bytes(), 0644); err != nil {
-		panic(fmt.Errorf("cannot generate an output file '%v': %v", srcFile, err))
+		return fmt.Errorf("cannot generate an output file '%v': %v", srcFile, err)
 	}
 
 	// go fmt
@@ -134,22 +141,24 @@ func create(c *cli.Context, config *Config) {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
-		panic(fmt.Errorf("cannot apply go fmt to the generated file: %v", err))
+		return fmt.Errorf("cannot apply go fmt to the generated file: %v", err)
 	}
+	return nil
 }
 
-func build(c *cli.Context, config *Config) {
+func build(c *cli.Context, config *Config) error {
 	if c.Bool("only-generate-source") {
 		fmt.Println("The custom command isn't built yet. Run the command below to build it:")
 		fmt.Printf("go build -o \"%v\" %v\n", c.String("out"), c.String("source-filename"))
-		return
+		return nil
 	}
 	cmd := exec.Command("go", "build", "-o", c.String("out"), c.String("source-filename"))
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
-		panic(fmt.Errorf("cannot build a custom sensorbee command: %v", err))
+		return fmt.Errorf("cannot build a custom sensorbee command: %v", err)
 	}
+	return nil
 }
 
 const (
@@ -173,7 +182,7 @@ func main() {
 	app := cli.NewApp()
 	app.Name = "sensorbee"
 	app.Usage = "SensorBee"
-	app.Version = "0.3.2" // TODO get dynamic, will be get from external file
+	app.Version = "0.3.2" // TODO: don't hardcode the version number
 	app.Commands = []cli.Command{
 {{range $_, $sub := .SubCommands}}		{{$sub}}.SetUp(),
 {{end}}}
