@@ -21,7 +21,7 @@ func main() {
 	app := cli.NewApp()
 	app.Name = "sensorbee"
 	app.Usage = "SensorBee"
-	app.Version = "0.3.2" // TODO get dynamic, will be get from external file
+	app.Version = "0.3.2" // TODO: don't hardcode the version number
 	app.Commands = []cli.Command{
 		run.SetUp(),
 		shell.SetUp(),

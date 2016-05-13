@@ -107,7 +107,7 @@ func TestTopologyCommand(t *testing.T) {
 
 			Convey("Then creating another topology having the same name should fail", func() {
 				out, err := newApp(s.URL()).run("create", "test_topology")
-				So(err, ShouldBeNil)
+				So(err, ShouldNotBeNil)
 				So(out, ShouldBeBlank)
 				So(testExitCode, ShouldNotEqual, 0)
 			})
@@ -155,7 +155,7 @@ func TestTopologyCreateCommandValidation(t *testing.T) {
 			c := c
 			Convey(c.title, func() {
 				out, err := newApp(url).rawRun("create", c.args...)
-				So(err, ShouldBeNil)
+				So(err, ShouldNotBeNil)
 				So(out, ShouldBeBlank)
 
 				Convey("Then the exit code shouldn't be 0", func() {
@@ -189,7 +189,7 @@ func TestTopologyListCommandValidation(t *testing.T) {
 			c := c
 			Convey(c.title, func() {
 				out, err := newApp(url).rawRun("list", c.args...)
-				So(err, ShouldBeNil)
+				So(err, ShouldNotBeNil)
 				So(out, ShouldBeBlank)
 
 				Convey("Then the exit code shouldn't be 0", func() {
@@ -225,7 +225,7 @@ func TestTopologyDropCommandValidation(t *testing.T) {
 			c := c
 			Convey(c.title, func() {
 				out, err := newApp(url).rawRun("drop", c.args...)
-				So(err, ShouldBeNil)
+				So(err, ShouldNotBeNil)
 				So(out, ShouldBeBlank)
 
 				Convey("Then the exit code shouldn't be 0", func() {

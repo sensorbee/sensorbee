@@ -56,116 +56,123 @@ func SetUp() cli.Command {
 }
 
 // Run runs "runfile" command.
-func Run(c *cli.Context) {
+func Run(c *cli.Context) error {
 	// TODO: Merge this implementation with cmd/run
 	if len(c.Args()) != 1 {
 		cli.ShowSubcommandHelp(c)
 		os.Exit(1)
 	}
 
-	conf, err := func() (*config.Config, error) {
-		if c.IsSet("config") {
-			p := c.String("config")
-			in, err := ioutil.ReadFile(p)
-			if err != nil {
-				return nil, fmt.Errorf("Cannot read the config file %v: %v\n", p, err)
+	emptyError := fmt.Errorf("") // to provide exit code but not error message for cli
+	err := func() (retErr error) {
+		conf, err := func() (*config.Config, error) {
+			if c.IsSet("config") {
+				p := c.String("config")
+				in, err := ioutil.ReadFile(p)
+				if err != nil {
+					return nil, fmt.Errorf("Cannot read the config file %v: %v", p, err)
+				}
+
+				var yml map[string]interface{}
+				if err := yaml.Unmarshal(in, &yml); err != nil {
+					return nil, fmt.Errorf("Cannot parse the config file %v: %v", p, err)
+				}
+				m, err := data.NewMap(yml)
+				if err != nil {
+					return nil, fmt.Errorf("The config file %v has invalid values: %v", p, err)
+				}
+				return config.New(m)
+
+			} else {
+				// Currently there's no required parameters. However, when a required
+				// parameter is added to Config, remove this else block and add a
+				// default value like "/etc/sensorbee/config.yaml" to the config option.
+				return config.New(data.Map{})
 			}
-
-			var yml map[string]interface{}
-			if err := yaml.Unmarshal(in, &yml); err != nil {
-				return nil, fmt.Errorf("Cannot parse the config file %v: %v\n", p, err)
-			}
-			m, err := data.NewMap(yml)
-			if err != nil {
-				return nil, fmt.Errorf("The config file %v has invalid values: %v\n", p, err)
-			}
-			return config.New(m)
-
-		} else {
-			// Currently there's no required parameters. However, when a required
-			// parameter is added to Config, remove this else block and add a
-			// default value like "/etc/sensorbee/config.yaml" to the config option.
-			return config.New(data.Map{})
-		}
-	}()
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
-	}
-
-	w, err := conf.Logging.CreateWriter()
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
-	}
-	logger := logrus.New()
-	logger.Out = w
-
-	udsStorage, err := setUpUDSStorage(&conf.Storage.UDS)
-	if err != nil {
-		logger.WithField("err", err).Error("Cannot set up a storage for UDSs")
-		os.Exit(1)
-	}
-
-	logger.Info("Setting up a topology")
-	bqlFile := c.Args()[0]
-	topologyName := filepath.Base(bqlFile)
-	topologyName = topologyName[:len(topologyName)-len(filepath.Ext(topologyName))]
-	if n := c.String("topology"); n != "" {
-		topologyName = n
-	}
-
-	tb, err := setUpTopology(topologyName, logger, conf, udsStorage)
-	if err != nil {
-		logger.WithField("err", err).Error("Cannot set up the topology")
-		os.Exit(1)
-	}
-
-	if err := setUpBQLStmt(tb, bqlFile); err != nil {
-		logger.WithFields(logrus.Fields{
-			"err":      err,
-			"bql_file": bqlFile,
-		}).Error("Cannot set up BQL statement")
-		os.Exit(1)
-	}
-
-	defer func() {
-		logger.Info("Waiting for all nodes to finish processing tuples")
-		if err := tb.Topology().Stop(); err != nil {
-			logger.WithField("err", err).Error("Cannot stop the topology")
-			os.Exit(1)
+		}()
+		if err != nil {
+			return err
 		}
 
-		if c.IsSet("save-uds") {
-			saveUDSList := c.String("save-uds")
-			if err := saveStates(tb, saveUDSList); err != nil {
-				logger.WithFields(logrus.Fields{
-					"err":      err,
-					"topology": tb.Topology().Name(),
-				}).Error("Cannot save UDSs")
-				os.Exit(1)
-			}
+		w, err := conf.Logging.CreateWriter()
+		if err != nil {
+			return err
 		}
-		// TODO: Terminate all shared states
-	}()
+		logger := logrus.New()
+		logger.Out = w
 
-	logger.WithField("config", conf.ToMap()).Info("Starting the topology")
-	for name, s := range tb.Topology().Sources() {
-		if err := s.Resume(); err != nil {
+		udsStorage, err := setUpUDSStorage(&conf.Storage.UDS)
+		if err != nil {
+			logger.WithField("err", err).Error("Cannot set up a storage for UDSs")
+			return emptyError
+		}
+
+		logger.Info("Setting up a topology")
+		bqlFile := c.Args()[0]
+		topologyName := filepath.Base(bqlFile)
+		topologyName = topologyName[:len(topologyName)-len(filepath.Ext(topologyName))]
+		if n := c.String("topology"); n != "" {
+			topologyName = n
+		}
+
+		tb, err := setUpTopology(topologyName, logger, conf, udsStorage)
+		if err != nil {
+			logger.WithField("err", err).Error("Cannot set up the topology")
+			return emptyError
+		}
+
+		if err := setUpBQLStmt(tb, bqlFile); err != nil {
 			logger.WithFields(logrus.Fields{
-				"err":    err,
-				"source": name,
-			}).Error("Cannot resume the source")
-			os.Exit(1)
+				"err":      err,
+				"bql_file": bqlFile,
+			}).Error("Cannot set up BQL statement")
+			return emptyError
 		}
-	}
 
-	for _, s := range tb.Topology().Sources() {
-		// TODO: error check if necessary
-		s.State().Wait(core.TSStopped)
-	}
-	logger.Info("All sources has been stopped.")
+		defer func() {
+			logger.Info("Waiting for all nodes to finish processing tuples")
+			if err := tb.Topology().Stop(); err != nil {
+				logger.WithField("err", err).Error("Cannot stop the topology")
+				retErr = emptyError
+				return
+			}
 
+			if c.IsSet("save-uds") {
+				saveUDSList := c.String("save-uds")
+				if err := saveStates(tb, saveUDSList); err != nil {
+					logger.WithFields(logrus.Fields{
+						"err":      err,
+						"topology": tb.Topology().Name(),
+					}).Error("Cannot save UDSs")
+					retErr = emptyError
+					return
+				}
+			}
+			// TODO: Terminate all shared states
+		}()
+
+		logger.WithField("config", conf.ToMap()).Info("Starting the topology")
+		for name, s := range tb.Topology().Sources() {
+			if err := s.Resume(); err != nil {
+				logger.WithFields(logrus.Fields{
+					"err":    err,
+					"source": name,
+				}).Error("Cannot resume the source")
+				return emptyError
+			}
+		}
+
+		for _, s := range tb.Topology().Sources() {
+			// TODO: error check if necessary
+			s.State().Wait(core.TSStopped)
+		}
+		logger.Info("All sources has been stopped.")
+		return nil
+	}()
+	if err != nil {
+		return cli.NewExitError(err.Error(), 1)
+	}
+	return nil
 }
 
 func setUpUDSStorage(conf *config.UDSStorage) (udf.UDSStorage, error) {
