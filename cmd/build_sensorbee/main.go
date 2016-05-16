@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/codegangsta/cli"
+	"gopkg.in/sensorbee/sensorbee.v0/version"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"os"
@@ -17,6 +18,7 @@ func main() {
 	app := cli.NewApp()
 	app.Name = "build_sensorbee"
 	app.Usage = "Build an custom sensorbee command"
+	app.Version = version.Version
 	binaryName := "sensorbee"
 	if runtime.GOOS == "windows" {
 		binaryName = "sensorbee.exe"
@@ -46,11 +48,22 @@ func main() {
 			Usage: "only generating a main source file and not building a binary",
 		},
 	}
-	app.Action = action
+	app.Action = func(c *cli.Context) error {
+		if err := action(c); err != nil {
+			return cli.NewExitError(err.Error(), 1)
+		}
+		return nil
+	}
 	app.Run(os.Args)
 }
 
-func action(c *cli.Context) error {
+func action(c *cli.Context) (retErr error) {
+	defer func() {
+		if e := recover(); e != nil {
+			retErr = fmt.Errorf("build_sensorbee failed with panic: %v", e)
+		}
+	}()
+
 	err := func() error {
 		if fn := c.String("source-filename"); fn != filepath.Base(fn) {
 			return fmt.Errorf("the output file name must only contain a filename: %v", fn)
@@ -76,6 +89,7 @@ func action(c *cli.Context) error {
 type Config struct {
 	PluginPaths []string `yaml:"plugins"`
 	SubCommands []string `yaml:"-"`
+	Version     string   `yaml:"-"`
 }
 
 func loadConfig(path string) (*Config, error) {
@@ -92,7 +106,7 @@ func loadConfig(path string) (*Config, error) {
 
 	config.SubCommands = []string{"run", "shell", "topology", "exp", "runfile"}
 	// TODO: sub commands should be configurable
-
+	config.Version = version.Version
 	return config, nil
 }
 
@@ -167,6 +181,7 @@ const (
 import (
 	"github.com/codegangsta/cli"
 	"os"
+	"gopkg.in/sensorbee/sensorbee.v0/version"
 	_ "gopkg.in/sensorbee/sensorbee.v0/bql/udf/builtin"{{range $_, $sub := .SubCommands}}
 	"gopkg.in/sensorbee/sensorbee.v0/cmd/lib/{{$sub}}"{{end}}
 	"time"
@@ -181,8 +196,8 @@ func init() {
 func main() {
 	app := cli.NewApp()
 	app.Name = "sensorbee"
-	app.Usage = "SensorBee"
-	app.Version = "0.3.2" // TODO: don't hardcode the version number
+	app.Usage = "SensorBee built with build_sensorbee {{.Version}}"
+	app.Version = version.Version
 	app.Commands = []cli.Command{
 {{range $_, $sub := .SubCommands}}		{{$sub}}.SetUp(),
 {{end}}}
