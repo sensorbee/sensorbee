@@ -8,6 +8,7 @@ import (
 	"gopkg.in/sensorbee/sensorbee.v0/cmd/lib/runfile"
 	"gopkg.in/sensorbee/sensorbee.v0/cmd/lib/shell"
 	"gopkg.in/sensorbee/sensorbee.v0/cmd/lib/topology"
+	"gopkg.in/sensorbee/sensorbee.v0/version"
 	"os"
 	"time"
 )
@@ -20,8 +21,8 @@ func init() {
 func main() {
 	app := cli.NewApp()
 	app.Name = "sensorbee"
-	app.Usage = "SensorBee"
-	app.Version = "0.3.2" // TODO: don't hardcode the version number
+	app.Usage = "SensorBee built with build_sensorbee 0.4.1"
+	app.Version = version.Version
 	app.Commands = []cli.Command{
 		run.SetUp(),
 		shell.SetUp(),
