@@ -267,6 +267,9 @@ func saveStates(tb *bql.TopologyBuilder, saveUDSList string) error {
 		}
 	} else {
 		saveUDSs = strings.Split(saveUDSList, ",")
+		for i, n := range saveUDSs {
+			saveUDSs[i] = strings.TrimSpace(n)
+		}
 	}
 
 	saveErrorFlag := false
