@@ -193,6 +193,29 @@ func TestFileSource(t *testing.T) {
 			})
 		})
 
+		Convey("When reading the file with an interval parameter", func() {
+			params["interval"] = data.Float(0.0001) // assuming this number is big enough
+			s, err := createFileSource(ctx, &IOParams{}, params)
+			So(err, ShouldBeNil)
+			Reset(func() {
+				s.Stop(ctx)
+			})
+
+			err = s.GenerateStream(ctx, w)
+			So(err, ShouldBeNil)
+
+			Convey("Then it should emit all tuples", func() {
+				So(w.cnt, ShouldEqual, 3)
+			})
+
+			Convey("Then tuples' timestamps should have proper intervals", func() {
+				So(w.tss, ShouldHaveLength, w.cnt)
+				for i := 1; i < len(w.tss); i++ {
+					So(w.tss[i], ShouldHappenOnOrAfter, w.tss[i-1].Add(100*time.Microsecond))
+				}
+			})
+		})
+
 		Convey("When creating a file source with invalid parameters", func() {
 			Convey("Then missing path parameter should result in an error", func() {
 				delete(params, "path")
@@ -220,6 +243,12 @@ func TestFileSource(t *testing.T) {
 
 			Convey("Then invalid repeat value should result in an error", func() {
 				params["repeat"] = data.Float(1.5)
+				_, err := createFileSource(ctx, &IOParams{}, params)
+				So(err, ShouldNotBeNil)
+			})
+
+			Convey("Then invalid interval value should result in an error", func() {
+				params["interval"] = data.Map{}
 				_, err := createFileSource(ctx, &IOParams{}, params)
 				So(err, ShouldNotBeNil)
 			})

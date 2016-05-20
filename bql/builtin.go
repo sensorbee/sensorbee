@@ -43,6 +43,8 @@ type readerSource struct {
 	tsField  data.Path
 	ioParams *IOParams
 	repeat   int64
+	interval time.Duration
+	stopCh   chan struct{}
 }
 
 func (s *readerSource) GenerateStream(ctx *core.Context, w core.Writer) error {
@@ -67,6 +69,7 @@ func (s *readerSource) generateStream(ctx *core.Context, w core.Writer) error {
 	}()
 
 	r := bufio.NewReader(f)
+	next := time.Now()
 	for lineNumber := 0; ; lineNumber++ {
 		line, err := r.ReadBytes('\n')
 		if err != nil && err != io.EOF {
@@ -90,6 +93,11 @@ func (s *readerSource) generateStream(ctx *core.Context, w core.Writer) error {
 		}
 
 		t := core.NewTuple(m)
+		if s.interval > 0 {
+			// When the interval parameter is given, a proper application
+			// timestamp should be assigned to each tuple.
+			t.Timestamp = next
+		}
 		if s.tsField != nil {
 			if v, err := t.Data.Get(s.tsField); err == nil {
 				if ts, err := data.ToTimestamp(v); err != nil {
@@ -107,11 +115,30 @@ func (s *readerSource) generateStream(ctx *core.Context, w core.Writer) error {
 		if err := w.Write(ctx, t); err != nil {
 			return err
 		}
+
+		if s.interval > 0 {
+			// wait as accurate as possible
+			now := time.Now()
+			next = next.Add(s.interval)
+			if next.Before(now) {
+				// delayed too much and should be rescheduled.
+				next = now.Add(s.interval)
+			}
+
+			select {
+			case <-s.stopCh:
+				// This works as long as createFileSource returns a source
+				// wrapped with core.NewRewindableSource or core.ImplementSourceStop.
+				return core.ErrSourceStopped
+			case <-time.After(next.Sub(now)):
+			}
+		}
 	}
 	return nil
 }
 
 func (s *readerSource) Stop(ctx *core.Context) error {
+	close(s.stopCh)
 	return nil
 }
 
@@ -151,11 +178,22 @@ func createFileSource(ctx *core.Context, ioParams *IOParams, params data.Map) (c
 		}
 		repeat = r
 	}
+
+	var interval time.Duration
+	if v, ok := params["interval"]; ok {
+		i, err := data.ToDuration(v)
+		if err != nil {
+			return nil, fmt.Errorf("'interval' parameter should have a duration: %v", err)
+		}
+		interval = i
+	}
 	s := &readerSource{
 		filename: fpath,
 		tsField:  tsField,
 		ioParams: ioParams,
 		repeat:   repeat,
+		interval: interval,
+		stopCh:   make(chan struct{}),
 	}
 	if rewindable {
 		return core.NewRewindableSource(s), nil
