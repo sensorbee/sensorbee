@@ -17,7 +17,7 @@ import (
 func main() {
 	app := cli.NewApp()
 	app.Name = "build_sensorbee"
-	app.Usage = "Build an custom sensorbee command"
+	app.Usage = "Build a custom sensorbee command"
 	app.Version = version.Version
 	binaryName := "sensorbee"
 	if runtime.GOOS == "windows" {
