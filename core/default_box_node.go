@@ -107,7 +107,8 @@ func (db *defaultBoxNode) StopOnDisconnect(dir ConnDir) {
 
 	if dir&Inbound != 0 {
 		db.srcs.stopOnDisconnect()
-	} else if dir&Outbound != 0 {
+	}
+	if dir&Outbound != 0 {
 		if db.dsts.len() == 0 {
 			db.stop()
 		}
