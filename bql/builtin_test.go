@@ -146,6 +146,53 @@ func TestFileSource(t *testing.T) {
 			})
 		})
 
+		Convey("When reading the file with a repeat parameter", func() {
+			params["repeat"] = data.Int(3)
+			s, err := createFileSource(ctx, &IOParams{}, params)
+			So(err, ShouldBeNil)
+			Reset(func() {
+				s.Stop(ctx)
+			})
+
+			err = s.GenerateStream(ctx, w)
+			So(err, ShouldBeNil)
+
+			Convey("Then it should emit all tuples", func() {
+				// The source emits 3 tuples for 4 times including the first run.
+				So(w.cnt, ShouldEqual, 12)
+			})
+		})
+
+		Convey("When reading the file with a negative repeat parameter", func() {
+			params["repeat"] = data.Int(-1)
+			s, err := createFileSource(ctx, &IOParams{}, params)
+			So(err, ShouldBeNil)
+			Reset(func() {
+				s.Stop(ctx)
+			})
+
+			ch := make(chan error, 1)
+			go func() {
+				ch <- s.GenerateStream(ctx, w)
+			}()
+
+			Convey("Then it should infinitely emit tuples", func() {
+				w.wait(100)
+				So(w.cnt, ShouldBeGreaterThanOrEqualTo, 100)
+				select {
+				case <-ch:
+					So("The source should not have stopped yet", ShouldBeNil)
+				default:
+				}
+			})
+
+			Convey("Then it should be able to stop", func() {
+				So(s.Stop(ctx), ShouldBeNil)
+				err := <-ch
+				So(err, ShouldBeNil)
+			})
+		})
+
 		Convey("When creating a file source with invalid parameters", func() {
 			Convey("Then missing path parameter should result in an error", func() {
 				delete(params, "path")
@@ -167,6 +214,12 @@ func TestFileSource(t *testing.T) {
 
 			Convey("Then invalid rewindable value should result in an error", func() {
 				params["rewindable"] = data.Int(1)
+				_, err := createFileSource(ctx, &IOParams{}, params)
+				So(err, ShouldNotBeNil)
+			})
+
+			Convey("Then invalid repeat value should result in an error", func() {
+				params["repeat"] = data.Float(1.5)
 				_, err := createFileSource(ctx, &IOParams{}, params)
 				So(err, ShouldNotBeNil)
 			})

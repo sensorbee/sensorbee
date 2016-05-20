@@ -42,9 +42,19 @@ type readerSource struct {
 	filename string
 	tsField  data.Path
 	ioParams *IOParams
+	repeat   int64
 }
 
 func (s *readerSource) GenerateStream(ctx *core.Context, w core.Writer) error {
+	for r := int64(0); s.repeat < 0 || r <= s.repeat; r++ {
+		if err := s.generateStream(ctx, w); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *readerSource) generateStream(ctx *core.Context, w core.Writer) error {
 	f, err := os.Open(s.filename)
 	if err != nil {
 		return err
@@ -133,10 +143,19 @@ func createFileSource(ctx *core.Context, ioParams *IOParams, params data.Map) (c
 		}
 	}
 
+	var repeat int64
+	if v, ok := params["repeat"]; ok {
+		r, err := data.AsInt(v)
+		if err != nil {
+			return nil, fmt.Errorf("'repeat' parameter must be an integer: %v", err)
+		}
+		repeat = r
+	}
 	s := &readerSource{
 		filename: fpath,
 		tsField:  tsField,
 		ioParams: ioParams,
+		repeat:   repeat,
 	}
 	if rewindable {
 		return core.NewRewindableSource(s), nil
