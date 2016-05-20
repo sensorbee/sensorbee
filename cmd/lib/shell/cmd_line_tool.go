@@ -16,24 +16,27 @@ func SetUp() cli.Command {
 		Description: "shell command launches an interactive shell for BQL",
 		Action:      Launch,
 	}
-	cmd.Flags = []cli.Flag{
-		cli.StringFlag{
-			Name:   "uri",
-			Value:  fmt.Sprintf("http://localhost:%d/", config.DefaultPort),
-			Usage:  "the address of the target SensorBee server",
-			EnvVar: "SENSORBEE_URI",
-		},
-		cli.StringFlag{
-			Name:  "api-version",
-			Value: "v1",
-			Usage: "target API version",
-		},
-		cli.StringFlag{
-			Name:  "topology,t",
-			Usage: "the SensorBee topology to use (instead of USE command)",
-		},
-	}
+	cmd.Flags = CmdFlags
 	return cmd
+}
+
+// CmdFlags is list of shell command options
+var CmdFlags = []cli.Flag{
+	cli.StringFlag{
+		Name:   "uri",
+		Value:  fmt.Sprintf("http://localhost:%d/", config.DefaultPort),
+		Usage:  "the address of the target SensorBee server",
+		EnvVar: "SENSORBEE_URI",
+	},
+	cli.StringFlag{
+		Name:  "api-version",
+		Value: "v1",
+		Usage: "target API version",
+	},
+	cli.StringFlag{
+		Name:  "topology,t",
+		Usage: "the SensorBee topology to use (instead of USE command)",
+	},
 }
 
 // Launch SensorBee's command line client tool.
