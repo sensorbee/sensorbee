@@ -1,6 +1,7 @@
 package shell
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"gopkg.in/sensorbee/sensorbee.v0/client"
@@ -140,19 +141,24 @@ func sendBQLQueries(requester *client.Requester, queries string) {
 	if err == nil {
 		result, ok := data["result"]
 		if ok {
-			printJSONResult(result)
+			printResult(result)
 		}
 	}
 
 }
 
-// printJSONResult prints a result in JSON format. This function directly print
+// printResult prints a result in JSON or BQL format. This function directly print
 // an error message on failure and doesn't return an error.
-func printJSONResult(v interface{}) {
+func printResult(v interface{}) {
 	data, err := json.Marshal(v)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "cannot marshal the result into a JSON: %v\n", err)
 		return
+	}
+
+	// switch the output format depending on the global flag
+	if outputFormat == "bql" {
+		data = bytes.Replace(data, []byte(`\"`), []byte(`""`), -1)
 	}
 	fmt.Printf("%s\n", data)
 }
@@ -174,7 +180,7 @@ func showStreamResponses(res *client.Response) {
 			if !ok {
 				return
 			}
-			printJSONResult(js)
+			printResult(js)
 
 		case <-sig:
 			return // The response is closed by the caller
