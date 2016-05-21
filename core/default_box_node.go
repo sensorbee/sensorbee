@@ -34,6 +34,9 @@ func (db *defaultBoxNode) Input(refname string, config *BoxInputConfig) error {
 	if config == nil {
 		config = defaultBoxInputConfig
 	}
+	if err := config.Validate(); err != nil {
+		return err
+	}
 
 	if err := checkBoxInputName(db.box, db.name, config.inputName()); err != nil {
 		return err

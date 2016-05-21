@@ -46,3 +46,29 @@ func TestValidateSymbol(t *testing.T) {
 		}
 	})
 }
+
+func TestValidateCapacity(t *testing.T) {
+	Convey("Given validateCapacity function", t, func() {
+		Convey("When passing a valid value to it", func() {
+			Convey("Then it should accept 0", func() {
+				So(validateCapacity(0), ShouldBeNil)
+			})
+
+			Convey("Then it should accept a maximum value", func() {
+				So(validateCapacity(MaxCapacity), ShouldBeNil)
+			})
+		})
+
+		Convey("When passing a too large value", func() {
+			Convey("Then it should fail", func() {
+				So(validateCapacity(MaxCapacity+1), ShouldNotBeNil)
+			})
+		})
+
+		Convey("When passing a negative value", func() {
+			Convey("Then it should fail", func() {
+				So(validateCapacity(-1), ShouldNotBeNil)
+			})
+		})
+	})
+}
