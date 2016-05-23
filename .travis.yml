@@ -9,20 +9,13 @@ sudo: false
 notifications:
   email: false
 
+go_import_path: gopkg.in/sensorbee/sensorbee.v0
+
 before_install:
   - go version
   - go get github.com/mattn/goveralls
   - go get golang.org/x/tools/cmd/cover
   - go get github.com/pierrre/gotestcover
-  # For gopkg.in.
-  # Partly copied and modified under MIT license from brotli-go at https://github.com/kothar/brotli-go
-  # https://github.com/YukinobuKurata/YouTubeMagicBuyButton/blob/master/MIT-LICENSE.txt
-  - export SENSORBEE_CANONICAL_IMPORT=${GOPATH}/src/gopkg.in/sensorbee/sensorbee.v0
-  - mkdir -p ${SENSORBEE_CANONICAL_IMPORT}
-  - rsync -az ${TRAVIS_BUILD_DIR}/ ${SENSORBEE_CANONICAL_IMPORT}/
-  - cd ${SENSORBEE_CANONICAL_IMPORT}
-  - rm -rf ${TRAVIS_BUILD_DIR}
-  - export TRAVIS_BUILD_DIR=${SENSORBEE_CANONICAL_IMPORT}
 
 install:
   - go get -t -d -v ./...
