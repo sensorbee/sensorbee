@@ -42,7 +42,16 @@ type readerSource struct {
 	filename string
 	tsField  data.Path
 	ioParams *IOParams
-	repeat   int64
+
+	// repeat is the number of times that the input data is read. When its value
+	// is less than 0, the source will read the input again and again until it's
+	// stopped. When the value is 0, the source only read the input once. When
+	// the value is k (> 0), the input is read k+1 times including the first run.
+	repeat int64
+
+	// interval is the interval between emissions of two consecutive tuples.
+	// When its value is less than or equal to 0, the source tries to emit
+	// tuples as fast as possible.
 	interval time.Duration
 	stopCh   chan struct{}
 }
