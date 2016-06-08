@@ -42,9 +42,30 @@ type readerSource struct {
 	filename string
 	tsField  data.Path
 	ioParams *IOParams
+
+	// repeat is the number of times that the input data is read. When its value
+	// is less than 0, the source will read the input again and again until it's
+	// stopped. When the value is 0, the source only read the input once. When
+	// the value is k (> 0), the input is read k+1 times including the first run.
+	repeat int64
+
+	// interval is the interval between emissions of two consecutive tuples.
+	// When its value is less than or equal to 0, the source tries to emit
+	// tuples as fast as possible.
+	interval time.Duration
+	stopCh   chan struct{}
 }
 
 func (s *readerSource) GenerateStream(ctx *core.Context, w core.Writer) error {
+	for r := int64(0); s.repeat < 0 || r <= s.repeat; r++ {
+		if err := s.generateStream(ctx, w); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *readerSource) generateStream(ctx *core.Context, w core.Writer) error {
 	f, err := os.Open(s.filename)
 	if err != nil {
 		return err
@@ -57,6 +78,7 @@ func (s *readerSource) GenerateStream(ctx *core.Context, w core.Writer) error {
 	}()
 
 	r := bufio.NewReader(f)
+	next := time.Now()
 	for lineNumber := 0; ; lineNumber++ {
 		line, err := r.ReadBytes('\n')
 		if err != nil && err != io.EOF {
@@ -80,6 +102,11 @@ func (s *readerSource) GenerateStream(ctx *core.Context, w core.Writer) error {
 		}
 
 		t := core.NewTuple(m)
+		if s.interval > 0 {
+			// When the interval parameter is given, a proper application
+			// timestamp should be assigned to each tuple.
+			t.Timestamp = next
+		}
 		if s.tsField != nil {
 			if v, err := t.Data.Get(s.tsField); err == nil {
 				if ts, err := data.ToTimestamp(v); err != nil {
@@ -97,11 +124,30 @@ func (s *readerSource) GenerateStream(ctx *core.Context, w core.Writer) error {
 		if err := w.Write(ctx, t); err != nil {
 			return err
 		}
+
+		if s.interval > 0 {
+			// wait as accurate as possible
+			now := time.Now()
+			next = next.Add(s.interval)
+			if next.Before(now) {
+				// delayed too much and should be rescheduled.
+				next = now.Add(s.interval)
+			}
+
+			select {
+			case <-s.stopCh:
+				// This works as long as createFileSource returns a source
+				// wrapped with core.NewRewindableSource or core.ImplementSourceStop.
+				return core.ErrSourceStopped
+			case <-time.After(next.Sub(now)):
+			}
+		}
 	}
 	return nil
 }
 
 func (s *readerSource) Stop(ctx *core.Context) error {
+	close(s.stopCh)
 	return nil
 }
 
@@ -133,10 +179,30 @@ func createFileSource(ctx *core.Context, ioParams *IOParams, params data.Map) (c
 		}
 	}
 
+	var repeat int64
+	if v, ok := params["repeat"]; ok {
+		r, err := data.AsInt(v)
+		if err != nil {
+			return nil, fmt.Errorf("'repeat' parameter must be an integer: %v", err)
+		}
+		repeat = r
+	}
+
+	var interval time.Duration
+	if v, ok := params["interval"]; ok {
+		i, err := data.ToDuration(v)
+		if err != nil {
+			return nil, fmt.Errorf("'interval' parameter should have a duration: %v", err)
+		}
+		interval = i
+	}
 	s := &readerSource{
 		filename: fpath,
 		tsField:  tsField,
 		ioParams: ioParams,
+		repeat:   repeat,
+		interval: interval,
+		stopCh:   make(chan struct{}),
 	}
 	if rewindable {
 		return core.NewRewindableSource(s), nil
