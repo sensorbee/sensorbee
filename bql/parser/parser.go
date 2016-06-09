@@ -1,5 +1,7 @@
 package parser
 
+//go:generate peg bql.peg
+
 import (
 	"fmt"
 	"github.com/mattn/go-runewidth"
