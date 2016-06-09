@@ -98,7 +98,7 @@ func (e *bqlParseError) Error() string {
 		positions[p], p = int(token.begin), p+1
 		positions[p], p = int(token.end), p+1
 	}
-	translations := translatePositions(e.p.Buffer, positions)
+	translations := translatePositions(e.p.buffer, positions)
 	// now find the offensive line
 	foundError := false
 	for _, token := range tokens {
