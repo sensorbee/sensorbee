@@ -41,6 +41,9 @@ func (ds *defaultSinkNode) Input(refname string, config *SinkInputConfig) error 
 	if config == nil {
 		config = defaultSinkInputConfig
 	}
+	if err := config.Validate(); err != nil {
+		return err
+	}
 
 	recv, send := newPipe("output", config.capacity())
 	send.dropMode = config.DropMode

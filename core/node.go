@@ -264,6 +264,21 @@ const (
 	Outbound
 )
 
+const (
+	// MaxCapacity is the maximum capacity or buffer size of pipes.
+	MaxCapacity int = 1<<17 - 1
+)
+
+func validateCapacity(c int) error {
+	if c > MaxCapacity {
+		return fmt.Errorf("specified buffer capacity %d is too large (must be <= %d)",
+			c, MaxCapacity)
+	} else if c < 0 {
+		return fmt.Errorf("specified buffer capacity %d must not be negative", c)
+	}
+	return nil
+}
+
 // BoxInputConfig has parameters to customize input behavior of a Box on each
 // input pipe.
 type BoxInputConfig struct {
@@ -271,15 +286,20 @@ type BoxInputConfig struct {
 	// "*" will be used.
 	InputName string
 
-	// Capacity is the maximum capacity (length) of input pipe. When this
-	// parameter is 0, the default value is used. This parameter is only used
-	// as a hint and doesn't guarantee that the pipe can actually have the
-	// specified number of tuples.
+	// Capacity is the maximum capacity or buffer size (length) of input pipe.
+	// When this parameter is 0, the default value is used. This parameter is
+	// only used as a hint and doesn't guarantee that the pipe can actually have
+	// the specified number of tuples.
 	Capacity int
 
 	// DropMode is a mode which controls the behavior of dropping tuples at the
 	// output side of the queue when it is full.
 	DropMode QueueDropMode
+}
+
+// Validate validates values of BoxInputConfig.
+func (c *BoxInputConfig) Validate() error {
+	return validateCapacity(c.Capacity)
 }
 
 func (c *BoxInputConfig) inputName() string {
@@ -336,6 +356,11 @@ type SinkInputConfig struct {
 	// DropMode is a mode which controls the behavior of dropping tuples at the
 	// output side of the queue when it is full.
 	DropMode QueueDropMode
+}
+
+// Validate validates values of SinkInputConfig.
+func (c *SinkInputConfig) Validate() error {
+	return validateCapacity(c.Capacity)
 }
 
 func (c *SinkInputConfig) capacity() int {
