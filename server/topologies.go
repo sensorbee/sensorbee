@@ -617,6 +617,10 @@ func (tc *topologies) processWebSocketMessage(conn *websocket.Conn, tb *bql.Topo
 
 	var js map[string]interface{}
 	if err := w.receive(&js); err != nil {
+		if err == io.EOF {
+			tc.Log().Info("WebSocket connection was closed by the client")
+			return false
+		}
 		e := jasco.NewError(bqlStmtParseErrorCode,
 			"Cannot read or parse a JSON body received from the WebSocket connection",
 			http.StatusBadRequest, err)
