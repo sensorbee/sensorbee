@@ -735,7 +735,13 @@ func (tb *TopologyBuilder) AddSelectUnionStmt(stmts *parser.SelectUnionStmt) (co
 			box.(core.BoxNode).RemoveOnStop()
 
 			// now connect the sink to that box
-			if err := sink.Input(tmpName, nil); err != nil {
+			if err := sink.Input(tmpName, &core.SinkInputConfig{
+				// TODO: Make this confgurable in the SELECT statement
+				// The pipe can be full when the network is too slow and it's
+				// critical for small devices that doesn't have much memory.
+				// Therefore, the Capacity here is set to 1 for the moment.
+				Capacity: 1,
+			}); err != nil {
 				tb.topology.Remove(tmpName)
 				return nil, err
 			}
