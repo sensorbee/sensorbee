@@ -506,3 +506,133 @@ func TestVariadicStringFuncs(t *testing.T) {
 		})
 	}
 }
+
+func TestEncodeJSON(t *testing.T) {
+	// This is kind of a whiite box testing, but encode_json just calls
+	// data.Value.String and this test only checks simple cases to cover branches.
+	Convey("Given encode_json udf", t, func() {
+		Convey("When passing an array", func() {
+			Convey("Then it should encode an array", func() {
+				v, err := encodeJSON(nil, data.Array{data.Int(1), data.Map{"a": data.Float(2.3)}, data.String("4")})
+				So(err, ShouldBeNil)
+
+				s, err := data.AsString(v)
+				So(err, ShouldBeNil)
+				So(s, ShouldEqual, `[1,{"a":2.3},"4"]`)
+			})
+
+			Convey("Then it should encode an empty array", func() {
+				v, err := encodeJSON(nil, data.Array{})
+				So(err, ShouldBeNil)
+
+				s, err := data.AsString(v)
+				So(err, ShouldBeNil)
+				So(s, ShouldEqual, `[]`)
+			})
+		})
+
+		Convey("When passing a map", func() {
+			Convey("Then it should encode a map", func() {
+				v, err := encodeJSON(nil, data.Map{
+					"a": data.Array{data.Int(1), data.Float(2.3)},
+					"b": data.String("4"),
+				})
+				So(err, ShouldBeNil)
+
+				s, err := data.AsString(v)
+				So(err, ShouldBeNil)
+				So(s, ShouldBeIn, []string{`{"a":[1,2.3],"b":"4"}`, `{"b":"4","a":[1,2.3]}`})
+			})
+
+			Convey("Then it should encode an empty array", func() {
+				v, err := encodeJSON(nil, data.Map{})
+				So(err, ShouldBeNil)
+
+				s, err := data.AsString(v)
+				So(err, ShouldBeNil)
+				So(s, ShouldEqual, `{}`)
+			})
+		})
+
+		Convey("When passing invalid types", func() {
+			vs := data.Array{
+				&data.Null{}, data.True, data.Int(1), data.Float(1),
+				data.String(""), data.Blob{}, data.Timestamp{},
+			}
+			for _, v := range vs {
+				Convey(fmt.Sprintf("Then it should fail to encode %v", v.Type()), func() {
+					_, err := encodeJSON(nil, v)
+					So(err, ShouldNotBeNil)
+				})
+			}
+		})
+	})
+}
+
+func TestDecodeJSON(t *testing.T) {
+	Convey("Given decode_json udf", t, func() {
+		mapData := `  {
+			"a": 1,
+			"b": [2.3, "4"]
+		}`
+		mapAnswer := data.Map{
+			"a": data.Float(1),
+			"b": data.Array{data.Float(2.3), data.String("4")},
+		}
+		Convey("When passing JSON as string", func() {
+			Convey("Then it should succeed", func() {
+				v, err := decodeJSON(nil, data.String(mapData))
+				So(err, ShouldBeNil)
+				So(v, ShouldResemble, mapAnswer)
+			})
+		})
+
+		Convey("When passing JSON as blob", func() {
+			Convey("Then it should succeed", func() {
+				v, err := decodeJSON(nil, data.Blob(mapData))
+				So(err, ShouldBeNil)
+				So(v, ShouldResemble, mapAnswer)
+			})
+		})
+
+		Convey("When passing an array in JSON", func() {
+			Convey("Then it should decode an array", func() {
+				v, err := decodeJSON(nil, data.String(`[1,{"2":3.4},"5"]`))
+				So(err, ShouldBeNil)
+				So(v, ShouldResemble, data.Array{data.Float(1), data.Map{"2": data.Float(3.4)}, data.String("5")})
+			})
+		})
+
+		Convey("When passing a invalid JSON", func() {
+			Convey("Then it should fail to decode null", func() {
+				_, err := decodeJSON(nil, data.String(`null`))
+				So(err, ShouldNotBeNil)
+			})
+
+			Convey("Then it should fail to decode a bool", func() {
+				_, err := decodeJSON(nil, data.String(`true`))
+				So(err, ShouldNotBeNil)
+			})
+
+			Convey("Then it should fail to decode a number", func() {
+				_, err := decodeJSON(nil, data.String(`123`))
+				So(err, ShouldNotBeNil)
+			})
+
+			Convey("Then it should fail to decode a string", func() {
+				_, err := decodeJSON(nil, data.String(`"abc"`))
+				So(err, ShouldNotBeNil)
+			})
+
+			Convey("Then it should fail to decode an empty data", func() {
+				_, err := decodeJSON(nil, data.String(""))
+				So(err, ShouldNotBeNil)
+			})
+
+			Convey("Then it should fail to decode broken data", func() {
+				_, err := decodeJSON(nil, data.String(`[1,{"2",3.4},"5"`))
+				So(err, ShouldNotBeNil)
+			})
+		})
+	})
+}

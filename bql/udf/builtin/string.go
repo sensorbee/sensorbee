@@ -5,10 +5,12 @@ import (
 	"crypto/md5"
 	"crypto/sha1"
 	"crypto/sha256"
+	"encoding/json"
 	"fmt"
 	"gopkg.in/sensorbee/sensorbee.v0/bql/udf"
 	"gopkg.in/sensorbee/sensorbee.v0/core"
 	"gopkg.in/sensorbee/sensorbee.v0/data"
+	"io"
 	"regexp"
 	"strings"
 )
@@ -583,4 +585,64 @@ var sha256Func udf.UDF = &singleParamStringFunc{
 		sum := sha256.Sum256([]byte(s))
 		return data.String(fmt.Sprintf("%x", sum))
 	},
+}
+
+// encodeJSON converts an array or a map into JSON. It doesn't work with other
+// types. It returns a string containing JSON.
+func encodeJSON(ctx *core.Context, v data.Value) (data.Value, error) {
+	if t := v.Type(); t != data.TypeArray && t != data.TypeMap {
+		return nil, fmt.Errorf("encode_json only support map or array type: %v", t)
+	}
+	return data.String(v.String()), nil
+}
+
+// decodeJSON parses a JSON stored as string or blob. It returns data.Map.
+func decodeJSON(ctx *core.Context, v data.Value) (data.Value, error) {
+	var (
+		r     io.Reader // to avoid copying string to []byte
+		size  int
+		first byte
+	)
+	switch v.Type() {
+	case data.TypeString:
+		s, _ := data.AsString(v)
+		s = strings.TrimSpace(s)
+		size = len(s)
+		if size != 0 {
+			first = s[0]
+		}
+		r = strings.NewReader(s)
+	case data.TypeBlob:
+		b, _ := data.AsBlob(v)
+		b = bytes.TrimSpace(b)
+		size = len(b)
+		if size != 0 {
+			first = b[0]
+		}
+		r = bytes.NewReader(b)
+	default:
+		return nil, fmt.Errorf("a JSON should be a string or a blob: %v", v.Type())
+	}
+	if size == 0 {
+		return nil, fmt.Errorf("cannot decode empty data")
+	}
+
+	dec := json.NewDecoder(r)
+	// TODO: use json.Number after supporting it in data.NewValue
+	switch first {
+	case '[':
+		var a data.Array
+		if err := dec.Decode(&a); err != nil {
+			return nil, err
+		}
+		return a, nil
+	case '{':
+		var m data.Map
+		if err := dec.Decode(&m); err != nil {
+			return nil, err
+		}
+		return m, nil
+	default:
+		return nil, fmt.Errorf("ill-formed JSON (starting with %c)", first)
+	}
 }
