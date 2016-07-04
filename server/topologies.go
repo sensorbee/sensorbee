@@ -658,10 +658,9 @@ func (tc *topologies) processWebSocketMessage(conn *websocket.Conn, tb *bql.Topo
 		w.rid = r
 	}
 
-	// TODO: access logging
-
 	// rid should be logged from this point. So, following logging should be
 	// done by w.Log/w.ErrLog.
+	w.Log().Info("Request via WebSocket")
 
 	if v, ok := form["payload"]; !ok {
 		w.Log().Error("The required 'payload' field is missing")
