@@ -74,6 +74,8 @@ func init() {
 	udf.RegisterGlobalUDF("min", minFunc)
 	udf.RegisterGlobalUDF("string_agg", stringAggFunc)
 	udf.RegisterGlobalUDF("sum", sumFunc)
+	// conversion functions
+	udf.RegisterGlobalUDF("blob_to_raw_string", udf.MustConvertGeneric(blobToRawString))
 	// other functions
 	udf.RegisterGlobalUDF("coalesce", coalesceFunc)
 }
