@@ -576,7 +576,7 @@ func TestDecodeJSON(t *testing.T) {
 			"b": [2.3, "4"]
 		}`
 		mapAnswer := data.Map{
-			"a": data.Float(1),
+			"a": data.Int(1),
 			"b": data.Array{data.Float(2.3), data.String("4")},
 		}
 		Convey("When passing JSON as string", func() {
@@ -599,7 +599,7 @@ func TestDecodeJSON(t *testing.T) {
 			Convey("Then it should decode an array", func() {
 				v, err := decodeJSON(nil, data.String(`[1,{"2":3.4},"5"]`))
 				So(err, ShouldBeNil)
-				So(v, ShouldResemble, data.Array{data.Float(1), data.Map{"2": data.Float(3.4)}, data.String("5")})
+				So(v, ShouldResemble, data.Array{data.Int(1), data.Map{"2": data.Float(3.4)}, data.String("5")})
 			})
 		})
 

@@ -628,7 +628,6 @@ func decodeJSON(ctx *core.Context, v data.Value) (data.Value, error) {
 	}
 
 	dec := json.NewDecoder(r)
-	// TODO: use json.Number after supporting it in data.NewValue
 	switch first {
 	case '[':
 		var a data.Array
