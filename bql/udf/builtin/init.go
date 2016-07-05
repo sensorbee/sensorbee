@@ -59,6 +59,8 @@ func init() {
 	udf.RegisterGlobalUDF("substring", &arityDispatcher{
 		binary: substringFunc, ternary: substringFunc})
 	udf.RegisterGlobalUDF("upper", upperFunc)
+	udf.RegisterGlobalUDF("encode_json", udf.UnaryFunc(encodeJSON))
+	udf.RegisterGlobalUDF("decode_json", udf.UnaryFunc(decodeJSON))
 	// time functions
 	udf.RegisterGlobalUDF("distance_us", diffUsFunc)
 	udf.RegisterGlobalUDF("clock_timestamp", clockTimestampFunc)
