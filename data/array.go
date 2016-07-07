@@ -1,6 +1,7 @@
 package data
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -68,7 +69,9 @@ func (a Array) String() string {
 // UnmarshalJSON reconstructs an Array from JSON.
 func (a *Array) UnmarshalJSON(data []byte) error {
 	var j []interface{}
-	if err := json.Unmarshal(data, &j); err != nil {
+	dec := json.NewDecoder(bytes.NewReader(data))
+	dec.UseNumber()
+	if err := dec.Decode(&j); err != nil {
 		return err
 	}
 

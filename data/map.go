@@ -1,6 +1,7 @@
 package data
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -65,7 +66,9 @@ func (m Map) String() string {
 // UnmarshalJSON reconstructs a Map from JSON.
 func (m *Map) UnmarshalJSON(data []byte) error {
 	var j map[string]interface{}
-	if err := json.Unmarshal(data, &j); err != nil {
+	dec := json.NewDecoder(bytes.NewReader(data))
+	dec.UseNumber()
+	if err := dec.Decode(&j); err != nil {
 		return err
 	}
 

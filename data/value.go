@@ -1,6 +1,7 @@
 package data
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/ugorji/go/codec"
 	"math"
@@ -200,6 +201,16 @@ func NewValue(v interface{}) (Value, error) {
 			m[s] = v
 		}
 		return NewMap(m)
+	case json.Number:
+		// json.Number is a string and must be checked before the actual string type.
+		if i, err := vt.Int64(); err == nil {
+			return Int(i), nil
+		}
+		f, err := vt.Float64()
+		if err != nil {
+			return nil, err
+		}
+		return Float(f), nil
 	case bool:
 		return Bool(vt), nil
 	case int:
