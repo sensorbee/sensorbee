@@ -766,8 +766,24 @@ func (tb *TopologyBuilder) AddSelectUnionStmt(stmts *parser.SelectUnionStmt) (co
 		}
 		names = append(names, node.Name())
 	}
-	sn.RemoveOnStop()
-	sn.StopOnDisconnect()
+
+	// At this point, tuples can be written to the chan created in this method.
+	// It blocks Sink.Write in core.dataSources.pouringThread. Because reading
+	// tuples and reading controlling messages are done in the same goroutine,
+	// core.dataSources.pouringThread cannot read any controlling messages
+	// until Sink.Write is unblocked. As a result, sn.StopOnDisconnect, which
+	// internally calls sendMessage, blocks, too. Sink.Write is unblocked when a
+	// tuple is read from the chan. However, nobody can do it because the chan
+	// is not returned from this method yet.
+	//
+	// To solve this problem, this method must return the chan while it's
+	// calling sn.StopOnDisconnect concurrently. As a result, StopOnDisconnect
+	// eventually progresses as the caller of this method will read tuples from
+	// the chan.
+	go func() {
+		sn.RemoveOnStop()
+		sn.StopOnDisconnect()
+	}()
 	return sn, ch, nil
 }
 
