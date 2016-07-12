@@ -64,6 +64,8 @@ func init() {
 	// time functions
 	udf.RegisterGlobalUDF("distance_us", diffUsFunc)
 	udf.RegisterGlobalUDF("clock_timestamp", clockTimestampFunc)
+	// array functions
+	udf.RegisterGlobalUDF("array_length", arrayLengthFunc)
 	// aggregate functions
 	udf.RegisterGlobalUDF("array_agg", arrayAggFunc)
 	udf.RegisterGlobalUDF("avg", avgFunc)
