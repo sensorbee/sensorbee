@@ -50,10 +50,11 @@ func (r *defaultTopologyRegistry) Register(name string, tb *bql.TopologyBuilder)
 	r.m.Lock()
 	defer r.m.Unlock()
 
-	if _, ok := r.topologies[strings.ToLower(name)]; ok {
+	n := strings.ToLower(name)
+	if _, ok := r.topologies[n]; ok {
 		return os.ErrExist
 	}
-	r.topologies[name] = tb
+	r.topologies[n] = tb
 	return nil
 }
 
