@@ -2,6 +2,7 @@ package topology
 
 import (
 	"bytes"
+	"fmt"
 	"github.com/codegangsta/cli"
 	. "github.com/smartystreets/goconvey/convey"
 	"gopkg.in/sensorbee/sensorbee.v0/server/testutil"
@@ -15,6 +16,13 @@ type app struct {
 	app *cli.App
 	buf *bytes.Buffer
 	url string
+}
+
+func init() {
+	// Set OsExiter to refuse when cli application exiting
+	cli.OsExiter = func(c int) {
+		fmt.Fprintf(cli.ErrWriter, "refusing to exit %d\n", c)
+	}
 }
 
 func newApp(url string) *app {
