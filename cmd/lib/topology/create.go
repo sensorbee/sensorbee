@@ -2,8 +2,8 @@ package topology
 
 import (
 	"fmt"
-	"github.com/codegangsta/cli"
 	"gopkg.in/sensorbee/sensorbee.v0/client"
+	"gopkg.in/urfave/cli.v1"
 )
 
 func setUpCreate() cli.Command {

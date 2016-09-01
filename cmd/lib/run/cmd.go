@@ -4,11 +4,11 @@ package run
 
 import (
 	"fmt"
-	"github.com/codegangsta/cli"
 	"gopkg.in/pfnet/jasco.v1"
 	"gopkg.in/sensorbee/sensorbee.v0/data"
 	"gopkg.in/sensorbee/sensorbee.v0/server"
 	"gopkg.in/sensorbee/sensorbee.v0/server/config"
+	"gopkg.in/urfave/cli.v1"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"net"

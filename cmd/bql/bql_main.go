@@ -1,9 +1,9 @@
 package main
 
 import (
-	"github.com/codegangsta/cli"
 	"gopkg.in/sensorbee/sensorbee.v0/cmd/lib/shell"
 	"gopkg.in/sensorbee/sensorbee.v0/version"
+	"gopkg.in/urfave/cli.v1"
 	"os"
 )
 

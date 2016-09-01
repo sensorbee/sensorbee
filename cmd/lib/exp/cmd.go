@@ -1,7 +1,7 @@
 package exp
 
 import (
-	"github.com/codegangsta/cli"
+	"gopkg.in/urfave/cli.v1"
 )
 
 // SetUp sets up SensorBee's experimenting command.
