@@ -2,9 +2,9 @@ package topology
 
 import (
 	"fmt"
-	"github.com/codegangsta/cli"
 	"gopkg.in/sensorbee/sensorbee.v0/client"
 	"gopkg.in/sensorbee/sensorbee.v0/server/config"
+	"gopkg.in/urfave/cli.v1"
 )
 
 var (

@@ -10,7 +10,6 @@ package runfile
 import (
 	"fmt"
 	"github.com/Sirupsen/logrus"
-	"github.com/codegangsta/cli"
 	"gopkg.in/sensorbee/sensorbee.v0/bql"
 	"gopkg.in/sensorbee/sensorbee.v0/bql/parser"
 	"gopkg.in/sensorbee/sensorbee.v0/bql/udf"
@@ -18,6 +17,7 @@ import (
 	"gopkg.in/sensorbee/sensorbee.v0/data"
 	"gopkg.in/sensorbee/sensorbee.v0/server/config"
 	"gopkg.in/sensorbee/sensorbee.v0/server/udsstorage"
+	"gopkg.in/urfave/cli.v1"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"os"

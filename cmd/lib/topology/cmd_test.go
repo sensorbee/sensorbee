@@ -2,9 +2,9 @@ package topology
 
 import (
 	"bytes"
-	"github.com/codegangsta/cli"
 	. "github.com/smartystreets/goconvey/convey"
 	"gopkg.in/sensorbee/sensorbee.v0/server/testutil"
+	"gopkg.in/urfave/cli.v1"
 	"io/ioutil"
 	"testing"
 )

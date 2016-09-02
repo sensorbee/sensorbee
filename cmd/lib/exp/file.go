@@ -2,7 +2,7 @@ package exp
 
 import (
 	"fmt"
-	"github.com/codegangsta/cli"
+	"gopkg.in/urfave/cli.v1"
 	"os"
 )
 

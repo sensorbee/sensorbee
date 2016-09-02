@@ -3,8 +3,8 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"github.com/codegangsta/cli"
 	"gopkg.in/sensorbee/sensorbee.v0/version"
+	"gopkg.in/urfave/cli.v1"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"os"
@@ -179,7 +179,7 @@ const (
 	mainGoTemplate = `package main
 
 import (
-	"github.com/codegangsta/cli"
+	"gopkg.in/urfave/cli.v1"
 	"os"
 	"gopkg.in/sensorbee/sensorbee.v0/version"
 	_ "gopkg.in/sensorbee/sensorbee.v0/bql/udf/builtin"{{range $_, $sub := .SubCommands}}
