@@ -98,8 +98,13 @@ func Run(c *cli.Context) error {
 		if err != nil {
 			return err
 		}
+		logLevel, err := logrus.ParseLevel(conf.Logging.MinLogLevel)
+		if err != nil {
+			return err
+		}
 		logger := logrus.New()
 		logger.Out = w
+		logger.Level = logLevel
 
 		udsStorage, err := setUpUDSStorage(&conf.Storage.UDS)
 		if err != nil {
