@@ -1,8 +1,9 @@
 language: go
 go:
   - 1.4.3
-  - 1.5.3
-  - 1.6
+  - 1.5.4
+  - 1.6.3
+  - 1.7.1
 
 sudo: false
 
@@ -25,4 +26,4 @@ script:
   - gotestcover -v -covermode=count -coverprofile=.profile.cov -parallelpackages=1 ./...
 
 after_success:
-  - if [ "$TRAVIS_GO_VERSION" = "1.6" ]; then goveralls -coverprofile=.profile.cov -repotoken $COVERALLS_TOKEN; fi
+  - if [ "$TRAVIS_GO_VERSION" = "1.7.1" ]; then goveralls -coverprofile=.profile.cov -repotoken $COVERALLS_TOKEN; fi
