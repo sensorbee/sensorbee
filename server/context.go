@@ -58,6 +58,11 @@ type ContextGlobalVariables struct {
 // The caller must Close LogDestination.
 func SetUpContextGlobalVariables(conf *config.Config) (*ContextGlobalVariables, error) {
 	logger := logrus.New()
+	logLevel, err := logrus.ParseLevel(conf.Logging.MinLogLevel)
+	if err != nil {
+		return nil, err
+	}
+	logger.Level = logLevel
 	w, err := conf.Logging.CreateWriter()
 	if err != nil {
 		return nil, err
