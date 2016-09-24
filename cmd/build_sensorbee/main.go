@@ -110,7 +110,7 @@ func loadConfig(path string) (*Config, error) {
 
 	if len(config.SubCommands) == 0 {
 		config.SubCommands = map[string]commandDetail{}
-		for _, sub := range sensorBeeDefaultCommands {
+		for _, sub := range defaultCommands {
 			config.SubCommands[sub] = commandDetail{}
 		}
 	}
@@ -218,6 +218,6 @@ func main() {
 )
 
 var (
-	sensorBeeDefaultCommands = []string{"run", "shell", "topology", "exp",
+	defaultCommands = []string{"run", "shell", "topology", "exp",
 		"runfile"}
 )
