@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	. "github.com/smartystreets/goconvey/convey"
 	"gopkg.in/sensorbee/sensorbee.v0/version"
 	"gopkg.in/urfave/cli.v1"
@@ -130,51 +131,56 @@ func main() {
 				So(string(b), ShouldEqual, expectedMainFile)
 			})
 		})
-
-		Convey("When create a main file with a plugin and a custom command", func() {
-			config := &Config{
-				PluginPaths: []string{"path/to/plugin"},
-				SubCommands: map[string]commandDetail{
-					"repo1": commandDetail{Path: "path/to/repo"},
-				},
-				Version: version.Version,
-			}
-			So(create(c, config), ShouldBeNil)
-			Convey("Then the main file should be created", func() {
-				b, err := ioutil.ReadFile(outFilename)
-				So(err, ShouldBeNil)
-				expectedMainFile := `package main
-
-import (
-	_ "gopkg.in/sensorbee/sensorbee.v0/bql/udf/builtin"
-	"gopkg.in/sensorbee/sensorbee.v0/version"
-	"gopkg.in/urfave/cli.v1"
-	"os"
-	_ "path/to/plugin"
-	repo1 "path/to/repo"
-	"time"
-)
-
-func init() {
-	// TODO
-	time.Local = time.UTC
+	})
 }
 
-func main() {
-	app := cli.NewApp()
-	app.Name = "sensorbee"
-	app.Usage = "SensorBee built with build_sensorbee ` + version.Version + `"
-	app.Version = version.Version
-	app.Commands = []cli.Command{
-		repo1.SetUp(),
+func TestCreateMainFileWithCommandConfig(t *testing.T) {
+	dir, err := ioutil.TempDir("", "build_sensorbee_create_command_test")
+	if err != nil {
+		t.Fatal(err)
 	}
-	if err := app.Run(os.Args); err != nil {
-		os.Exit(1)
-	}
-}
-`
-				So(string(b), ShouldEqual, expectedMainFile)
+	defer os.RemoveAll(dir)
+	outFilename := filepath.Join(dir, "test_main.go")
+
+	set := flag.NewFlagSet("dummy", flag.ExitOnError)
+	set.String("source-filename", outFilename, "")
+	c := cli.NewContext(cli.NewApp(), set, nil)
+
+	Convey("Given command configurations", t, func() {
+		type testCase struct {
+			title          string
+			command        map[string]commandDetail
+			expectedImport string
+			expectedSetup  string
+		}
+		cases := []testCase{
+			testCase{
+				title:          "build-in command",
+				command:        map[string]commandDetail{"topology": commandDetail{}},
+				expectedImport: `"gopkg.in/sensorbee/sensorbee.v0/cmd/lib/topology"`,
+				expectedSetup:  "topology.SetUp(),",
+			},
+			testCase{
+				title: "custom command",
+				command: map[string]commandDetail{
+					"repo1": commandDetail{Path: "path/to/repo.v1"}},
+				expectedImport: `repo1 "path/to/repo.v1"`,
+				expectedSetup:  "repo1.SetUp(),",
+			},
+		}
+		for _, tc := range cases {
+			Convey(fmt.Sprintf("When create a main file with %s", tc.title), func() {
+				config := &Config{
+					SubCommands: tc.command,
+				}
+				So(create(c, config), ShouldBeNil)
+				Convey("Then the main file should be created", func() {
+					b, err := ioutil.ReadFile(outFilename)
+					So(err, ShouldBeNil)
+					So(string(b), ShouldContainSubstring, tc.expectedImport)
+					So(string(b), ShouldContainSubstring, tc.expectedSetup)
+				})
 			})
-		})
+		}
 	})
 }
