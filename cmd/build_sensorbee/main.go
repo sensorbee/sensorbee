@@ -87,9 +87,13 @@ func action(c *cli.Context) (retErr error) {
 }
 
 type Config struct {
-	PluginPaths []string `yaml:"plugins"`
-	SubCommands []string `yaml:"-"`
-	Version     string   `yaml:"-"`
+	PluginPaths []string                 `yaml:"plugins"`
+	SubCommands map[string]commandDetail `yaml:"commands"`
+	Version     string                   `yaml:"-"`
+}
+
+type commandDetail struct {
+	Path string `yaml:"path"`
 }
 
 func loadConfig(path string) (*Config, error) {
@@ -104,8 +108,12 @@ func loadConfig(path string) (*Config, error) {
 	}
 	// TODO: validation
 
-	config.SubCommands = []string{"run", "shell", "topology", "exp", "runfile"}
-	// TODO: sub commands should be configurable
+	if len(config.SubCommands) == 0 {
+		config.SubCommands = map[string]commandDetail{}
+		for _, sub := range defaultCommands {
+			config.SubCommands[sub] = commandDetail{}
+		}
+	}
 	config.Version = version.Version
 	return config, nil
 }
@@ -182,8 +190,9 @@ import (
 	"gopkg.in/urfave/cli.v1"
 	"os"
 	"gopkg.in/sensorbee/sensorbee.v0/version"
-	_ "gopkg.in/sensorbee/sensorbee.v0/bql/udf/builtin"{{range $_, $sub := .SubCommands}}
-	"gopkg.in/sensorbee/sensorbee.v0/cmd/lib/{{$sub}}"{{end}}
+	_ "gopkg.in/sensorbee/sensorbee.v0/bql/udf/builtin"{{range $sub, $path := .SubCommands}}{{if $path.Path}}
+	{{$sub}} "{{$path.Path}}"{{else}}
+	"gopkg.in/sensorbee/sensorbee.v0/cmd/lib/{{$sub}}"{{end}}{{end}}
 	"time"
 {{range $_, $path := .PluginPaths}}	_ "{{$path}}"
 {{end}})
@@ -199,11 +208,16 @@ func main() {
 	app.Usage = "SensorBee built with build_sensorbee {{.Version}}"
 	app.Version = version.Version
 	app.Commands = []cli.Command{
-{{range $_, $sub := .SubCommands}}		{{$sub}}.SetUp(),
+{{range $sub, $_ := .SubCommands}}		{{$sub}}.SetUp(),
 {{end}}}
 	if err := app.Run(os.Args); err != nil {
 		os.Exit(1)
 	}
 }
 `
+)
+
+var (
+	defaultCommands = []string{"run", "shell", "topology", "exp",
+		"runfile"}
 )
