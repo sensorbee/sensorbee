@@ -13,8 +13,8 @@ func TestDecoder(t *testing.T) {
 		s := &struct {
 			B bool
 			I int
-			F float64
-			S string `bql:"str_key"`
+			F float64 `bql:",weaklytyped"`
+			S string  `bql:"str_key"`
 		}{}
 
 		Convey("When decoding a map", func() {
@@ -41,8 +41,22 @@ func TestDecoder(t *testing.T) {
 				So(s.S, ShouldEqual, "str")
 			})
 		})
+
+		Convey("When decoding a weakly typed value", func() {
+			So(d.Decode(Map{
+				"f": String("3.14"),
+			}, s), ShouldBeNil)
+
+			Convey("Then it should be decoded as a float", func() {
+				So(s.F, ShouldEqual, 3.14)
+			})
+		})
 	})
 }
+
+// TODO: weaklytype tests for each type
+// All possible combinations are tested in type conversion tests, so these
+// tests only have to check if ToType is called.
 
 func TestToSnakeCase(t *testing.T) {
 	Convey("toSnakeCase should transform camelcase to snake case", t, func() {

@@ -207,13 +207,32 @@ func (d *Decoder) decodeStruct(src Value, dst reflect.Value) error {
 		return errors.New("struct can only be decoded from a map")
 	}
 
-	// TODO: aggregates all error informations to help users debug BQL.
+	// Aggregates all error informations to help users debug BQL.
+	// TODO: replace this with github.com/hashicorp/go-multierror
+	var errs []error
+
 	t := dst.Type()
 	for i, n := 0, t.NumField(); i < n; i++ {
 		f := t.Field(i)
-		tags := strings.Split(f.Tag.Get(d.config.TagName), ",")
+		opts := strings.Split(f.Tag.Get(d.config.TagName), ",")
 
-		name := strings.TrimSpace(tags[0])
+		// parse options
+		var (
+			weaklyTyped bool
+		)
+		for ti, opt := range opts {
+			if ti == 0 { // skip name
+				continue
+			}
+			switch opt {
+			case "weaklytyped":
+				weaklyTyped = true
+			default:
+				errs = append(errs, fmt.Errorf("%v field has an undefined option: %v", f.Name, opt))
+			}
+		}
+
+		name := strings.TrimSpace(opts[0])
 		if name == "" {
 			name = toSnakeCase(f.Name)
 		}
@@ -223,10 +242,13 @@ func (d *Decoder) decodeStruct(src Value, dst reflect.Value) error {
 			continue
 		}
 
-		if err := d.decode(src, dst.Field(i), false); err != nil {
-			// TODO: don't return here but just aggregates errors
-			return err
+		if err := d.decode(src, dst.Field(i), weaklyTyped); err != nil {
+			errs = append(errs, err)
 		}
+	}
+	if errs != nil {
+		// TODO: flatten errors
+		return errs[0]
 	}
 	return nil
 }
