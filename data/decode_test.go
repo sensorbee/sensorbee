@@ -29,6 +29,7 @@ func TestDecoder(t *testing.T) {
 			Struct    nested `bql:"nested"`
 			Time      time.Time
 			Timestamp Timestamp // just in case
+			Duration  time.Duration
 			IPtr      *int
 		}{}
 
@@ -54,6 +55,7 @@ func TestDecoder(t *testing.T) {
 				},
 				"time":      String(tsStr),
 				"timestamp": Int(1),
+				"duration":  String("5s"),
 				"i_ptr":     Int(99),
 			}, s), ShouldBeNil)
 
@@ -101,6 +103,9 @@ func TestDecoder(t *testing.T) {
 				So(time.Time(s.Timestamp), ShouldHappenOnOrBetween, time.Unix(1, 0), time.Unix(1, 0))
 			})
 
+			Convey("Then it should decode a duration", func() {
+				So(s.Duration, ShouldEqual, 5*time.Second)
+			})
 			Convey("Then it should decode an integer to an *int", func() {
 				So(*s.IPtr, ShouldEqual, 99)
 			})

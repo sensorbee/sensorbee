@@ -134,12 +134,14 @@ func (d *Decoder) decodeBool(src Value, dst reflect.Value, weaklyTyped bool) err
 }
 
 func (d *Decoder) decodeInt(src Value, dst reflect.Value, weaklyTyped bool) error {
+	if _, ok := dst.Interface().(time.Duration); ok {
+		return d.decodeDuration(src, dst)
+	}
+
 	var (
 		i   int64
 		err error
 	)
-
-	// TODO: support time.Duration
 
 	if weaklyTyped {
 		i, err = ToInt(src)
@@ -159,6 +161,17 @@ func (d *Decoder) decodeInt(src Value, dst reflect.Value, weaklyTyped bool) erro
 		return err
 	}
 	dst.SetInt(i)
+	return nil
+}
+
+func (d *Decoder) decodeDuration(src Value, dst reflect.Value) error {
+	// As described in decodeTimestamp, decodeDuration also assumes that the
+	// value is always weaklytyped.
+	dur, err := ToDuration(src)
+	if err != nil {
+		return err
+	}
+	dst.Set(reflect.ValueOf(dur))
 	return nil
 }
 
