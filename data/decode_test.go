@@ -13,16 +13,16 @@ func TestDecoder(t *testing.T) {
 		s := &struct {
 			B bool
 			I int
-			S string
 			F float64
+			S string `bql:"str_key"`
 		}{}
 
 		Convey("When decoding a map", func() {
 			So(d.Decode(Map{
-				"b": True,
-				"i": Int(10),
-				"f": Float(3.14),
-				"s": String("str"),
+				"b":       True,
+				"i":       Int(10),
+				"f":       Float(3.14),
+				"str_key": String("str"),
 			}, s), ShouldBeNil)
 
 			Convey("Then it should decode a boolean", func() {
