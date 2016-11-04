@@ -12,7 +12,7 @@ func TestDecoder(t *testing.T) {
 
 		s := &struct {
 			B bool
-			I int
+			I int     `bql:",required"`
 			F float64 `bql:",weaklytyped"`
 			S string  `bql:"str_key"`
 		}{}
@@ -44,11 +44,22 @@ func TestDecoder(t *testing.T) {
 
 		Convey("When decoding a weakly typed value", func() {
 			So(d.Decode(Map{
+				"i": Int(10),
 				"f": String("3.14"),
 			}, s), ShouldBeNil)
 
 			Convey("Then it should be decoded as a float", func() {
 				So(s.F, ShouldEqual, 3.14)
+			})
+		})
+
+		Convey("When a required field is missing", func() {
+			err := d.Decode(Map{
+				"f": String("3.14"),
+			}, s)
+
+			Convey("Then it should fail", func() {
+				So(err, ShouldNotBeNil)
 			})
 		})
 	})

@@ -218,6 +218,7 @@ func (d *Decoder) decodeStruct(src Value, dst reflect.Value) error {
 
 		// parse options
 		var (
+			required    bool
 			weaklyTyped bool
 		)
 		for ti, opt := range opts {
@@ -225,6 +226,8 @@ func (d *Decoder) decodeStruct(src Value, dst reflect.Value) error {
 				continue
 			}
 			switch opt {
+			case "required":
+				required = true
 			case "weaklytyped":
 				weaklyTyped = true
 			default:
@@ -238,7 +241,9 @@ func (d *Decoder) decodeStruct(src Value, dst reflect.Value) error {
 		}
 		src, ok := m[name]
 		if !ok {
-			// TODO: check required
+			if required {
+				errs = append(errs, fmt.Errorf("%v is required but missing", name))
+			}
 			continue
 		}
 
