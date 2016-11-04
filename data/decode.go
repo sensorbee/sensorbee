@@ -97,6 +97,20 @@ func (d *Decoder) decode(src Value, dst reflect.Value, weaklyTyped bool) error {
 
 	case reflect.Struct:
 		return d.decodeStruct(src, dst)
+
+	case reflect.Ptr:
+		// To decode a value to dst, dst must be addressable. However,
+		// reflect.ValueOf or reflect.Zero may return non-addressable values
+		// especially when value is of primitive types. The following
+		// New-Indirect idiom works for such cases. First reflect.New creates
+		// a pointer that points to a non-nil addressable value. Then,
+		// reflect.Indirect returns an element pointed by the pointer.
+		v := reflect.New(dst.Type().Elem())
+		if err := d.decode(src, reflect.Indirect(v), weaklyTyped); err != nil {
+			return err
+		}
+		dst.Set(v)
+		return nil
 	}
 	return fmt.Errorf("decoder doesn't support the type: %v", dst.Kind())
 }

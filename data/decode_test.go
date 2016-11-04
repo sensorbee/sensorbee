@@ -19,6 +19,7 @@ func TestDecoder(t *testing.T) {
 			FloatMap map[string]float64
 			// TODO: support generic array when decoder supports Value
 			IntArray []int
+			IPtr     *int
 		}{}
 
 		Convey("When decoding a map", func() {
@@ -33,6 +34,7 @@ func TestDecoder(t *testing.T) {
 					"c": Float(5.6),
 				},
 				"int_array": Array{Int(1), Int(2), Int(3)},
+				"i_ptr":     Int(99),
 			}, s), ShouldBeNil)
 
 			Convey("Then it should decode a boolean", func() {
@@ -61,6 +63,10 @@ func TestDecoder(t *testing.T) {
 
 			Convey("Then it should decode a typed array", func() {
 				So(s.IntArray, ShouldResemble, []int{1, 2, 3})
+			})
+
+			Convey("Then it should decode an integer to an *int", func() {
+				So(*s.IPtr, ShouldEqual, 99)
 			})
 		})
 
