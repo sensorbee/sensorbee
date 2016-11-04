@@ -2,6 +2,7 @@ package data
 
 import (
 	"testing"
+	"time"
 
 	. "github.com/smartystreets/goconvey/convey"
 )
@@ -23,13 +24,17 @@ func TestDecoder(t *testing.T) {
 			// TODO: support generic map when decoder supports Value
 			FloatMap map[string]float64
 			// TODO: support generic array when decoder supports Value
-			IntArray []int
-			Blob     []byte
-			Struct   nested `bql:"nested"`
-			IPtr     *int
+			IntArray  []int
+			Blob      []byte
+			Struct    nested `bql:"nested"`
+			Time      time.Time
+			Timestamp Timestamp // just in case
+			IPtr      *int
 		}{}
 
 		Convey("When decoding a map", func() {
+			now := time.Now()
+			tsStr, _ := ToString(Timestamp(now))
 			So(d.Decode(Map{
 				"b":       True,
 				"i":       Int(10),
@@ -47,7 +52,9 @@ func TestDecoder(t *testing.T) {
 					"nested_float": Float(2.3),
 					"nested_str":   String("4"),
 				},
-				"i_ptr": Int(99),
+				"time":      String(tsStr),
+				"timestamp": Int(1),
+				"i_ptr":     Int(99),
 			}, s), ShouldBeNil)
 
 			Convey("Then it should decode a boolean", func() {
@@ -84,6 +91,14 @@ func TestDecoder(t *testing.T) {
 
 			Convey("Then it should decode a nested struct", func() {
 				So(s.Struct, ShouldResemble, nested{1, 2.3, "4"})
+			})
+
+			Convey("Then it should decode a timestamp to time.Time", func() {
+				So(s.Time, ShouldHappenOnOrBetween, now, now)
+			})
+
+			Convey("Then it should decode a timestamp to Timestamp", func() {
+				So(time.Time(s.Timestamp), ShouldHappenOnOrBetween, time.Unix(1, 0), time.Unix(1, 0))
 			})
 
 			Convey("Then it should decode an integer to an *int", func() {

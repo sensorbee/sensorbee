@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"time"
 
 	"github.com/fatih/camelcase"
 )
@@ -264,7 +265,9 @@ func (d *Decoder) decodeBlob(src Value, dst reflect.Value, weaklyTyped bool) err
 }
 
 func (d *Decoder) decodeStruct(src Value, dst reflect.Value) error {
-	// TODO: support time.Time
+	if dst.Type().ConvertibleTo(reflect.TypeOf(time.Time{})) {
+		return d.decodeTimestamp(src, dst)
+	}
 
 	m, err := AsMap(src)
 	if err != nil {
@@ -318,6 +321,26 @@ func (d *Decoder) decodeStruct(src Value, dst reflect.Value) error {
 	if errs != nil {
 		// TODO: flatten errors
 		return errs[0]
+	}
+	return nil
+}
+
+func (d *Decoder) decodeTimestamp(src Value, dst reflect.Value) error {
+	// src is provided as a part of BQL and there's no way in BQL to construct
+	// Timestamp directly. So, conversions to time.Time and Timestamp is always
+	// considered weaklytyped.
+
+	t, err := ToTimestamp(src)
+	if err != nil {
+		return err
+	}
+	switch dst.Interface().(type) {
+	case time.Time:
+		dst.Set(reflect.ValueOf(t))
+	case Timestamp:
+		dst.Set(reflect.ValueOf(Timestamp(t)))
+	default:
+		return errors.New("only time.Time and data.Timestamp can be used for decoding a timestamp")
 	}
 	return nil
 }
