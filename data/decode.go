@@ -193,10 +193,18 @@ func (d *Decoder) decodeSlice(src Value, dst reflect.Value, weaklyTyped bool) er
 	if src.Type() != TypeArray {
 		return fmt.Errorf("cannot decode to an array: %v", src.Type())
 	}
+	a, _ := AsArray(src)
 
-	// TODO: create an array
-	// TODO: for each element, call decode
-	return errors.New("not implemented yet")
+	res := reflect.MakeSlice(dst.Type(), len(a), len(a))
+	for i, e := range a {
+		v := res.Index(i)
+		if err := d.decode(e, v, weaklyTyped); err != nil {
+			// TODO: this should probably be multierror, too.
+			return err
+		}
+	}
+	dst.Set(res)
+	return nil
 }
 
 func (d *Decoder) decodeStruct(src Value, dst reflect.Value) error {

@@ -15,14 +15,17 @@ func TestDecoder(t *testing.T) {
 			I int     `bql:",required"`
 			F float64 `bql:",weaklytyped"`
 			S string  `bql:"str_key"`
+			// TODO: support generic array when decoder supports Value
+			IntArray []int
 		}{}
 
 		Convey("When decoding a map", func() {
 			So(d.Decode(Map{
-				"b":       True,
-				"i":       Int(10),
-				"f":       Float(3.14),
-				"str_key": String("str"),
+				"b":         True,
+				"i":         Int(10),
+				"f":         Float(3.14),
+				"str_key":   String("str"),
+				"int_array": Array{Int(1), Int(2), Int(3)},
 			}, s), ShouldBeNil)
 
 			Convey("Then it should decode a boolean", func() {
@@ -39,6 +42,10 @@ func TestDecoder(t *testing.T) {
 
 			Convey("Then it should decode a string", func() {
 				So(s.S, ShouldEqual, "str")
+			})
+
+			Convey("Then it should decode a typed array", func() {
+				So(s.IntArray, ShouldResemble, []int{1, 2, 3})
 			})
 		})
 
