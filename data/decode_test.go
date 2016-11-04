@@ -10,6 +10,11 @@ func TestDecoder(t *testing.T) {
 	Convey("Given a decoder with the default config", t, func() {
 		d := NewDecoder(nil)
 
+		type nested struct {
+			X int     `bql:"nested_int"`
+			Y float64 `bql:"nested_float"`
+			Z string  `bql:"nested_str"`
+		}
 		s := &struct {
 			B bool
 			I int     `bql:",required"`
@@ -19,6 +24,7 @@ func TestDecoder(t *testing.T) {
 			FloatMap map[string]float64
 			// TODO: support generic array when decoder supports Value
 			IntArray []int
+			Struct   nested `bql:"nested"`
 			IPtr     *int
 		}{}
 
@@ -34,7 +40,12 @@ func TestDecoder(t *testing.T) {
 					"c": Float(5.6),
 				},
 				"int_array": Array{Int(1), Int(2), Int(3)},
-				"i_ptr":     Int(99),
+				"nested": Map{
+					"nested_int":   Int(1),
+					"nested_float": Float(2.3),
+					"nested_str":   String("4"),
+				},
+				"i_ptr": Int(99),
 			}, s), ShouldBeNil)
 
 			Convey("Then it should decode a boolean", func() {
@@ -63,6 +74,10 @@ func TestDecoder(t *testing.T) {
 
 			Convey("Then it should decode a typed array", func() {
 				So(s.IntArray, ShouldResemble, []int{1, 2, 3})
+			})
+
+			Convey("Then it should decode a nested struct", func() {
+				So(s.Struct, ShouldResemble, nested{1, 2.3, "4"})
 			})
 
 			Convey("Then it should decode an integer to an *int", func() {
