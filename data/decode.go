@@ -186,7 +186,28 @@ func (d *Decoder) decodeInterface(src Value, dst reflect.Value) error {
 }
 
 func (d *Decoder) decodeMap(src Value, dst reflect.Value, weaklyTyped bool) error {
-	return errors.New("not implemented yet")
+	if src.Type() != TypeMap {
+		return fmt.Errorf("cannot decode to a map: %v", src.Type())
+	}
+	m, _ := AsMap(src)
+
+	t := dst.Type()
+	if k := t.Key().Kind(); k != reflect.String {
+		return fmt.Errorf("key must be string: %v", k)
+	}
+	valueType := t.Elem()
+
+	res := reflect.MakeMap(t)
+	for k, e := range m {
+		v := reflect.Indirect(reflect.New(valueType))
+		if err := d.decode(e, v, weaklyTyped); err != nil {
+			// TODO: this should probably be multierror, too.
+			return err
+		}
+		res.SetMapIndex(reflect.ValueOf(k), v)
+	}
+	dst.Set(res)
+	return nil
 }
 
 func (d *Decoder) decodeSlice(src Value, dst reflect.Value, weaklyTyped bool) error {

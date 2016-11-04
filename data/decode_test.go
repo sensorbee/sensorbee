@@ -15,16 +15,23 @@ func TestDecoder(t *testing.T) {
 			I int     `bql:",required"`
 			F float64 `bql:",weaklytyped"`
 			S string  `bql:"str_key"`
+			// TODO: support generic map when decoder supports Value
+			FloatMap map[string]float64
 			// TODO: support generic array when decoder supports Value
 			IntArray []int
 		}{}
 
 		Convey("When decoding a map", func() {
 			So(d.Decode(Map{
-				"b":         True,
-				"i":         Int(10),
-				"f":         Float(3.14),
-				"str_key":   String("str"),
+				"b":       True,
+				"i":       Int(10),
+				"f":       Float(3.14),
+				"str_key": String("str"),
+				"float_map": Map{
+					"a": Float(1.2),
+					"b": Float(3.4),
+					"c": Float(5.6),
+				},
 				"int_array": Array{Int(1), Int(2), Int(3)},
 			}, s), ShouldBeNil)
 
@@ -42,6 +49,14 @@ func TestDecoder(t *testing.T) {
 
 			Convey("Then it should decode a string", func() {
 				So(s.S, ShouldEqual, "str")
+			})
+
+			Convey("Then it should decode a typed map", func() {
+				So(s.FloatMap, ShouldResemble, map[string]float64{
+					"a": 1.2,
+					"b": 3.4,
+					"c": 5.6,
+				})
 			})
 
 			Convey("Then it should decode a typed array", func() {
