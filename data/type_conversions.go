@@ -250,6 +250,17 @@ func ToBlob(v Value) ([]byte, error) {
 		return base64.StdEncoding.DecodeString(val)
 	case TypeBlob:
 		return v.asBlob()
+	case TypeArray:
+		a, _ := v.asArray()
+		b := make([]byte, len(a))
+		for i, e := range a {
+			v, err := e.asInt()
+			if err != nil || !(0 <= v && v <= 255) {
+				return nil, fmt.Errorf("cannot convert %T to Blob value", v)
+			}
+			b[i] = byte(v)
+		}
+		return b, nil
 	default:
 		return nil, fmt.Errorf("cannot convert %T to Blob", v)
 	}
