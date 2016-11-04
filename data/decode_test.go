@@ -17,13 +17,14 @@ func TestDecoder(t *testing.T) {
 			Z string  `bql:"nested_str"`
 		}
 		s := &struct {
-			B bool
-			I int     `bql:",required"`
-			F float64 `bql:",weaklytyped"`
-			S string  `bql:"str_key"`
-			// TODO: support generic map when decoder supports Value
-			FloatMap map[string]float64
-			// TODO: support generic array when decoder supports Value
+			B         bool
+			I         int     `bql:",required"`
+			F         float64 `bql:",weaklytyped"`
+			S         string  `bql:"str_key"`
+			V         Value
+			Map       Map
+			FloatMap  map[string]float64
+			Array     Array
 			IntArray  []int
 			Blob      []byte
 			Struct    nested `bql:"nested"`
@@ -41,11 +42,19 @@ func TestDecoder(t *testing.T) {
 				"i":       Int(10),
 				"f":       Float(3.14),
 				"str_key": String("str"),
+				"v": Map{
+					"a": String("b"),
+					"c": Int(1),
+				},
+				"map": Map{
+					"key": String("value"),
+				},
 				"float_map": Map{
 					"a": Float(1.2),
 					"b": Float(3.4),
 					"c": Float(5.6),
 				},
+				"array":     Array{Int(1), Float(2.3), String("4")},
 				"int_array": Array{Int(1), Int(2), Int(3)},
 				"blob":      Blob{4, 5, 6},
 				"nested": Map{
@@ -75,12 +84,29 @@ func TestDecoder(t *testing.T) {
 				So(s.S, ShouldEqual, "str")
 			})
 
+			Convey("Then it should decode a Value", func() {
+				So(s.V, ShouldResemble, Map{
+					"a": String("b"),
+					"c": Int(1),
+				})
+			})
+
+			Convey("Then it should decode a generic map", func() {
+				So(s.Map, ShouldResemble, Map{
+					"key": String("value"),
+				})
+			})
+
 			Convey("Then it should decode a typed map", func() {
 				So(s.FloatMap, ShouldResemble, map[string]float64{
 					"a": 1.2,
 					"b": 3.4,
 					"c": 5.6,
 				})
+			})
+
+			Convey("Then it should decode a generic array", func() {
+				So(s.Array, ShouldResemble, Array{Int(1), Float(2.3), String("4")})
 			})
 
 			Convey("Then it should decode a typed array", func() {

@@ -84,11 +84,11 @@ func (d *Decoder) decode(src Value, dst reflect.Value, weaklyTyped bool) error {
 	case reflect.String:
 		return d.decodeString(src, dst, weaklyTyped)
 
-	case reflect.Interface: // Only interface{} and Value is supported
-		if !reflect.TypeOf(func(interface{}) {}).In(0).AssignableTo(dst.Type()) {
-			return errors.New("only empty interface{} is supported")
+	case reflect.Interface: // Only Value is supported
+		if dst.Type() != reflect.TypeOf(func(Value) {}).In(0) {
+			return errors.New("interface{} other than data.Value is not supported")
 		}
-		return d.decodeInterface(src, dst)
+		return d.decodeValue(src, dst)
 
 	case reflect.Map:
 		return d.decodeMap(src, dst, weaklyTyped)
@@ -209,8 +209,9 @@ func (d *Decoder) decodeString(src Value, dst reflect.Value, weaklyTyped bool) e
 	return nil
 }
 
-func (d *Decoder) decodeInterface(src Value, dst reflect.Value) error {
-	return errors.New("not implemented yet")
+func (d *Decoder) decodeValue(src Value, dst reflect.Value) error {
+	dst.Set(reflect.ValueOf(src))
+	return nil
 }
 
 func (d *Decoder) decodeMap(src Value, dst reflect.Value, weaklyTyped bool) error {
