@@ -24,6 +24,7 @@ func TestDecoder(t *testing.T) {
 			FloatMap map[string]float64
 			// TODO: support generic array when decoder supports Value
 			IntArray []int
+			Blob     []byte
 			Struct   nested `bql:"nested"`
 			IPtr     *int
 		}{}
@@ -40,6 +41,7 @@ func TestDecoder(t *testing.T) {
 					"c": Float(5.6),
 				},
 				"int_array": Array{Int(1), Int(2), Int(3)},
+				"blob":      Blob{4, 5, 6},
 				"nested": Map{
 					"nested_int":   Int(1),
 					"nested_float": Float(2.3),
@@ -74,6 +76,10 @@ func TestDecoder(t *testing.T) {
 
 			Convey("Then it should decode a typed array", func() {
 				So(s.IntArray, ShouldResemble, []int{1, 2, 3})
+			})
+
+			Convey("Then it should decode a blob", func() {
+				So(s.Blob, ShouldResemble, []byte{4, 5, 6})
 			})
 
 			Convey("Then it should decode a nested struct", func() {

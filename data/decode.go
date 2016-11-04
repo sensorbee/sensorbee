@@ -225,6 +225,10 @@ func (d *Decoder) decodeMap(src Value, dst reflect.Value, weaklyTyped bool) erro
 }
 
 func (d *Decoder) decodeSlice(src Value, dst reflect.Value, weaklyTyped bool) error {
+	if dst.Type().Elem().Kind() == reflect.Uint8 {
+		return d.decodeBlob(src, dst, weaklyTyped)
+	}
+
 	if src.Type() != TypeArray {
 		return fmt.Errorf("cannot decode to an array: %v", src.Type())
 	}
@@ -239,6 +243,23 @@ func (d *Decoder) decodeSlice(src Value, dst reflect.Value, weaklyTyped bool) er
 		}
 	}
 	dst.Set(res)
+	return nil
+}
+
+func (d *Decoder) decodeBlob(src Value, dst reflect.Value, weaklyTyped bool) error {
+	var (
+		b   Blob
+		err error
+	)
+	if weaklyTyped {
+		b, err = ToBlob(src)
+	} else {
+		b, err = AsBlob(src)
+	}
+	if err != nil {
+		return err
+	}
+	dst.Set(reflect.ValueOf(b))
 	return nil
 }
 
