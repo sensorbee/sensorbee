@@ -231,21 +231,61 @@ func TestDecoderMetadata(t *testing.T) {
 			C int
 		}{}
 
+		md := &DecoderMetadata{}
 		d := NewDecoder(&DecoderConfig{
 			ErrorUnused: true,
+			Metadata:    md,
 		})
 
-		Convey("When decoding valid values", func() {
+		Convey("When decoding all valid values", func() {
 			err := d.Decode(Map{
 				"a": Int(1),
 				"b": Int(2),
 				"c": Int(4),
 			}, &s)
 			So(err, ShouldBeNil)
+
 			Convey("Then it should succeed", func() {
 				So(s.A, ShouldEqual, 1)
 				So(s.B, ShouldEqual, 2)
 				So(s.C, ShouldEqual, 4)
+			})
+
+			Convey("Then the metadata should have all keys", func() {
+				So(len(md.Keys), ShouldEqual, 3)
+				So(md.Keys, ShouldContain, "a")
+				So(md.Keys, ShouldContain, "b")
+				So(md.Keys, ShouldContain, "c")
+			})
+
+			Convey("Then the metadata shouldn't contain any unused key", func() {
+				So(md.Unused, ShouldBeEmpty)
+			})
+		})
+
+		Convey("When decoding partially", func() {
+			s.B = 3 // default value
+			err := d.Decode(Map{
+				"a": Int(1),
+				"c": Int(4),
+			}, &s)
+			So(err, ShouldBeNil)
+
+			Convey("Then it should succeed", func() {
+				So(s.A, ShouldEqual, 1)
+				So(s.B, ShouldEqual, 3)
+				So(s.C, ShouldEqual, 4)
+			})
+
+			Convey("Then the metadata should have all processed keys", func() {
+				So(len(md.Keys), ShouldEqual, 2)
+				So(md.Keys, ShouldContain, "a")
+				So(md.Keys, ShouldNotContain, "b")
+				So(md.Keys, ShouldContain, "c")
+			})
+
+			Convey("Then the metadata shouldn't contain any unused key", func() {
+				So(md.Unused, ShouldBeEmpty)
 			})
 		})
 
@@ -254,10 +294,24 @@ func TestDecoderMetadata(t *testing.T) {
 				"a":  Int(1),
 				"bb": Int(2),
 				"c":  Int(4),
+				"d":  Int(8),
 			}, &s)
 
 			Convey("Then it should fail", func() {
 				So(err, ShouldNotBeNil)
+			})
+
+			Convey("Then the metadata should only have processed keys", func() {
+				So(len(md.Keys), ShouldEqual, 2)
+				So(md.Keys, ShouldContain, "a")
+				So(md.Keys, ShouldNotContain, "b")
+				So(md.Keys, ShouldContain, "c")
+			})
+
+			Convey("Then the metadata should contain unused keys", func() {
+				So(len(md.Unused), ShouldEqual, 2)
+				So(md.Unused, ShouldContain, "bb")
+				So(md.Unused, ShouldContain, "d")
 			})
 		})
 	})

@@ -353,6 +353,9 @@ func (d *Decoder) decodeStruct(src Value, dst reflect.Value) error {
 			}
 			continue
 		}
+		if d.config.Metadata != nil {
+			d.config.Metadata.Keys = append(d.config.Metadata.Keys, name)
+		}
 
 		if err := d.decode(src, dst.Field(i), weaklyTyped); err != nil {
 			errs = append(errs, err)
@@ -366,6 +369,10 @@ func (d *Decoder) decodeStruct(src Value, dst reflect.Value) error {
 			keys[i] = k
 			i++
 		}
+		if d.config.Metadata != nil {
+			d.config.Metadata.Unused = keys
+		}
+
 		errs = append(errs, fmt.Errorf("unused keys: %v", strings.Join(keys, ", ")))
 	}
 	if errs != nil {
