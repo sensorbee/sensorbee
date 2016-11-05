@@ -223,6 +223,46 @@ func TestDecoder(t *testing.T) {
 	})
 }
 
+func TestDecoderMetadata(t *testing.T) {
+	Convey("Given a decoder with Metadata + ErrorUnused", t, func() {
+		s := struct {
+			A int
+			B int
+			C int
+		}{}
+
+		d := NewDecoder(&DecoderConfig{
+			ErrorUnused: true,
+		})
+
+		Convey("When decoding valid values", func() {
+			err := d.Decode(Map{
+				"a": Int(1),
+				"b": Int(2),
+				"c": Int(4),
+			}, &s)
+			So(err, ShouldBeNil)
+			Convey("Then it should succeed", func() {
+				So(s.A, ShouldEqual, 1)
+				So(s.B, ShouldEqual, 2)
+				So(s.C, ShouldEqual, 4)
+			})
+		})
+
+		Convey("When a map contains a undefined key", func() {
+			err := d.Decode(Map{
+				"a":  Int(1),
+				"bb": Int(2),
+				"c":  Int(4),
+			}, &s)
+
+			Convey("Then it should fail", func() {
+				So(err, ShouldNotBeNil)
+			})
+		})
+	})
+}
+
 func TestDecodeWeaklytyped(t *testing.T) {
 	Convey("Given decoding a struct filled with weaklytyped options", t, func() {
 		s := &struct {

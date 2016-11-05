@@ -303,6 +303,14 @@ func (d *Decoder) decodeStruct(src Value, dst reflect.Value) error {
 		return errors.New("struct can only be decoded from a map")
 	}
 
+	var unused map[string]struct{}
+	if d.config.ErrorUnused {
+		unused = make(map[string]struct{}, len(m))
+		for k := range m {
+			unused[k] = struct{}{}
+		}
+	}
+
 	// Aggregates all error informations to help users debug BQL.
 	// TODO: replace this with github.com/hashicorp/go-multierror
 	var errs []error
@@ -335,6 +343,9 @@ func (d *Decoder) decodeStruct(src Value, dst reflect.Value) error {
 		if name == "" {
 			name = toSnakeCase(f.Name)
 		}
+		if d.config.ErrorUnused {
+			delete(unused, name)
+		}
 		src, ok := m[name]
 		if !ok {
 			if required {
@@ -346,6 +357,16 @@ func (d *Decoder) decodeStruct(src Value, dst reflect.Value) error {
 		if err := d.decode(src, dst.Field(i), weaklyTyped); err != nil {
 			errs = append(errs, err)
 		}
+	}
+
+	if d.config.ErrorUnused && len(unused) > 0 {
+		keys := make([]string, len(unused))
+		i := 0
+		for k := range unused {
+			keys[i] = k
+			i++
+		}
+		errs = append(errs, fmt.Errorf("unused keys: %v", strings.Join(keys, ", ")))
 	}
 	if errs != nil {
 		// TODO: flatten errors
