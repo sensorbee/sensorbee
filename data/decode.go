@@ -56,7 +56,17 @@ func NewDecoder(c *DecoderConfig) *Decoder {
 
 // Decode decodes a Map into a struct. The argument must be a pointer to a
 // struct.
-func (d *Decoder) Decode(m Map, v interface{}) error {
+func (d *Decoder) Decode(m Map, v interface{}) (err error) {
+	defer func() {
+		// Because this function heavily depends on reflect and it has many
+		// chance to panic, this function catches it converts it to an error.
+		// This isn't a desired handling of panics, but panics makes debugging
+		// hard for SensorBee users otherwise.
+		if e := recover(); e != nil {
+			err = fmt.Errorf("%v", e)
+		}
+	}()
+
 	p := reflect.ValueOf(v)
 	if p.Kind() != reflect.Ptr {
 		return errors.New("result must be a pointer to a struct")
@@ -184,6 +194,11 @@ func (d *Decoder) decodeFloat(src Value, dst reflect.Value, weaklyTyped bool) er
 		f, err = ToFloat(src)
 	} else {
 		f, err = AsFloat(src)
+		if err != nil && src.Type() == TypeInt {
+			i, _ := AsInt(src)
+			f = float64(i)
+			err = nil
+		}
 	}
 	if err != nil {
 		return err
@@ -374,5 +389,7 @@ func toSnakeCase(name string) string {
 // Decode decodes a Map into a struct. The argument must be a pointer to a
 // struct.
 func Decode(m Map, v interface{}) error {
-	return NewDecoder(nil).Decode(m, v)
+	return NewDecoder(&DecoderConfig{
+		ErrorUnused: true,
+	}).Decode(m, v)
 }
