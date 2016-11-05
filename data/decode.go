@@ -13,6 +13,80 @@ import (
 )
 
 // Decoder decodes a Map into a struct.
+//
+// Following types of fields are supported:
+//
+//	* bool
+//	* int (all sizes)
+//	* float32, float64
+//	* string
+//	* data.Value (used like interface{})
+//	* map, data.Map
+//	* slice, data.Array
+//	* struct, embedded struct
+//	* Blob
+//	* time.Time, Timestamp (see ToTimestamp to know supported values)
+//	* time.Duration (can be decoded from following types:)
+//		* int: second (e.g. 5 => 5 * time.Second)
+//		* float: second + subsecond (e.g 2.5 => 2 * time.Second + 500 * time.Millisecond)
+//		* string: Go's duration format (e.g. "6s" => 6 * time.Second)
+//	* pointer of these types
+//
+// A regular array is not supported yet. User defined time.Time-compatbile
+// types cannot be used.
+//
+// By default, the name of a field is converted to snake_case. For example,
+//
+//	struct {
+//		Param1 int
+//		AnotherParam1 string
+//		AnotherParam2 float64
+//	}
+//
+// these fields are looked up by "param_1", "another_param_1", and
+// "another_param_3", respectively. Names are case-sensitive.
+//
+// A field has a custom name by specifying a tag:
+//
+//	struct {
+//		Param1 int `bql:"new_name"`
+//	}
+//
+// In this example, Param1 will be decoded from the value in a Map whose key is
+// "new_name" rather than "param_1".
+//
+// All fields are considered optional by default. To have a required field,
+// use required option in the tag:
+//
+//	struct {
+//		Param1 int `bql:"new_name,required"`
+//	}
+//
+// Decode returns an error when it can't find a value for the field. required
+// option can be specified without giving a custom field name as json package
+// and other similar packages do:
+//
+//	struct {
+//		Param1 int `bql:",required"`
+//	}
+//
+// weaklytyped option is available to allow users to write values flexibly:
+//
+//	struct {
+//		Param1 int `bql:",weaklytyped"`
+//	}
+//
+// Internally, weaklytyped fields are converted by ToType function, while
+// AsType function is used for regular fields. Following types are always
+// cnosidered weaklytyped: time.Time, Timestamp, time.Duration. Struct and
+// data.Value ignore weaklytyped option. When a map or an array is weaklytyped,
+// it means its element will be converted by ToType function.
+//
+// Without weaklytyped option, a float can implicitly be converted to an int
+// when it has an integer value. Similarly, an int can always be casted to
+// a float implicitly.
+//
+// A field may have multiple options at once.
 type Decoder struct {
 	config *DecoderConfig
 
@@ -30,7 +104,11 @@ type DecoderConfig struct {
 	// will not be tracked.
 	Metadata *DecoderMetadata
 
+	// TagName is the name of the struct tag looked up by Decoder. The default
+	// is "bql".
 	TagName string
+
+	// TODO: case-insensitive matching flag
 }
 
 // DecoderMetadata tracks field names that are used or not used for decoding.
