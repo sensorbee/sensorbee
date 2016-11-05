@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/fatih/camelcase"
+	multierror "github.com/hashicorp/go-multierror"
 )
 
 // Decoder decodes a Map into a struct.
@@ -75,39 +76,39 @@ func (d *Decoder) Decode(m Map, v interface{}) (err error) {
 	if s.Kind() != reflect.Struct {
 		return errors.New("result must be pointer to a struct")
 	}
-	return d.decodeStruct(m, s)
+	return d.decodeStruct("", m, s)
 }
 
-func (d *Decoder) decode(src Value, dst reflect.Value, weaklyTyped bool) error {
+func (d *Decoder) decode(prefix string, src Value, dst reflect.Value, weaklyTyped bool) error {
 	switch dst.Kind() {
 	case reflect.Bool:
-		return d.decodeBool(src, dst, weaklyTyped)
+		return d.decodeBool(prefix, src, dst, weaklyTyped)
 
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
 		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		// TODO: support detecting overflows
-		return d.decodeInt(src, dst, weaklyTyped)
+		return d.decodeInt(prefix, src, dst, weaklyTyped)
 
 	case reflect.Float32, reflect.Float64:
-		return d.decodeFloat(src, dst, weaklyTyped)
+		return d.decodeFloat(prefix, src, dst, weaklyTyped)
 
 	case reflect.String:
-		return d.decodeString(src, dst, weaklyTyped)
+		return d.decodeString(prefix, src, dst, weaklyTyped)
 
 	case reflect.Interface: // Only Value is supported
 		if dst.Type() != reflect.TypeOf(func(Value) {}).In(0) {
-			return errors.New("interface{} other than data.Value is not supported")
+			return fmt.Errorf("%v: interface{} other than data.Value is not supported", prefix)
 		}
-		return d.decodeValue(src, dst)
+		return d.decodeValue(prefix, src, dst)
 
 	case reflect.Map:
-		return d.decodeMap(src, dst, weaklyTyped)
+		return d.decodeMap(prefix, src, dst, weaklyTyped)
 
 	case reflect.Slice:
-		return d.decodeSlice(src, dst, weaklyTyped)
+		return d.decodeSlice(prefix, src, dst, weaklyTyped)
 
 	case reflect.Struct:
-		return d.decodeStruct(src, dst)
+		return d.decodeStruct(prefix, src, dst)
 
 	case reflect.Ptr:
 		// To decode a value to dst, dst must be addressable. However,
@@ -117,16 +118,16 @@ func (d *Decoder) decode(src Value, dst reflect.Value, weaklyTyped bool) error {
 		// a pointer that points to a non-nil addressable value. Then,
 		// reflect.Indirect returns an element pointed by the pointer.
 		v := reflect.New(dst.Type().Elem())
-		if err := d.decode(src, reflect.Indirect(v), weaklyTyped); err != nil {
+		if err := d.decode(prefix, src, reflect.Indirect(v), weaklyTyped); err != nil {
 			return err
 		}
 		dst.Set(v)
 		return nil
 	}
-	return fmt.Errorf("decoder doesn't support the type: %v", dst.Kind())
+	return fmt.Errorf("%v: decoder doesn't support the type: %v", prefix, dst.Kind())
 }
 
-func (d *Decoder) decodeBool(src Value, dst reflect.Value, weaklyTyped bool) error {
+func (d *Decoder) decodeBool(prefix string, src Value, dst reflect.Value, weaklyTyped bool) error {
 	var (
 		b   bool
 		err error
@@ -137,15 +138,15 @@ func (d *Decoder) decodeBool(src Value, dst reflect.Value, weaklyTyped bool) err
 		b, err = AsBool(src)
 	}
 	if err != nil {
-		return err
+		return fmt.Errorf("%v: %v", prefix, err)
 	}
 	dst.SetBool(b)
 	return nil
 }
 
-func (d *Decoder) decodeInt(src Value, dst reflect.Value, weaklyTyped bool) error {
+func (d *Decoder) decodeInt(prefix string, src Value, dst reflect.Value, weaklyTyped bool) error {
 	if _, ok := dst.Interface().(time.Duration); ok {
-		return d.decodeDuration(src, dst)
+		return d.decodeDuration(prefix, src, dst)
 	}
 
 	var (
@@ -168,24 +169,24 @@ func (d *Decoder) decodeInt(src Value, dst reflect.Value, weaklyTyped bool) erro
 		}
 	}
 	if err != nil {
-		return err
+		return fmt.Errorf("%v: %v", prefix, err)
 	}
 	dst.SetInt(i)
 	return nil
 }
 
-func (d *Decoder) decodeDuration(src Value, dst reflect.Value) error {
+func (d *Decoder) decodeDuration(prefix string, src Value, dst reflect.Value) error {
 	// As described in decodeTimestamp, decodeDuration also assumes that the
 	// value is always weaklytyped.
 	dur, err := ToDuration(src)
 	if err != nil {
-		return err
+		return fmt.Errorf("%v: %v", prefix, err)
 	}
 	dst.Set(reflect.ValueOf(dur))
 	return nil
 }
 
-func (d *Decoder) decodeFloat(src Value, dst reflect.Value, weaklyTyped bool) error {
+func (d *Decoder) decodeFloat(prefix string, src Value, dst reflect.Value, weaklyTyped bool) error {
 	var (
 		f   float64
 		err error
@@ -201,13 +202,13 @@ func (d *Decoder) decodeFloat(src Value, dst reflect.Value, weaklyTyped bool) er
 		}
 	}
 	if err != nil {
-		return err
+		return fmt.Errorf("%v: %v", prefix, err)
 	}
 	dst.SetFloat(f)
 	return nil
 }
 
-func (d *Decoder) decodeString(src Value, dst reflect.Value, weaklyTyped bool) error {
+func (d *Decoder) decodeString(prefix string, src Value, dst reflect.Value, weaklyTyped bool) error {
 	var (
 		s   string
 		err error
@@ -218,65 +219,73 @@ func (d *Decoder) decodeString(src Value, dst reflect.Value, weaklyTyped bool) e
 		s, err = AsString(src)
 	}
 	if err != nil {
-		return err
+		return fmt.Errorf("%v: %v", prefix, err)
 	}
 	dst.SetString(s)
 	return nil
 }
 
-func (d *Decoder) decodeValue(src Value, dst reflect.Value) error {
+func (d *Decoder) decodeValue(prefix string, src Value, dst reflect.Value) error {
 	dst.Set(reflect.ValueOf(src))
 	return nil
 }
 
-func (d *Decoder) decodeMap(src Value, dst reflect.Value, weaklyTyped bool) error {
+func (d *Decoder) decodeMap(prefix string, src Value, dst reflect.Value, weaklyTyped bool) error {
 	if src.Type() != TypeMap {
-		return fmt.Errorf("cannot decode to a map: %v", src.Type())
+		return fmt.Errorf("%v: cannot decode to a map: %v", prefix, src.Type())
 	}
 	m, _ := AsMap(src)
 
 	t := dst.Type()
 	if k := t.Key().Kind(); k != reflect.String {
-		return fmt.Errorf("key must be string: %v", k)
+		return fmt.Errorf("%v: key must be string: %v", prefix, k)
 	}
 	valueType := t.Elem()
 
+	var errs *multierror.Error
 	res := reflect.MakeMap(t)
 	for k, e := range m {
 		v := reflect.Indirect(reflect.New(valueType))
-		if err := d.decode(e, v, weaklyTyped); err != nil {
-			// TODO: this should probably be multierror, too.
-			return err
+		if err := d.decode(fmt.Sprintf(`%v["%v"]`, prefix, k), e, v, weaklyTyped); err != nil {
+			errs = multierror.Append(errs, err)
+			continue
 		}
 		res.SetMapIndex(reflect.ValueOf(k), v)
 	}
 	dst.Set(res)
-	return nil
+	if errs == nil {
+		return nil // DO NOT return errs even if it's nil
+	}
+	return errs
 }
 
-func (d *Decoder) decodeSlice(src Value, dst reflect.Value, weaklyTyped bool) error {
+func (d *Decoder) decodeSlice(prefix string, src Value, dst reflect.Value, weaklyTyped bool) error {
 	if dst.Type().Elem().Kind() == reflect.Uint8 {
-		return d.decodeBlob(src, dst, weaklyTyped)
+		return d.decodeBlob(prefix, src, dst, weaklyTyped)
 	}
 
 	if src.Type() != TypeArray {
-		return fmt.Errorf("cannot decode to an array: %v", src.Type())
+		return fmt.Errorf("%v: cannot decode to an array: %v", prefix, src.Type())
 	}
 	a, _ := AsArray(src)
 
+	var errs *multierror.Error
 	res := reflect.MakeSlice(dst.Type(), len(a), len(a))
 	for i, e := range a {
 		v := res.Index(i)
-		if err := d.decode(e, v, weaklyTyped); err != nil {
-			// TODO: this should probably be multierror, too.
-			return err
+		if err := d.decode(fmt.Sprintf("%v[%v]", prefix, i), e, v, weaklyTyped); err != nil {
+			errs = multierror.Append(errs, err)
+			continue
 		}
 	}
 	dst.Set(res)
-	return nil
+	if errs == nil {
+		return nil // DO NOT return errs even if it's nil
+	}
+	return errs
 }
 
-func (d *Decoder) decodeBlob(src Value, dst reflect.Value, weaklyTyped bool) error {
+func (d *Decoder) decodeBlob(prefix string, src Value, dst reflect.Value, weaklyTyped bool) error {
 	var (
 		b   Blob
 		err error
@@ -287,20 +296,30 @@ func (d *Decoder) decodeBlob(src Value, dst reflect.Value, weaklyTyped bool) err
 		b, err = AsBlob(src)
 	}
 	if err != nil {
-		return err
+		return fmt.Errorf("%v: %v", prefix, err)
 	}
 	dst.Set(reflect.ValueOf(b))
 	return nil
 }
 
-func (d *Decoder) decodeStruct(src Value, dst reflect.Value) error {
+func (d *Decoder) decodeStruct(prefix string, src Value, dst reflect.Value) error {
 	if dst.Type().ConvertibleTo(reflect.TypeOf(time.Time{})) {
-		return d.decodeTimestamp(src, dst)
+		if prefix == "" {
+			// time.Time or Timestamp is passed directly to Decode. They have
+			// to be a field of a struct.
+			return errors.New("timestamp cannot be decoded directly")
+		}
+		return d.decodeTimestamp(prefix, src, dst)
 	}
 
 	m, err := AsMap(src)
 	if err != nil {
-		return errors.New("struct can only be decoded from a map")
+		return fmt.Errorf("%v: struct can only be decoded from a map", prefix)
+	}
+
+	errPrefix := prefix + "."
+	if prefix == "" {
+		errPrefix = ""
 	}
 
 	var unused map[string]struct{}
@@ -311,9 +330,8 @@ func (d *Decoder) decodeStruct(src Value, dst reflect.Value) error {
 		}
 	}
 
-	// Aggregates all error informations to help users debug BQL.
-	// TODO: replace this with github.com/hashicorp/go-multierror
-	var errs []error
+	// Accumulate all error informations to help users debug BQL.
+	var errs *multierror.Error
 
 	t := dst.Type()
 	for i, n := 0, t.NumField(); i < n; i++ {
@@ -335,7 +353,7 @@ func (d *Decoder) decodeStruct(src Value, dst reflect.Value) error {
 			case "weaklytyped":
 				weaklyTyped = true
 			default:
-				errs = append(errs, fmt.Errorf("%v field has an undefined option: %v", f.Name, opt))
+				errs = multierror.Append(errs, fmt.Errorf("%v%v: an undefined option: %v", errPrefix, f.Name, opt))
 			}
 		}
 
@@ -349,7 +367,7 @@ func (d *Decoder) decodeStruct(src Value, dst reflect.Value) error {
 		src, ok := m[name]
 		if !ok {
 			if required {
-				errs = append(errs, fmt.Errorf("%v is required but missing", name))
+				errs = multierror.Append(errs, fmt.Errorf("%v%v: required but missing", errPrefix, name))
 			}
 			continue
 		}
@@ -357,8 +375,8 @@ func (d *Decoder) decodeStruct(src Value, dst reflect.Value) error {
 			d.config.Metadata.Keys = append(d.config.Metadata.Keys, name)
 		}
 
-		if err := d.decode(src, dst.Field(i), weaklyTyped); err != nil {
-			errs = append(errs, err)
+		if err := d.decode(errPrefix+name, src, dst.Field(i), weaklyTyped); err != nil {
+			errs = multierror.Append(errs, err)
 		}
 	}
 
@@ -366,30 +384,33 @@ func (d *Decoder) decodeStruct(src Value, dst reflect.Value) error {
 		keys := make([]string, len(unused))
 		i := 0
 		for k := range unused {
-			keys[i] = k
+			keys[i] = errPrefix + k
 			i++
 		}
 		if d.config.Metadata != nil {
-			d.config.Metadata.Unused = keys
+			d.config.Metadata.Unused = append(d.config.Metadata.Unused, keys...)
 		}
 
-		errs = append(errs, fmt.Errorf("unused keys: %v", strings.Join(keys, ", ")))
+		errs = multierror.Append(errs, fmt.Errorf("%v: unused keys: %v", prefix, strings.Join(keys, ", ")))
 	}
-	if errs != nil {
-		// TODO: flatten errors
-		return errs[0]
+	if errs == nil {
+		// To avoid nil != nil problem due to type mismatch, this function has
+		// to return nil explicitly. Don't do "return errs" even if errs == nil.
+		return nil
 	}
-	return nil
+
+	// TODO: set formatter
+	return errs
 }
 
-func (d *Decoder) decodeTimestamp(src Value, dst reflect.Value) error {
+func (d *Decoder) decodeTimestamp(prefix string, src Value, dst reflect.Value) error {
 	// src is provided as a part of BQL and there's no way in BQL to construct
 	// Timestamp directly. So, conversions to time.Time and Timestamp is always
 	// considered weaklytyped.
 
 	t, err := ToTimestamp(src)
 	if err != nil {
-		return err
+		return fmt.Errorf("%v: %v", prefix, err)
 	}
 	switch dst.Interface().(type) {
 	case time.Time:
@@ -397,7 +418,7 @@ func (d *Decoder) decodeTimestamp(src Value, dst reflect.Value) error {
 	case Timestamp:
 		dst.Set(reflect.ValueOf(Timestamp(t)))
 	default:
-		return errors.New("only time.Time and data.Timestamp can be used for decoding a timestamp")
+		return fmt.Errorf("%v: only time.Time and data.Timestamp can be used for decoding a timestamp", prefix)
 	}
 	return nil
 }

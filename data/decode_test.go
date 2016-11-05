@@ -1,6 +1,7 @@
 package data
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 	"time"
@@ -174,10 +175,11 @@ func TestDecoder(t *testing.T) {
 
 		Convey("When a required field is missing", func() {
 			err := d.Decode(Map{
-				"f": String("3.14"),
+				"f": Float(3.14),
 			}, s)
 
 			Convey("Then it should fail", func() {
+				fmt.Println(err)
 				So(err, ShouldNotBeNil)
 			})
 		})
@@ -202,7 +204,7 @@ func TestDecoder(t *testing.T) {
 		})
 
 		Convey("When decoding a struct from a non-map value", func() {
-			err := d.decodeStruct(Int(1), reflect.Indirect(reflect.ValueOf(&struct {
+			err := d.decodeStruct("", Int(1), reflect.Indirect(reflect.ValueOf(&struct {
 				I int
 			}{})))
 
@@ -219,6 +221,94 @@ func TestDecoder(t *testing.T) {
 			Convey("Then it should fail", func() {
 				So(err, ShouldNotBeNil)
 			})
+		})
+
+		Convey("When decoding time.Time directly", func() {
+			err := d.Decode(Map{}, &time.Time{})
+
+			Convey("Then it should fail", func() {
+				So(err, ShouldNotBeNil)
+			})
+		})
+
+		Convey("When decoding Timestamp directly", func() {
+			err := d.Decode(Map{}, &Timestamp{})
+
+			Convey("Then it should fail", func() {
+				So(err, ShouldNotBeNil)
+			})
+		})
+	})
+}
+
+func TestDecoderErrorReporting(t *testing.T) {
+	Convey("Given a decode failure error report", t, func() {
+		s := struct {
+			I int `bql:",required"`
+			A struct {
+				B []struct {
+					C int
+					D int
+				}
+				M map[string]struct {
+					E int
+				}
+			}
+		}{}
+		err := Decode(Map{
+			"a": Map{
+				"b": Array{
+					Map{"c": Int(1)},
+					Int(1),
+					Map{"c": String("1"), "d": Array{}},
+					Map{"c": Float(1.2)},
+				},
+				"m": Map{
+					"a": Map{
+						"d": Int(1),
+					},
+					"b": Map{
+						"e": String("1"),
+					},
+					"c": Map{
+						"e": Float(1.2),
+					},
+				},
+			},
+		}, &s)
+		So(err, ShouldNotBeNil)
+		report := err.Error()
+
+		Convey("Then it should contain error about i", func() {
+			So(report, ShouldContainSubstring, "i: ")
+		})
+
+		Convey("Then it should contain error about a.b[1]", func() {
+			So(report, ShouldContainSubstring, "a.b[1]: ")
+		})
+
+		Convey("Then it should contain error about a.b[2].c", func() {
+			So(report, ShouldContainSubstring, "a.b[2].c: ")
+		})
+
+		Convey("Then it should contain error about a.b[2].d", func() {
+			So(report, ShouldContainSubstring, "a.b[2].d: ")
+		})
+
+		Convey("Then it should contain error about a.b[3].c", func() {
+			So(report, ShouldContainSubstring, "a.b[3].c: ")
+		})
+
+		Convey(`Then it should contain error about a.m["a"]`, func() { // unused key
+			So(report, ShouldContainSubstring, `a.m["a"]: `)
+		})
+
+		Convey(`Then it should contain error about a.m["b"].e`, func() {
+			So(report, ShouldContainSubstring, `a.m["b"].e: `)
+		})
+
+		Convey(`Then it should contain error about a.m["c"].e`, func() {
+			So(report, ShouldContainSubstring, `a.m["c"].e: `)
 		})
 	})
 }
