@@ -326,11 +326,10 @@ func TestDecodeWeaklytyped(t *testing.T) {
 	})
 }
 
-// TODO: weaklytype tests for each type
-// All possible combinations are tested in type conversion tests, so these
-// tests only have to check if ToType is called.
-
 func TestDecodeUnsupportedType(t *testing.T) {
+	// All possible combinations are tested in type conversion tests, so these
+	// tests only have to check if ToType is called.
+
 	Convey("Given a struct having unsupported type", t, func() {
 		Convey("An interface other than Value should fail", func() {
 			So(Decode(Map{"v": Int(1)}, &struct{ V interface{} }{}), ShouldNotBeNil)
