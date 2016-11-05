@@ -241,8 +241,91 @@ func TestDecoder(t *testing.T) {
 	})
 }
 
+func TestDecodeEmbeddedField(t *testing.T) {
+	Convey("Given a struct having embedded fields and when decode it", t, func() {
+		type S1 struct {
+			A int
+			B string
+		}
+
+		type S2 struct {
+			C int
+			D string
+		}
+
+		s := struct {
+			S1
+			*S2
+			B float64 `bql:",weaklytyped"` // intentional
+			E int
+			C int `bql:"cc"` // also intentional
+		}{}
+		err := Decode(Map{
+			"a":  Int(1),
+			"b":  String("2"),
+			"c":  Int(3),
+			"d":  String("4"),
+			"e":  Int(5),
+			"cc": Int(6),
+		}, &s)
+
+		So(err, ShouldBeNil)
+
+		Convey("Then the struct has correct values", func() {
+			So(s.A, ShouldEqual, 1)
+			So(s.B, ShouldEqual, 2)
+			So(s.C, ShouldEqual, 6)
+			So(s.D, ShouldEqual, "4")
+			So(s.E, ShouldEqual, 5)
+		})
+
+		Convey("Then S1 has correct values", func() {
+			So(s.S1.A, ShouldEqual, 1)
+			So(s.S1.B, ShouldEqual, "2")
+		})
+
+		Convey("Then S2 has correct values", func() {
+			So(s.S2.C, ShouldEqual, 3)
+			So(s.S2.D, ShouldEqual, "4")
+		})
+	})
+
+	Convey("Given a struct having a unsupported embedded field type", t, func() {
+		Convey("When the struct have embedded time.Time", func() {
+			s := struct {
+				time.Time
+			}{}
+			Convey("Then decoding should fail", func() {
+				So(Decode(Map{}, &s), ShouldNotBeNil)
+			})
+		})
+
+		Convey("When the struct have embedded Timestamp", func() {
+			s := struct {
+				Timestamp
+			}{}
+			Convey("Then decoding should fail", func() {
+				So(Decode(Map{}, &s), ShouldNotBeNil)
+			})
+		})
+
+		Convey("When the struct have non-struct embedded field", func() {
+			s := struct {
+				Int
+			}{}
+			Convey("Then decoding should fail", func() {
+				So(Decode(Map{}, &s), ShouldNotBeNil)
+			})
+		})
+	})
+}
+
 func TestDecoderErrorReporting(t *testing.T) {
 	Convey("Given a decode failure error report", t, func() {
+		type Embedded struct {
+			F int
+		}
+
 		s := struct {
 			I int `bql:",required"`
 			A struct {
@@ -253,6 +336,7 @@ func TestDecoderErrorReporting(t *testing.T) {
 				M map[string]struct {
 					E int
 				}
+				*Embedded
 			}
 		}{}
 		err := Decode(Map{
@@ -274,6 +358,7 @@ func TestDecoderErrorReporting(t *testing.T) {
 						"e": Float(1.2),
 					},
 				},
+				"f": String("1"),
 			},
 		}, &s)
 		So(err, ShouldNotBeNil)
@@ -309,6 +394,10 @@ func TestDecoderErrorReporting(t *testing.T) {
 
 		Convey(`Then it should contain error about a.m["c"].e`, func() {
 			So(report, ShouldContainSubstring, `a.m["c"].e: `)
+		})
+
+		Convey(`Then it should contain error about a.f`, func() {
+			So(report, ShouldContainSubstring, `a.f: `)
 		})
 	})
 }

@@ -331,55 +331,7 @@ func (d *Decoder) decodeStruct(prefix string, src Value, dst reflect.Value) erro
 	}
 
 	// Accumulate all error informations to help users debug BQL.
-	var errs *multierror.Error
-
-	t := dst.Type()
-	for i, n := 0, t.NumField(); i < n; i++ {
-		f := t.Field(i)
-		opts := strings.Split(f.Tag.Get(d.config.TagName), ",")
-
-		// parse options
-		var (
-			required    bool
-			weaklyTyped bool
-		)
-		for ti, opt := range opts {
-			if ti == 0 { // skip name
-				continue
-			}
-			switch opt {
-			case "required":
-				required = true
-			case "weaklytyped":
-				weaklyTyped = true
-			default:
-				errs = multierror.Append(errs, fmt.Errorf("%v%v: an undefined option: %v", errPrefix, f.Name, opt))
-			}
-		}
-
-		name := strings.TrimSpace(opts[0])
-		if name == "" {
-			name = toSnakeCase(f.Name)
-		}
-		if d.config.ErrorUnused {
-			delete(unused, name)
-		}
-		src, ok := m[name]
-		if !ok {
-			if required {
-				errs = multierror.Append(errs, fmt.Errorf("%v%v: required but missing", errPrefix, name))
-			}
-			continue
-		}
-		if d.config.Metadata != nil {
-			d.config.Metadata.Keys = append(d.config.Metadata.Keys, name)
-		}
-
-		if err := d.decode(errPrefix+name, src, dst.Field(i), weaklyTyped); err != nil {
-			errs = multierror.Append(errs, err)
-		}
-	}
-
+	errs := d.iterateField(errPrefix, m, unused, dst)
 	if d.config.ErrorUnused && len(unused) > 0 {
 		keys := make([]string, len(unused))
 		i := 0
@@ -400,6 +352,86 @@ func (d *Decoder) decodeStruct(prefix string, src Value, dst reflect.Value) erro
 	}
 
 	// TODO: set formatter
+	return errs
+}
+
+func (d *Decoder) iterateField(prefix string, m Map, unused map[string]struct{}, dst reflect.Value) *multierror.Error {
+	// FIXME: iterateField decodes the same value multiple times if a struct and
+	// its embedded struct have the same field names.
+
+	// Accumulate all error informations to help users debug BQL.
+	var errs *multierror.Error
+
+	if dst.Type().ConvertibleTo(reflect.TypeOf(time.Time{})) {
+		errs = multierror.Append(errs, fmt.Errorf("%v: time.Time and data.Timestamp cannot be embedded", prefix))
+		return errs
+	}
+
+	t := dst.Type()
+	for i, n := 0, t.NumField(); i < n; i++ {
+		f := t.Field(i)
+		if f.Anonymous { // process embedded field
+			if f.Type.Kind() == reflect.Struct {
+				if err := d.iterateField(prefix, m, unused, dst.Field(i)); err != nil {
+					errs = multierror.Append(errs, err)
+				}
+				continue
+
+			} else if f.Type.Kind() == reflect.Ptr && f.Type.Elem().Kind() == reflect.Struct {
+				v := reflect.New(f.Type.Elem())
+				if err := d.iterateField(prefix, m, unused, reflect.Indirect(v)); err != nil {
+					errs = multierror.Append(errs, err)
+					continue
+				}
+				dst.Field(i).Set(v)
+				continue
+			}
+			errs = multierror.Append(errs, fmt.Errorf("%v: unsupported embedded field: %v", prefix, f.Name))
+		}
+
+		opts := strings.Split(f.Tag.Get(d.config.TagName), ",")
+
+		// parse options
+		var (
+			required    bool
+			weaklyTyped bool
+		)
+		for ti, opt := range opts {
+			if ti == 0 { // skip name
+				continue
+			}
+			switch opt {
+			case "required":
+				required = true
+			case "weaklytyped":
+				weaklyTyped = true
+			default:
+				errs = multierror.Append(errs, fmt.Errorf("%v%v: an undefined option: %v", prefix, f.Name, opt))
+			}
+		}
+
+		name := strings.TrimSpace(opts[0])
+		if name == "" {
+			name = toSnakeCase(f.Name)
+		}
+		if d.config.ErrorUnused {
+			delete(unused, name)
+		}
+		src, ok := m[name]
+		if !ok {
+			if required {
+				errs = multierror.Append(errs, fmt.Errorf("%v%v: required but missing", prefix, name))
+			}
+			continue
+		}
+		if d.config.Metadata != nil {
+			d.config.Metadata.Keys = append(d.config.Metadata.Keys, name)
+		}
+
+		if err := d.decode(prefix+name, src, dst.Field(i), weaklyTyped); err != nil {
+			errs = multierror.Append(errs, err)
+		}
+	}
 	return errs
 }
 
