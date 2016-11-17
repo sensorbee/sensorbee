@@ -484,7 +484,13 @@ func (d *Decoder) iterateField(prefix string, m Map, unused map[string]struct{},
 			case "weaklytyped":
 				weaklyTyped = true
 			default:
-				errs = multierror.Append(errs, fmt.Errorf("%v%v: an undefined option: %v", prefix, f.Name, opt))
+				var err error
+				if opt == "" {
+					err = errors.New("empty option name is not allowed")
+				} else {
+					err = fmt.Errorf("%v%v: an undefined option: %v", prefix, f.Name, opt)
+				}
+				errs = multierror.Append(errs, err)
 			}
 		}
 

@@ -223,6 +223,36 @@ func TestDecoder(t *testing.T) {
 			})
 		})
 
+		Convey("When a struct has an empty option", func() {
+			err := d.Decode(Map{"i": Int(1)}, &struct {
+				I int `bql:"i,"`
+			}{})
+
+			Convey("Then it should fail", func() {
+				So(err, ShouldNotBeNil)
+			})
+		})
+
+		Convey("When a struct has a valid and an empty options", func() {
+			err := d.Decode(Map{"i": Int(1)}, &struct {
+				I int `bql:",required,"`
+			}{})
+
+			Convey("Then it should fail", func() {
+				So(err, ShouldNotBeNil)
+			})
+		})
+
+		Convey("When a struct has valid options and an empty option", func() {
+			err := d.Decode(Map{"i": Int(1)}, &struct {
+				I int `bql:",required,,weaklytyped"`
+			}{})
+
+			Convey("Then it should fail", func() {
+				So(err, ShouldNotBeNil)
+			})
+		})
+
 		Convey("When decoding time.Time directly", func() {
 			err := d.Decode(Map{}, &time.Time{})
 
@@ -327,8 +357,10 @@ func TestDecoderErrorReporting(t *testing.T) {
 		}
 
 		s := struct {
-			I int `bql:",required"`
-			A struct {
+			I          int     `bql:",required"`
+			FMissing   float64 `bql:",required,weaklytyped"`
+			FWrongType float64 `bql:",required,weaklytyped"`
+			A          struct {
 				B []struct {
 					C int
 					D int
@@ -340,6 +372,7 @@ func TestDecoderErrorReporting(t *testing.T) {
 			}
 		}{}
 		err := Decode(Map{
+			"f_wrong_type": Map{},
 			"a": Map{
 				"b": Array{
 					Map{"c": Int(1)},
@@ -366,6 +399,14 @@ func TestDecoderErrorReporting(t *testing.T) {
 
 		Convey("Then it should contain error about i", func() {
 			So(report, ShouldContainSubstring, "i: ")
+		})
+
+		Convey("Then it should contain error about f_missing", func() {
+			So(report, ShouldContainSubstring, "f_missing: ")
+		})
+
+		Convey("Then it should contain error about f_wrong_type", func() {
+			So(report, ShouldContainSubstring, "f_wrong_type: ")
 		})
 
 		Convey("Then it should contain error about a.b[1]", func() {
