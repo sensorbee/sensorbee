@@ -255,8 +255,10 @@ func ToBlob(v Value) ([]byte, error) {
 		b := make([]byte, len(a))
 		for i, e := range a {
 			v, err := e.asInt()
-			if err != nil || !(0 <= v && v <= 255) {
-				return nil, fmt.Errorf("cannot convert %T to Blob value", v)
+			if err != nil {
+				return nil, fmt.Errorf("cannot convert %v to Blob value", e.Type())
+			} else if !(0 <= v && v <= 255) {
+				return nil, fmt.Errorf("cannot convert int to Blob value: %v", v)
 			}
 			b[i] = byte(v)
 		}
