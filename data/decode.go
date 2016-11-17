@@ -32,7 +32,7 @@ import (
 //		* string: Go's duration format (e.g. "6s" => 6 * time.Second)
 //	* pointer of these types
 //
-// A regular array is not supported yet. User defined time.Time-compatbile
+// A regular array is not supported yet. User defined time.Time-compatible
 // types cannot be used.
 //
 // By default, the name of a field is converted to snake_case. For example,
@@ -78,7 +78,7 @@ import (
 //
 // Internally, weaklytyped fields are converted by ToType function, while
 // AsType function is used for regular fields. Following types are always
-// cnosidered weaklytyped: time.Time, Timestamp, time.Duration. Struct and
+// considered weaklytyped: time.Time, Timestamp, time.Duration. Struct and
 // data.Value ignore weaklytyped option. When a map or an array is weaklytyped,
 // it means its element will be converted by ToType function.
 //

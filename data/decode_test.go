@@ -184,7 +184,7 @@ func TestDecoder(t *testing.T) {
 			})
 		})
 
-		Convey("When decoding non-addresable value", func() {
+		Convey("When decoding non-addressable value", func() {
 			err := d.Decode(Map{}, struct {
 				I int
 			}{})
