@@ -2,10 +2,11 @@ package data
 
 import (
 	"fmt"
-	. "github.com/smartystreets/goconvey/convey"
 	"math"
 	"testing"
 	"time"
+
+	. "github.com/smartystreets/goconvey/convey"
 )
 
 type convTestInput struct {
@@ -280,8 +281,10 @@ func TestToBlob(t *testing.T) {
 			{"now", Timestamp(time.Now()), nil},
 		},
 		"Array": {
-			{"empty", Array{}, nil},
-			{"non-empty", Array{Int(2), String("foo")}, nil},
+			{"empty", Array{}, []byte{}},
+			{"byte-array", Array{Int(1), Int(2), Int(3)}, []byte{1, 2, 3}},
+			{"too-large", Array{Int(1), Int(256)}, nil},
+			{"non-empty-invalid", Array{Int(2), String("foo")}, nil},
 		},
 		"Map": {
 			{"empty", Map{}, nil},

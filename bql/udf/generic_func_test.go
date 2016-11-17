@@ -3,13 +3,14 @@ package udf
 import (
 	"bytes"
 	"fmt"
-	. "github.com/smartystreets/goconvey/convey"
-	"gopkg.in/sensorbee/sensorbee.v0/core"
-	"gopkg.in/sensorbee/sensorbee.v0/data"
 	"math"
 	"strings"
 	"testing"
 	"time"
+
+	. "github.com/smartystreets/goconvey/convey"
+	"gopkg.in/sensorbee/sensorbee.v0/core"
+	"gopkg.in/sensorbee/sensorbee.v0/data"
 )
 
 func TestGenericFunc(t *testing.T) {
@@ -649,7 +650,6 @@ func TestGenericFuncInconvertibleType(t *testing.T) {
 			{"int", data.Int(1)},
 			{"float", data.Float(1.0)},
 			{"time", data.Timestamp(time.Date(2015, time.May, 1, 14, 27, 0, 0, time.UTC))},
-			{"array", data.Array([]data.Value{data.Int(10)})},
 			{"map", data.Map{"key": data.Int(10)}},
 		},
 		{ // timestamp
