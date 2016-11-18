@@ -2,8 +2,9 @@ package core
 
 import (
 	"errors"
-	. "github.com/smartystreets/goconvey/convey"
 	"testing"
+
+	. "github.com/smartystreets/goconvey/convey"
 )
 
 type writeFailSink struct {
@@ -19,7 +20,12 @@ func (f *writeFailSink) Close(ctx *Context) error {
 
 func TestDroppedTupleCollectorSource(t *testing.T) {
 	Convey("Given a topology and a dropped tuple collector source", t, func() {
-		ctx := NewContext(nil)
+		ctx := NewContext(&ContextConfig{
+			Flags: ContextFlags{
+				DestinationlessTupleLog: 1,
+			},
+		})
+
 		t, err := NewDefaultTopology(ctx, "dt1")
 		So(err, ShouldBeNil)
 		Reset(func() {
@@ -61,12 +67,26 @@ func TestDroppedTupleCollectorSource(t *testing.T) {
 			})
 		})
 
+		Convey("When destinationless tuple logging is disabled", func() {
+			ctx.Flags.DestinationlessTupleLog.Set(false)
+			So(son.Resume(), ShouldBeNil)
+
+			Convey("Then it should not receive any dropped tuple", func() {
+				si.Wait(0)
+				So(si.len(), ShouldEqual, 0)
+			})
+		})
+
 		locationChecker := func(t *Tuple, n Node) {
 			So(t.Data["node_type"], ShouldEqual, n.Type().String())
 			So(t.Data["node_name"], ShouldEqual, n.Name())
 		}
 
 		Convey("When tuples are dropped from a Box", func() {
+			// Because tuples in this case are dropped by an error,
+			// DestinationlessTupleLog shouldn't change the behavior.
+			ctx.Flags.DestinationlessTupleLog.Set(false)
+
 			bn, err := t.AddBox("box", BoxFunc(func(ctx *Context, t *Tuple, w Writer) error {
 				return errors.New("box write error")
 			}), nil)

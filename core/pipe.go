@@ -3,10 +3,11 @@ package core
 import (
 	"errors"
 	"fmt"
-	"gopkg.in/sensorbee/sensorbee.v0/data"
 	"reflect"
 	"sync"
 	"sync/atomic"
+
+	"gopkg.in/sensorbee/sensorbee.v0/data"
 )
 
 func newPipe(inputName string, capacity int) (*pipeReceiver, *pipeSender) {
@@ -815,7 +816,9 @@ func (d *dataDestinations) Write(ctx *Context, t *Tuple) error {
 
 	if len(d.dsts) == 0 {
 		atomic.AddInt64(&d.numDropped, 1)
-		ctx.droppedTuple(t, d.nodeType, d.nodeName, ETOutput, errors.New("no output destination is connected"))
+		if ctx.Flags.DestinationlessTupleLog.Enabled() {
+			ctx.droppedTuple(t, d.nodeType, d.nodeName, ETOutput, errors.New("no output destination is connected"))
+		}
 		return nil
 	}
 
