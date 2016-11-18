@@ -1,9 +1,10 @@
 package config
 
 import (
+	"testing"
+
 	. "github.com/smartystreets/goconvey/convey"
 	"gopkg.in/sensorbee/sensorbee.v0/data"
-	"testing"
 )
 
 func TestConfig(t *testing.T) {
@@ -73,10 +74,11 @@ func TestConfigToMap(t *testing.T) {
 				},
 			},
 			Logging: &Logging{
-				Target:                 "stderr",
-				MinLogLevel:            "info",
-				LogDroppedTuples:       true,
-				SummarizeDroppedTuples: true,
+				Target:                   "stderr",
+				MinLogLevel:              "info",
+				LogDroppedTuples:         true,
+				LogDestinationlessTuples: true,
+				SummarizeDroppedTuples:   true,
 			},
 		}
 		Convey("When convert to data.Map", func() {
@@ -103,10 +105,11 @@ func TestConfigToMap(t *testing.T) {
 						},
 					},
 					"logging": data.Map{
-						"target":                   data.String("stderr"),
-						"min_log_level":            data.String("info"),
-						"log_dropped_tuples":       data.True,
-						"summarize_dropped_tuples": data.True,
+						"target":                     data.String("stderr"),
+						"min_log_level":              data.String("info"),
+						"log_dropped_tuples":         data.True,
+						"log_destinationless_tuples": data.True,
+						"summarize_dropped_tuples":   data.True,
 					},
 				}
 				So(ac, ShouldResemble, ex)

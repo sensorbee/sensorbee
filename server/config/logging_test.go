@@ -2,15 +2,16 @@ package config
 
 import (
 	"fmt"
-	. "github.com/smartystreets/goconvey/convey"
 	"os"
 	"testing"
+
+	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestLogging(t *testing.T) {
 	Convey("Given a JSON config for logging section", t, func() {
 		Convey("When the config is valid", func() {
-			l, err := NewLogging(toMap(`{"target":"stdout","min_log_level":"error","log_dropped_tuples":true,"summarize_dropped_tuples":true}`))
+			l, err := NewLogging(toMap(`{"target":"stdout","min_log_level":"error","log_dropped_tuples":true,"log_destinationless_tuples":true,"summarize_dropped_tuples":true}`))
 			So(err, ShouldBeNil)
 
 			Convey("Then it should have given parameters", func() {
@@ -91,6 +92,23 @@ func TestLogging(t *testing.T) {
 			for _, v := range [][]interface{}{{"an integer", 1}, {"a string", `"true"`}} {
 				Convey(fmt.Sprintf("Then it should reject %v value", v[0]), func() {
 					_, err := NewLogging(toMap(fmt.Sprintf(`{"target":"stderr","log_dropped_tuples":%v}`, v[1])))
+					So(err, ShouldNotBeNil)
+				})
+			}
+		})
+
+		Convey("When validating log_destinationless_tuples", func() {
+			for _, v := range []bool{true, false} {
+				Convey(fmt.Sprint("Then it should accept ", v), func() {
+					l, err := NewLogging(toMap(fmt.Sprintf(`{"target":"stderr","log_destinationless_tuples":%v}`, v)))
+					So(err, ShouldBeNil)
+					So(l.LogDestinationlessTuples, ShouldEqual, v)
+				})
+			}
+
+			for _, v := range [][]interface{}{{"an integer", 1}, {"a string", `"true"`}} {
+				Convey(fmt.Sprintf("Then it should reject %v value", v[0]), func() {
+					_, err := NewLogging(toMap(fmt.Sprintf(`{"target":"stderr","log_destinationless_tuples":%v}`, v[1])))
 					So(err, ShouldNotBeNil)
 				})
 			}

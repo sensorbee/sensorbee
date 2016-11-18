@@ -2,11 +2,12 @@ package config
 
 import (
 	"fmt"
+	"io"
+	"os"
+
 	"github.com/xeipuuv/gojsonschema"
 	"gopkg.in/natefinch/lumberjack.v2"
 	"gopkg.in/sensorbee/sensorbee.v0/data"
-	"io"
-	"os"
 )
 
 // Logging has configuration parameters for logging.
@@ -26,7 +27,18 @@ type Logging struct {
 	// LogDroppedTuples controls logging of dropped tuples. If this parameter
 	// is true, dropped tuples are logged as JSON objects in logs. It might
 	// affect the overall performance of the server.
+	//
+	// Setting this option true doesn't enable destinationless tuple logging.
 	LogDroppedTuples bool `json:"log_dropped_tuples" yaml:"log_dropped_tuples"`
+
+	// LogDestinationlessTuples controls logging of dropped tuples.
+	// A destinationless tuple is a kind of dropped tuples that is generated
+	// when a source or a stream does not have any destination and a tuple
+	// emitted from it is dropped.
+	//
+	// To log destinationless tuples, both log_dropped_tuples and
+	// log_destinationless_tuples need to be true.
+	LogDestinationlessTuples bool `json:"log_destinationless_tuples" yaml:"log_destinationless_tuples"`
 
 	// SummarizeDroppedTuples controls summarization of dropped tuples. If this
 	// parameter is true, only a portion of a dropped tuple is logged. The data
@@ -49,6 +61,9 @@ var (
 			"enum": ["debug", "info", "warn", "warning", "error", "fatal"]
 		},
 		"log_dropped_tuples": {
+			"type": "boolean"
+		},
+		"log_destinationless_tuples": {
 			"type": "boolean"
 		},
 		"summarize_dropped_tuples": {
@@ -78,10 +93,11 @@ func NewLogging(m data.Map) (*Logging, error) {
 
 func newLogging(m data.Map) *Logging {
 	return &Logging{
-		Target:                 mustAsString(getWithDefault(m, "target", data.String("stderr"))),
-		MinLogLevel:            mustAsString(getWithDefault(m, "min_log_level", data.String("info"))),
-		LogDroppedTuples:       mustToBool(getWithDefault(m, "log_dropped_tuples", data.False)),
-		SummarizeDroppedTuples: mustToBool(getWithDefault(m, "summarize_dropped_tuples", data.False)),
+		Target:                   mustAsString(getWithDefault(m, "target", data.String("stderr"))),
+		MinLogLevel:              mustAsString(getWithDefault(m, "min_log_level", data.String("info"))),
+		LogDroppedTuples:         mustToBool(getWithDefault(m, "log_dropped_tuples", data.False)),
+		LogDestinationlessTuples: mustToBool(getWithDefault(m, "log_destinationless_tuples", data.False)),
+		SummarizeDroppedTuples:   mustToBool(getWithDefault(m, "summarize_dropped_tuples", data.False)),
 	}
 }
 
@@ -126,9 +142,10 @@ func (l *Logging) CreateWriter() (io.WriteCloser, error) {
 // ToMap returns logging config information as data.Map.
 func (l *Logging) ToMap() data.Map {
 	return data.Map{
-		"target":                   data.String(l.Target),
-		"min_log_level":            data.String(l.MinLogLevel),
-		"log_dropped_tuples":       data.Bool(l.LogDroppedTuples),
-		"summarize_dropped_tuples": data.Bool(l.SummarizeDroppedTuples),
+		"target":                     data.String(l.Target),
+		"min_log_level":              data.String(l.MinLogLevel),
+		"log_dropped_tuples":         data.Bool(l.LogDroppedTuples),
+		"log_destinationless_tuples": data.Bool(l.LogDestinationlessTuples),
+		"summarize_dropped_tuples":   data.Bool(l.SummarizeDroppedTuples),
 	}
 }
