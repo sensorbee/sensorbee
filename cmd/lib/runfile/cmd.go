@@ -9,6 +9,11 @@ package runfile
 
 import (
 	"fmt"
+	"io/ioutil"
+	"os"
+	"path/filepath"
+	"strings"
+
 	"github.com/Sirupsen/logrus"
 	"gopkg.in/sensorbee/sensorbee.v0/bql"
 	"gopkg.in/sensorbee/sensorbee.v0/bql/parser"
@@ -19,10 +24,6 @@ import (
 	"gopkg.in/sensorbee/sensorbee.v0/server/udsstorage"
 	"gopkg.in/urfave/cli.v1"
 	"gopkg.in/yaml.v2"
-	"io/ioutil"
-	"os"
-	"path/filepath"
-	"strings"
 )
 
 // SetUp sets up a command for running single BQL file.
@@ -204,6 +205,7 @@ func setUpTopology(name string, logger *logrus.Logger, conf *config.Config, us u
 		Logger: logger,
 	}
 	cc.Flags.DroppedTupleLog.Set(conf.Logging.LogDroppedTuples)
+	cc.Flags.DestinationlessTupleLog.Set(conf.Logging.LogDestinationlessTuples)
 	cc.Flags.DroppedTupleSummarization.Set(conf.Logging.SummarizeDroppedTuples)
 
 	tp, err := core.NewDefaultTopology(core.NewContext(cc), name)
