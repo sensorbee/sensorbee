@@ -2,6 +2,9 @@ package server
 
 import (
 	"fmt"
+	"io"
+	"io/ioutil"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/gocraft/web"
 	"gopkg.in/pfnet/jasco.v1"
@@ -12,8 +15,6 @@ import (
 	"gopkg.in/sensorbee/sensorbee.v0/data"
 	"gopkg.in/sensorbee/sensorbee.v0/server/config"
 	"gopkg.in/sensorbee/sensorbee.v0/server/udsstorage"
-	"io"
-	"io/ioutil"
 )
 
 // Context is a context object for gocraft/web.
@@ -174,6 +175,7 @@ func setUpTopology(logger *logrus.Logger, name string, conf *config.Config, us u
 		Logger: logger,
 	}
 	cc.Flags.DroppedTupleLog.Set(conf.Logging.LogDroppedTuples)
+	cc.Flags.DestinationlessTupleLog.Set(conf.Logging.LogDestinationlessTuples)
 	cc.Flags.DroppedTupleSummarization.Set(conf.Logging.SummarizeDroppedTuples)
 
 	tp, err := core.NewDefaultTopology(core.NewContext(cc), name)

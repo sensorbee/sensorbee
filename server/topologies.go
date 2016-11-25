@@ -2,6 +2,14 @@ package server
 
 import (
 	"fmt"
+	"io"
+	"mime/multipart"
+	"net/http"
+	"net/textproto"
+	"os"
+	"strings"
+	"time"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/gocraft/web"
 	"golang.org/x/net/websocket"
@@ -11,13 +19,6 @@ import (
 	"gopkg.in/sensorbee/sensorbee.v0/core"
 	"gopkg.in/sensorbee/sensorbee.v0/data"
 	"gopkg.in/sensorbee/sensorbee.v0/server/response"
-	"io"
-	"mime/multipart"
-	"net/http"
-	"net/textproto"
-	"os"
-	"strings"
-	"time"
 )
 
 type topologies struct {
@@ -123,6 +124,7 @@ func (tc *topologies) Create(rw web.ResponseWriter, req *web.Request) {
 	}
 	// TODO: Be careful of race conditions on these fields.
 	cc.Flags.DroppedTupleLog.Set(tc.config.Logging.LogDroppedTuples)
+	cc.Flags.DestinationlessTupleLog.Set(tc.config.Logging.LogDestinationlessTuples)
 	cc.Flags.DroppedTupleSummarization.Set(tc.config.Logging.SummarizeDroppedTuples)
 
 	tp, err := core.NewDefaultTopology(core.NewContext(cc), name)

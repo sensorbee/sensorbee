@@ -2,12 +2,13 @@ package core
 
 import (
 	"errors"
-	"github.com/Sirupsen/logrus"
-	"gopkg.in/sensorbee/sensorbee.v0/data"
 	"path/filepath"
 	"runtime"
 	"sync"
 	"sync/atomic"
+
+	"github.com/Sirupsen/logrus"
+	"gopkg.in/sensorbee/sensorbee.v0/data"
 )
 
 var (
@@ -187,8 +188,18 @@ type ContextFlags struct {
 	TupleTrace AtomicFlag
 
 	// DroppedTupleLog is a flag which turns on/off logging of dropped tuple
-	// events.
+	// events. When DestinationlessTupleLog flag isn't set, Destinationless
+	// tuples are not logged even if this flag is set.
 	DroppedTupleLog AtomicFlag
+
+	// DestinationlessTupleLog is a flag which turns on/off logging of dropped
+	// tuple events. A destinationless tuple is one kind of dropped tuples that
+	// is generated when a source or a stream doesn't have any destination and,
+	// therefore, a tuple is dropped. It often happens when a topology isn't
+	// fully built.
+	//
+	// To log destinationless tuples, DroppedTupleLog flag also needs to be set.
+	DestinationlessTupleLog AtomicFlag
 
 	// DroppedTupleSummarization is a flag to trun on/off summarization of
 	// dropped tuple logging. If this flag is enabled, tuples being logged will
