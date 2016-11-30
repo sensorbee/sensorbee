@@ -2,14 +2,20 @@ package topology
 
 import (
 	"bytes"
+	"io/ioutil"
+	"testing"
+
 	. "github.com/smartystreets/goconvey/convey"
 	"gopkg.in/sensorbee/sensorbee.v0/server/testutil"
 	"gopkg.in/urfave/cli.v1"
-	"io/ioutil"
-	"testing"
 )
 
 // Do NOT run these tests in parallel!
+
+func init() {
+	// Workaround. See https://github.com/urfave/cli/issues/565
+	cli.OsExiter = func(int) {}
+}
 
 type app struct {
 	app *cli.App
