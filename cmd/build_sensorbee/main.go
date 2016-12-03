@@ -3,15 +3,16 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"gopkg.in/sensorbee/sensorbee.v0/version"
-	"gopkg.in/urfave/cli.v1"
-	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 	"text/template"
+
+	"gopkg.in/sensorbee/sensorbee.v0/version"
+	"gopkg.in/urfave/cli.v1"
+	"gopkg.in/yaml.v2"
 )
 
 func main() {
@@ -218,6 +219,5 @@ func main() {
 )
 
 var (
-	defaultCommands = []string{"run", "shell", "topology", "exp",
-		"runfile"}
+	defaultCommands = []string{"run", "shell", "topology", "runfile"}
 )
