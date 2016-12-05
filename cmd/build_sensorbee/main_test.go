@@ -3,13 +3,14 @@ package main
 import (
 	"flag"
 	"fmt"
-	. "github.com/smartystreets/goconvey/convey"
-	"gopkg.in/sensorbee/sensorbee.v0/version"
-	"gopkg.in/urfave/cli.v1"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
+
+	. "github.com/smartystreets/goconvey/convey"
+	"gopkg.in/sensorbee/sensorbee.v0/version"
+	"gopkg.in/urfave/cli.v1"
 )
 
 func TestLoadConfig(t *testing.T) {
@@ -62,7 +63,6 @@ commands:
 						"run":      commandDetail{},
 						"shell":    commandDetail{},
 						"topology": commandDetail{},
-						"exp":      commandDetail{},
 						"runfile":  commandDetail{},
 					},
 					Version: version.Version,
