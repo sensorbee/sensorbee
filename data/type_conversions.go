@@ -14,53 +14,79 @@ const (
 
 	// MinConvFloat64 is the smallest float64 that can be converted to int64
 	MinConvFloat64 = float64(math.MinInt64)
+
+	errNilConversionFormat = "cannot convert nil to %v"
 )
 
 // AsBool returns a bool value only when the type of Value is TypeBool,
 // otherwise it returns error.
 func AsBool(v Value) (bool, error) {
+	if v == nil {
+		return false, fmt.Errorf(errNilConversionFormat, TypeBool)
+	}
 	return v.asBool()
 }
 
 // AsInt returns an integer value only when the type of Value is TypeInt,
 // otherwise it returns error.
 func AsInt(v Value) (int64, error) {
+	if v == nil {
+		return 0, fmt.Errorf(errNilConversionFormat, TypeInt)
+	}
 	return v.asInt()
 }
 
 // AsFloat returns a float value only when the type of Value is TypeFloat,
 // otherwise it returns error.
 func AsFloat(v Value) (float64, error) {
+	if v == nil {
+		return 0, fmt.Errorf(errNilConversionFormat, TypeFloat)
+	}
 	return v.asFloat()
 }
 
 // AsString returns a string only when the type of Value is TypeString,
 // otherwise it returns error.
 func AsString(v Value) (string, error) {
+	if v == nil {
+		return "", fmt.Errorf(errNilConversionFormat, TypeString)
+	}
 	return v.asString()
 }
 
 // AsBlob returns an array of bytes only when the type of Value is TypeBlob,
 // otherwise it returns error.
 func AsBlob(v Value) ([]byte, error) {
+	if v == nil {
+		return nil, fmt.Errorf(errNilConversionFormat, TypeBlob)
+	}
 	return v.asBlob()
 }
 
 // AsTimestamp returns a time.Time only when the type of Value is TypeTime,
 // otherwise it returns error.
 func AsTimestamp(v Value) (time.Time, error) {
+	if v == nil {
+		return time.Time{}, fmt.Errorf(errNilConversionFormat, TypeTimestamp)
+	}
 	return v.asTimestamp()
 }
 
 // AsArray returns an array of Values only when the type of Value is TypeArray,
 // otherwise it returns error.
 func AsArray(v Value) (Array, error) {
+	if v == nil {
+		return nil, fmt.Errorf(errNilConversionFormat, TypeArray)
+	}
 	return v.asArray()
 }
 
 // AsMap returns a map of string keys and Values only when the type of Value is
 // TypeMap, otherwise it returns error.
 func AsMap(v Value) (Map, error) {
+	if v == nil {
+		return nil, fmt.Errorf(errNilConversionFormat, TypeMap)
+	}
 	return v.asMap()
 }
 
