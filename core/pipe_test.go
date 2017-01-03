@@ -376,6 +376,7 @@ func TestDataSourcesFailure(t *testing.T) {
 				return errors.New("error")
 			}), 4)
 		}()
+		srcs.state.Wait(TSRunning)
 		Reset(func() {
 			srcs.stop(ctx)
 		})
