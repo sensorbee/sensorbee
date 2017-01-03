@@ -3,11 +3,12 @@ package udf
 import (
 	"errors"
 	"fmt"
-	"gopkg.in/sensorbee/sensorbee.v0/core"
-	"gopkg.in/sensorbee/sensorbee.v0/data"
 	"math"
 	"reflect"
 	"time"
+
+	"gopkg.in/sensorbee/sensorbee.v0/core"
+	"gopkg.in/sensorbee/sensorbee.v0/data"
 )
 
 // ConvertGeneric creates a new UDF from various form of functions. Arguments
@@ -377,7 +378,7 @@ func genericFuncArgumentConverter(t reflect.Type) (argumentConverter, error) {
 			if err != nil {
 				return nil, err
 			}
-			res := reflect.Zero(t)
+			res := reflect.MakeSlice(t, 0, len(a))
 			for _, elem := range a {
 				e, err := c(elem)
 				if err != nil {

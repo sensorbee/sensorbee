@@ -2,15 +2,16 @@ package udf
 
 import (
 	"fmt"
-	"gopkg.in/sensorbee/sensorbee.v0/core"
-	"gopkg.in/sensorbee/sensorbee.v0/data"
 	"strings"
 	"sync"
+
+	"gopkg.in/sensorbee/sensorbee.v0/core"
+	"gopkg.in/sensorbee/sensorbee.v0/data"
 )
 
 // UDF is an interface having a user defined function.
 type UDF interface {
-	// Call calls the UDF.
+	// Call calls the UDF. data.Values must not be nil.
 	Call(*core.Context, ...data.Value) (data.Value, error)
 
 	// Accept checks if the function accepts the given number of arguments

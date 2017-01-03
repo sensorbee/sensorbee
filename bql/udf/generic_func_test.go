@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"math"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -806,6 +807,43 @@ func TestGenericTimeFunc(t *testing.T) {
 				t, err := data.ToTimestamp(v)
 				So(err, ShouldBeNil)
 				So(t, ShouldResemble, time.Unix(0, 0))
+			})
+		})
+	})
+}
+
+func TestGenericArrayFunc(t *testing.T) {
+	ctx := core.NewContext(nil)
+
+	Convey("Given a function receiving an array", t, func() {
+		f, err := ConvertGeneric(func(a data.Array) data.Array {
+			return a
+		})
+		So(err, ShouldBeNil)
+
+		Convey("When passing an empty array", func() {
+			v, err := f.Call(ctx, data.Array{})
+			So(err, ShouldBeNil)
+			So(reflect.ValueOf(v).IsNil(), ShouldBeFalse) // To detect an old bug
+
+			Convey("Then, it should return an empty array", func() {
+				So(v.Type(), ShouldNotEqual, data.TypeNull)
+				a, err := data.AsArray(v)
+				So(err, ShouldBeNil)
+				So(a, ShouldBeEmpty)
+			})
+		})
+
+		Convey("When passing a non-empty array", func() {
+			v, err := f.Call(ctx, data.Array{data.Int(1)})
+			So(err, ShouldBeNil)
+
+			Convey("Then, it should return nil", func() {
+				So(v.Type(), ShouldNotEqual, data.TypeNull)
+				a, err := data.AsArray(v)
+				So(err, ShouldBeNil)
+				So(len(a), ShouldEqual, 1)
+				So(a[0], ShouldEqual, 1)
 			})
 		})
 	})
