@@ -444,3 +444,47 @@ func runConversionTestCases(t *testing.T,
 		})
 	}
 }
+
+func TestAsTypeWithNil(t *testing.T) {
+	Convey("Given AsType functions", t, func() {
+		Convey("Then passing nil to AsBool should fail", func() {
+			_, err := AsBool(nil)
+			So(err, ShouldNotBeNil)
+		})
+
+		Convey("Then passing nil to AsInt should fail", func() {
+			_, err := AsInt(nil)
+			So(err, ShouldNotBeNil)
+		})
+
+		Convey("Then passing nil to AsFloat should fail", func() {
+			_, err := AsFloat(nil)
+			So(err, ShouldNotBeNil)
+		})
+
+		Convey("Then passing nil to AsString should fail", func() {
+			_, err := AsString(nil)
+			So(err, ShouldNotBeNil)
+		})
+
+		Convey("Then passing nil to AsBlob should fail", func() {
+			_, err := AsBlob(nil)
+			So(err, ShouldNotBeNil)
+		})
+
+		Convey("Then passing nil to AsTimestamp should fail", func() {
+			_, err := AsTimestamp(nil)
+			So(err, ShouldNotBeNil)
+		})
+
+		Convey("Then passing nil to AsArray should fail", func() {
+			_, err := AsArray(nil)
+			So(err, ShouldNotBeNil)
+		})
+
+		Convey("Then passing nil to AsMap should fail", func() {
+			_, err := AsMap(nil)
+			So(err, ShouldNotBeNil)
+		})
+	})
+}

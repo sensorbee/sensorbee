@@ -3,11 +3,12 @@ package udf
 import (
 	"errors"
 	"fmt"
-	"gopkg.in/sensorbee/sensorbee.v0/core"
-	"gopkg.in/sensorbee/sensorbee.v0/data"
 	"math"
 	"reflect"
 	"time"
+
+	"gopkg.in/sensorbee/sensorbee.v0/core"
+	"gopkg.in/sensorbee/sensorbee.v0/data"
 )
 
 // ConvertGeneric creates a new UDF from various form of functions. Arguments
@@ -364,7 +365,17 @@ func genericFuncArgumentConverter(t reflect.Type) (argumentConverter, error) {
 		if elemType.Kind() == reflect.Uint8 {
 			// process this as a blob
 			return func(v data.Value) (interface{}, error) {
-				return data.ToBlob(v)
+				// This function explicitly returns nil to avoid returning
+				// nils having non-empty type information for later nil
+				// equality checks.
+				res, err := data.ToBlob(v)
+				if err != nil {
+					return nil, err
+				}
+				if res == nil {
+					return nil, err
+				}
+				return res, nil
 			}, nil
 		}
 
@@ -377,7 +388,7 @@ func genericFuncArgumentConverter(t reflect.Type) (argumentConverter, error) {
 			if err != nil {
 				return nil, err
 			}
-			res := reflect.Zero(t)
+			res := reflect.MakeSlice(t, 0, len(a))
 			for _, elem := range a {
 				e, err := c(elem)
 				if err != nil {
@@ -385,14 +396,21 @@ func genericFuncArgumentConverter(t reflect.Type) (argumentConverter, error) {
 				}
 				res = reflect.Append(res, reflect.ValueOf(e))
 			}
-			return res.Interface(), nil
+			return res.Interface(), nil // res will never be nil.
 		}, nil
 
 	default:
 		switch reflect.Zero(t).Interface().(type) {
 		case data.Map:
 			return func(v data.Value) (interface{}, error) {
-				return data.AsMap(v)
+				res, err := data.AsMap(v)
+				if err != nil {
+					return nil, err
+				}
+				if res == nil {
+					return nil, err
+				}
+				return res, nil
 			}, nil
 
 		case time.Time:
@@ -404,6 +422,9 @@ func genericFuncArgumentConverter(t reflect.Type) (argumentConverter, error) {
 			if t.Implements(reflect.TypeOf(data.NewValue).Out(0)) { // data.Value
 				// Zero(interface) returns nil and type assertion doesn't work for it.
 				return func(v data.Value) (interface{}, error) {
+					if v == nil {
+						return nil, nil // Erase type information (data.Value) from nil
+					}
 					return v, nil
 				}, nil
 			}
