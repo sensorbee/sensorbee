@@ -1,10 +1,12 @@
 package core
 
 import (
+	"errors"
 	"fmt"
+	"testing"
+
 	. "github.com/smartystreets/goconvey/convey"
 	"gopkg.in/sensorbee/sensorbee.v0/data"
-	"testing"
 )
 
 func BenchmarkPipe(b *testing.B) {
@@ -354,6 +356,44 @@ func TestDataSources(t *testing.T) {
 				srcs.stop(ctx)
 				So(<-stopped, ShouldBeNil)
 				So(si.len(), ShouldEqual, 2)
+			})
+		})
+	})
+}
+
+func TestDataSourcesFailure(t *testing.T) {
+	Convey("Given a data source", t, func() {
+		ctx := NewContext(nil)
+		srcs := newDataSources(NTBox, "test_component")
+		r, s := newPipe("test", 1)
+		srcs.add("test_node", r)
+		Reset(func() {
+			s.close()
+		})
+		stopped := make(chan error, 1)
+		go func() {
+			stopped <- srcs.pour(ctx, WriterFunc(func(ctx *Context, t *Tuple) error {
+				return errors.New("error")
+			}), 4)
+		}()
+		srcs.state.Wait(TSRunning)
+		Reset(func() {
+			srcs.stop(ctx)
+		})
+		t := &Tuple{
+			InputName: "some_component",
+			Data: data.Map{
+				"v": data.Int(1),
+			},
+		}
+
+		Convey("When writing a tuple to it and the connected node returns an error", func() {
+			So(s.Write(ctx, t), ShouldBeNil)
+			srcs.stop(ctx)
+			So(<-stopped, ShouldBeNil)
+
+			Convey("Then numError should be increased", func() {
+				So(srcs.numErrors, ShouldEqual, 1)
 			})
 		})
 	})

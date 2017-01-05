@@ -595,16 +595,15 @@ receiveLoop:
 				break
 			}
 
+			atomic.AddInt64(&s.numErrors, 1)
 			switch {
 			case IsFatalError(err):
-				atomic.AddInt64(&s.numErrors, 1)
 				// logging is done by pour method
 				retErr = err
 				reportDT(t, err)
 				return
 
 			case IsTemporaryError(err):
-				atomic.AddInt64(&s.numErrors, 1)
 				// TODO: retry
 				reportDT(t, err) // TODO: don't write a tuple until retry fails
 
