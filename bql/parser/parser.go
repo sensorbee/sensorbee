@@ -4,9 +4,10 @@ package parser
 
 import (
 	"fmt"
-	"github.com/mattn/go-runewidth"
 	"strings"
 	"unicode"
+
+	"github.com/mattn/go-runewidth"
 )
 
 type bqlParser struct {
@@ -90,18 +91,9 @@ type bqlParseError struct {
 func (e *bqlParseError) Error() string {
 	error := "failed to parse string as BQL statement\n"
 	stmt := []rune(e.p.Buffer)
-	tokens := e.p.tokenTree.Error()
-	// collect the current stack of tokens and translate their
-	// string indexes into line/symbol pairs
-	positions, p := make([]int, 2*len(tokens)), 0
-	for _, token := range tokens {
-		positions[p], p = int(token.begin), p+1
-		positions[p], p = int(token.end), p+1
-	}
-	translations := translatePositions(e.p.buffer, positions)
 	// now find the offensive line
 	foundError := false
-	for _, token := range tokens {
+	for _, token := range e.p.Tokens() {
 		begin, end := int(token.begin), int(token.end)
 		if end == 0 {
 			// these are '' matches we cannot exploit for a useful error message
@@ -117,6 +109,11 @@ func (e *bqlParseError) Error() string {
 				break
 			}
 		} else if end > 0 {
+			// collect the max token in error and translate their
+			// string indexes into line/symbol pairs
+			end = int(e.max.end)
+			positions := []int{int(e.max.begin), end}
+			translations := translatePositions(e.p.buffer, positions)
 			error += fmt.Sprintf("statement has a syntax error near line %v, symbol %v:\n",
 				translations[end].line, translations[end].symbol)
 			// we want some output like:
