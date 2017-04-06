@@ -312,9 +312,9 @@ SourceSinkParam <- SourceSinkParamKey spOpt '=' spOpt SourceSinkParamVal {
         p.AssembleSourceSinkParam()
     }
 
-SourceSinkParamVal <- ParamLiteral / ParamArrayExpr / ParamMapExpr
+SourceSinkParamVal <- ParamLiteral
 
-ParamLiteral <- BooleanLiteral / Literal
+ParamLiteral <- BooleanLiteral / Literal / ParamArrayExpr / ParamMapExpr
 
 ParamArrayExpr <- < '[' spOpt (ParamLiteral (',' spOpt ParamLiteral)*)? spOpt ','? spOpt ']' > {
         p.AssembleExpressions(begin, end)

@@ -1,10 +1,11 @@
 package parser
 
 import (
-	. "github.com/smartystreets/goconvey/convey"
-	"gopkg.in/sensorbee/sensorbee.v0/data"
 	"strings"
 	"testing"
+
+	. "github.com/smartystreets/goconvey/convey"
+	"gopkg.in/sensorbee/sensorbee.v0/data"
 )
 
 func TestAssembleCreateState(t *testing.T) {
@@ -139,6 +140,89 @@ func TestAssembleCreateState(t *testing.T) {
 					So(comp.String(), ShouldContainSubstring, mp3)
 					So(comp.String(), ShouldEndWith, boolParam)
 					So(len(comp.String()), ShouldEqual, len(p.Buffer))
+				})
+			})
+		})
+
+		Convey("When doing CREATE STATE with map in map/array parameter", func() {
+			createQuery := "CREATE STATE a_1 TYPE b WITH "
+			value1 := `"im":{"s":"a"}`
+			value2 := `"ia":[1,2]`
+			imapParam := `m={` + value1 + "," + value2 + `}`
+			p.Buffer = createQuery + imapParam
+			p.Init()
+
+			Convey("Then the statement should be parsed correctly", func() {
+				err := p.Parse()
+				So(err, ShouldEqual, nil)
+				p.Execute()
+
+				ps := p.parseStack
+				So(ps.Len(), ShouldEqual, 1)
+				top := ps.Peek().comp
+				So(top, ShouldHaveSameTypeAs, CreateStateStmt{})
+				comp := top.(CreateStateStmt)
+
+				So(comp.Name, ShouldEqual, "a_1")
+				So(comp.Type, ShouldEqual, "b")
+				So(len(comp.Params), ShouldEqual, 1)
+
+				So(comp.Params[0].Key, ShouldEqual, "m")
+				expectedIMap := data.Map{
+					"im": data.Map{
+						"s": data.String("a"),
+					},
+					"ia": data.Array{data.Int(1), data.Int(2)},
+				}
+				actualIMap, err := data.AsMap(comp.Params[0].Value)
+				So(err, ShouldBeNil)
+				So(actualIMap, ShouldResemble, expectedIMap)
+
+				Convey("And String() should return the original statement", func() {
+					So(comp.String(), ShouldStartWith, createQuery)
+					So(comp.String(), ShouldContainSubstring, value1)
+					So(comp.String(), ShouldContainSubstring, value2)
+					So(len(comp.String()), ShouldEqual, len(p.Buffer))
+				})
+			})
+		})
+
+		Convey("When doing CREATE STATE with array in map/array parameter", func() {
+			createQuery := "CREATE STATE a_1 TYPE b WITH "
+			value1 := `{"s":"a"}`
+			value2 := `[1,2]`
+			iarrParam := `a=[` + value1 + "," + value2 + `]`
+			p.Buffer = createQuery + iarrParam
+			p.Init()
+
+			Convey("Then the statement should be parsed correctly", func() {
+				err := p.Parse()
+				So(err, ShouldEqual, nil)
+				p.Execute()
+
+				ps := p.parseStack
+				So(ps.Len(), ShouldEqual, 1)
+				top := ps.Peek().comp
+				So(top, ShouldHaveSameTypeAs, CreateStateStmt{})
+				comp := top.(CreateStateStmt)
+
+				So(comp.Name, ShouldEqual, "a_1")
+				So(comp.Type, ShouldEqual, "b")
+				So(len(comp.Params), ShouldEqual, 1)
+
+				So(comp.Params[0].Key, ShouldEqual, "a")
+				expectedIArr := data.Array{
+					data.Map{
+						"s": data.String("a"),
+					},
+					data.Array{data.Int(1), data.Int(2)},
+				}
+				actualIArr, err := data.AsArray(comp.Params[0].Value)
+				So(err, ShouldBeNil)
+				So(actualIArr, ShouldResemble, expectedIArr)
+
+				Convey("And String() should return the original statement", func() {
+					So(comp.String(), ShouldEqual, p.Buffer)
 				})
 			})
 		})
