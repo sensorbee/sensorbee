@@ -37,7 +37,22 @@ var CmdFlags = []cli.Flag{
 		Name:  "topology,t",
 		Usage: "the SensorBee topology to use (instead of USE command)",
 	},
+	cli.StringFlag{
+		Name:  "output-format",
+		Value: "bql",
+		Usage: "the format of the output of BQL statements (bql or json)",
+	},
 }
+
+// Global flags to control behavior of the shell.
+// TODO: support dynamic modification of outputFormat.
+var (
+	outputFormat       = "bql"
+	validOutputFormats = map[string]struct{}{
+		"json": struct{}{},
+		"bql":  struct{}{},
+	}
+)
 
 // Launch SensorBee's command line client tool.
 func Launch(c *cli.Context) error {
@@ -45,6 +60,7 @@ func Launch(c *cli.Context) error {
 		if err := validateFlags(c); err != nil {
 			return err
 		}
+		outputFormat = c.String("output-format")
 		if c.IsSet("topology") {
 			currentTopology.name = c.String("topology")
 		}
@@ -76,7 +92,11 @@ func validateFlags(c *cli.Context) error {
 	if err := client.ValidateAPIVersion(c.String("api-version")); err != nil {
 		return err
 	}
-	// TODO: check other flags
+
+	of := c.String("output-format")
+	if _, ok := validOutputFormats[of]; !ok {
+		return fmt.Errorf("invalid output format: %v", of)
+	}
 	return nil
 }
 
