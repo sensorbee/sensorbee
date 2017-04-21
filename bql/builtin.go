@@ -6,12 +6,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"gopkg.in/sensorbee/sensorbee.v0/core"
-	"gopkg.in/sensorbee/sensorbee.v0/data"
 	"io"
 	"os"
 	"sync"
 	"time"
+
+	"gopkg.in/sensorbee/sensorbee.v0/core"
+	"gopkg.in/sensorbee/sensorbee.v0/data"
 )
 
 // TODO: create bql/builtin directory and move components in this file to there
@@ -154,57 +155,39 @@ func (s *readerSource) Stop(ctx *core.Context) error {
 func createFileSource(ctx *core.Context, ioParams *IOParams, params data.Map) (core.Source, error) {
 	// TODO: add format parameter
 
-	fpath, err := extractPathParameter(params)
-	if err != nil {
+	v := &struct {
+		Path           string `bql:",required"`
+		Rewindable     bool
+		TimestampField string
+		Repeat         int64
+		Interval       time.Duration
+	}{
+		Rewindable:     false,
+		TimestampField: "",
+		Repeat:         0,
+	}
+	dec := data.NewDecoder(nil)
+	if err := dec.Decode(params, v); err != nil {
 		return nil, err
 	}
 
-	rewindable := false
-	if v, ok := params["rewindable"]; ok {
-		r, err := data.AsBool(v)
-		if err != nil {
-			return nil, fmt.Errorf("'rewindable' parameter must be bool: %v", err)
-		}
-		rewindable = r
-	}
-
 	var tsField data.Path
-	if v, ok := params["timestamp_field"]; ok {
-		f, err := data.AsString(v)
-		if err != nil {
-			return nil, fmt.Errorf("'timestamp_field' parameter must be string: %v", err)
-		}
-		if tsField, err = data.CompilePath(f); err != nil {
+	if v.TimestampField != "" {
+		var err error
+		if tsField, err = data.CompilePath(v.TimestampField); err != nil {
 			return nil, fmt.Errorf("'timestamp_field' parameter doesn't have a valid path: %v", err)
 		}
 	}
 
-	var repeat int64
-	if v, ok := params["repeat"]; ok {
-		r, err := data.AsInt(v)
-		if err != nil {
-			return nil, fmt.Errorf("'repeat' parameter must be an integer: %v", err)
-		}
-		repeat = r
-	}
-
-	var interval time.Duration
-	if v, ok := params["interval"]; ok {
-		i, err := data.ToDuration(v)
-		if err != nil {
-			return nil, fmt.Errorf("'interval' parameter should have a duration: %v", err)
-		}
-		interval = i
-	}
 	s := &readerSource{
-		filename: fpath,
+		filename: v.Path,
 		tsField:  tsField,
 		ioParams: ioParams,
-		repeat:   repeat,
-		interval: interval,
+		repeat:   v.Repeat,
+		interval: v.Interval,
 		stopCh:   make(chan struct{}),
 	}
-	if rewindable {
+	if v.Rewindable {
 		return core.NewRewindableSource(s), nil
 	}
 	return core.ImplementSourceStop(s), nil
