@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"gopkg.in/natefinch/lumberjack.v2"
 	"gopkg.in/sensorbee/sensorbee.v0/core"
 	"gopkg.in/sensorbee/sensorbee.v0/data"
 )
@@ -251,25 +252,45 @@ func createFileSink(ctx *core.Context, ioParams *IOParams, params data.Map) (cor
 	v := &struct {
 		Path     string `bql:",required"`
 		Truncate bool
+		// rotate information
+		MaxSize    int `bql:"maxsize"`
+		MaxAge     int `bql:"maxage"`
+		MaxBackups int `bql:"maxbackups"`
 	}{
 		Truncate: false,
+		MaxSize:  0,
 	}
 	dec := data.NewDecoder(nil)
 	if err := dec.Decode(params, v); err != nil {
 		return nil, err
 	}
 
-	flags := os.O_WRONLY | os.O_APPEND | os.O_CREATE
-	if v.Truncate {
-		flags |= os.O_TRUNC
-	}
+	var w io.Writer
+	if v.MaxSize > 0 {
+		l := lumberjack.Logger{
+			Filename: v.Path,
+		}
+		if v.MaxAge > 0 {
+			l.MaxAge = v.MaxAge
+		}
+		if v.MaxBackups > 0 {
+			l.MaxBackups = v.MaxBackups
+		}
+		w = &l
+	} else {
+		flags := os.O_WRONLY | os.O_APPEND | os.O_CREATE
+		if v.Truncate {
+			flags |= os.O_TRUNC
+		}
 
-	file, err := os.OpenFile(v.Path, flags, 0644)
-	if err != nil {
-		return nil, err
+		file, err := os.OpenFile(v.Path, flags, 0644)
+		if err != nil {
+			return nil, err
+		}
+		w = file
 	}
 	return &writerSink{
-		w:           file,
+		w:           w,
 		shouldClose: true,
 	}, nil
 }
