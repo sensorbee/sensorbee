@@ -193,20 +193,6 @@ func createFileSource(ctx *core.Context, ioParams *IOParams, params data.Map) (c
 	return core.ImplementSourceStop(s), nil
 }
 
-// extractPathParameter retrieve 'path' parameter in the WITH clause of
-// CREATE SOURCE or CREATE SINK statement.
-func extractPathParameter(params data.Map) (string, error) {
-	v, ok := params["path"]
-	if !ok {
-		return "", errors.New("'path' parameter is missing")
-	}
-	f, err := data.AsString(v)
-	if err != nil {
-		return "", fmt.Errorf("'path' parameter must be a string: %v", err)
-	}
-	return f, nil
-}
-
 func init() {
 	MustRegisterGlobalSourceCreator("file", SourceCreatorFunc(createFileSource))
 }
@@ -262,23 +248,23 @@ func createFileSink(ctx *core.Context, ioParams *IOParams, params data.Map) (cor
 	//       "jsonl" should be the default value.
 	// TODO: support "compression" parameter with values like "gz".
 
-	fpath, err := extractPathParameter(params)
-	if err != nil {
+	v := &struct {
+		Path     string `bql:",required"`
+		Truncate bool
+	}{
+		Truncate: false,
+	}
+	dec := data.NewDecoder(nil)
+	if err := dec.Decode(params, v); err != nil {
 		return nil, err
 	}
 
 	flags := os.O_WRONLY | os.O_APPEND | os.O_CREATE
-	if v, ok := params["truncate"]; ok {
-		t, err := data.AsBool(v)
-		if err != nil {
-			return nil, fmt.Errorf("'truncate' parameter must be bool: %v", err)
-		}
-		if t {
-			flags |= os.O_TRUNC
-		}
+	if v.Truncate {
+		flags |= os.O_TRUNC
 	}
 
-	file, err := os.OpenFile(fpath, flags, 0644)
+	file, err := os.OpenFile(v.Path, flags, 0644)
 	if err != nil {
 		return nil, err
 	}
