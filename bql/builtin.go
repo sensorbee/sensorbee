@@ -253,9 +253,9 @@ func createFileSink(ctx *core.Context, ioParams *IOParams, params data.Map) (cor
 		Path     string `bql:",required"`
 		Truncate bool
 		// rotate information
-		MaxSize    int `bql:"maxsize"`
-		MaxAge     int `bql:"maxage"`
-		MaxBackups int `bql:"maxbackups"`
+		MaxSize    int
+		MaxAge     int
+		MaxBackups int
 	}{
 		Truncate: false,
 		MaxSize:  0,

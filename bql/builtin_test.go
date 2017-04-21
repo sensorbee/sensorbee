@@ -10,6 +10,8 @@ import (
 	"testing"
 	"time"
 
+	"gopkg.in/natefinch/lumberjack.v2"
+
 	. "github.com/smartystreets/goconvey/convey"
 	"gopkg.in/sensorbee/sensorbee.v0/core"
 	"gopkg.in/sensorbee/sensorbee.v0/data"
@@ -324,6 +326,37 @@ func TestFileSink(t *testing.T) {
 					So(err, ShouldBeNil)
 					So(string(actualByte), ShouldEqual, `{"k":-1}
 `)
+				})
+			})
+		})
+
+		Convey("When create file sink with file rotate", func() {
+			fn := filepath.Join(tdir, "file_sink3.jsonl")
+			params := data.Map{
+				"path":     data.String(fn),
+				"max_size": data.Int(10),
+			}
+			si, err := createFileSink(ctx, ioParams, params)
+			So(err, ShouldBeNil)
+			Reset(func() {
+				si.Close(ctx)
+			})
+			Convey("Then the sink is created as lumberjack object", func() {
+				ws, ok := si.(*writerSink)
+				So(ok, ShouldBeTrue)
+				_, ok = ws.w.(*lumberjack.Logger)
+				So(ok, ShouldBeTrue)
+
+				Convey("And when write a tuple to the sink", func() {
+					d := data.Map{"k": data.Int(-1)}
+					tu := core.NewTuple(d)
+					So(si.Write(ctx, tu), ShouldBeNil)
+					Convey("Then the tuple should be written in the file", func() {
+						actualByte, err := ioutil.ReadFile(fn)
+						So(err, ShouldBeNil)
+						So(string(actualByte), ShouldEqual, `{"k":-1}
+`)
+					})
 				})
 			})
 		})
