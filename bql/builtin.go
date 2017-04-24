@@ -276,6 +276,11 @@ func createFileSink(ctx *core.Context, ioParams *IOParams, params data.Map) (cor
 		if v.MaxBackups > 0 {
 			l.MaxBackups = v.MaxBackups
 		}
+		if _, err := os.Stat(v.Path); err == nil && v.Truncate {
+			if err := os.Truncate(v.Path, 0); err != nil {
+				return nil, err
+			}
+		}
 		w = &l
 	} else {
 		flags := os.O_WRONLY | os.O_APPEND | os.O_CREATE

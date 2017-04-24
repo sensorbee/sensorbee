@@ -330,11 +330,77 @@ func TestFileSink(t *testing.T) {
 			})
 		})
 
-		Convey("When create file sink with file rotate", func() {
+		Convey("When create file sink with rotate option", func() {
 			fn := filepath.Join(tdir, "file_sink3.jsonl")
 			params := data.Map{
 				"path":     data.String(fn),
 				"max_size": data.Int(10),
+			}
+			si, err := createFileSink(ctx, ioParams, params)
+			So(err, ShouldBeNil)
+			Reset(func() {
+				si.Close(ctx)
+			})
+			Convey("Then the sink is created as lumberjack object", func() {
+				ws, ok := si.(*writerSink)
+				So(ok, ShouldBeTrue)
+				_, ok = ws.w.(*lumberjack.Logger)
+				So(ok, ShouldBeTrue)
+
+				Convey("And when write a tuple to the sink", func() {
+					d := data.Map{"k": data.Int(-1)}
+					tu := core.NewTuple(d)
+					So(si.Write(ctx, tu), ShouldBeNil)
+					Convey("Then the tuple should be written in the file", func() {
+						actualByte, err := ioutil.ReadFile(fn)
+						So(err, ShouldBeNil)
+						So(string(actualByte), ShouldEqual, `{"k":-1}
+`)
+					})
+				})
+			})
+		})
+
+		Convey("When create file sink with rotate option and truncate (but file is empty)", func() {
+			fn := filepath.Join(tdir, "file_sink4.jsonl")
+			params := data.Map{
+				"path":     data.String(fn),
+				"max_size": data.Int(10),
+				"truncate": data.True,
+			}
+			si, err := createFileSink(ctx, ioParams, params)
+			So(err, ShouldBeNil)
+			Reset(func() {
+				si.Close(ctx)
+			})
+			Convey("Then the sink is created as lumberjack object", func() {
+				ws, ok := si.(*writerSink)
+				So(ok, ShouldBeTrue)
+				_, ok = ws.w.(*lumberjack.Logger)
+				So(ok, ShouldBeTrue)
+
+				Convey("And when write a tuple to the sink", func() {
+					d := data.Map{"k": data.Int(-1)}
+					tu := core.NewTuple(d)
+					So(si.Write(ctx, tu), ShouldBeNil)
+					Convey("Then the tuple should be written in the file", func() {
+						actualByte, err := ioutil.ReadFile(fn)
+						So(err, ShouldBeNil)
+						So(string(actualByte), ShouldEqual, `{"k":-1}
+`)
+					})
+				})
+			})
+		})
+
+		Convey("When create file sink with rotate option and truncated", func() {
+			fn := filepath.Join(tdir, "file_sink5.jsonl")
+			So(ioutil.WriteFile(fn, []byte(`{"k":-2}
+`), 0644), ShouldBeNil)
+			params := data.Map{
+				"path":     data.String(fn),
+				"max_size": data.Int(10),
+				"truncate": data.True,
 			}
 			si, err := createFileSink(ctx, ioParams, params)
 			So(err, ShouldBeNil)
