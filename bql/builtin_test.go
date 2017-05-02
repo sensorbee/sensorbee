@@ -2,15 +2,19 @@ package bql
 
 import (
 	"fmt"
-	. "github.com/smartystreets/goconvey/convey"
-	"gopkg.in/sensorbee/sensorbee.v0/core"
-	"gopkg.in/sensorbee/sensorbee.v0/data"
 	"io"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"sync"
 	"testing"
 	"time"
+
+	"gopkg.in/natefinch/lumberjack.v2"
+
+	. "github.com/smartystreets/goconvey/convey"
+	"gopkg.in/sensorbee/sensorbee.v0/core"
+	"gopkg.in/sensorbee/sensorbee.v0/data"
 )
 
 type testFileWriter struct {
@@ -51,7 +55,7 @@ func TestFileSource(t *testing.T) {
 
 	// an empty line is intentionally included
 	_, err = io.WriteString(f, fmt.Sprintf(`{"int":1, "ts":%v}
- 
+
  {"int":2, "ts":%v}
   {"int":3, "ts":%v} `, nowTs, nowTs, nowTs))
 	f.Close()
@@ -251,6 +255,175 @@ func TestFileSource(t *testing.T) {
 				params["interval"] = data.Map{}
 				_, err := createFileSource(ctx, &IOParams{}, params)
 				So(err, ShouldNotBeNil)
+			})
+		})
+	})
+}
+
+func TestFileSink(t *testing.T) {
+	ctx := core.NewContext(nil)
+	ioParams := &IOParams{}
+	Convey("Given a temp directory path", t, func() {
+		tdir, err := ioutil.TempDir("", "test_sb_file_sink")
+		So(err, ShouldBeNil)
+		Reset(func() {
+			os.RemoveAll(tdir)
+		})
+		Convey("When create file sink without path", func() {
+			params := data.Map{
+				"truncate": data.False,
+			}
+			_, err := createFileSink(ctx, ioParams, params)
+			Convey("Then the sink should not be created", func() {
+				So(err, ShouldNotBeNil)
+			})
+		})
+
+		Convey("When create file sink with required param", func() {
+			fn := filepath.Join(tdir, "file_sink.jsonl")
+			params := data.Map{
+				"path": data.String(fn),
+			}
+			si, err := createFileSink(ctx, ioParams, params)
+			So(err, ShouldBeNil)
+			Reset(func() {
+				si.Close(ctx)
+			})
+			_, err = os.Stat(fn)
+			So(err, ShouldBeNil)
+			Convey("And when write a tuple to the sink", func() {
+				d := data.Map{"k": data.Int(-1)}
+				tu := core.NewTuple(d)
+				So(si.Write(ctx, tu), ShouldBeNil)
+				Convey("Then the tuple should be written in the file", func() {
+					actualByte, err := ioutil.ReadFile(fn)
+					So(err, ShouldBeNil)
+					So(string(actualByte), ShouldEqual, `{"k":-1}
+`)
+				})
+			})
+		})
+
+		Convey("When create file sink with truncate flag", func() {
+			fn := filepath.Join(tdir, "file_sink2.jsonl")
+			So(ioutil.WriteFile(fn, []byte(`{"k":-2}
+`), 0644), ShouldBeNil)
+			params := data.Map{
+				"path":     data.String(fn),
+				"truncate": data.True,
+			}
+			si, err := createFileSink(ctx, ioParams, params)
+			So(err, ShouldBeNil)
+			Reset(func() {
+				si.Close(ctx)
+			})
+			Convey("And when write a tuple to the sink", func() {
+				d := data.Map{"k": data.Int(-1)}
+				tu := core.NewTuple(d)
+				So(si.Write(ctx, tu), ShouldBeNil)
+				Convey("Then the tuple should be written in the file", func() {
+					actualByte, err := ioutil.ReadFile(fn)
+					So(err, ShouldBeNil)
+					So(string(actualByte), ShouldEqual, `{"k":-1}
+`)
+				})
+			})
+		})
+
+		Convey("When create file sink with rotate option", func() {
+			fn := filepath.Join(tdir, "file_sink3.jsonl")
+			params := data.Map{
+				"path":     data.String(fn),
+				"max_size": data.Int(10),
+			}
+			si, err := createFileSink(ctx, ioParams, params)
+			So(err, ShouldBeNil)
+			Reset(func() {
+				si.Close(ctx)
+			})
+			Convey("Then the sink is created as lumberjack object", func() {
+				ws, ok := si.(*writerSink)
+				So(ok, ShouldBeTrue)
+				_, ok = ws.w.(*lumberjack.Logger)
+				So(ok, ShouldBeTrue)
+
+				Convey("And when write a tuple to the sink", func() {
+					d := data.Map{"k": data.Int(-1)}
+					tu := core.NewTuple(d)
+					So(si.Write(ctx, tu), ShouldBeNil)
+					Convey("Then the tuple should be written in the file", func() {
+						actualByte, err := ioutil.ReadFile(fn)
+						So(err, ShouldBeNil)
+						So(string(actualByte), ShouldEqual, `{"k":-1}
+`)
+					})
+				})
+			})
+		})
+
+		Convey("When create file sink with rotate option and truncate (but file is empty)", func() {
+			fn := filepath.Join(tdir, "file_sink4.jsonl")
+			params := data.Map{
+				"path":     data.String(fn),
+				"max_size": data.Int(10),
+				"truncate": data.True,
+			}
+			si, err := createFileSink(ctx, ioParams, params)
+			So(err, ShouldBeNil)
+			Reset(func() {
+				si.Close(ctx)
+			})
+			Convey("Then the sink is created as lumberjack object", func() {
+				ws, ok := si.(*writerSink)
+				So(ok, ShouldBeTrue)
+				_, ok = ws.w.(*lumberjack.Logger)
+				So(ok, ShouldBeTrue)
+
+				Convey("And when write a tuple to the sink", func() {
+					d := data.Map{"k": data.Int(-1)}
+					tu := core.NewTuple(d)
+					So(si.Write(ctx, tu), ShouldBeNil)
+					Convey("Then the tuple should be written in the file", func() {
+						actualByte, err := ioutil.ReadFile(fn)
+						So(err, ShouldBeNil)
+						So(string(actualByte), ShouldEqual, `{"k":-1}
+`)
+					})
+				})
+			})
+		})
+
+		Convey("When create file sink with rotate option and truncated", func() {
+			fn := filepath.Join(tdir, "file_sink5.jsonl")
+			So(ioutil.WriteFile(fn, []byte(`{"k":-2}
+`), 0644), ShouldBeNil)
+			params := data.Map{
+				"path":     data.String(fn),
+				"max_size": data.Int(10),
+				"truncate": data.True,
+			}
+			si, err := createFileSink(ctx, ioParams, params)
+			So(err, ShouldBeNil)
+			Reset(func() {
+				si.Close(ctx)
+			})
+			Convey("Then the sink is created as lumberjack object", func() {
+				ws, ok := si.(*writerSink)
+				So(ok, ShouldBeTrue)
+				_, ok = ws.w.(*lumberjack.Logger)
+				So(ok, ShouldBeTrue)
+
+				Convey("And when write a tuple to the sink", func() {
+					d := data.Map{"k": data.Int(-1)}
+					tu := core.NewTuple(d)
+					So(si.Write(ctx, tu), ShouldBeNil)
+					Convey("Then the tuple should be written in the file", func() {
+						actualByte, err := ioutil.ReadFile(fn)
+						So(err, ShouldBeNil)
+						So(string(actualByte), ShouldEqual, `{"k":-1}
+`)
+					})
+				})
 			})
 		})
 	})
