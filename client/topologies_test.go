@@ -3,13 +3,13 @@ package client
 // TODO: replace tests with a richer client
 
 import (
-	"encoding/json"
+	"net/http"
+	"testing"
+
 	. "github.com/smartystreets/goconvey/convey"
 	"golang.org/x/net/websocket"
 	"gopkg.in/sensorbee/sensorbee.v0/data"
 	"gopkg.in/sensorbee/sensorbee.v0/server/testutil"
-	"net/http"
-	"testing"
 )
 
 var jscan = testutil.JScan
@@ -120,7 +120,7 @@ func TestTopologiesCreateInvalidValues(t *testing.T) {
 		})
 
 		Convey("When posting a broken JSON request", func() {
-			res, js, err := do(r, Post, "/topologies", json.RawMessage("{broken}"))
+			res, js, err := do(r, Post, "/topologies", []byte("{broken}"))
 			So(err, ShouldBeNil)
 
 			Convey("Then it should fail", func() {
