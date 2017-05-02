@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -117,7 +118,14 @@ func ToBool(v Value) (bool, error) {
 		return val != 0.0 && !math.IsNaN(val), nil
 	case TypeString:
 		val, _ := v.asString()
-		return len(val) > 0, nil
+		val = strings.TrimSpace(val) // keep this for error reporting
+		switch strings.ToLower(val) {
+		case "t", "true", "y", "yes", "on", "1":
+			return true, nil
+		case "f", "false", "n", "no", "off", "0":
+			return false, nil
+		}
+		return false, fmt.Errorf("invalid string as a bool literal: %v", val)
 	case TypeBlob:
 		val, _ := v.asBlob()
 		return len(val) > 0, nil
