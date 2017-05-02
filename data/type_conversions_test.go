@@ -16,53 +16,88 @@ type convTestInput struct {
 }
 
 func TestToBool(t *testing.T) {
-	testCases := map[string][]convTestInput{
-		"Null": {
-			{"Null", Null{}, false},
-		},
-		"Bool": {
-			{"true", Bool(true), true},
-			{"false", Bool(false), false},
-		},
-		"Int": {
-			{"positive", Int(2), true},
-			{"negative", Int(-2), true},
-			{"zero", Int(0), false},
-		},
-		"Float": {
-			{"positive", Float(3.14), true},
-			{"negative", Float(-3.14), true},
-			{"zero", Float(0.0), false},
-			{"NaN", Float(math.NaN()), false},
-		},
-		"String": {
-			{"empty", String(""), false},
-			{"non-empty", String("hoge"), true},
-		},
-		"Blob": {
-			{"empty", Blob(""), false},
-			{"nil", Blob(nil), false},
-			{"non-empty", Blob("hoge"), true},
-		},
-		"Timestamp": {
-			{"zero", Timestamp(time.Time{}), false},
-			{"now", Timestamp(time.Now()), true},
-		},
-		"Array": {
-			{"empty", Array{}, false},
-			{"non-empty", Array{Int(2), String("foo")}, true},
-		},
-		"Map": {
-			{"empty", Map{}, false},
-			{"non-empty", Map{"a": Int(2), "b": String("foo")}, true},
-		},
-	}
+	t.Run("non-string", func(t *testing.T) {
+		testCases := map[string][]convTestInput{
+			"Null": {
+				{"Null", Null{}, false},
+			},
+			"Bool": {
+				{"true", Bool(true), true},
+				{"false", Bool(false), false},
+			},
+			"Int": {
+				{"positive", Int(2), true},
+				{"negative", Int(-2), true},
+				{"zero", Int(0), false},
+			},
+			"Float": {
+				{"positive", Float(3.14), true},
+				{"negative", Float(-3.14), true},
+				{"zero", Float(0.0), false},
+				{"NaN", Float(math.NaN()), false},
+			},
+			"Blob": {
+				{"empty", Blob(""), false},
+				{"nil", Blob(nil), false},
+				{"non-empty", Blob("hoge"), true},
+			},
+			"Timestamp": {
+				{"zero", Timestamp(time.Time{}), false},
+				{"now", Timestamp(time.Now()), true},
+			},
+			"Array": {
+				{"empty", Array{}, false},
+				{"non-empty", Array{Int(2), String("foo")}, true},
+			},
+			"Map": {
+				{"empty", Map{}, false},
+				{"non-empty", Map{"a": Int(2), "b": String("foo")}, true},
+			},
+		}
 
-	toFun := func(v Value) (interface{}, error) {
-		val, err := ToBool(v)
-		return val, err
-	}
-	runConversionTestCases(t, toFun, "ToBool", testCases)
+		toFun := func(v Value) (interface{}, error) {
+			val, err := ToBool(v)
+			return val, err
+		}
+		runConversionTestCases(t, toFun, "ToBool", testCases)
+	})
+
+	t.Run("from-string", func(t *testing.T) {
+		t.Run("valid-true", func(t *testing.T) {
+			for _, v := range []string{"t", " true", "y ", " yes ", "on", "1"} {
+				b, err := ToBool(String(v))
+				if err != nil {
+					t.Errorf(`"%v" should be converted to true`, v)
+					continue
+				}
+				if !b {
+					t.Errorf(`"%v" should be true`, v)
+				}
+			}
+		})
+
+		t.Run("valid-false", func(t *testing.T) {
+			for _, v := range []string{"  f", "false", "n", "no", "off  ", "  0  "} {
+				b, err := ToBool(String(v))
+				if err != nil {
+					t.Errorf(`"%v" should be converted to false`, v)
+					continue
+				}
+				if b {
+					t.Errorf(`"%v" should be false`, v)
+				}
+			}
+		})
+
+		t.Run("invalid", func(t *testing.T) {
+			for _, v := range []string{"", "hoge", "2", "-1", "-0", "onn", "tr ue"} {
+				_, err := ToBool(String(v))
+				if err == nil {
+					t.Errorf(`"%v" should be invalid`, v)
+				}
+			}
+		})
+	})
 }
 
 func TestToInt(t *testing.T) {
