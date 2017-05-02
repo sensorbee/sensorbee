@@ -64,7 +64,7 @@ func TestToBool(t *testing.T) {
 
 	t.Run("from-string", func(t *testing.T) {
 		t.Run("valid-true", func(t *testing.T) {
-			for _, v := range []string{"t", " true", "y ", " yes ", "on", "1"} {
+			for _, v := range []string{"t", " true", "tRuE", "y ", " yes ", "on", "1"} {
 				b, err := ToBool(String(v))
 				if err != nil {
 					t.Errorf(`"%v" should be converted to true`, v)
@@ -77,7 +77,7 @@ func TestToBool(t *testing.T) {
 		})
 
 		t.Run("valid-false", func(t *testing.T) {
-			for _, v := range []string{"  f", "false", "n", "no", "off  ", "  0  "} {
+			for _, v := range []string{"  f", "false", "FaLsE", "n", "no", "off  ", "  0  "} {
 				b, err := ToBool(String(v))
 				if err != nil {
 					t.Errorf(`"%v" should be converted to false`, v)
