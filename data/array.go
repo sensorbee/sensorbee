@@ -48,11 +48,7 @@ func (a Array) asMap() (Map, error) {
 }
 
 func (a Array) clone() Value {
-	out := make([]Value, len(a))
-	for idx, val := range a {
-		out[idx] = val.clone()
-	}
-	return Array(out)
+	return a.Copy()
 }
 
 // String returns JSON representation of an Array.
@@ -81,4 +77,14 @@ func (a *Array) UnmarshalJSON(data []byte) error {
 	}
 	*a = newArray
 	return nil
+}
+
+// Copy performs deep copy of an Array. The Array returned from this method can
+// safely be modified without affecting the original.
+func (a Array) Copy() Array {
+	out := make(Array, len(a))
+	for idx, val := range a {
+		out[idx] = val.clone()
+	}
+	return out
 }
