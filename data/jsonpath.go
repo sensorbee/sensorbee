@@ -1,5 +1,7 @@
 package data
 
+//go:generate peg jsonpath.peg
+
 import (
 	"fmt"
 	"strconv"
