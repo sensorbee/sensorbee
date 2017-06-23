@@ -142,6 +142,7 @@ func Run(c *cli.Context) error {
 				retErr = emptyError
 				return
 			}
+			logger.Info("Topology stopped")
 
 			if c.IsSet("save-uds") {
 				saveUDSList := c.String("save-uds")
@@ -151,10 +152,27 @@ func Run(c *cli.Context) error {
 						"topology": tb.Topology().Name(),
 					}).Error("Cannot save UDSs")
 					retErr = emptyError
-					return
 				}
 			}
-			// TODO: Terminate all shared states
+
+			registry := tb.Topology().Context().SharedStates
+			if states, err := registry.List(); err != nil {
+				logger.WithField("err", err).Error("Cannot list shared states")
+				retErr = emptyError
+				return
+			} else if 0 < len(states) {
+				logger.Info("Terminating states")
+				for name := range states {
+					if _, err := registry.Remove(name); err != nil {
+						logger.WithFields(logrus.Fields{
+							"err":   err,
+							"state": name,
+						}).Error("Cannot terminate state")
+						retErr = emptyError
+						// Continue to terminate the next state.
+					}
+				}
+			}
 		}()
 
 		logger.WithField("config", conf.ToMap()).Info("Starting the topology")
