@@ -134,6 +134,12 @@ func Run(c *cli.Context) error {
 			}).Error("Cannot set up BQL statement")
 			return emptyError
 		}
+		if c.IsSet("save-uds") {
+			if err := hasStates(tb, c.String("save-uds")); err != nil {
+				logger.WithField("err", err).Error("Cannot set up 'save-uds' option")
+				return emptyError
+			}
+		}
 
 		defer func() {
 			logger.Info("Waiting for all nodes to finish processing tuples")
@@ -275,6 +281,27 @@ func setUpBQLStmt(tb *bql.TopologyBuilder, bqlFile string) error {
 				return fmt.Errorf(`rewindable source "%v" isn't supported`, n.Name())
 			}
 		}
+	}
+	return nil
+}
+
+func hasStates(tb *bql.TopologyBuilder, saveUDSList string) error {
+	if saveUDSList == "" {
+		return nil
+	}
+	states, err := tb.Topology().Context().SharedStates.List()
+	if err != nil {
+		return err
+	}
+	missing := []string{}
+	for _, name := range strings.Split(saveUDSList, ",") {
+		if _, ok := states[name]; !ok {
+			missing = append(missing, name)
+		}
+	}
+	if len(missing) > 0 {
+		return fmt.Errorf("the topology doesn't have UDSs: %v",
+			strings.Join(missing, ","))
 	}
 	return nil
 }
