@@ -135,7 +135,7 @@ func Run(c *cli.Context) error {
 			return emptyError
 		}
 		if c.IsSet("save-uds") {
-			if err := checkStates(tb, c.String("save-uds")); err != nil {
+			if err := hasStates(tb, c.String("save-uds")); err != nil {
 				logger.WithField("err", err).Error("Cannot set up 'save-uds' option")
 				return emptyError
 			}
@@ -285,25 +285,23 @@ func setUpBQLStmt(tb *bql.TopologyBuilder, bqlFile string) error {
 	return nil
 }
 
-func checkStates(tb *bql.TopologyBuilder, saveUDSList string) error {
+func hasStates(tb *bql.TopologyBuilder, saveUDSList string) error {
 	if saveUDSList == "" {
-		return nil // save all UDS and pass to check
+		return nil
 	}
 	states, err := tb.Topology().Context().SharedStates.List()
 	if err != nil {
 		return err
 	}
-	notFoundFlag := false
+	missing := []string{}
 	for _, name := range strings.Split(saveUDSList, ",") {
 		if _, ok := states[name]; !ok {
-			err := fmt.Errorf("the UDS is not found")
-			tb.Topology().Context().ErrLog(err).WithField("uds", name).Error(
-				"Invalid UDS name")
-			notFoundFlag = true
+			missing = append(missing, name)
 		}
 	}
-	if notFoundFlag {
-		return fmt.Errorf("the target UDS list includes invalid name")
+	if len(missing) > 0 {
+		return fmt.Errorf("the topology doesn't have UDSs: %v",
+			strings.Join(missing, ","))
 	}
 	return nil
 }
