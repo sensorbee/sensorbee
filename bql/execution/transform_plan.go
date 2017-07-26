@@ -2,13 +2,14 @@ package execution
 
 import (
 	"fmt"
+	"math"
+	"regexp"
+	"strings"
+
 	"gopkg.in/sensorbee/sensorbee.v0/bql/parser"
 	"gopkg.in/sensorbee/sensorbee.v0/bql/udf"
 	"gopkg.in/sensorbee/sensorbee.v0/core"
 	"gopkg.in/sensorbee/sensorbee.v0/data"
-	"math"
-	"regexp"
-	"strings"
 )
 
 const (
@@ -151,6 +152,8 @@ func flattenExpressions(s *parser.SelectStmt, reg udf.FunctionRegistry) (*Logica
 			}
 		case parser.AliasAST:
 			colHeader = projType.Alias
+		case parser.FuncAppSelectorAST:
+			colHeader = string(projType.FuncAppAST.Function)
 		case parser.FuncAppAST:
 			colHeader = string(projType.Function)
 		case parser.Wildcard:
