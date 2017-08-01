@@ -2,14 +2,15 @@ package execution
 
 import (
 	"fmt"
+	"sort"
+	"testing"
+	"time"
+
 	. "github.com/smartystreets/goconvey/convey"
 	"gopkg.in/sensorbee/sensorbee.v0/bql/parser"
 	"gopkg.in/sensorbee/sensorbee.v0/bql/udf"
 	"gopkg.in/sensorbee/sensorbee.v0/core"
 	"gopkg.in/sensorbee/sensorbee.v0/data"
-	"sort"
-	"testing"
-	"time"
 )
 
 func getTuples(num int) []*core.Tuple {
@@ -108,6 +109,34 @@ func TestDefaultSelectExecutionPlan(t *testing.T) {
 				})
 			}
 
+		})
+	})
+
+	Convey("Given a SELECT clause with function columns", t, func() {
+		m := data.Map{
+			"a": data.String("a"),
+			"b": data.String("b"),
+			"c": data.String("c"),
+		}
+		udf.MustRegisterGlobalUDF("arr", udf.MustConvertGeneric(func() (data.Map, error) {
+			return m, nil
+		}))
+		s := `CREATE STREAM box AS SELECT RSTREAM arr(), arr().a, arr().b, arr().c AS c FROM src [RANGE 1 TUPLES]`
+		plan, err := createDefaultSelectPlan(s, t)
+		So(err, ShouldBeNil)
+
+		Convey("When feeding it with a tuple", func() {
+			tu := core.NewTuple(data.Map{})
+			tu.InputName = "src"
+			out, err := plan.Process(tu)
+			So(err, ShouldBeNil)
+
+			Convey("Then columns should be distinguished", func() {
+				So(out[0]["arr"], ShouldResemble, m)
+				So(out[0]["arr_1"], ShouldEqual, "a")
+				So(out[0]["arr_2"], ShouldEqual, "b")
+				So(out[0]["c"], ShouldEqual, "c")
+			})
 		})
 	})
 
