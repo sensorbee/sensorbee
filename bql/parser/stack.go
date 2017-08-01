@@ -1136,7 +1136,7 @@ func (ps *parseStack) AssembleFuncApp() {
 func (ps *parseStack) AssembleFuncAppSelector() {
 	_selector, _func := ps.pop2()
 
-	selector := _selector.comp.(RowValue)
+	selector := _selector.comp.(Raw)
 	funcApp := _func.comp.(FuncAppAST)
 
 	ps.PushComponent(_func.begin, _selector.end, FuncAppSelectorAST{

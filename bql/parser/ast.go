@@ -770,32 +770,27 @@ func (f FuncAppAST) String() string {
 
 type FuncAppSelectorAST struct {
 	FuncAppAST
-	Selector RowValue
+	Selector Raw
 }
 
 func (f FuncAppSelectorAST) ReferencedRelations() map[string]bool {
-	rels := f.FuncAppAST.ReferencedRelations()
-	for rel, val := range f.Selector.ReferencedRelations() {
-		rels[rel] = val
-	}
-	return rels
+	return f.FuncAppAST.ReferencedRelations()
 }
 
 func (f FuncAppSelectorAST) RenameReferencedRelation(from, to string) Expression {
 	newExprs := f.FuncAppAST.RenameReferencedRelation(from, to).(FuncAppAST)
-	newSlctr := f.Selector.RenameReferencedRelation(from, to).(RowValue)
 	return FuncAppSelectorAST{
 		FuncAppAST: newExprs,
-		Selector:   newSlctr,
+		Selector:   f.Selector,
 	}
 }
 
 func (f FuncAppSelectorAST) Foldable() bool {
-	return f.FuncAppAST.Foldable() || f.Selector.Foldable()
+	return f.FuncAppAST.Foldable()
 }
 
 func (f FuncAppSelectorAST) String() string {
-	return f.FuncAppAST.String() + f.Selector.String()
+	return f.FuncAppAST.String() + f.Selector.Expr
 }
 
 type SortedExpressionAST struct {

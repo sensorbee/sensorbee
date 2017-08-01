@@ -153,10 +153,9 @@ func ParserExprToFlatExpr(e parser.Expression, reg udf.FunctionRegistry) (FlatEx
 		if err != nil {
 			return nil, err
 		}
-		// TODO: Relation is always empty
 		return funcAppSelectorAST{
 			Expr:     expr,
-			Selector: fmt.Sprintf("%s", obj.Selector.Column),
+			Selector: obj.Selector.Expr,
 		}, nil
 	case parser.FuncAppAST:
 		// exception for now()
@@ -326,7 +325,7 @@ func ParserExprToMaybeAggregate(e parser.Expression, aggIdx int, reg udf.Functio
 		}
 		return funcAppSelectorAST{
 			Expr:     expr,
-			Selector: fmt.Sprintf("%s", obj.Selector.Column),
+			Selector: obj.Selector.Expr,
 		}, agg, nil
 	case parser.FuncAppAST:
 		// exception for now()

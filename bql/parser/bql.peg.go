@@ -1152,7 +1152,7 @@ func (p *bqlPegBackend) Execute() {
 		case ruleAction66:
 
 			substr := string([]rune(buffer)[begin:end])
-			p.PushComponent(begin, end, NewRowValue(substr))
+			p.PushComponent(begin, end, NewRaw(substr))
 
 		case ruleAction67:
 
@@ -17500,7 +17500,7 @@ func (p *bqlPegBackend) Init() {
 		},
 		/* 256 Action66 <- <{
 		    substr := string([]rune(buffer)[begin:end])
-		    p.PushComponent(begin, end, NewRowValue(substr))
+		    p.PushComponent(begin, end, NewRaw(substr))
 		}> */
 		func() bool {
 			{
