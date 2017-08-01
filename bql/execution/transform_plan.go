@@ -153,7 +153,8 @@ func flattenExpressions(s *parser.SelectStmt, reg udf.FunctionRegistry) (*Logica
 		case parser.AliasAST:
 			colHeader = projType.Alias
 		case parser.FuncAppSelectorAST:
-			colHeader = string(projType.FuncAppAST.Function)
+			colHeader = fmt.Sprintf("%s_%d",
+				string(projType.FuncAppAST.Function), i)
 		case parser.FuncAppAST:
 			colHeader = string(projType.Function)
 		case parser.Wildcard:
