@@ -109,7 +109,7 @@ func TestAssembleLoadState(t *testing.T) {
 
 			Convey("Then the statement should be parsed correctly", func() {
 				err := p.Parse()
-				So(err, ShouldEqual, nil)
+				So(err, ShouldBeNil)
 				p.Execute()
 
 				ps := p.parseStack
@@ -135,7 +135,7 @@ func TestAssembleLoadState(t *testing.T) {
 
 			Convey("Then the statement should be parsed correctly", func() {
 				err := p.Parse()
-				So(err, ShouldEqual, nil)
+				So(err, ShouldBeNil)
 				p.Execute()
 
 				ps := p.parseStack
@@ -167,7 +167,7 @@ func TestAssembleLoadState(t *testing.T) {
 
 			Convey("Then the statement should be parsed correctly", func() {
 				err := p.Parse()
-				So(err, ShouldEqual, nil)
+				So(err, ShouldBeNil)
 				p.Execute()
 
 				ps := p.parseStack

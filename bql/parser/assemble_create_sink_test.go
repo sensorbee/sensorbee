@@ -1,9 +1,10 @@
 package parser
 
 import (
+	"testing"
+
 	. "github.com/smartystreets/goconvey/convey"
 	"gopkg.in/sensorbee/sensorbee.v0/data"
-	"testing"
 )
 
 func TestAssembleCreateSink(t *testing.T) {
@@ -71,7 +72,7 @@ func TestAssembleCreateSink(t *testing.T) {
 
 			Convey("Then the statement should be parsed correctly", func() {
 				err := p.Parse()
-				So(err, ShouldEqual, nil)
+				So(err, ShouldBeNil)
 				p.Execute()
 
 				ps := p.parseStack
