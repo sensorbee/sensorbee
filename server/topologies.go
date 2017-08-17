@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/gocraft/web"
 	"golang.org/x/net/websocket"
 	"gopkg.in/pfnet/jasco.v1"
