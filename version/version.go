@@ -11,5 +11,5 @@ const (
 	Minor = 7
 
 	// Revision is the revision number of the current SensorBee version.
-	Revision = 0
+	Revision = 1
 )
