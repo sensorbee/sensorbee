@@ -2,7 +2,7 @@ package version
 
 const (
 	// Version is the current version of SensorBee.
-	Version = "0.7.0"
+	Version = "0.7.1"
 
 	// Major is the major version of the current SensorBee.
 	Major = 0
