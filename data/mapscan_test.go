@@ -764,6 +764,8 @@ var (
 		"foo[3:2]",
 		"foo[2:2:4:3]",
 		"foo[3:2].hoge[0].b",
+
+		".foo[0]",
 	}
 )
 
@@ -794,6 +796,13 @@ func TestArraySlicingWithMap(t *testing.T) {
 			_, err := CompilePath(input)
 			So(err, ShouldNotBeNil)
 		}
+
+		Convey("Accessing as an array", func() {
+			path, err := CompilePath("[0]")
+			So(err, ShouldBeNil)
+			_, err = data.Get(path)
+			So(err, ShouldNotBeNil)
+		})
 	})
 }
 
