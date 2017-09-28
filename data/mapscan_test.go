@@ -75,7 +75,7 @@ var (
 		Map{"a": Int(9), "b": Int(10)},
 	}, "bar": Int(8)}
 
-	arraySlicingExamples = map[string]interface{}{
+	arraySlicingExamples = map[string]Value{
 		// normal slice indexing
 		"foo[-4:-3]": Array{},
 		"foo[-4:-2]": Array{scanTestElem0},
@@ -767,8 +767,7 @@ var (
 	}
 )
 
-func TestArraySlicing(t *testing.T) {
-
+func TestArraySlicingWithMap(t *testing.T) {
 	data := Map{
 		"foo": Array{
 			scanTestElem0, scanTestElem1, scanTestElem2,

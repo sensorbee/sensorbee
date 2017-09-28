@@ -3,6 +3,7 @@ package data
 //go:generate peg jsonpath.peg
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -19,7 +20,7 @@ const (
 // return the value stored at the location specified by
 // the Path.
 type Path interface {
-	evaluate(Map) (Value, error)
+	evaluate(Value) (Value, error)
 	set(Map, Value) error
 }
 
@@ -38,6 +39,11 @@ func MustCompilePath(s string) Path {
 // instance of Path representing that JSON Path, or an error
 // if the parameter is not a valid JSON Path.
 func CompilePath(s string) (p Path, err error) {
+	// TODO: reject this pattern by PEG
+	if s == "" {
+		return nil, errors.New("path cannot be an empty string")
+	}
+
 	// catch any parser errors
 	defer func() {
 		if r := recover(); r != nil {
@@ -65,13 +71,13 @@ func CompilePath(s string) (p Path, err error) {
 	return j, nil
 }
 
-// evaluate returns the entry of the map located at the JSON Path
+// evaluate returns the entry of a map or an array located at the JSON Path
 // represented by this jsonPeg instance.
-func (j *jsonPeg) evaluate(m Map) (Value, error) {
+func (j *jsonPeg) evaluate(v Value) (Value, error) {
 	// `current` holds the Value into which we descend, the extracted
 	// value is then written to `next` by `c.extract()`. By assigning
 	// `current = next` after `c.extract()` returns, we can go deeper.
-	var current Value = m
+	var current Value = v
 	var next Value
 
 	// resultIsArray is set to true after we processed an

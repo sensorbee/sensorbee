@@ -11,7 +11,7 @@ type jsonPeg Peg {
     lastKey    string
 }
 
-jsonPath <- jsonPathHead jsonPathNonHead* !.
+jsonPath <- jsonPathHead? jsonPathNonHead* !.
 
 jsonPathHead <- (jsonMapAccessString / jsonMapAccessBracket) {
         p.addMapAccess(p.lastKey)

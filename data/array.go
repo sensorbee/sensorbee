@@ -88,3 +88,11 @@ func (a Array) Copy() Array {
 	}
 	return out
 }
+
+// Get returns value(s) from an array as addressed by the given path expression.
+// See Map.Get for details.
+func (a Array) Get(path Path) (Value, error) {
+	return path.evaluate(a)
+}
+
+// TODO: support Set
