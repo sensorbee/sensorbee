@@ -24,6 +24,7 @@ const (
 	rulejsonMapAccessBracket
 	rulesingleQuotedString
 	ruledoubleQuotedString
+	rulejsonArraySlices
 	rulejsonArrayAccess
 	rulejsonArraySlice
 	rulejsonArrayPartialSlice
@@ -52,6 +53,7 @@ var rul3s = [...]string{
 	"jsonMapAccessBracket",
 	"singleQuotedString",
 	"doubleQuotedString",
+	"jsonArraySlices",
 	"jsonArrayAccess",
 	"jsonArraySlice",
 	"jsonArrayPartialSlice",
@@ -184,7 +186,7 @@ type jsonPeg struct {
 
 	Buffer string
 	buffer []rune
-	rules  [25]func() bool
+	rules  [26]func() bool
 	parse  func(rule ...int) error
 	reset  func()
 	Pretty bool
@@ -395,7 +397,7 @@ func (p *jsonPeg) Init() {
 
 	_rules = [...]func() bool{
 		nil,
-		/* 0 jsonPath <- <(jsonPathHead? jsonPathNonHead* !.)> */
+		/* 0 jsonPath <- <((jsonPathHead / jsonArraySlices) jsonPathNonHead* !.)> */
 		func() bool {
 			position0, tokenIndex0 := position, tokenIndex
 			{
@@ -403,13 +405,16 @@ func (p *jsonPeg) Init() {
 				{
 					position2, tokenIndex2 := position, tokenIndex
 					if !_rules[rulejsonPathHead]() {
-						goto l2
+						goto l3
 					}
-					goto l3
-				l2:
+					goto l2
+				l3:
 					position, tokenIndex = position2, tokenIndex2
+					if !_rules[rulejsonArraySlices]() {
+						goto l0
+					}
 				}
-			l3:
+			l2:
 			l4:
 				{
 					position5, tokenIndex5 := position, tokenIndex
@@ -808,301 +813,338 @@ func (p *jsonPeg) Init() {
 			position, tokenIndex = position50, tokenIndex50
 			return false
 		},
-		/* 9 jsonArrayAccess <- <('[' <('-'? [0-9]+)> ']' Action6)> */
+		/* 9 jsonArraySlices <- <(jsonArrayAccess / jsonArraySlice / jsonArrayPartialSlice / jsonArrayFullSlice)> */
 		func() bool {
 			position58, tokenIndex58 := position, tokenIndex
 			{
 				position59 := position
-				if buffer[position] != rune('[') {
-					goto l58
-				}
-				position++
 				{
-					position60 := position
-					{
-						position61, tokenIndex61 := position, tokenIndex
-						if buffer[position] != rune('-') {
-							goto l61
-						}
-						position++
-						goto l62
-					l61:
-						position, tokenIndex = position61, tokenIndex61
+					position60, tokenIndex60 := position, tokenIndex
+					if !_rules[rulejsonArrayAccess]() {
+						goto l61
 					}
+					goto l60
+				l61:
+					position, tokenIndex = position60, tokenIndex60
+					if !_rules[rulejsonArraySlice]() {
+						goto l62
+					}
+					goto l60
 				l62:
-					if c := buffer[position]; c < rune('0') || c > rune('9') {
+					position, tokenIndex = position60, tokenIndex60
+					if !_rules[rulejsonArrayPartialSlice]() {
+						goto l63
+					}
+					goto l60
+				l63:
+					position, tokenIndex = position60, tokenIndex60
+					if !_rules[rulejsonArrayFullSlice]() {
 						goto l58
 					}
-					position++
-				l63:
-					{
-						position64, tokenIndex64 := position, tokenIndex
-						if c := buffer[position]; c < rune('0') || c > rune('9') {
-							goto l64
-						}
-						position++
-						goto l63
-					l64:
-						position, tokenIndex = position64, tokenIndex64
-					}
-					add(rulePegText, position60)
 				}
-				if buffer[position] != rune(']') {
-					goto l58
-				}
-				position++
-				if !_rules[ruleAction6]() {
-					goto l58
-				}
-				add(rulejsonArrayAccess, position59)
+			l60:
+				add(rulejsonArraySlices, position59)
 			}
 			return true
 		l58:
 			position, tokenIndex = position58, tokenIndex58
 			return false
 		},
-		/* 10 jsonArraySlice <- <('[' <('-'? [0-9]+ ':' '-'? [0-9]+ (':' '-'? [0-9]+)?)> ']' Action7)> */
+		/* 10 jsonArrayAccess <- <('[' <('-'? [0-9]+)> ']' Action6)> */
 		func() bool {
-			position65, tokenIndex65 := position, tokenIndex
+			position64, tokenIndex64 := position, tokenIndex
 			{
-				position66 := position
+				position65 := position
 				if buffer[position] != rune('[') {
-					goto l65
+					goto l64
 				}
 				position++
 				{
-					position67 := position
+					position66 := position
 					{
-						position68, tokenIndex68 := position, tokenIndex
+						position67, tokenIndex67 := position, tokenIndex
 						if buffer[position] != rune('-') {
-							goto l68
+							goto l67
+						}
+						position++
+						goto l68
+					l67:
+						position, tokenIndex = position67, tokenIndex67
+					}
+				l68:
+					if c := buffer[position]; c < rune('0') || c > rune('9') {
+						goto l64
+					}
+					position++
+				l69:
+					{
+						position70, tokenIndex70 := position, tokenIndex
+						if c := buffer[position]; c < rune('0') || c > rune('9') {
+							goto l70
 						}
 						position++
 						goto l69
-					l68:
-						position, tokenIndex = position68, tokenIndex68
+					l70:
+						position, tokenIndex = position70, tokenIndex70
 					}
-				l69:
-					if c := buffer[position]; c < rune('0') || c > rune('9') {
-						goto l65
-					}
-					position++
-				l70:
-					{
-						position71, tokenIndex71 := position, tokenIndex
-						if c := buffer[position]; c < rune('0') || c > rune('9') {
-							goto l71
-						}
-						position++
-						goto l70
-					l71:
-						position, tokenIndex = position71, tokenIndex71
-					}
-					if buffer[position] != rune(':') {
-						goto l65
-					}
-					position++
-					{
-						position72, tokenIndex72 := position, tokenIndex
-						if buffer[position] != rune('-') {
-							goto l72
-						}
-						position++
-						goto l73
-					l72:
-						position, tokenIndex = position72, tokenIndex72
-					}
-				l73:
-					if c := buffer[position]; c < rune('0') || c > rune('9') {
-						goto l65
-					}
-					position++
-				l74:
-					{
-						position75, tokenIndex75 := position, tokenIndex
-						if c := buffer[position]; c < rune('0') || c > rune('9') {
-							goto l75
-						}
-						position++
-						goto l74
-					l75:
-						position, tokenIndex = position75, tokenIndex75
-					}
-					{
-						position76, tokenIndex76 := position, tokenIndex
-						if buffer[position] != rune(':') {
-							goto l76
-						}
-						position++
-						{
-							position78, tokenIndex78 := position, tokenIndex
-							if buffer[position] != rune('-') {
-								goto l78
-							}
-							position++
-							goto l79
-						l78:
-							position, tokenIndex = position78, tokenIndex78
-						}
-					l79:
-						if c := buffer[position]; c < rune('0') || c > rune('9') {
-							goto l76
-						}
-						position++
-					l80:
-						{
-							position81, tokenIndex81 := position, tokenIndex
-							if c := buffer[position]; c < rune('0') || c > rune('9') {
-								goto l81
-							}
-							position++
-							goto l80
-						l81:
-							position, tokenIndex = position81, tokenIndex81
-						}
-						goto l77
-					l76:
-						position, tokenIndex = position76, tokenIndex76
-					}
-				l77:
-					add(rulePegText, position67)
+					add(rulePegText, position66)
 				}
 				if buffer[position] != rune(']') {
-					goto l65
+					goto l64
 				}
 				position++
-				if !_rules[ruleAction7]() {
-					goto l65
+				if !_rules[ruleAction6]() {
+					goto l64
 				}
-				add(rulejsonArraySlice, position66)
+				add(rulejsonArrayAccess, position65)
 			}
 			return true
-		l65:
-			position, tokenIndex = position65, tokenIndex65
+		l64:
+			position, tokenIndex = position64, tokenIndex64
 			return false
 		},
-		/* 11 jsonArrayPartialSlice <- <('[' <((':' '-'? [0-9]+) / ('-'? [0-9]+ ':'))> ']' Action8)> */
+		/* 11 jsonArraySlice <- <('[' <('-'? [0-9]+ ':' '-'? [0-9]+ (':' '-'? [0-9]+)?)> ']' Action7)> */
 		func() bool {
-			position82, tokenIndex82 := position, tokenIndex
+			position71, tokenIndex71 := position, tokenIndex
 			{
-				position83 := position
+				position72 := position
 				if buffer[position] != rune('[') {
-					goto l82
+					goto l71
 				}
 				position++
 				{
-					position84 := position
+					position73 := position
 					{
-						position85, tokenIndex85 := position, tokenIndex
+						position74, tokenIndex74 := position, tokenIndex
+						if buffer[position] != rune('-') {
+							goto l74
+						}
+						position++
+						goto l75
+					l74:
+						position, tokenIndex = position74, tokenIndex74
+					}
+				l75:
+					if c := buffer[position]; c < rune('0') || c > rune('9') {
+						goto l71
+					}
+					position++
+				l76:
+					{
+						position77, tokenIndex77 := position, tokenIndex
+						if c := buffer[position]; c < rune('0') || c > rune('9') {
+							goto l77
+						}
+						position++
+						goto l76
+					l77:
+						position, tokenIndex = position77, tokenIndex77
+					}
+					if buffer[position] != rune(':') {
+						goto l71
+					}
+					position++
+					{
+						position78, tokenIndex78 := position, tokenIndex
+						if buffer[position] != rune('-') {
+							goto l78
+						}
+						position++
+						goto l79
+					l78:
+						position, tokenIndex = position78, tokenIndex78
+					}
+				l79:
+					if c := buffer[position]; c < rune('0') || c > rune('9') {
+						goto l71
+					}
+					position++
+				l80:
+					{
+						position81, tokenIndex81 := position, tokenIndex
+						if c := buffer[position]; c < rune('0') || c > rune('9') {
+							goto l81
+						}
+						position++
+						goto l80
+					l81:
+						position, tokenIndex = position81, tokenIndex81
+					}
+					{
+						position82, tokenIndex82 := position, tokenIndex
 						if buffer[position] != rune(':') {
-							goto l86
+							goto l82
 						}
 						position++
 						{
-							position87, tokenIndex87 := position, tokenIndex
+							position84, tokenIndex84 := position, tokenIndex
 							if buffer[position] != rune('-') {
+								goto l84
+							}
+							position++
+							goto l85
+						l84:
+							position, tokenIndex = position84, tokenIndex84
+						}
+					l85:
+						if c := buffer[position]; c < rune('0') || c > rune('9') {
+							goto l82
+						}
+						position++
+					l86:
+						{
+							position87, tokenIndex87 := position, tokenIndex
+							if c := buffer[position]; c < rune('0') || c > rune('9') {
 								goto l87
 							}
 							position++
-							goto l88
+							goto l86
 						l87:
 							position, tokenIndex = position87, tokenIndex87
 						}
-					l88:
-						if c := buffer[position]; c < rune('0') || c > rune('9') {
-							goto l86
-						}
-						position++
-					l89:
-						{
-							position90, tokenIndex90 := position, tokenIndex
-							if c := buffer[position]; c < rune('0') || c > rune('9') {
-								goto l90
-							}
-							position++
-							goto l89
-						l90:
-							position, tokenIndex = position90, tokenIndex90
-						}
-						goto l85
-					l86:
-						position, tokenIndex = position85, tokenIndex85
-						{
-							position91, tokenIndex91 := position, tokenIndex
-							if buffer[position] != rune('-') {
-								goto l91
-							}
-							position++
+						goto l83
+					l82:
+						position, tokenIndex = position82, tokenIndex82
+					}
+				l83:
+					add(rulePegText, position73)
+				}
+				if buffer[position] != rune(']') {
+					goto l71
+				}
+				position++
+				if !_rules[ruleAction7]() {
+					goto l71
+				}
+				add(rulejsonArraySlice, position72)
+			}
+			return true
+		l71:
+			position, tokenIndex = position71, tokenIndex71
+			return false
+		},
+		/* 12 jsonArrayPartialSlice <- <('[' <((':' '-'? [0-9]+) / ('-'? [0-9]+ ':'))> ']' Action8)> */
+		func() bool {
+			position88, tokenIndex88 := position, tokenIndex
+			{
+				position89 := position
+				if buffer[position] != rune('[') {
+					goto l88
+				}
+				position++
+				{
+					position90 := position
+					{
+						position91, tokenIndex91 := position, tokenIndex
+						if buffer[position] != rune(':') {
 							goto l92
-						l91:
-							position, tokenIndex = position91, tokenIndex91
-						}
-					l92:
-						if c := buffer[position]; c < rune('0') || c > rune('9') {
-							goto l82
 						}
 						position++
-					l93:
 						{
-							position94, tokenIndex94 := position, tokenIndex
-							if c := buffer[position]; c < rune('0') || c > rune('9') {
-								goto l94
+							position93, tokenIndex93 := position, tokenIndex
+							if buffer[position] != rune('-') {
+								goto l93
 							}
 							position++
-							goto l93
-						l94:
-							position, tokenIndex = position94, tokenIndex94
+							goto l94
+						l93:
+							position, tokenIndex = position93, tokenIndex93
+						}
+					l94:
+						if c := buffer[position]; c < rune('0') || c > rune('9') {
+							goto l92
+						}
+						position++
+					l95:
+						{
+							position96, tokenIndex96 := position, tokenIndex
+							if c := buffer[position]; c < rune('0') || c > rune('9') {
+								goto l96
+							}
+							position++
+							goto l95
+						l96:
+							position, tokenIndex = position96, tokenIndex96
+						}
+						goto l91
+					l92:
+						position, tokenIndex = position91, tokenIndex91
+						{
+							position97, tokenIndex97 := position, tokenIndex
+							if buffer[position] != rune('-') {
+								goto l97
+							}
+							position++
+							goto l98
+						l97:
+							position, tokenIndex = position97, tokenIndex97
+						}
+					l98:
+						if c := buffer[position]; c < rune('0') || c > rune('9') {
+							goto l88
+						}
+						position++
+					l99:
+						{
+							position100, tokenIndex100 := position, tokenIndex
+							if c := buffer[position]; c < rune('0') || c > rune('9') {
+								goto l100
+							}
+							position++
+							goto l99
+						l100:
+							position, tokenIndex = position100, tokenIndex100
 						}
 						if buffer[position] != rune(':') {
-							goto l82
+							goto l88
 						}
 						position++
 					}
-				l85:
-					add(rulePegText, position84)
+				l91:
+					add(rulePegText, position90)
 				}
 				if buffer[position] != rune(']') {
-					goto l82
+					goto l88
 				}
 				position++
 				if !_rules[ruleAction8]() {
-					goto l82
+					goto l88
 				}
-				add(rulejsonArrayPartialSlice, position83)
+				add(rulejsonArrayPartialSlice, position89)
 			}
 			return true
-		l82:
-			position, tokenIndex = position82, tokenIndex82
+		l88:
+			position, tokenIndex = position88, tokenIndex88
 			return false
 		},
-		/* 12 jsonArrayFullSlice <- <('[' ':' ']' Action9)> */
+		/* 13 jsonArrayFullSlice <- <('[' ':' ']' Action9)> */
 		func() bool {
-			position95, tokenIndex95 := position, tokenIndex
+			position101, tokenIndex101 := position, tokenIndex
 			{
-				position96 := position
+				position102 := position
 				if buffer[position] != rune('[') {
-					goto l95
+					goto l101
 				}
 				position++
 				if buffer[position] != rune(':') {
-					goto l95
+					goto l101
 				}
 				position++
 				if buffer[position] != rune(']') {
-					goto l95
+					goto l101
 				}
 				position++
 				if !_rules[ruleAction9]() {
-					goto l95
+					goto l101
 				}
-				add(rulejsonArrayFullSlice, position96)
+				add(rulejsonArrayFullSlice, position102)
 			}
 			return true
-		l95:
-			position, tokenIndex = position95, tokenIndex95
+		l101:
+			position, tokenIndex = position101, tokenIndex101
 			return false
 		},
-		/* 14 Action0 <- <{
+		/* 15 Action0 <- <{
 		    p.addMapAccess(p.lastKey)
 		}> */
 		func() bool {
@@ -1111,7 +1153,7 @@ func (p *jsonPeg) Init() {
 			}
 			return true
 		},
-		/* 15 Action1 <- <{
+		/* 16 Action1 <- <{
 		    p.addMapAccess(p.lastKey)
 		}> */
 		func() bool {
@@ -1120,7 +1162,7 @@ func (p *jsonPeg) Init() {
 			}
 			return true
 		},
-		/* 16 Action2 <- <{
+		/* 17 Action2 <- <{
 		    p.addRecursiveAccess(p.lastKey)
 		}> */
 		func() bool {
@@ -1130,7 +1172,7 @@ func (p *jsonPeg) Init() {
 			return true
 		},
 		nil,
-		/* 18 Action3 <- <{
+		/* 19 Action3 <- <{
 		    substr := string([]rune(buffer)[begin:end])
 		    p.lastKey = substr
 		}> */
@@ -1140,7 +1182,7 @@ func (p *jsonPeg) Init() {
 			}
 			return true
 		},
-		/* 19 Action4 <- <{
+		/* 20 Action4 <- <{
 		    substr := string([]rune(buffer)[begin:end])
 		    p.lastKey = strings.Replace(substr, "''", "'", -1)
 		}> */
@@ -1150,7 +1192,7 @@ func (p *jsonPeg) Init() {
 			}
 			return true
 		},
-		/* 20 Action5 <- <{
+		/* 21 Action5 <- <{
 		    substr := string([]rune(buffer)[begin:end])
 		    p.lastKey = strings.Replace(substr, "\"\"", "\"", -1)
 		}> */
@@ -1160,7 +1202,7 @@ func (p *jsonPeg) Init() {
 			}
 			return true
 		},
-		/* 21 Action6 <- <{
+		/* 22 Action6 <- <{
 		    substr := string([]rune(buffer)[begin:end])
 		    p.addArrayAccess(substr)
 		}> */
@@ -1170,7 +1212,7 @@ func (p *jsonPeg) Init() {
 			}
 			return true
 		},
-		/* 22 Action7 <- <{
+		/* 23 Action7 <- <{
 		    substr := string([]rune(buffer)[begin:end])
 		    p.addArraySlice(substr)
 		}> */
@@ -1180,7 +1222,7 @@ func (p *jsonPeg) Init() {
 			}
 			return true
 		},
-		/* 23 Action8 <- <{
+		/* 24 Action8 <- <{
 		    substr := string([]rune(buffer)[begin:end])
 		    p.addArraySlice(substr)
 		}> */
@@ -1190,7 +1232,7 @@ func (p *jsonPeg) Init() {
 			}
 			return true
 		},
-		/* 24 Action9 <- <{
+		/* 25 Action9 <- <{
 		    p.addArraySlice("0:")
 		}> */
 		func() bool {

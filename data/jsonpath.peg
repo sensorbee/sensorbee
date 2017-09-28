@@ -11,7 +11,7 @@ type jsonPeg Peg {
     lastKey    string
 }
 
-jsonPath <- jsonPathHead? jsonPathNonHead* !.
+jsonPath <- (jsonPathHead / jsonArraySlices) jsonPathNonHead* !.
 
 jsonPathHead <- (jsonMapAccessString / jsonMapAccessBracket) {
         p.addMapAccess(p.lastKey)
@@ -49,6 +49,9 @@ doubleQuotedString <- ["] < ('""' / !'"' .)* > ["] {
         substr := string([]rune(buffer)[begin:end])
         p.lastKey = strings.Replace(substr, "\"\"", "\"", -1)
     }
+
+jsonArraySlices <- jsonArrayAccess / jsonArraySlice / jsonArrayPartialSlice /
+    jsonArrayFullSlice
 
 jsonArrayAccess <- '[' < '-'? [0-9]+ > ']' {
         substr := string([]rune(buffer)[begin:end])
