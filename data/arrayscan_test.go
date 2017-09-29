@@ -5,7 +5,6 @@ import (
 	"testing"
 )
 
-// TODO: skip if key doesn't start with "foo["
 func TestArraySlicingWithArray(t *testing.T) {
 	data := Array{scanTestElem0, scanTestElem1, scanTestElem2}
 
