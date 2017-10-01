@@ -926,8 +926,6 @@ type funcApp struct {
 	selector    data.Path
 }
 
-const tmpKeyName = "tmpkey"
-
 func (f *funcApp) Eval(input data.Value) (v data.Value, err error) {
 	// catch panic (e.g., in called function)
 	defer func() {
@@ -968,10 +966,7 @@ func (f *funcApp) Eval(input data.Value) (v data.Value, err error) {
 			result = selected
 		case data.TypeArray:
 			retarr, _ := data.AsArray(result)
-			dummyMap := data.Map{
-				tmpKeyName: retarr,
-			}
-			selected, err := dummyMap.Get(f.selector)
+			selected, err := retarr.Get(f.selector)
 			if err != nil {
 				return nil, err
 			}
@@ -1000,9 +995,7 @@ func FuncApp(name string, f udf.UDF, ctx *core.Context, params []Evaluator) Eval
 // FuncAppSelector represents function and selector.
 // After evaluate the function, return the selected value.
 func FuncAppSelector(funcEval *funcApp, selector string) (Evaluator, error) {
-	if strings.HasPrefix(selector, "[") {
-		selector = tmpKeyName + selector
-	} else if strings.HasPrefix(selector, ".") {
+	if strings.HasPrefix(selector, ".") {
 		selector = selector[1:]
 	}
 	path, err := data.CompilePath(selector)
