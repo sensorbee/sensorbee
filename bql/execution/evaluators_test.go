@@ -141,7 +141,7 @@ func TestFoldableExecution(t *testing.T) {
 			parser.ExpressionsAST{[]parser.Expression{parser.NumericLiteral{7}}}, nil},
 			true, data.Int(8)},
 		{parser.FuncAppSelectorAST{
-			parser.FuncAppAST{parser.FuncName("inaction"),
+			parser.FuncAppAST{parser.FuncName("identity"),
 				parser.ExpressionsAST{[]parser.Expression{
 					parser.ArrayAST{parser.ExpressionsAST{
 						[]parser.Expression{parser.NumericLiteral{1}}}},
@@ -149,7 +149,7 @@ func TestFoldableExecution(t *testing.T) {
 			parser.Raw{"[0]"}},
 			true, data.Int(1)},
 		{parser.FuncAppSelectorAST{
-			parser.FuncAppAST{parser.FuncName("inaction"),
+			parser.FuncAppAST{parser.FuncName("identity"),
 				parser.ExpressionsAST{[]parser.Expression{
 					parser.MapAST{[]parser.KeyValuePairAST{{"a", parser.StringLiteral{"value"}}}},
 				}}, nil},
@@ -257,7 +257,7 @@ func TestFuncAppConversion(t *testing.T) {
 
 		Convey("When a function with selector is known in the registry", func() {
 			ast := parser.FuncAppSelectorAST{
-				parser.FuncAppAST{parser.FuncName("inaction"),
+				parser.FuncAppAST{parser.FuncName("identity"),
 					parser.ExpressionsAST{[]parser.Expression{
 						parser.MapAST{[]parser.KeyValuePairAST{
 							{"a", parser.StringLiteral{"value"}}}},
@@ -304,7 +304,7 @@ func TestFuncAppConversion(t *testing.T) {
 
 		Convey("When a function with invalid phrase selector", func() {
 			ast := parser.FuncAppSelectorAST{
-				parser.FuncAppAST{parser.FuncName("inaction"),
+				parser.FuncAppAST{parser.FuncName("identity"),
 					parser.ExpressionsAST{[]parser.Expression{
 						parser.MapAST{[]parser.KeyValuePairAST{
 							{"a", parser.StringLiteral{"value"}}}},
@@ -606,8 +606,8 @@ var (
 		}
 		return data.Int(len(m)), nil
 	})
-	// Inaction always return argument value
-	Inaction = udf.UnaryFunc(func(ctx *core.Context, v data.Value) (data.Value, error) {
+	// Identity always return argument value
+	Identity = udf.UnaryFunc(func(ctx *core.Context, v data.Value) (data.Value, error) {
 		return v, nil
 	})
 )
@@ -626,8 +626,8 @@ func (tfr *testFuncRegistry) Lookup(name string, arity int) (udf.UDF, error) {
 		return PlusOne, nil
 	} else if name == "maplen" && arity == 1 {
 		return MapLen, nil
-	} else if name == "inaction" && arity == 1 {
-		return Inaction, nil
+	} else if name == "identity" && arity == 1 {
+		return Identity, nil
 	}
 	return nil, fmt.Errorf("no such function: %s", name)
 }
@@ -1768,7 +1768,7 @@ func getTestCases() []struct {
 		},
 		// Function Application with map accessed selector
 		{parser.FuncAppSelectorAST{
-			parser.FuncAppAST{parser.FuncName("inaction"),
+			parser.FuncAppAST{parser.FuncName("identity"),
 				parser.ExpressionsAST{[]parser.Expression{
 					parser.RowValue{"", "a"},
 				}}, nil},
@@ -1784,7 +1784,7 @@ func getTestCases() []struct {
 		},
 		// Function Application with array index selector
 		{parser.FuncAppSelectorAST{
-			parser.FuncAppAST{parser.FuncName("inaction"),
+			parser.FuncAppAST{parser.FuncName("identity"),
 				parser.ExpressionsAST{[]parser.Expression{
 					parser.RowValue{"", "a"},
 				}}, nil},
