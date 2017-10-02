@@ -1,12 +1,13 @@
 package bql
 
 import (
+	"testing"
+	"time"
+
 	. "github.com/smartystreets/goconvey/convey"
 	"gopkg.in/sensorbee/sensorbee.v0/bql/parser"
 	"gopkg.in/sensorbee/sensorbee.v0/core"
 	"gopkg.in/sensorbee/sensorbee.v0/data"
-	"testing"
-	"time"
 )
 
 func TestCreateSourceStmt(t *testing.T) {
@@ -246,12 +247,12 @@ func TestCreateStreamAsSelectStmt(t *testing.T) {
 		})
 
 		Convey("When running CREATE STREAM AS SELECT with input and output name the same", func() {
-			err := addBQLToTopology(tb, `CREATE STREAM s AS SELECT ISTREAM int FROM
-                s [RANGE 2 SECONDS] WHERE int=2`)
+			err := addBQLToTopology(tb, `CREATE STREAM s2 AS SELECT ISTREAM int FROM
+                S2 [RANGE 2 SECONDS] WHERE int=2`)
 
 			Convey("Then an error should be returned", func() {
 				So(err, ShouldNotBeNil)
-				So(err.Error(), ShouldContainSubstring, "already")
+				So(err.Error(), ShouldContainSubstring, "selfloop")
 			})
 		})
 	})

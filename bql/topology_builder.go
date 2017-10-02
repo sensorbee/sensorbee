@@ -3,14 +3,16 @@ package bql
 import (
 	"errors"
 	"fmt"
+	"math"
+	"strings"
+	"sync"
+	"sync/atomic"
+
 	"gopkg.in/sensorbee/sensorbee.v0/bql/execution"
 	"gopkg.in/sensorbee/sensorbee.v0/bql/parser"
 	"gopkg.in/sensorbee/sensorbee.v0/bql/udf"
 	"gopkg.in/sensorbee/sensorbee.v0/core"
 	"gopkg.in/sensorbee/sensorbee.v0/data"
-	"math"
-	"sync"
-	"sync/atomic"
 )
 
 type TopologyBuilder struct {
@@ -415,6 +417,14 @@ func (tb *TopologyBuilder) createStreamAsSelectStmt(stmt *parser.CreateStreamAsS
 	if err != nil {
 		return nil, err
 	}
+
+	// TODO: this check doesn't prevent a user from creating selfloops using UDSFs
+	for _, rel := range stmt.Select.Relations {
+		if strings.ToLower(rel.Name) == strings.ToLower(outName) {
+			return nil, fmt.Errorf("a stream '%v' contains a selfloop", outName)
+		}
+	}
+
 	// provide a function to the BQL box to remove itself from the topology
 	box.removeMe = func() { go tb.topology.Remove(outName) }
 
