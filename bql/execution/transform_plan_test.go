@@ -2,14 +2,15 @@ package execution
 
 import (
 	"fmt"
+	"reflect"
+	"testing"
+
 	. "github.com/smartystreets/goconvey/convey"
 	"gopkg.in/sensorbee/sensorbee.v0/bql/parser"
 	"gopkg.in/sensorbee/sensorbee.v0/bql/udf"
 	_ "gopkg.in/sensorbee/sensorbee.v0/bql/udf/builtin"
 	"gopkg.in/sensorbee/sensorbee.v0/core"
 	"gopkg.in/sensorbee/sensorbee.v0/data"
-	"reflect"
-	"testing"
 )
 
 type dummyAggregate struct {
@@ -646,6 +647,16 @@ func TestAggregateChecker(t *testing.T) {
 			funcAppAST{"f", []FlatExpression{rowValue{"x", "a"}}},
 			nil},
 
+		// even if with selector, `aggrs` list is empty
+		{"f(a).b FROM x [RANGE 1 TUPLES]", "",
+			funcAppSelectorAST{
+				Expr: funcAppAST{
+					Function:    parser.FuncName("f"),
+					Expressions: []FlatExpression{rowValue{"x", "a"}},
+				},
+				Selector: ".b",
+			}, nil},
+
 		// f(*) is no aggregate call, so the `aggrs` list is empty
 		// and the selected expression is transformed normally
 		{"f(*) FROM x [RANGE 1 TUPLES]", "",
@@ -672,6 +683,20 @@ func TestAggregateChecker(t *testing.T) {
 		// the expression list and a constant appears in the `aggrs` list
 		{"udaf(*, 1) FROM x [RANGE 1 TUPLES]", "",
 			funcAppAST{"udaf", []FlatExpression{aggInputRef{"g_df58248c"}, numericLiteral{1}}},
+			map[string]FlatExpression{
+				"g_df58248c": wildcardAST{},
+			}},
+
+		// even if with selector, the value is referenced from
+		// the expression list
+		{"udaf(*, 1).a FROM x [RANGE 1 TUPLES]", "",
+			funcAppSelectorAST{
+				Expr: funcAppAST{
+					Function:    parser.FuncName("udaf"),
+					Expressions: []FlatExpression{aggInputRef{"g_df58248c"}, numericLiteral{1}},
+				},
+				Selector: ".a",
+			},
 			map[string]FlatExpression{
 				"g_df58248c": wildcardAST{},
 			}},
@@ -764,6 +789,24 @@ func TestAggregateChecker(t *testing.T) {
 				funcAppAST{"g", []FlatExpression{
 					funcAppAST{"count", []FlatExpression{aggInputRef{"g_f12cd6bc"}}},
 				}},
+			},
+			map[string]FlatExpression{
+				"g_f12cd6bc": rowValue{"x", "a"},
+			}},
+
+		// there are two aggregate calls, but the use the same value,
+		// so the `aggrs` list contains only one entry
+		{"udaf(a).x + udaf(a).y FROM x [RANGE 1 TUPLES] GROUP BY a", "",
+			binaryOpAST{
+				Op: parser.Plus,
+				Left: funcAppSelectorAST{
+					Expr:     funcAppAST{"udaf", []FlatExpression{aggInputRef{"g_f12cd6bc"}}},
+					Selector: ".x",
+				},
+				Right: funcAppSelectorAST{
+					Expr:     funcAppAST{"udaf", []FlatExpression{aggInputRef{"g_f12cd6bc"}}},
+					Selector: ".y",
+				},
 			},
 			map[string]FlatExpression{
 				"g_f12cd6bc": rowValue{"x", "a"},
@@ -1013,6 +1056,26 @@ func TestVolatileAggregateChecker(t *testing.T) {
 			[]map[string]FlatExpression{{
 				"g_2523c3a2_0": funcAppAST{"f", []FlatExpression{rowValue{"x", "a"}}},
 				"g_f12cd6bc":   rowValue{"x", "a"},
+			}}},
+
+		// two volatile parameters which are with different selector
+		{"udaf(f(a)[0]) + udaf(f(a)[1]) FROM x [RANGE 1 TUPLES] GROUP BY a", "",
+			[]FlatExpression{
+				binaryOpAST{
+					Op:    parser.Plus,
+					Left:  funcAppAST{"udaf", []FlatExpression{aggInputRef{"g_f1608dcc_0"}}},
+					Right: funcAppAST{"udaf", []FlatExpression{aggInputRef{"g_f8431c06_1"}}},
+				},
+			},
+			[]map[string]FlatExpression{{
+				"g_f1608dcc_0": funcAppSelectorAST{
+					Expr:     funcAppAST{"f", []FlatExpression{rowValue{"x", "a"}}},
+					Selector: "[0]",
+				},
+				"g_f8431c06_1": funcAppSelectorAST{
+					Expr:     funcAppAST{"f", []FlatExpression{rowValue{"x", "a"}}},
+					Selector: "[1]",
+				},
 			}}},
 
 		// two UDAFs referencing the same volatile expression

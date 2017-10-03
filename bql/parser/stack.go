@@ -2,6 +2,7 @@ package parser
 
 import (
 	"fmt"
+
 	"gopkg.in/sensorbee/sensorbee.v0/data"
 )
 
@@ -1130,6 +1131,18 @@ func (ps *parseStack) AssembleFuncApp() {
 
 	// assemble the FuncAppAST and push it back
 	ps.PushComponent(_funcName.begin, _exprs.end, FuncAppAST{funcName, exprs, orderExprs})
+}
+
+func (ps *parseStack) AssembleFuncAppSelector() {
+	_selector, _func := ps.pop2()
+
+	selector := _selector.comp.(Raw)
+	funcApp := _func.comp.(FuncAppAST)
+
+	ps.PushComponent(_func.begin, _selector.end, FuncAppSelectorAST{
+		FuncAppAST: funcApp,
+		Selector:   selector,
+	})
 }
 
 // AssembleSortedExpression takes the topmost elements from the stack,

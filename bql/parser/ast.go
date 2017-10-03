@@ -2,9 +2,10 @@ package parser
 
 import (
 	"fmt"
-	"gopkg.in/sensorbee/sensorbee.v0/data"
 	"strconv"
 	"strings"
+
+	"gopkg.in/sensorbee/sensorbee.v0/data"
 )
 
 type Expression interface {
@@ -765,6 +766,31 @@ func (f FuncAppAST) String() string {
 		s += " ORDER BY " + strings.Join(orderStrings, ", ")
 	}
 	return s + ")"
+}
+
+type FuncAppSelectorAST struct {
+	FuncAppAST
+	Selector Raw
+}
+
+func (f FuncAppSelectorAST) ReferencedRelations() map[string]bool {
+	return f.FuncAppAST.ReferencedRelations()
+}
+
+func (f FuncAppSelectorAST) RenameReferencedRelation(from, to string) Expression {
+	newExprs := f.FuncAppAST.RenameReferencedRelation(from, to).(FuncAppAST)
+	return FuncAppSelectorAST{
+		FuncAppAST: newExprs,
+		Selector:   f.Selector,
+	}
+}
+
+func (f FuncAppSelectorAST) Foldable() bool {
+	return f.FuncAppAST.Foldable()
+}
+
+func (f FuncAppSelectorAST) String() string {
+	return f.FuncAppAST.String() + f.Selector.Expr
 }
 
 type SortedExpressionAST struct {

@@ -2,14 +2,15 @@ package execution
 
 import (
 	"fmt"
+	"math"
+	"testing"
+	"time"
+
 	. "github.com/smartystreets/goconvey/convey"
 	"gopkg.in/sensorbee/sensorbee.v0/bql/parser"
 	"gopkg.in/sensorbee/sensorbee.v0/bql/udf"
 	"gopkg.in/sensorbee/sensorbee.v0/core"
 	"gopkg.in/sensorbee/sensorbee.v0/data"
-	"math"
-	"testing"
-	"time"
 )
 
 type evalTest struct {
@@ -139,6 +140,21 @@ func TestFoldableExecution(t *testing.T) {
 		{parser.FuncAppAST{parser.FuncName("plusone"),
 			parser.ExpressionsAST{[]parser.Expression{parser.NumericLiteral{7}}}, nil},
 			true, data.Int(8)},
+		{parser.FuncAppSelectorAST{
+			parser.FuncAppAST{parser.FuncName("identity"),
+				parser.ExpressionsAST{[]parser.Expression{
+					parser.ArrayAST{parser.ExpressionsAST{
+						[]parser.Expression{parser.NumericLiteral{1}}}},
+				}}, nil},
+			parser.Raw{"[0]"}},
+			true, data.Int(1)},
+		{parser.FuncAppSelectorAST{
+			parser.FuncAppAST{parser.FuncName("identity"),
+				parser.ExpressionsAST{[]parser.Expression{
+					parser.MapAST{[]parser.KeyValuePairAST{{"a", parser.StringLiteral{"value"}}}},
+				}}, nil},
+			parser.Raw{".a"}},
+			true, data.String("value")},
 		{parser.ArrayAST{parser.ExpressionsAST{[]parser.Expression{parser.RowValue{"", "a"}}}},
 			false, nil},
 		{parser.ArrayAST{parser.ExpressionsAST{[]parser.Expression{parser.NumericLiteral{7}}}},
@@ -239,6 +255,24 @@ func TestFuncAppConversion(t *testing.T) {
 			})
 		})
 
+		Convey("When a function with selector is known in the registry", func() {
+			ast := parser.FuncAppSelectorAST{
+				parser.FuncAppAST{parser.FuncName("identity"),
+					parser.ExpressionsAST{[]parser.Expression{
+						parser.MapAST{[]parser.KeyValuePairAST{
+							{"a", parser.StringLiteral{"value"}}}},
+					}}, nil},
+				parser.Raw{".a"}}
+
+			Convey("Then we obtain an evaluatable funcApp", func() {
+				flatExpr, err := ParserExprToFlatExpr(ast, reg)
+				So(err, ShouldBeNil)
+				eval, err := ExpressionToEvaluator(flatExpr, reg)
+				So(err, ShouldBeNil)
+				So(eval, ShouldHaveSameTypeAs, &funcApp{})
+			})
+		})
+
 		Convey("When the function is not known in the registry", func() {
 			ast := parser.FuncAppAST{parser.FuncName("fun"),
 				parser.ExpressionsAST{[]parser.Expression{
@@ -265,6 +299,24 @@ func TestFuncAppConversion(t *testing.T) {
 				So(err, ShouldNotBeNil)
 				So(err.Error(), ShouldEqual,
 					"you cannot use ORDER BY in non-aggregate function 'plusone'")
+			})
+		})
+
+		Convey("When a function with invalid phrase selector", func() {
+			ast := parser.FuncAppSelectorAST{
+				parser.FuncAppAST{parser.FuncName("identity"),
+					parser.ExpressionsAST{[]parser.Expression{
+						parser.MapAST{[]parser.KeyValuePairAST{
+							{"a", parser.StringLiteral{"value"}}}},
+					}}, nil},
+				parser.Raw{"[0"}}
+
+			Convey("Then converting to an Evaluator should fail", func() {
+				flatExpr, err := ParserExprToFlatExpr(ast, reg)
+				So(err, ShouldBeNil)
+				_, err = ExpressionToEvaluator(flatExpr, reg)
+				So(err, ShouldNotBeNil)
+				So(err.Error(), ShouldContainSubstring, "JSON Path")
 			})
 		})
 
@@ -554,6 +606,10 @@ var (
 		}
 		return data.Int(len(m)), nil
 	})
+	// Identity always return argument value
+	Identity = udf.UnaryFunc(func(ctx *core.Context, v data.Value) (data.Value, error) {
+		return v, nil
+	})
 )
 
 // testFuncRegistry returns the PlusOne function above for any parameter.
@@ -570,6 +626,8 @@ func (tfr *testFuncRegistry) Lookup(name string, arity int) (udf.UDF, error) {
 		return PlusOne, nil
 	} else if name == "maplen" && arity == 1 {
 		return MapLen, nil
+	} else if name == "identity" && arity == 1 {
+		return Identity, nil
 	}
 	return nil, fmt.Errorf("no such function: %s", name)
 }
@@ -1706,6 +1764,38 @@ func getTestCases() []struct {
 				{data.Map{"a": data.Bool(false)}, nil},
 				// function panics
 				{data.Map{"a": data.Null{}}, nil},
+			},
+		},
+		// Function Application with map accessed selector
+		{parser.FuncAppSelectorAST{
+			parser.FuncAppAST{parser.FuncName("identity"),
+				parser.ExpressionsAST{[]parser.Expression{
+					parser.RowValue{"", "a"},
+				}}, nil},
+			parser.Raw{".key"}},
+			[]evalTest{
+				// function return selected value
+				{data.Map{"a": data.Map{"key": data.Int(1)}}, data.Int(1)},
+				// function errors
+				{data.Map{"a": data.Map{"key2": data.Int(1)}}, nil},
+				{data.Map{"a": data.Array{data.Int(1)}}, nil},
+				{data.Map{"a": data.Int(1)}, nil},
+			},
+		},
+		// Function Application with array index selector
+		{parser.FuncAppSelectorAST{
+			parser.FuncAppAST{parser.FuncName("identity"),
+				parser.ExpressionsAST{[]parser.Expression{
+					parser.RowValue{"", "a"},
+				}}, nil},
+			parser.Raw{"[1]"}},
+			[]evalTest{
+				// function return selected value
+				{data.Map{"a": data.Array{data.Int(1), data.Int(2)}}, data.Int(2)},
+				// function errors
+				{data.Map{"a": data.Array{data.Int(2)}}, nil},
+				{data.Map{"a": data.Map{"key": data.Int(1)}}, nil},
+				{data.Map{"a": data.String("str")}, nil},
 			},
 		},
 		/// JSON-like Structures

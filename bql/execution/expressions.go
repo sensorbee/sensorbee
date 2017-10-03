@@ -4,9 +4,10 @@ import (
 	"crypto/sha1"
 	"encoding/hex"
 	"fmt"
+	"strings"
+
 	"gopkg.in/sensorbee/sensorbee.v0/bql/parser"
 	"gopkg.in/sensorbee/sensorbee.v0/bql/udf"
-	"strings"
 )
 
 // aliasedExpression represents an expression in a SELECT clause
@@ -146,6 +147,16 @@ func ParserExprToFlatExpr(e parser.Expression, reg udf.FunctionRegistry) (FlatEx
 			return nil, err
 		}
 		return typeCastAST{expr, obj.Target}, nil
+	case parser.FuncAppSelectorAST:
+		// recurse
+		expr, err := ParserExprToFlatExpr(obj.FuncAppAST, reg)
+		if err != nil {
+			return nil, err
+		}
+		return funcAppSelectorAST{
+			Expr:     expr,
+			Selector: obj.Selector.Expr,
+		}, nil
 	case parser.FuncAppAST:
 		// exception for now()
 		if string(obj.Function) == "now" && len(obj.Expressions) == 0 && len(obj.Ordering) == 0 {
@@ -306,6 +317,16 @@ func ParserExprToMaybeAggregate(e parser.Expression, aggIdx int, reg udf.Functio
 			return nil, nil, err
 		}
 		return typeCastAST{expr, obj.Target}, agg, nil
+	case parser.FuncAppSelectorAST:
+		// recurse
+		expr, agg, err := ParserExprToMaybeAggregate(obj.FuncAppAST, aggIdx, reg)
+		if err != nil {
+			return nil, nil, err
+		}
+		return funcAppSelectorAST{
+			Expr:     expr,
+			Selector: obj.Selector.Expr,
+		}, agg, nil
 	case parser.FuncAppAST:
 		// exception for now()
 		if string(obj.Function) == "now" && len(obj.Expressions) == 0 {
@@ -713,6 +734,27 @@ func (f funcAppAST) ContainsWildcard() bool {
 		}
 	}
 	return false
+}
+
+type funcAppSelectorAST struct {
+	Expr     FlatExpression
+	Selector string
+}
+
+func (f funcAppSelectorAST) Repr() string {
+	return fmt.Sprintf("%s%s", f.Expr.Repr(), f.Selector)
+}
+
+func (f funcAppSelectorAST) Columns() []rowValue {
+	return f.Expr.Columns()
+}
+
+func (f funcAppSelectorAST) Volatility() VolatilityType {
+	return f.Expr.Volatility()
+}
+
+func (f funcAppSelectorAST) ContainsWildcard() bool {
+	return f.Expr.ContainsWildcard()
 }
 
 type sortExpression struct {

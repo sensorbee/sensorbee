@@ -402,6 +402,7 @@ baseExpr <-
     Case /
     RowMeta /
     FuncTypeCast /
+    FuncAppSelector /
     FuncApp /
     RowValue /
     ArrayExpr /
@@ -412,6 +413,15 @@ FuncTypeCast <- < "CAST" spOpt '(' spOpt Expression sp "AS" sp Type spOpt ')' > 
     }
 
 FuncApp <- FuncAppWithOrderBy / FuncAppWithoutOrderBy
+
+FuncAppSelector <- FuncApp FuncElemAccessor {
+        p.AssembleFuncAppSelector()
+    }
+
+FuncElemAccessor <- < jsonGetPathNonHead+ > {
+        substr := string([]rune(buffer)[begin:end])
+        p.PushComponent(begin, end, NewRaw(substr))
+    }
 
 FuncAppWithOrderBy <- Function spOpt '(' spOpt FuncParams sp ParamsOrder spOpt ')' {
         p.AssembleFuncApp()

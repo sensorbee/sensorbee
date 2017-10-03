@@ -2,14 +2,15 @@ package execution
 
 import (
 	"fmt"
-	"gopkg.in/sensorbee/sensorbee.v0/bql/parser"
-	"gopkg.in/sensorbee/sensorbee.v0/bql/udf"
-	"gopkg.in/sensorbee/sensorbee.v0/core"
-	"gopkg.in/sensorbee/sensorbee.v0/data"
 	"math"
 	"reflect"
 	"sort"
 	"strings"
+
+	"gopkg.in/sensorbee/sensorbee.v0/bql/parser"
+	"gopkg.in/sensorbee/sensorbee.v0/bql/udf"
+	"gopkg.in/sensorbee/sensorbee.v0/core"
+	"gopkg.in/sensorbee/sensorbee.v0/data"
 )
 
 // An Evaluator represents an expression such as `colX + 2` or
@@ -205,6 +206,14 @@ func ExpressionToEvaluator(ast FlatExpression, reg udf.FunctionRegistry) (Evalua
 			return nil, err
 		}
 		return newTypeCast(expr, obj.Target)
+	case funcAppSelectorAST:
+		// recurse
+		expr, err := ExpressionToEvaluator(obj.Expr, reg)
+		if err != nil {
+			return nil, err
+		}
+		funcEval := expr.(*funcApp) // snip type error check
+		return FuncAppSelector(funcEval, obj.Selector)
 	case funcAppAST:
 		// lookup function in function registry
 		// (the registry will decide if the requested function
@@ -914,6 +923,7 @@ type funcApp struct {
 	fVal        reflect.Value
 	params      []Evaluator
 	paramValues []reflect.Value
+	selector    data.Path
 }
 
 func (f *funcApp) Eval(input data.Value) (v data.Value, err error) {
@@ -945,6 +955,26 @@ func (f *funcApp) Eval(input data.Value) (v data.Value, err error) {
 		return nil, err
 	}
 	result := resultVal.Interface().(data.Value)
+	if f.selector != nil {
+		switch result.Type() {
+		case data.TypeMap:
+			retmap, _ := data.AsMap(result)
+			selected, err := retmap.Get(f.selector)
+			if err != nil {
+				return nil, err
+			}
+			result = selected
+		case data.TypeArray:
+			retarr, _ := data.AsArray(result)
+			selected, err := retarr.Get(f.selector)
+			if err != nil {
+				return nil, err
+			}
+			result = selected
+		default:
+			return nil, fmt.Errorf("type '%v' is not supported with selector", result.Type())
+		}
+	}
 	return result, nil
 }
 
@@ -954,7 +984,26 @@ func FuncApp(name string, f udf.UDF, ctx *core.Context, params []Evaluator) Eval
 	fVal := reflect.ValueOf(f.Call)
 	paramValues := make([]reflect.Value, len(params)+1)
 	paramValues[0] = reflect.ValueOf(ctx)
-	return &funcApp{name, fVal, params, paramValues}
+	return &funcApp{
+		name:        name,
+		fVal:        fVal,
+		params:      params,
+		paramValues: paramValues,
+	}
+}
+
+// FuncAppSelector represents function and selector.
+// After evaluate the function, return the selected value.
+func FuncAppSelector(funcEval *funcApp, selector string) (Evaluator, error) {
+	if strings.HasPrefix(selector, ".") {
+		selector = selector[1:]
+	}
+	path, err := data.CompilePath(selector)
+	if err != nil {
+		return nil, err
+	}
+	funcEval.selector = path
+	return funcEval, nil
 }
 
 /// Aggregate Function with Sorted Input

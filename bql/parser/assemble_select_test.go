@@ -1,8 +1,9 @@
 package parser
 
 import (
-	. "github.com/smartystreets/goconvey/convey"
 	"testing"
+
+	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestAssembleSelect(t *testing.T) {
@@ -139,7 +140,7 @@ func TestAssembleSelect(t *testing.T) {
 
 			Convey("Then the statement should be parsed correctly", func() {
 				err := p.Parse()
-				So(err, ShouldEqual, nil)
+				So(err, ShouldBeNil)
 				p.Execute()
 
 				ps := p.parseStack

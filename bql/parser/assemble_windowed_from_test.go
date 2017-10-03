@@ -1,8 +1,9 @@
 package parser
 
 import (
-	. "github.com/smartystreets/goconvey/convey"
 	"testing"
+
+	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestAssembleWindowedFrom(t *testing.T) {
@@ -114,7 +115,7 @@ func TestAssembleWindowedFrom(t *testing.T) {
 
 			Convey("Then the statement should be parsed correctly", func() {
 				err := p.Parse()
-				So(err, ShouldEqual, nil)
+				So(err, ShouldBeNil)
 				p.Execute()
 
 				ps := p.parseStack
@@ -132,7 +133,7 @@ func TestAssembleWindowedFrom(t *testing.T) {
 
 			Convey("Then the statement should be parsed correctly", func() {
 				err := p.Parse()
-				So(err, ShouldEqual, nil)
+				So(err, ShouldBeNil)
 				p.Execute()
 
 				ps := p.parseStack
