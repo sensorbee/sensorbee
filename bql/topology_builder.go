@@ -619,9 +619,19 @@ func (tb *TopologyBuilder) setUpUDSFStream(subsequentBox core.BoxNode, rel *pars
 		return nil, "", err
 	}
 	for input, config := range decl.ListInputs() {
-		if err := bn.Input(input, &core.BoxInputConfig{
+		if config.Capacity > math.MaxInt32 {
+			return nil, "", fmt.Errorf(
+				"specified buffer capacity %d is too large", config.Capacity)
+		} else if config.Capacity < 0 {
+			return nil, "", fmt.Errorf(
+				"specified buffer capacity %d must not be negative", config.Capacity)
+		}
+		bc := &core.BoxInputConfig{
 			InputName: config.InputName,
-		}); err != nil {
+			Capacity:  config.Capacity,
+			DropMode:  config.DropMode,
+		}
+		if err := bn.Input(input, bc); err != nil {
 			return nil, "", err
 		}
 	}
