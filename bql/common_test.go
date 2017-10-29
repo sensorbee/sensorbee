@@ -3,13 +3,12 @@ package bql
 import (
 	"encoding/binary"
 	"errors"
-	"io"
-	"sync"
-
 	"gopkg.in/sensorbee/sensorbee.v0/bql/parser"
 	"gopkg.in/sensorbee/sensorbee.v0/bql/udf"
 	"gopkg.in/sensorbee/sensorbee.v0/core"
 	"gopkg.in/sensorbee/sensorbee.v0/data"
+	"io"
+	"sync"
 )
 
 func newTestTopology() core.Topology {
@@ -153,8 +152,6 @@ func (d *duplicateUDSF) Terminate(ctx *core.Context) error {
 func createDuplicateUDSF(decl udf.UDSFDeclarer, stream string, dup int) (udf.UDSF, error) {
 	if err := decl.Input(stream, &udf.UDSFInputConfig{
 		InputName: "test",
-		Capacity:  999,
-		DropMode:  core.DropLatest,
 	}); err != nil {
 		return nil, err
 	}

@@ -3,6 +3,7 @@ package bql
 import (
 	"fmt"
 	"math"
+	"strings"
 	"testing"
 	"time"
 
@@ -255,10 +256,17 @@ func TestCreateStreamAsSelectStmt(t *testing.T) {
 				So(err, ShouldBeNil)
 
 				Convey("Then the input node should set the capacity", func() {
+					tmpUDSFName := ""
+					for k := range tb.Topology().Boxes() {
+						if strings.Index(k, "sensorbee_tmp_udsf_") == 0 {
+							tmpUDSFName = k
+							break
+						}
+					}
+					So(tmpUDSFName, ShouldStartWith, "sensorbee_tmp_udsf_")
 					bn, err := tb.Topology().Source("s")
 					So(err, ShouldBeNil)
-					p := fmt.Sprintf("output_stats.outputs.sensorbee_tmp_udsf_%d.queue_size",
-						topologyBuilderTemporaryID)
+					p := fmt.Sprintf("output_stats.outputs.%s.queue_size", tmpUDSFName)
 					c, err := bn.Status().Get(data.MustCompilePath(p))
 					So(err, ShouldBeNil)
 					So(c, ShouldEqual, 1)
