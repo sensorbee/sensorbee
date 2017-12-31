@@ -3,9 +3,10 @@ package udf
 import (
 	"errors"
 	"fmt"
+	"reflect"
+
 	"gopkg.in/sensorbee/sensorbee.v0/core"
 	"gopkg.in/sensorbee/sensorbee.v0/data"
-	"reflect"
 )
 
 // UDSFCreator creates a new UDSF instance.
@@ -240,6 +241,17 @@ type UDSFInputConfig struct {
 	// InputName is a custom name attached to incoming tuples. If this name is
 	// empty, "*" will be used.
 	InputName string
+
+	// Capacity is the maximum capacity or buffer size (length) of input pipe.
+	// When this parameter is 0, the default value is used. This parameter is
+	// only used as a hint and doesn't guarantee that the pipe can actually have
+	// the specified number of tuples.
+	Capacity int
+
+	// DropMode is a mode which controls the behavior of dropping tuples at the
+	// output side of the queue when it is full. When this parameter is not set,
+	// the default value "DropNone" is used.
+	DropMode core.QueueDropMode
 }
 
 type udsfDeclarer struct {

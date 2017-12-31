@@ -2,11 +2,12 @@ package udf
 
 import (
 	"fmt"
+	"strings"
+	"testing"
+
 	. "github.com/smartystreets/goconvey/convey"
 	"gopkg.in/sensorbee/sensorbee.v0/core"
 	"gopkg.in/sensorbee/sensorbee.v0/data"
-	"strings"
-	"testing"
 )
 
 type duplicateUDSF struct {
@@ -27,6 +28,8 @@ func (d *duplicateUDSF) Terminate(ctx *core.Context) error {
 func createDuplicateUDSF(decl UDSFDeclarer, stream string, dup int) (UDSF, error) {
 	if err := decl.Input(stream, &UDSFInputConfig{
 		InputName: "test",
+		Capacity:  99,
+		DropMode:  core.DropNone,
 	}); err != nil {
 		return nil, err
 	}
@@ -59,6 +62,8 @@ func TestDuplicateUDSF(t *testing.T) {
 				So(len(decl.inputs), ShouldEqual, 1)
 				So(decl.inputs["test_stream"], ShouldNotBeNil)
 				So(decl.inputs["test_stream"].InputName, ShouldEqual, "test")
+				So(decl.inputs["test_stream"].Capacity, ShouldEqual, 99)
+				So(decl.inputs["test_stream"].DropMode, ShouldEqual, core.DropNone)
 			})
 
 			Convey("Then it should duplicates tuples", func() {

@@ -1,11 +1,15 @@
 package bql
 
 import (
+	"fmt"
+	"math"
+	"strings"
 	"testing"
 	"time"
 
 	. "github.com/smartystreets/goconvey/convey"
 	"gopkg.in/sensorbee/sensorbee.v0/bql/parser"
+	"gopkg.in/sensorbee/sensorbee.v0/bql/udf"
 	"gopkg.in/sensorbee/sensorbee.v0/core"
 	"gopkg.in/sensorbee/sensorbee.v0/data"
 )
@@ -232,6 +236,84 @@ func TestCreateStreamAsSelectStmt(t *testing.T) {
 				Convey("Then there should be an error", func() {
 					So(err, ShouldNotBeNil)
 					So(err.Error(), ShouldContainSubstring, "not registered")
+				})
+			})
+
+			Convey("If the UDSF creator has a valid input configuration", func() {
+				creator := func(ctx *core.Context, decl udf.UDSFDeclarer, s string) (udf.UDSF, error) {
+					if err := decl.Input(s, &udf.UDSFInputConfig{
+						InputName: "dup_udsf",
+						Capacity:  1,
+						DropMode:  core.DropNone,
+					}); err != nil {
+						return nil, err
+					}
+					return &duplicateUDSF{}, nil
+				}
+				tb.UDSFCreators.Register("one_cap_duplicate", udf.MustConvertToUDSFCreator(creator))
+				err := addBQLToTopology(tb, `CREATE STREAM t AS SELECT ISTREAM int FROM
+				one_cap_duplicate("s") [RANGE 2 SECONDS]`)
+				So(err, ShouldBeNil)
+
+				Convey("Then the input node should set the capacity", func() {
+					tmpUDSFName := ""
+					for k := range tb.Topology().Boxes() {
+						if strings.Index(k, "sensorbee_tmp_udsf_") == 0 {
+							tmpUDSFName = k
+							break
+						}
+					}
+					So(tmpUDSFName, ShouldStartWith, "sensorbee_tmp_udsf_")
+					bn, err := tb.Topology().Source("s")
+					So(err, ShouldBeNil)
+					p := fmt.Sprintf("output_stats.outputs.%s.queue_size", tmpUDSFName)
+					c, err := bn.Status().Get(data.MustCompilePath(p))
+					So(err, ShouldBeNil)
+					So(c, ShouldEqual, 1)
+				})
+			})
+
+			Convey("If the UDSF creator has invalid input configuration", func() {
+				Convey("with negative capacity", func() {
+					creator := func(ctx *core.Context, decl udf.UDSFDeclarer, s string) (udf.UDSF, error) {
+						if err := decl.Input(s, &udf.UDSFInputConfig{
+							InputName: "dup_udsf",
+							Capacity:  -1,
+							DropMode:  core.DropNone,
+						}); err != nil {
+							return nil, err
+						}
+						return &duplicateUDSF{}, nil
+					}
+					tb.UDSFCreators.Register("capacity_negative", udf.MustConvertToUDSFCreator(creator))
+					err := addBQLToTopology(tb, `CREATE STREAM t AS SELECT ISTREAM int FROM
+				capacity_negative("s") [RANGE 2 SECONDS]`)
+
+					Convey("Then there should be an error", func() {
+						So(err, ShouldNotBeNil)
+						So(err.Error(), ShouldContainSubstring, "negative")
+					})
+				})
+
+				Convey("with too large capacity", func() {
+					creator := func(ctx *core.Context, decl udf.UDSFDeclarer, s string) (udf.UDSF, error) {
+						if err := decl.Input(s, &udf.UDSFInputConfig{
+							InputName: "dup_udsf",
+							Capacity:  math.MaxInt32,
+							DropMode:  core.DropNone,
+						}); err != nil {
+							return nil, err
+						}
+						return &duplicateUDSF{}, nil
+					}
+					tb.UDSFCreators.Register("large_capacity", udf.MustConvertToUDSFCreator(creator))
+					err := addBQLToTopology(tb, `CREATE STREAM t AS SELECT ISTREAM int FROM
+				large_capacity("s") [RANGE 2 SECONDS]`)
+
+					Convey("Then there should be an error", func() {
+						So(err, ShouldNotBeNil)
+						So(err.Error(), ShouldContainSubstring, "too large")
+					})
 				})
 			})
 		})
